@@ -212,3 +212,9 @@ classpath only through a `plugins {}` request. Fix-forward: `build-logic` includ
 on `build-logic-android` when `voysemble.android=true`, and `voysemble.kmp` applies
 `voysemble.kmp-android` itself; `core` no longer references Android. Non-Android path
 re-verified (core 10/10).
+
+CI verification (run 38086641892 on `580b328`): configuration passes for every module. Failure
+at task-graph time: KGP's `KotlinNativeBundleBuildService` loaded in two classloaders
+(`project-core` and `project-android-app`), "plugin applied to two sibling projects". Fix-forward:
+root `build.gradle.kts` requests `id("voysemble.kmp") apply false` so KGP (and AGP through
+build-logic-android) load once in the root classloader. Non-Android path re-verified (10/10).
