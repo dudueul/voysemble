@@ -6,6 +6,9 @@ plugins {
     `kotlin-dsl`
 }
 
+// Coordinates used by build-logic's dependency on this included build (substituted, never published).
+group = "com.voysemble.build"
+
 dependencies {
     implementation(libs.kotlin.gradlePlugin)
     implementation(libs.kotlin.composeCompilerPlugin)

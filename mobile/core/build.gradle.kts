@@ -11,8 +11,6 @@ plugins {
     id("voysemble.kmp")
 }
 
-val withAndroid = providers.gradleProperty("voysemble.android").map(String::toBoolean).getOrElse(true)
-
 kotlin {
     jvm()
 
@@ -45,8 +43,5 @@ kotlin {
     }
 }
 
-// Android target and library configuration live in the `voysemble.kmp-android` convention plugin
-// from build-logic-android, which is only included when voysemble.android=true.
-if (withAndroid) {
-    apply(plugin = "voysemble.kmp-android")
-}
+// The Android target is added by `voysemble.kmp` (via build-logic-android) when
+// voysemble.android=true; nothing Android-specific is referenced here.

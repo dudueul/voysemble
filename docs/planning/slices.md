@@ -204,3 +204,11 @@ idempotent; totals 34/38.
 
 Unverified until CI: Compose code compiles against BOM 2026.09.00 / Material 3 1.4; Robolectric
 + Roborazzi configuration under AGP 9 built-in Kotlin; SwiftUI against the SKIE-generated API.
+
+CI verification (run 38085806640 on `82cca05`): both convention-plugin builds compile. Failure
+moved to `core/build.gradle.kts`: `Plugin with id 'voysemble.kmp-android' not found` because
+`apply(plugin = ...)` only sees the classpath, and plugins from an included build enter the
+classpath only through a `plugins {}` request. Fix-forward: `build-logic` includes and depends
+on `build-logic-android` when `voysemble.android=true`, and `voysemble.kmp` applies
+`voysemble.kmp-android` itself; `core` no longer references Android. Non-Android path
+re-verified (core 10/10).

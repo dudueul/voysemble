@@ -12,3 +12,10 @@ plugins {
 kotlin {
     jvmToolchain(21)
 }
+
+// Android target: provided by build-logic-android (on this plugin's classpath only when
+// voysemble.android=true). Applied here rather than in the module so modules stay host-agnostic.
+val withAndroid = providers.gradleProperty("voysemble.android").map(String::toBoolean).getOrElse(true)
+if (withAndroid) {
+    apply(plugin = "voysemble.kmp-android")
+}
