@@ -1,5 +1,5 @@
 // Copyright 2026- At Day. All rights reserved.
-// App entry. Real navigation arrives in P1/P2 slices.
+// App entry. Today is the first real screen; other tabs are honest placeholders.
 
 import SwiftUI
 
@@ -7,7 +7,7 @@ import SwiftUI
 struct VoysembleApp: App {
     var body: some Scene {
         WindowGroup {
-            TodayPlaceholderView(model: TodayPlaceholderModel(host: AppConfig.apiHost))
+            TodayView(model: TodayModel())
         }
     }
 }

@@ -6,4 +6,6 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
+    // Screenshot tests on the JVM (Robolectric native graphics). `recordRoborazziDebug` writes PNGs.
+    id("io.github.takahirom.roborazzi")
 }

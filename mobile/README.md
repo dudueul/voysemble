@@ -11,6 +11,14 @@ Kotlin Multiplatform workspace (ADR-0003).
 Design tokens: `packages/design-tokens` generates `core/.../design/Tokens.kt` and
 `ios-app/Voysemble/Design/Tokens.swift`. Regenerate with `pnpm --filter @voysemble/design-tokens build`.
 
+## Screens
+
+| Screen | Android | iOS | Evidence |
+|---|---|---|---|
+| Today (slice 005) | `android-app/.../today/TodayScreen.kt` | `ios-app/Voysemble/Today/TodayView.swift` | `./gradlew :android-app:recordRoborazziDebug` -> `docs/captures/android/` |
+
+Shared rules and fixtures: `core/src/commonMain/kotlin/com/voysemble/core/today`, `.../fixtures`.
+
 ## Commands
 
 ```sh

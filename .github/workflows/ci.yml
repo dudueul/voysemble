@@ -41,6 +41,15 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - run: ./gradlew build --console=plain
         working-directory: mobile
+      # Screenshot evidence for the mobile Today screen (Robolectric + Roborazzi, 412x915).
+      - run: ./gradlew :android-app:recordRoborazziDebug --console=plain
+        working-directory: mobile
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-captures
+          path: docs/captures/android
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         if: always()
         with:

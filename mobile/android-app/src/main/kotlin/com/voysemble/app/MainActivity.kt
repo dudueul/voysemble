@@ -1,5 +1,5 @@
 // Copyright 2026- At Day. All rights reserved.
-// Single-activity host. Navigation and real screens arrive in P1/P2 slices.
+// Single-activity host. Tabs other than Today arrive in later slices.
 
 package com.voysemble.app
 
@@ -8,8 +8,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.voysemble.app.today.TodayPlaceholderScreen
-import com.voysemble.app.today.TodayPlaceholderViewModel
+import com.voysemble.app.today.TodayRoute
+import com.voysemble.app.today.TodayViewModel
 import com.voysemble.app.ui.VoysembleTheme
 
 class MainActivity : ComponentActivity() {
@@ -18,8 +18,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             VoysembleTheme {
-                val vm: TodayPlaceholderViewModel = viewModel(factory = TodayPlaceholderViewModel.factory(BuildConfig.API_HOST))
-                TodayPlaceholderScreen(vm)
+                val vm: TodayViewModel = viewModel()
+                TodayRoute(vm)
             }
         }
     }

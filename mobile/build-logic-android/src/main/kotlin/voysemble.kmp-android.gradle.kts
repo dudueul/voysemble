@@ -7,7 +7,6 @@
 
 import com.android.build.api.dsl.KotlinMultiplatformAndroidLibraryExtension
 import org.gradle.api.plugins.ExtensionAware
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("org.jetbrains.kotlin.multiplatform")
@@ -23,8 +22,8 @@ kotlin {
         compileSdk = version("compileSdk")
         minSdk = version("minSdk")
         withHostTestBuilder {}
-        // `compilerOptions` is a plain property here (no `.configure {}` as in the older docs sample).
-        compilerOptions.jvmTarget.set(JvmTarget.JVM_21)
+        // JVM target follows the toolchain declared in voysemble.kmp (21). The extension's
+        // `compilerOptions` exposes neither `configure {}` nor `jvmTarget` in AGP 9.3.1 (CI runs 4-5).
     }
     sourceSets.getByName("androidMain").dependencies {
         implementation(catalog.findLibrary("ktor-client-okhttp").get())

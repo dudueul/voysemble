@@ -164,8 +164,43 @@ CI verification (run 38084682337 on `2913a80`): mobile job got through AGP resol
 `com.android.kotlin.multiplatform.library` plugin, the `kotlin { android { } }` extension,
 namespace and SDK versions. One compile error left in `voysemble.kmp-android.gradle.kts`:
 `compilerOptions.configure { }` does not exist on this extension in AGP 9.3.1; replaced by
-`compilerOptions.jvmTarget.set(JvmTarget.JVM_21)`. Next commit.
+`compilerOptions.jvmTarget.set(JvmTarget.JVM_21)` (`1da48bd`).
 
-## Slice 005 (next): mobile Today screen (Compose + SwiftUI) on fixtures, screenshots via Roborazzi
+CI verification (run 38085160970 on `1da48bd`): `jvmTarget` also unresolved on that
+`compilerOptions`. Removed the explicit setting; the toolchain (21) from `voysemble.kmp` applies.
+Ships with slice 005's commit.
 
-Planned. Contract to be written before start.
+## Slice 005: mobile Today screen (Compose + SwiftUI) on fixtures
+
+Status: built 2026-10-10; Android compile and screenshots pending CI. Commit: `feat(mobile): today screen ...`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Core model tests (shared) | `./gradlew :core:jvmTest -Pvoysemble.android=false` | 3 classes, 10 tests (5 new: up-next rule, ack state machine, head count) |
+| Android unit + screenshot tests | CI `mobile` job: `./gradlew build` then `:android-app:recordRoborazziDebug` (Robolectric 4.17 native graphics, Roborazzi 1.76.0, 412x915) | **not run here** (no Android SDK / Google Maven in the sandbox) |
+| iOS | SwiftUI `TodayView` compiles only on macOS | **not run here** |
+| Web gate | `pnpm check` | green |
+
+Built:
+- `core/today/TodayModel.kt`: `TodaySnapshot` with `upNext` / `later` rules on local HH:mm, `AckState`
+  UNACKNOWLEDGED -> PENDING (queued locally) -> ACKNOWLEDGED (server confirmation, exposed for the
+  sync slice), head-count sums. `core/fixtures/KoreaConcertTourFixture.kt` mirrors the web fixture
+  (Day 4, 07:12 Rome).
+- Android: `TodayScreen` (header with day + sync, green Up-next card with meeting-point action,
+  latest announcement with Acknowledge / "Queued · sends when online" / Acknowledged, head-count
+  meters with "n missing" text, later-today rows with status chips, five bottom tabs),
+  `TodayViewModel`, `VoysembleTheme` with semantic colors + typography + shapes from tokens,
+  `AppIcons` (same stroke paths as the web icon set, no icon library). Placeholder screen removed.
+- Android tests: `TodayViewModelTest` (JVM) and `TodayScreenshotTest` (light, dark,
+  offline + pending ack) writing to `docs/captures/android/`.
+- iOS: `TodayView` + `TodayModel` with the same structure, SF Symbols, SKIE `onEnum(of:)` over
+  core enums. Placeholder removed.
+- CI: records Android screenshots and uploads `android-captures`; captures are copied into the
+  repo from the artifact once CI is green (evidence must come from a real run, doc 01 §18.4).
+
+Facts established by tests (core): up-next = first unfinished event ending at/after now (in-progress
+counts); later excludes it; nothing up-next late at night; ack transitions are ordered and
+idempotent; totals 34/38.
+
+Unverified until CI: Compose code compiles against BOM 2026.09.00 / Material 3 1.4; Robolectric
++ Roborazzi configuration under AGP 9 built-in Kotlin; SwiftUI against the SKIE-generated API.

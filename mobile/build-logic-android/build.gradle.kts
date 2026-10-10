@@ -10,4 +10,5 @@ dependencies {
     implementation(libs.kotlin.gradlePlugin)
     implementation(libs.kotlin.composeCompilerPlugin)
     implementation(libs.android.gradlePlugin)
+    implementation(libs.roborazzi.gradlePlugin)
 }
