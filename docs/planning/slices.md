@@ -160,6 +160,12 @@ Fix-forward (next commit): Android convention plugins moved to a second included
 `mobile/build-logic-android`, included from settings only when `voysemble.android=true`.
 Non-Android path re-verified locally (core 5/5). Android compile still CI-verified only.
 
+CI verification (run 38084682337 on `2913a80`): mobile job got through AGP resolution, the
+`com.android.kotlin.multiplatform.library` plugin, the `kotlin { android { } }` extension,
+namespace and SDK versions. One compile error left in `voysemble.kmp-android.gradle.kts`:
+`compilerOptions.configure { }` does not exist on this extension in AGP 9.3.1; replaced by
+`compilerOptions.jvmTarget.set(JvmTarget.JVM_21)`. Next commit.
+
 ## Slice 005 (next): mobile Today screen (Compose + SwiftUI) on fixtures, screenshots via Roborazzi
 
 Planned. Contract to be written before start.

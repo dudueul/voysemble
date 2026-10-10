@@ -23,9 +23,8 @@ kotlin {
         compileSdk = version("compileSdk")
         minSdk = version("minSdk")
         withHostTestBuilder {}
-        compilerOptions.configure {
-            jvmTarget.set(JvmTarget.JVM_21)
-        }
+        // `compilerOptions` is a plain property here (no `.configure {}` as in the older docs sample).
+        compilerOptions.jvmTarget.set(JvmTarget.JVM_21)
     }
     sourceSets.getByName("androidMain").dependencies {
         implementation(catalog.findLibrary("ktor-client-okhttp").get())
