@@ -4,8 +4,8 @@
 package com.voysemble.app.today
 
 import com.voysemble.core.today.AckState
-import kotlin.test.Test
 import kotlin.test.assertEquals
+import org.junit.Test
 
 class TodayViewModelTest {
     @Test

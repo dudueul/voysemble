@@ -223,4 +223,10 @@ CI verification (run 38087326231 on `dd5adc3`): Gradle configuration and plugin 
 pass. First dependency-level failure: every Compose BOM 2026.09.00 / lifecycle 2.11 / core 1.19
 artifact "requires compile against version 37 or later"; we pinned `compileSdk` 36.
 Fix-forward: `compileSdk` 37 (`targetSdk` stays 36) plus `android.suppressUnsupportedCompileSdk=37`
-for AGP 9.3.1. Next commit.
+for AGP 9.3.1 (`55628e4`).
+
+CI verification (run 38087963803 on `55628e4`): **the Android stack compiles**: `core` Android
+target, `android-app` debug and release Kotlin (the Compose Today screen), R8 minify, lint
+analysis. Only `compileDebugUnitTestKotlin` failed: `kotlin.test.Test` unresolved in
+`TodayViewModelTest` (no JUnit bridge for kotlin-test on the Android unit-test classpath).
+Fix-forward: `org.junit.Test` in the test and `kotlin("test-junit")` added. Next commit.
