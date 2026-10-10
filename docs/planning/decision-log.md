@@ -6,7 +6,7 @@ Status legend: `open` (being grilled), `decided`, `deferred`.
 
 | # | Topic | Status | Decision | Why |
 |---|---|---|---|---|
-| D01 | Product boundary: multi-tenant SaaS (docs 01/02/03) vs single-owner E2E agency tool (doc 00) | open | | |
+| D01 | Product boundary | decided | Single-operator platform (founder only), org-scoped data. Build docs 01-03 product. Doc 00 = security posture source. Encryption in tiers: ops data plaintext in D1; PII fields AES-256-GCM with per-org DEK wrapped by Worker-secret master key; documents in R2 ciphertext with seam for owner-held key later; live coords ephemeral in DO only. Stripe web-only, organizers only, hosted Checkout + Portal, no card data. Admin = Cloudflare Access + single staff identity + audit + reauth. | Server needs ops plaintext for role filtering, sync, fanout, graph. Full E2E kills those. PII/doc encryption still defeats DB/backup leak. |
 | D02 | Mobile client runtime: native (SwiftUI/Compose) vs React Native/Expo | open | | |
 | D03 | Workers AI usage boundary | open | | |
 | D04 | Auth provider and session model | open | | |
