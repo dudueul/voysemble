@@ -6,8 +6,9 @@
 // Google Maven as of 2026-10-10; first Android build must confirm.
 
 plugins {
+    // Versions come from the root buildscript classpath (see mobile/build.gradle.kts).
     id("com.android.application")
-    alias(libs.plugins.kotlin.compose)
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {

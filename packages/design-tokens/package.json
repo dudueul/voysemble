@@ -7,5 +7,13 @@
   "scripts": {
     "build": "node scripts/generate.mjs",
     "test": "node --test 'test/*.test.mjs'"
-  }
+  },
+  "exports": {
+    "./tokens.json": "./tokens.json",
+    "./dist/tokens.css": "./dist/tokens.css"
+  },
+  "files": [
+    "tokens.json",
+    "dist"
+  ]
 }

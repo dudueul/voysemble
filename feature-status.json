@@ -17,6 +17,11 @@
     "admin.job-repair": "deferred",
     "ai.ingest-suggestions": "deferred",
     "ai.broadcast-translation": "deferred",
-    "ai.image-moderation-flags": "deferred"
+    "ai.image-moderation-flags": "deferred",
+    "web.shell": "simulated",
+    "web.command-center": "simulated",
+    "api.static-assets": "working",
+    "mobile.core.api-client": "working",
+    "mobile.today-placeholder": "simulated"
   }
 }

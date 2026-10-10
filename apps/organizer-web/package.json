@@ -1,0 +1,37 @@
+{
+  "name": "@voysemble/organizer-web",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Organizer PC web console. React + Vite + TanStack Router/Query. Served by the API Worker as static assets.",
+  "type": "module",
+  "scripts": {
+    "prebuild": "pnpm --filter @voysemble/design-tokens build",
+    "build": "vite build",
+    "predev": "pnpm --filter @voysemble/design-tokens build",
+    "dev": "vite",
+    "preview": "vite preview --port 4173 --strictPort",
+    "typecheck": "pnpm --filter @voysemble/design-tokens build && tsc -p tsconfig.json",
+    "pretest": "pnpm --filter @voysemble/design-tokens build",
+    "test": "vitest run",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "catalog:",
+    "@tanstack/react-router": "catalog:",
+    "@voysemble/design-tokens": "workspace:*",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@playwright/test": "catalog:",
+    "@testing-library/react": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "happy-dom": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

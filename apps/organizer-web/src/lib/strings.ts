@@ -1,0 +1,61 @@
+// Copyright 2026- At Day. All rights reserved.
+// UI strings. English source; KO arrives with the i18n slice. Keep all user-visible copy here.
+
+export const strings = {
+  app: { name: 'Voysemble', console: 'Console' },
+  nav: {
+    today: 'Today',
+    itinerary: 'Itinerary',
+    journeyGraph: 'Journey Graph',
+    people: 'People',
+    communication: 'Communication',
+    travel: 'Travel',
+    safety: 'Safety',
+    media: 'Media',
+    preparation: 'Preparation',
+    reports: 'Reports',
+    billing: 'Billing',
+    settings: 'Settings',
+  },
+  topbar: {
+    search: 'Search trips, people, places',
+    notifications: 'Notifications',
+    account: 'Account',
+  },
+  dashboard: {
+    welcome: (name: string) => `Welcome back, ${name}`,
+    subtitle: (day: number, trip: string) => `${trip} · Day ${day}`,
+    activeTrips: 'Active trips',
+    travelers: 'Travelers',
+    ackRate: 'Acknowledged',
+    openAlerts: 'Open alerts',
+    next48h: 'Next 48 hours',
+    alerts: 'Needs attention',
+    headcount: 'Head count',
+    announcements: 'Announcements',
+    upcomingTrips: 'Trips',
+    checkedIn: 'checked in',
+    viewAll: 'View all',
+    lastSync: (t: string) => `Synced ${t}`,
+    simulated: 'Sample data',
+    noAlerts: 'Nothing needs attention right now.',
+  },
+  states: {
+    loading: 'Loading your command center…',
+    emptyTitle: 'No trips yet',
+    emptyBody: 'Create a trip to see movements, alerts, and head counts here.',
+    emptyAction: 'Create a trip',
+    errorTitle: 'Could not load the command center',
+    errorBody: (ref: string) =>
+      `Try again. If it keeps failing, quote reference ${ref} to support.`,
+    retry: 'Retry',
+    offlineBanner: (t: string) => `You are offline. Showing data from the last sync ${t}.`,
+  },
+  placeholder: {
+    title: (section: string) => `${section} is not built yet`,
+    body: 'This area is in the work graph. Status in feature-status.json is "deferred".',
+  },
+  severity: { red: 'Urgent', amber: 'Watch', info: 'Info' },
+  status: { scheduled: 'Scheduled', delayed: 'Delayed', done: 'Done', in_progress: 'Now' },
+  tripStatus: { active: 'Active', planning: 'Planning', completed: 'Completed' },
+} as const;

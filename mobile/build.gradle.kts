@@ -1,8 +1,12 @@
 // Copyright 2026- At Day. All rights reserved.
 //
-// Root build. Kotlin plugins are declared here (plugin portal / Maven Central). The Android
-// Gradle Plugin is put on the buildscript classpath only when `voysemble.android=true`, because
-// it lives on Google Maven, which some build hosts cannot reach. Modules apply it by id.
+// Root build. All Gradle plugins (Kotlin, serialization, Compose compiler, SKIE, and, when
+// voysemble.android=true, the Android Gradle Plugin) are placed on the root buildscript classpath.
+// Modules then apply them by id without versions. This is deliberate: script plugins applied with
+// `apply(from = ...)` (core/android-target.gradle.kts) only see the root buildscript classpath, so
+// a `plugins {}` block in a module would not make AGP/KGP classes visible to them.
+// AGP lives on Google Maven, which some build hosts cannot reach; the toggle keeps those hosts
+// building core and its JVM tests.
 
 val withAndroid = providers.gradleProperty("voysemble.android").map(String::toBoolean).getOrElse(true)
 
@@ -14,14 +18,12 @@ buildscript {
         if (withAndroid) google()
     }
     dependencies {
+        classpath(libs.kotlin.gradlePlugin)
+        classpath(libs.kotlin.serializationPlugin)
+        classpath(libs.kotlin.composeCompilerPlugin)
+        classpath(libs.skie.gradlePlugin)
         if (withAndroid) classpath(libs.android.gradlePlugin)
     }
-}
-
-plugins {
-    alias(libs.plugins.kotlin.multiplatform) apply false
-    alias(libs.plugins.kotlin.serialization) apply false
-    alias(libs.plugins.kotlin.compose) apply false
 }
 
 // Surface the toggle in logs so CI output states which configuration ran.

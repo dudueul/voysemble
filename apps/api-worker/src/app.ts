@@ -13,6 +13,8 @@ import type { AppEnv } from './env';
 import { healthHandler, healthRoute } from './routes/health';
 
 const CORRELATION_HEADER = 'X-Correlation-Id';
+/** Mirrors wrangler.jsonc assets.run_worker_first. */
+const WORKER_FIRST_PREFIXES = ['/v1', '/openapi.json', '/webhooks'];
 
 function errorBody(
   code: ErrorEnvelope['error']['code'],
@@ -53,9 +55,18 @@ export function createApp(): OpenAPIHono<AppEnv> {
   });
   app.use('*', secureHeaders());
 
-  app.notFound((c) =>
-    c.json(errorBody('NOT_FOUND', 'No such route.', c.get('correlationId')), 404),
-  );
+  // API namespaces answer JSON 404. Everything else falls through to the organizer console
+  // bundle (Workers Static Assets, SPA fallback). In production asset-first routing serves those
+  // paths before the Worker runs; this branch covers tests and any path that reaches the Worker.
+  app.notFound((c) => {
+    const path = new URL(c.req.url).pathname;
+    const isApi = WORKER_FIRST_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`));
+    if (!isApi && (c.req.method === 'GET' || c.req.method === 'HEAD')) {
+      // Re-wrap: the asset response has immutable headers and downstream middleware adds ours.
+      return c.env.ASSETS.fetch(c.req.raw).then((res) => new Response(res.body, res));
+    }
+    return c.json(errorBody('NOT_FOUND', 'No such route.', c.get('correlationId')), 404);
+  });
 
   app.onError((err, c) => {
     const correlationId = c.get('correlationId') ?? 'unknown';

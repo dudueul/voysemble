@@ -64,8 +64,50 @@ Deviations found while building (recorded, all pinned in `mobile/gradle/libs.ver
 - Ktor 3.6 transitively pulls `kotlinx-datetime 0.8.0-0.6.x-compat`; direct datetime dependency removed until needed.
 - `voysemble.android` Gradle property added so hosts without Google Maven can still build and test core.
 
-Unverified until a host with the Android SDK runs CI: `core/android-target.gradle.kts`, `android-app/build.gradle.kts`. First failure there is the next fix-forward.
+CI verification (run 38081961280 on `1968f7c`): web job green; mobile job **failed** at configuration of
+`:core`: the script plugin `core/android-target.gradle.kts` could not resolve `com.android.*`,
+`org.jetbrains.kotlin.*`, or `libs`. Cause: `apply(from = ...)` script plugins see only the root
+buildscript classpath and have no generated catalog accessor. Fix-forward (in slice 003's commit):
+all Gradle plugins moved to the root buildscript classpath, modules apply plugins by id without a
+version, the script plugin reads the catalog via `VersionCatalogsExtension`. Core JVM tests re-run
+green locally after the change (5/5). Android compile remains CI-verified only.
 
-## Slice 003 (next): P1 visual foundation, web console shell + command center on fixtures
+## Slice 003: organizer web shell + command center on fixtures
+
+Status: done 2026-10-10. Commit: `feat(web): organizer shell and command center on fixtures`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Lint + format | `pnpm lint` (60 files) | 0 errors after a11y fixes (semantic `<search>`, `<section>`, decorative SVGs, no `role="meter"` div) |
+| Typecheck | `pnpm typecheck` | pass (contracts, api-worker, organizer-web) |
+| Component tests | `pnpm --filter @voysemble/organizer-web test` (vitest 4.1.11 + happy-dom + RTL) | 2 files, 8 tests |
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 7 tests incl. Static Assets: `/` and `/billing` serve `index.html`; `/v1/*` stays JSON 404 |
+| Browser E2E + captures | `CI=1 pnpm --filter @voysemble/organizer-web test:e2e` (Playwright 1.56.1, Chromium, 1440x960 and 1280x800) | 12 passed; 10 screenshots in `docs/captures/web/` |
+| Headers | `pnpm check:headers` | ok |
+
+Facts established:
+- Dashboard numbers derive from the fixture: 1 active trip, 38 travelers, 94% acknowledged, 2 open alerts, head count 34/38 with "2 missing" per bus.
+- Red (Urgent) alert sorts first; alerts show "22 min ago" style relative time in the trip's zone; times render per explicit time zone (07:12 Rome = 15:12 Seoul).
+- `/?state=loading|empty|error|offline` each render the designed state; error shows the correlation reference and Retry calls refetch.
+- Sidebar has 12 sections; `Today` carries `aria-current="page"`; other sections render an honest "not built yet" placeholder.
+- Production bundle: 415 kB JS (130 kB gzip), 15 kB CSS. Served asset-first by the Worker; Worker `notFound` falls back to `ASSETS` for non-API GETs (re-wrapping the response so middleware can add headers).
+
+Visual acceptance evidence: `docs/captures/web/desktop-1440/command-center.png` vs gallery #23 in
+`docs/visual-references/screen-gallery-28-mobile-and-web-console.webp`. Matches: sidebar hierarchy,
+org/trip context, welcome header, 4 stat tiles, trip list with status pills, right-rail cards.
+Deliberate differences: alerts with suggested actions and head-count meters added (doc 00 §8/§10);
+cover art is synthetic gradient until licensed photography exists (doc 01 §15); system font stack
+instead of a web font (no third-party requests).
+
+Deviations found while building:
+- RTL needs explicit `cleanup` between tests without vitest globals.
+- Playwright must run from the package directory (root run picks up Worker tests).
+- Hono `secureHeaders` cannot mutate an `ASSETS.fetch` response; re-wrap with `new Response(body, res)`.
+- Global Playwright 1.56.1 + preinstalled Chromium 1194 in the sandbox; pinned 1.56.1 to match.
+
+Not done: no auth, no live data, no KO strings, no itinerary editor (slice 004), E2E not yet in CI
+(added to the web job in this commit; first CI run verifies it).
+
+## Slice 004 (next): PC itinerary editor on fixtures (second visual acceptance screen)
 
 Planned. Contract to be written before start.

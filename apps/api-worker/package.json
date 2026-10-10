@@ -9,7 +9,9 @@
     "types": "wrangler types",
     "typecheck": "wrangler types && tsc -p tsconfig.json && tsc -p test/tsconfig.json",
     "test": "vitest run",
-    "deploy:preview": "wrangler deploy --env preview"
+    "deploy:preview": "wrangler deploy --env preview",
+    "pretest": "pnpm --filter @voysemble/organizer-web build",
+    "predev": "pnpm --filter @voysemble/organizer-web build"
   },
   "dependencies": {
     "@hono/zod-openapi": "catalog:",
@@ -20,6 +22,7 @@
   "devDependencies": {
     "@cloudflare/vitest-plugin": "catalog:",
     "@types/node": "catalog:",
+    "@voysemble/organizer-web": "workspace:*",
     "typescript": "catalog:",
     "vitest": "catalog:",
     "wrangler": "catalog:"

@@ -20,6 +20,7 @@ cd mobile
 cd ios-app && xcodegen generate && open Voysemble.xcodeproj   # macOS
 ```
 
+Plugins are on the root buildscript classpath and applied by id (see `build.gradle.kts` for why).
 `voysemble.android=false` drops the Android target and app for hosts that cannot reach
 `dl.google.com` (some sandboxes). Default is `true` (CI, developer machines).
 

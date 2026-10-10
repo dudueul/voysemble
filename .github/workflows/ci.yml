@@ -20,6 +20,14 @@ jobs:
       - run: pnpm test
       - run: pnpm test:scripts
       - run: pnpm check:headers
+      - run: pnpm --filter @voysemble/organizer-web exec playwright install --with-deps chromium
+      - run: pnpm --filter @voysemble/organizer-web test:e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: web-captures
+          path: docs/captures/web
+          if-no-files-found: ignore
   mobile:
     # GitHub Ubuntu runners ship the Android SDK and can reach Google Maven, so the full build
     # runs here (core JVM + Android targets, android-app). iOS targets are skipped on Linux.

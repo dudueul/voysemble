@@ -1,0 +1,22 @@
+# @voysemble/organizer-web
+
+Organizer PC console. React 19 + Vite + TanStack Router (code-based routes) + TanStack Query.
+Served by `apps/api-worker` through Workers Static Assets on the same origin as `/v1/*`
+(ADR-0008), so the browser needs no CORS and cookies stay host-only.
+
+Slice 003 ships the shell (sidebar, top bar with org/trip context) and the Command Center on a
+deterministic fixture (`src/fixtures/korea-concert-tour.ts`, "now" frozen at Day 4). Every
+other section is an honest placeholder.
+
+States: `/?state=live|loading|empty|error|offline`.
+
+```sh
+pnpm --filter @voysemble/organizer-web dev        # http://localhost:5173
+pnpm --filter @voysemble/organizer-web test       # vitest + happy-dom component tests
+pnpm --filter @voysemble/organizer-web build      # dist/ consumed by the Worker
+pnpm --filter @voysemble/organizer-web test:e2e   # Playwright: facts + screenshots -> docs/captures/web/
+```
+
+No icon library, no CSS framework, no fonts from third parties, no analytics. Strings live in
+`src/lib/strings.ts` (EN source; KO in the i18n slice). Cover art is synthetic until licensed
+photography is approved (doc 01 §15).

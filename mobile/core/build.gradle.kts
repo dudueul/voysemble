@@ -7,10 +7,11 @@
 // iosSimulatorArm64 (compiled only on macOS; Gradle disables them elsewhere).
 
 plugins {
-    alias(libs.plugins.kotlin.multiplatform)
-    alias(libs.plugins.kotlin.serialization)
+    // Versions come from the root buildscript classpath (see mobile/build.gradle.kts).
+    id("org.jetbrains.kotlin.multiplatform")
+    id("org.jetbrains.kotlin.plugin.serialization")
     // SKIE: Swift-friendly sealed interfaces (onEnum(of:)) and async suspend bridging. Apple-only effect.
-    alias(libs.plugins.skie)
+    id("co.touchlab.skie")
 }
 
 val withAndroid = providers.gradleProperty("voysemble.android").map(String::toBoolean).getOrElse(true)
