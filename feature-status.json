@@ -1,0 +1,22 @@
+{
+  "$comment": "working = verified backend integration + tests; simulated = deterministic fixture with UI label; deferred = designed, not presented as available. Update in the same commit as the feature.",
+  "updatedAt": "2026-10-10",
+  "features": {
+    "api.health": "working",
+    "api.openapi": "working",
+    "auth.oidc": "deferred",
+    "auth.invitations": "deferred",
+    "trips.create": "deferred",
+    "itinerary.publish": "deferred",
+    "announcements.ack": "deferred",
+    "headcount.durable": "deferred",
+    "sync.offline": "deferred",
+    "media.private-upload": "deferred",
+    "graph.proposal": "deferred",
+    "billing.stripe": "deferred",
+    "admin.job-repair": "deferred",
+    "ai.ingest-suggestions": "deferred",
+    "ai.broadcast-translation": "deferred",
+    "ai.image-moderation-flags": "deferred"
+  }
+}

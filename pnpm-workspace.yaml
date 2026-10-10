@@ -1,0 +1,19 @@
+# Copyright 2026- At Day. All rights reserved.
+packages:
+  - apps/*
+  - packages/*
+
+catalog:
+  hono: 4.13.13
+  "@hono/zod-openapi": 1.6.3
+  zod: 4.6.5
+  wrangler: 4.149.0
+  "@cloudflare/vitest-plugin": 1.4.0
+  vitest: 4.1.11
+  typescript: 5.9.3
+  "@biomejs/biome": 2.5.15
+  "@types/node": 26.6.5
+
+onlyBuiltDependencies:
+  - esbuild
+  - workerd

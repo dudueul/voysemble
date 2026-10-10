@@ -1,0 +1,36 @@
+// Copyright 2026- At Day. All rights reserved.
+//
+// Customer API Worker config. Environments per ADR-0008. `<build>` placeholders are substituted
+// by CI, never by hand. Bindings (D1, DO, R2, KV, Queues) are added by the slices that need them.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "voysemble-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "vars": { "ENV_NAME": "local", "BUILD_ID": "local" },
+  "env": {
+    "preview": {
+      "vars": { "ENV_NAME": "preview", "BUILD_ID": "__BUILD_ID__" },
+      "routes": [
+        { "pattern": "voysemble.__BUILD_ID__.dev.vida.re", "custom_domain": true },
+        { "pattern": "api-voysemble.__BUILD_ID__.dev.vida.re", "custom_domain": true }
+      ]
+    },
+    "staging": {
+      "vars": { "ENV_NAME": "staging", "BUILD_ID": "__BUILD_ID__" },
+      "routes": [
+        { "pattern": "voysemble.staging.dev.vida.re", "custom_domain": true },
+        { "pattern": "api-voysemble.staging.dev.vida.re", "custom_domain": true }
+      ]
+    },
+    "production": {
+      "vars": { "ENV_NAME": "production", "BUILD_ID": "__BUILD_ID__" },
+      "routes": [
+        { "pattern": "app.voysemble.com", "custom_domain": true },
+        { "pattern": "api.voysemble.com", "custom_domain": true }
+      ]
+    }
+  }
+}

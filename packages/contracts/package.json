@@ -1,0 +1,20 @@
+{
+  "name": "@voysemble/contracts",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Zod schemas that define every external API contract. Single source of truth for OpenAPI and generated clients.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@hono/zod-openapi": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "typescript": "catalog:"
+  }
+}

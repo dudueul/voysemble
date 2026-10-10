@@ -1,0 +1,27 @@
+{
+  "name": "@voysemble/api-worker",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Customer API Worker: organizer app + native API. Hono + zod-openapi on Cloudflare Workers.",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "types": "wrangler types",
+    "typecheck": "wrangler types && tsc -p tsconfig.json && tsc -p test/tsconfig.json",
+    "test": "vitest run",
+    "deploy:preview": "wrangler deploy --env preview"
+  },
+  "dependencies": {
+    "@hono/zod-openapi": "catalog:",
+    "@voysemble/contracts": "workspace:*",
+    "hono": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "catalog:",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "wrangler": "catalog:"
+  }
+}

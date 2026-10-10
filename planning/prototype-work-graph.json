@@ -1,0 +1,61 @@
+{
+  "$comment": "Prototype work graph: milestones and dependencies. Not an executable orchestrator, not the Journey Graph. A node is done only when its acceptance ran with evidence.",
+  "version": 1,
+  "nodes": [
+    {
+      "id": "P0",
+      "title": "Scaffold",
+      "deps": [],
+      "slices": ["001", "002"],
+      "acceptance": "pnpm check green in CI; KMP core + Compose shell build in Linux CI; Xcode project opens on macOS."
+    },
+    {
+      "id": "P1",
+      "title": "Visual foundation",
+      "deps": ["P0"],
+      "acceptance": "Four acceptance screens on fixtures: PC command center, PC itinerary, mobile Today, mobile radius map. Screenshots at 1440x960 / 1280x800 / 390x844 / 412x915."
+    },
+    {
+      "id": "P2",
+      "title": "Identity + trip vertical",
+      "deps": ["P1"],
+      "acceptance": "Organizer and traveler flows in separate sessions; cross-org denial tests; invitation never grants organizer."
+    },
+    {
+      "id": "P3",
+      "title": "Realtime + offline",
+      "deps": ["P2"],
+      "acceptance": "Headcount response survives retries, reconnects, DO restart; queued ack syncs once."
+    },
+    {
+      "id": "P4",
+      "title": "Media",
+      "deps": ["P2"],
+      "acceptance": "No private object publicly reachable; interrupted upload recovers; reused PUT cannot overwrite published key."
+    },
+    {
+      "id": "P5",
+      "title": "Journey Graph",
+      "deps": ["P2"],
+      "acceptance": "75-minute DEMO 086 delay yields scoped conflicts (28 direct, 38 via dinner); stale proposal rejected."
+    },
+    {
+      "id": "P6",
+      "title": "Stripe",
+      "deps": ["P2"],
+      "acceptance": "Success, decline, auth-required, duplicate, reordered, expired scenarios pass on fixtures; sandbox when keys exist."
+    },
+    {
+      "id": "P7",
+      "title": "Admin console + ops",
+      "deps": ["P3", "P4", "P6"],
+      "acceptance": "Failed job diagnosed and repaired through Access-protected console without SQL."
+    },
+    {
+      "id": "P8",
+      "title": "Pilot readiness",
+      "deps": ["P5", "P7"],
+      "acceptance": "Device matrix, legal gates, live providers approved explicitly."
+    }
+  ]
+}

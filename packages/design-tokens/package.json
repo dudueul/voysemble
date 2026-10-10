@@ -1,0 +1,11 @@
+{
+  "name": "@voysemble/design-tokens",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Brand and semantic design tokens. One JSON source; generated CSS, Kotlin, Swift.",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/generate.mjs",
+    "test": "node --test 'test/*.test.mjs'"
+  }
+}

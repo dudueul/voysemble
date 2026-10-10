@@ -1,0 +1,23 @@
+{
+  "name": "voysemble",
+  "private": true,
+  "description": "Voysemble: group travel operations. Monorepo root.",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "pnpm -r --if-present build",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm -r --if-present test",
+    "check:headers": "node scripts/check-headers.mjs",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm test:scripts && pnpm check:headers",
+    "test:scripts": "node --test 'scripts/*.test.mjs'"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "catalog:",
+    "typescript": "catalog:"
+  }
+}
