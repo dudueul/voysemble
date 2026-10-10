@@ -56,7 +56,7 @@ Rules:
   resources.
 - Stripe: fixture adapter and recorded webhook fixtures until sandbox keys are added.
 - iOS: Swift builds only on founder's macOS/CI. Kotlin core and Compose build in Linux CI.
-- Languages: KO, JA, EN. English is the source language.
+- Languages: KO, EN. English is the source language. JA dropped from scope (founder decision 2026-10-10); i18n framework stays locale-agnostic so JA can be added later.
 - Synthetic data: Korea Concert Tour, 38 travelers, 2 buses, ICN -> FCO, Asia/Seoul and
   Europe/Rome.
 - Maps: MapKit (iOS), Google Maps SDK or MapLibre (Android, decide at spike), MapLibre on web

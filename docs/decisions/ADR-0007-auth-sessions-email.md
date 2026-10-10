@@ -46,7 +46,7 @@ Status: accepted (2026-10-10)
   mailbox), and a fallback `ResendEmailPort` kept behind a flag only if the Cloudflare feature
   is unavailable for the account.
 - Templates: magic link, invitation, announcement digest, billing receipts (link to Stripe),
-  security notices. KO/JA/EN. Generic bodies: no PII beyond the recipient's name.
+  security notices. KO/EN. Generic bodies: no PII beyond the recipient's name.
 
 ## Consequences
 - We own password-less auth code paths: OIDC verification, session rotation, invitation redeem.

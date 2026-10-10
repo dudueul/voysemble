@@ -15,7 +15,7 @@ Founder asked how mobile AI works and how to keep cost near zero.
 | Task | Trigger | Output | Status at start |
 |---|---|---|---|
 | Ingest booking emails/PDFs into segment suggestions | Organizer pastes/forwards/drops into a trip in the web console | JSON matching a Zod schema, shown as a suggestion card with confirm/edit/dismiss. Never auto-filed | `simulated` fixture first, then `working` |
-| Broadcast translation of announcements (KO/JA/EN) | Organizer publishes an announcement | Per-language text cached per `announcement_id + lang`. Original always shown | `simulated` -> `working` |
+| Broadcast translation of announcements (KO/EN) | Organizer publishes an announcement | Per-language text cached per `announcement_id + lang`. Original always shown | `simulated` -> `working` |
 | Image pre-moderation flag on quarantine candidate | Upload validation workflow | Flags only (nsfw, violence, low-quality). Human decides | `simulated` -> `working` |
 | Disruption proposal explanation | Deterministic impact engine finishes | Free text in a separate `explanation` field, labeled AI | Inside the graph slice |
 
