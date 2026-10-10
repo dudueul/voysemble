@@ -152,6 +152,14 @@ Deliberate differences: draft/published state and revision counter are explicit 
 Not done: no persistence (drafts live in the browser until the API slice); no drag reorder; no
 conflict handling against a server revision; no KO strings.
 
+CI verification (run 38083890793 on `154eb89`): web job **green** (lint, typecheck, tests,
+Playwright E2E, captures uploaded). mobile job **failed**: `Plugin [id: 'voysemble.android-app']
+was not found` although build-logic logged `android=true`. Verified locally with a probe plugin:
+precompiled-script discovery ignores a source directory added after `kotlin-dsl` is applied.
+Fix-forward (next commit): Android convention plugins moved to a second included build
+`mobile/build-logic-android`, included from settings only when `voysemble.android=true`.
+Non-Android path re-verified locally (core 5/5). Android compile still CI-verified only.
+
 ## Slice 005 (next): mobile Today screen (Compose + SwiftUI) on fixtures, screenshots via Roborazzi
 
 Planned. Contract to be written before start.

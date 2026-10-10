@@ -20,7 +20,7 @@ cd mobile
 cd ios-app && xcodegen generate && open Voysemble.xcodeproj   # macOS
 ```
 
-Plugins are precompiled convention plugins in `build-logic/` (see its build.gradle.kts for why).
+Plugins are precompiled convention plugins in `build-logic/` (always) and `build-logic-android/` (included only when `voysemble.android=true`); see their build files for why.
 `voysemble.android=false` drops the Android target and app for hosts that cannot reach
 `dl.google.com` (some sandboxes). Default is `true` (CI, developer machines).
 

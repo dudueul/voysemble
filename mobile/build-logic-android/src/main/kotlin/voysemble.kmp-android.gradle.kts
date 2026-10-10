@@ -2,7 +2,7 @@
 //
 // Convention: adds the Android target to a KMP module via AGP's
 // `com.android.kotlin.multiplatform.library` plugin (required with built-in Kotlin in AGP 9;
-// combining KMP with `com.android.library` is no longer allowed). Compiled only when
+// combining KMP with `com.android.library` is no longer allowed). Lives in build-logic-android, included only when
 // voysemble.android=true. Unverified on a host with Google Maven as of 2026-10-10.
 
 import com.android.build.api.dsl.KotlinMultiplatformAndroidLibraryExtension

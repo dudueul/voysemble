@@ -45,8 +45,8 @@ kotlin {
     }
 }
 
-// Android target and library configuration live in the `voysemble.kmp-android` convention plugin,
-// which only exists when build-logic was compiled with voysemble.android=true.
+// Android target and library configuration live in the `voysemble.kmp-android` convention plugin
+// from build-logic-android, which is only included when voysemble.android=true.
 if (withAndroid) {
     apply(plugin = "voysemble.kmp-android")
 }
