@@ -218,3 +218,9 @@ at task-graph time: KGP's `KotlinNativeBundleBuildService` loaded in two classlo
 (`project-core` and `project-android-app`), "plugin applied to two sibling projects". Fix-forward:
 root `build.gradle.kts` requests `id("voysemble.kmp") apply false` so KGP (and AGP through
 build-logic-android) load once in the root classloader. Non-Android path re-verified (10/10).
+
+CI verification (run 38087326231 on `dd5adc3`): Gradle configuration and plugin loading fully
+pass. First dependency-level failure: every Compose BOM 2026.09.00 / lifecycle 2.11 / core 1.19
+artifact "requires compile against version 37 or later"; we pinned `compileSdk` 36.
+Fix-forward: `compileSdk` 37 (`targetSdk` stays 36) plus `android.suppressUnsupportedCompileSdk=37`
+for AGP 9.3.1. Next commit.

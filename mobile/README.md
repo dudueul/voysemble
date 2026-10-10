@@ -36,7 +36,7 @@ Plugins are precompiled convention plugins in `build-logic/` (always) and `build
 
 Kotlin 2.4.20 (SKIE 0.10.15 ceiling), Gradle 9.6.0, AGP 9.3.1 (max supported by KGP 2.4.x), Compose BOM 2026.09.00,
 Ktor 3.6.0, kotlinx.serialization 1.11.0, coroutines 1.11.0, datetime 0.8.0, SKIE 0.10.15.
-`compileSdk`/`targetSdk` 36, `minSdk` 26, JDK 21 toolchain.
+`compileSdk` 37 (required by Compose BOM 2026.09), `targetSdk` 36, `minSdk` 26, JDK 21 toolchain.
 
 Known-unverified as of 2026-10-10 (no Google Maven in the authoring sandbox): Android target
 script (`core/android-target.gradle.kts`), `android-app` build file. First build on a host with
