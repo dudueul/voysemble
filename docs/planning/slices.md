@@ -229,4 +229,15 @@ CI verification (run 38087963803 on `55628e4`): **the Android stack compiles**: 
 target, `android-app` debug and release Kotlin (the Compose Today screen), R8 minify, lint
 analysis. Only `compileDebugUnitTestKotlin` failed: `kotlin.test.Test` unresolved in
 `TodayViewModelTest` (no JUnit bridge for kotlin-test on the Android unit-test classpath).
-Fix-forward: `org.junit.Test` in the test and `kotlin("test-junit")` added. Next commit.
+Fix-forward: `org.junit.Test` in the test and `kotlin("test-junit")` added (`59e5521`).
+
+**CI verified** (run 38088631862 on `59e5521`, 2026-10-10 21:45 UTC): web job green (lint,
+typecheck, unit tests, worker tests, Playwright E2E) and mobile job green (`./gradlew build`:
+core JVM + Android targets, android-app debug/release, unit tests, R8, lint;
+`:android-app:recordRoborazziDebug` produced the `android-captures` artifact, 518 kB).
+This closes the Android verification for slices 002, 003, 004 and 005.
+
+Captures: the artifact lives on GitHub's blob storage (`*.blob.core.windows.net`), which the
+authoring sandbox's network policy denies, so `docs/captures/android/` is not yet populated from
+this run. Download the `android-captures` artifact from the run page, or allow that host, then
+copy `today-light.png`, `today-dark.png`, `today-offline-pending.png` into `docs/captures/android/`.
