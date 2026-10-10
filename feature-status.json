@@ -22,6 +22,7 @@
     "web.command-center": "simulated",
     "api.static-assets": "working",
     "mobile.core.api-client": "working",
-    "mobile.today-placeholder": "simulated"
+    "mobile.today-placeholder": "simulated",
+    "web.itinerary-editor": "simulated"
   }
 }

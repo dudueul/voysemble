@@ -7,18 +7,13 @@
 // iosSimulatorArm64 (compiled only on macOS; Gradle disables them elsewhere).
 
 plugins {
-    // Versions come from the root buildscript classpath (see mobile/build.gradle.kts).
-    id("org.jetbrains.kotlin.multiplatform")
-    id("org.jetbrains.kotlin.plugin.serialization")
-    // SKIE: Swift-friendly sealed interfaces (onEnum(of:)) and async suspend bridging. Apple-only effect.
-    id("co.touchlab.skie")
+    // Convention plugins from build-logic (KMP + serialization + SKIE).
+    id("voysemble.kmp")
 }
 
 val withAndroid = providers.gradleProperty("voysemble.android").map(String::toBoolean).getOrElse(true)
 
 kotlin {
-    jvmToolchain(21)
-
     jvm()
 
     listOf(iosArm64(), iosSimulatorArm64()).forEach { target ->
@@ -50,8 +45,8 @@ kotlin {
     }
 }
 
-// Android target and library configuration live in a script plugin so this file compiles on
-// hosts without the Android Gradle Plugin on the classpath.
+// Android target and library configuration live in the `voysemble.kmp-android` convention plugin,
+// which only exists when build-logic was compiled with voysemble.android=true.
 if (withAndroid) {
-    apply(from = "android-target.gradle.kts")
+    apply(plugin = "voysemble.kmp-android")
 }

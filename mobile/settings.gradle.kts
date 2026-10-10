@@ -3,10 +3,12 @@
 // Mobile workspace: KMP `core` + Compose `android-app`. The SwiftUI app lives in ios-app/ and
 // consumes the `core` framework produced by Gradle on macOS.
 //
-// Android requires Google Maven (dl.google.com). Hosts without it (some sandboxes) build with
-// `-Pvoysemble.android=false`, which drops the Android target and app. See mobile/README.md.
+// Plugins come from the included `build-logic` build (precompiled convention plugins). Android
+// requires Google Maven (dl.google.com). Hosts without it build with `-Pvoysemble.android=false`,
+// which drops the Android convention plugins, target, and app. See mobile/README.md.
 
 pluginManagement {
+    includeBuild("build-logic")
     repositories {
         gradlePluginPortal()
         mavenCentral()

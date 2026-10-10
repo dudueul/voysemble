@@ -6,9 +6,8 @@
 // Google Maven as of 2026-10-10; first Android build must confirm.
 
 plugins {
-    // Versions come from the root buildscript classpath (see mobile/build.gradle.kts).
-    id("com.android.application")
-    id("org.jetbrains.kotlin.plugin.compose")
+    // Convention plugin from build-logic (Android application + Compose compiler, built-in Kotlin).
+    id("voysemble.android-app")
 }
 
 android {

@@ -55,7 +55,56 @@ export const strings = {
     title: (section: string) => `${section} is not built yet`,
     body: 'This area is in the work graph. Status in feature-status.json is "deferred".',
   },
+  itinerary: {
+    title: 'Itinerary',
+    revision: (n: number) => `Revision ${n}`,
+    drafts: (n: number) =>
+      n === 0
+        ? 'All changes published'
+        : n === 1
+          ? '1 unpublished change'
+          : `${n} unpublished changes`,
+    publish: 'Publish changes',
+    addEvent: 'Add event',
+    days: 'Days',
+    eventsCount: (n: number) => (n === 1 ? '1 event' : `${n} events`),
+    noEvents: 'No events on this day yet.',
+    detailTitle: 'Event details',
+    selectPrompt: 'Select an event to edit it, or add one.',
+    fields: {
+      title: 'Title',
+      kind: 'Type',
+      start: 'Start',
+      end: 'End',
+      place: 'Place',
+      pax: 'Participants',
+      status: 'Status',
+      note: 'Note for travelers',
+    },
+    paxAll: 'Everyone',
+    moveUp: 'Move up',
+    moveDown: 'Move down',
+    remove: 'Remove event',
+    draft: 'Draft',
+    emptyTitle: 'No days in this trip yet',
+    emptyBody: 'Set the trip dates to start building the itinerary.',
+  },
+  kind: {
+    flight: 'Flight',
+    bus: 'Bus',
+    meal: 'Meal',
+    activity: 'Activity',
+    hotel: 'Hotel',
+    meeting: 'Meeting point',
+    free: 'Free time',
+  },
   severity: { red: 'Urgent', amber: 'Watch', info: 'Info' },
-  status: { scheduled: 'Scheduled', delayed: 'Delayed', done: 'Done', in_progress: 'Now' },
+  status: {
+    scheduled: 'Scheduled',
+    delayed: 'Delayed',
+    done: 'Done',
+    in_progress: 'Now',
+    cancelled: 'Cancelled',
+  },
   tripStatus: { active: 'Active', planning: 'Planning', completed: 'Completed' },
 } as const;

@@ -827,3 +827,236 @@ p {
     grid-template-columns: minmax(0, 1.4fr) minmax(300px, 1fr);
   }
 }
+
+/* ---------- itinerary editor ---------- */
+.itinerary {
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr) 320px;
+  gap: var(--vy-space-5);
+  align-items: start;
+}
+
+.dayrail {
+  position: sticky;
+  top: 80px;
+  max-height: calc(100vh - 100px);
+  overflow: auto;
+  padding: var(--vy-space-2);
+}
+
+.dayrail__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dayrail__item {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--vy-radius-control);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.dayrail__item:hover {
+  background: var(--vy-color-neutral-100);
+}
+
+.dayrail__item[aria-current="date"] {
+  background: color-mix(in srgb, var(--vy-brand) 10%, transparent);
+}
+
+.dayrail__date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+}
+
+.dayrail__wd {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--vy-text-muted);
+}
+
+.dayrail__num {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 2px 0;
+}
+
+.dayrail__item[aria-current="date"] .dayrail__num {
+  color: var(--vy-brand);
+}
+
+.dayrail__mo {
+  font-size: 10px;
+  color: var(--vy-text-muted);
+  font-weight: 600;
+}
+
+.dayrail__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dayrail__label {
+  font-weight: 600;
+  font-size: var(--vy-type-caption-size);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dayrail__count {
+  font-size: var(--vy-type-micro-size);
+  color: var(--vy-text-muted);
+}
+
+.timeline__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tlrow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+  border-top: 1px solid var(--vy-border);
+  border-radius: 10px;
+}
+
+.tlrow:first-child {
+  border-top: 0;
+}
+
+.tlrow--selected {
+  background: color-mix(in srgb, var(--vy-brand) 7%, transparent);
+  border-top-color: transparent;
+}
+
+.tlrow--selected + .tlrow {
+  border-top-color: transparent;
+}
+
+.tlrow__main {
+  display: grid;
+  grid-template-columns: 72px 36px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 8px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  border-radius: 10px;
+}
+
+.tlrow__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tlrow__draft {
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.tlrow__tools {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-right: 6px;
+}
+
+.iconbtn--sm {
+  width: 28px;
+  height: 28px;
+}
+
+.iconbtn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.detail {
+  position: sticky;
+  top: 80px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.field__row {
+  display: flex;
+  gap: 10px;
+}
+
+.field__label {
+  font-size: var(--vy-type-micro-size);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--vy-text-muted);
+}
+
+.field__input {
+  font: inherit;
+  color: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--vy-border);
+  border-radius: 10px;
+  background: var(--vy-bg);
+  min-height: 40px;
+}
+
+.field__input:focus {
+  border-color: var(--vy-brand);
+}
+
+.field__hint {
+  font-size: var(--vy-type-micro-size);
+  color: var(--vy-text-muted);
+  margin-top: -6px;
+}
+
+.form__actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 4px;
+  border-top: 1px solid var(--vy-border);
+}
+
+@media (max-width: 1300px) {
+  .itinerary {
+    grid-template-columns: 200px minmax(0, 1fr) 288px;
+    gap: var(--vy-space-4);
+  }
+}

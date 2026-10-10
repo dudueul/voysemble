@@ -10,3 +10,5 @@ apps/*/worker-configuration.d.ts
 .idea/
 .vscode/
 *.local
+test-results/
+playwright-report/

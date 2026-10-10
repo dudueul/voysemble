@@ -8,7 +8,11 @@ Slice 003 ships the shell (sidebar, top bar with org/trip context) and the Comma
 deterministic fixture (`src/fixtures/korea-concert-tour.ts`, "now" frozen at Day 4). Every
 other section is an honest placeholder.
 
-States: `/?state=live|loading|empty|error|offline`.
+Slice 004 adds the Itinerary editor at `/itinerary?day=YYYY-MM-DD`: day rail, per-day timeline
+with keyboard reorder, detail form, draft tracking and a local publish that bumps the revision.
+Drafts stay in the browser until the API slice.
+
+States: `/?state=live|loading|empty|error|offline`, `/itinerary?state=loading|empty|error`.
 
 ```sh
 pnpm --filter @voysemble/organizer-web dev        # http://localhost:5173

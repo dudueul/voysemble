@@ -105,9 +105,53 @@ Deviations found while building:
 - Hono `secureHeaders` cannot mutate an `ASSETS.fetch` response; re-wrap with `new Response(body, res)`.
 - Global Playwright 1.56.1 + preinstalled Chromium 1194 in the sandbox; pinned 1.56.1 to match.
 
-Not done: no auth, no live data, no KO strings, no itinerary editor (slice 004), E2E not yet in CI
-(added to the web job in this commit; first CI run verifies it).
+Not done: no auth, no live data, no KO strings, no itinerary editor (slice 004).
 
-## Slice 004 (next): PC itinerary editor on fixtures (second visual acceptance screen)
+CI verification (run 38083039420 on `b3a5ebe`): both jobs **failed**.
+- web: `apps/organizer-web/test-results/.last-run.json` (Playwright output) had been committed and
+  failed Biome format. Fix: `test-results/` and `playwright-report/` gitignored and removed from the index.
+- mobile: the script plugin still could not resolve `com.android.*` / `org.jetbrains.kotlin.*`
+  even with the plugins on the root buildscript classpath. Script plugins applied with
+  `apply(from = ...)` compile against their own classpath. Fix-forward (slice 004's commit): an
+  included build `mobile/build-logic` with precompiled convention plugins `voysemble.kmp`
+  (always), `voysemble.kmp-android` and `voysemble.android-app` (compiled only when
+  `voysemble.android=true`, sources under `src/android/kotlin`). Modules apply convention plugins
+  only. Core JVM tests re-run green locally through the convention plugin (5/5). Android compile
+  still CI-verified only.
+
+## Slice 004: PC itinerary editor on fixtures
+
+Status: done 2026-10-10. Commit: `feat(web): itinerary editor on fixtures`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Lint + format | `pnpm lint` (69 files) | 0 errors |
+| Typecheck | `pnpm typecheck` | pass |
+| Component + reducer tests | `pnpm --filter @voysemble/organizer-web test` | 4 files, 19 tests |
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 7 tests |
+| Browser E2E + captures | `CI=1 pnpm --filter @voysemble/organizer-web test:e2e` | 22 passed; itinerary captures at 1440 and 1280 (`itinerary.png`, `itinerary-draft.png`, `itinerary-{loading,empty,error}.png`) |
+| Core JVM (mobile) | `./gradlew :core:jvmTest -Pvoysemble.android=false` via build-logic | 5/5 |
+| Headers | `pnpm check:headers` | ok |
+
+Facts established:
+- Fixture has 13 days (Dec 28 2026 to Jan 9 2027), Day 1 in Asia/Seoul, others in Europe/Rome; 66 events.
+- Reducer: edit marks a draft and leaves the revision untouched; move swaps `order` with the
+  neighbour only inside the same day and refuses past the edges; add appends a draft and selects
+  it; publish bumps the revision by exactly one and clears drafts; publish with no drafts is a
+  no-op; removing a published event leaves a `removed:<id>` tombstone draft.
+- View: day rail renders 13 buttons; selecting a day swaps the timeline and updates `?day=`;
+  selecting an event opens the form; editing shows "1 unpublished change" and enables Publish;
+  publishing shows "Revision 8".
+- Reorder uses keyboard-accessible buttons (drag is a later enhancement, never the only way).
+
+Visual acceptance evidence: `docs/captures/web/desktop-1440/itinerary-draft.png` vs gallery #24.
+Matches: day list on the left, per-day timeline with times, type icons, places, detail on the right.
+Deliberate differences: draft/published state and revision counter are explicit (doc 01 §11.3 /
+§13.7); status chips carry words, not color alone.
+
+Not done: no persistence (drafts live in the browser until the API slice); no drag reorder; no
+conflict handling against a server revision; no KO strings.
+
+## Slice 005 (next): mobile Today screen (Compose + SwiftUI) on fixtures, screenshots via Roborazzi
 
 Planned. Contract to be written before start.

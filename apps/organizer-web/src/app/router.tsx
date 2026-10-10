@@ -5,6 +5,7 @@
 import { createRootRoute, createRoute, createRouter } from '@tanstack/react-router';
 import { z } from 'zod';
 import { CommandCenterPage } from '../features/command-center/CommandCenterPage';
+import { ItineraryPage } from '../features/itinerary/ItineraryPage';
 import { PlaceholderPage } from '../features/placeholder/PlaceholderPage';
 import { DashboardState } from '../lib/dashboard-api';
 import { strings } from '../lib/strings';
@@ -24,8 +25,34 @@ const indexRoute = createRoute({
   },
 });
 
+const itinerarySearch = z.object({
+  state: DashboardState.optional(),
+  day: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+});
+
+const itineraryRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/itinerary',
+  validateSearch: (s) => itinerarySearch.parse(s),
+  component: function ItineraryRoute() {
+    const { state, day } = itineraryRoute.useSearch();
+    const navigate = itineraryRoute.useNavigate();
+    return (
+      <ItineraryPage
+        state={state ?? 'live'}
+        {...(day ? { day } : {})}
+        onDayChange={(d) =>
+          void navigate({ search: (prev) => ({ ...prev, day: d }), replace: true })
+        }
+      />
+    );
+  },
+});
+
 const SECTIONS: Record<string, string> = {
-  itinerary: strings.nav.itinerary,
   'journey-graph': strings.nav.journeyGraph,
   people: strings.nav.people,
   communication: strings.nav.communication,
@@ -48,7 +75,7 @@ const sectionRoute = createRoute({
 });
 
 export const router = createRouter({
-  routeTree: rootRoute.addChildren([indexRoute, sectionRoute]),
+  routeTree: rootRoute.addChildren([indexRoute, itineraryRoute, sectionRoute]),
   defaultPreload: 'intent',
 });
 
