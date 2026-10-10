@@ -5,27 +5,29 @@ Status: accepted (2026-10-10)
 ## Domains
 
 - Production: `voysemble.com` (owned by founder).
-- Development/preview: `voysemble.<build>.dev.vida.re` where `<build>` is a short git SHA,
-  a branch slug (`next`), or another agreed symbol. `dev.vida.re` zone is on Cloudflare.
+- Development/preview suffix: `dev.voysemble.cfd` (changed 2026-10-10 from `dev.vida.re`).
+  Preview hosts are `<build>.dev.voysemble.cfd` where `<build>` is a short git SHA, a branch
+  slug (`next`), or another agreed symbol. `voysemble.cfd` zone is on Cloudflare.
 
 ## Hostname scheme
 
 | Surface | Production | Preview (`<build>`) | Staging |
 |---|---|---|---|
-| Public site | `voysemble.com`, `www.voysemble.com` | `www-voysemble.<build>.dev.vida.re` | `www-voysemble.staging.dev.vida.re` |
-| Organizer app + API (same Worker) | `app.voysemble.com` | `voysemble.<build>.dev.vida.re` | `voysemble.staging.dev.vida.re` |
-| API for native clients | `api.voysemble.com` (same Worker, second route) | `api-voysemble.<build>.dev.vida.re` | `api-voysemble.staging.dev.vida.re` |
-| Admin console + admin API (separate Worker, Cloudflare Access) | `admin.voysemble.com` | `admin-voysemble.<build>.dev.vida.re` | `admin-voysemble.staging.dev.vida.re` |
-| Public assets (R2 custom domain) | `assets.voysemble.com` | shared `assets-voysemble.dev.dev.vida.re` (content-addressed keys, immutable, safe to share across builds) | `assets-voysemble.staging.dev.vida.re` |
+| Public site | `voysemble.com`, `www.voysemble.com` | `www.<build>.dev.voysemble.cfd` | `www.staging.dev.voysemble.cfd` |
+| Organizer app + API (same Worker) | `app.voysemble.com` | `<build>.dev.voysemble.cfd` | `staging.dev.voysemble.cfd` |
+| API for native clients | `api.voysemble.com` (same Worker, second route) | `api.<build>.dev.voysemble.cfd` | `api.staging.dev.voysemble.cfd` |
+| Admin console + admin API (separate Worker, Cloudflare Access) | `admin.voysemble.com` | `admin.<build>.dev.voysemble.cfd` | `admin.staging.dev.voysemble.cfd` |
+| Public assets (R2 custom domain) | `assets.voysemble.com` | shared `assets.dev.voysemble.cfd` (content-addressed keys, immutable, safe to share across builds) | `assets.staging.dev.voysemble.cfd` |
 | Stripe webhooks | `api.voysemble.com/webhooks/stripe` | per-build endpoint registered only when a sandbox key is present | staging endpoint |
 
 Rationale for the organizer app and its API on one origin: host-only cookies and no CORS for
 the web client. Native clients use the `api-` host with bearer tokens. Admin is always a
 separate origin and a separate Worker; its cookies never reach the app origin.
 
-Hyphenated single-label prefixes (`admin-voysemble.<build>`) keep every preview hostname one
-label deep under `<build>.dev.vida.re`, so Workers Custom Domains provisions certificates per
-hostname automatically. Verify Custom Domains behavior for multi-level labels at first deploy.
+Preview hostnames are two labels deep under `dev.voysemble.cfd` (`api.<build>.dev.voysemble.cfd`).
+Workers Custom Domains provisions a certificate per hostname, so depth is not a wildcard-cert
+problem. Verify at first deploy; fall back to hyphenated single labels (`api-<build>`) if the
+zone's certificate setup rejects the depth.
 
 ## Environments
 
@@ -41,8 +43,8 @@ Rules:
   in CI, never by hand-editing committed config.
 - No production data in any other environment. Preview seeds use the synthetic Korea Concert
   Tour fixture only.
-- Email sending: production from `voysemble.com`; non-production from `dev.vida.re` with its
-  own SPF/DKIM/DMARC. Non-production email is additionally allowlisted to founder-owned
+- Email sending: production from `voysemble.com`; non-production from `dev.voysemble.cfd` with
+  its own SPF/DKIM/DMARC. Non-production email is additionally allowlisted to founder-owned
   addresses.
 - Mobile builds select the backend by flavor: `debug` (in-app dev menu, defaults to the
   `next` preview), `staging`, `release` (production only, no override).
@@ -52,7 +54,7 @@ Rules:
 ## Accepted intake defaults (unchanged from the proposal)
 
 - Cloudflare account access for the coding agent: none now. Local-only until a scoped API
-  token is provided. Founder deploys previews or grants a token limited to `dev.vida.re`
+  token is provided. Founder deploys previews or grants a token limited to `voysemble.cfd`
   resources.
 - Stripe: fixture adapter and recorded webhook fixtures until sandbox keys are added.
 - iOS: Swift builds only on founder's macOS/CI. Kotlin core and Compose build in Linux CI.

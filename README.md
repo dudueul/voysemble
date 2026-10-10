@@ -16,6 +16,9 @@ with SwiftUI and Jetpack Compose apps.
 pnpm install
 pnpm check          # lint, typecheck, test, header lint
 pnpm --filter @voysemble/api-worker dev
+cd mobile && ./gradlew :core:jvmTest -Pvoysemble.android=false   # KMP core tests on any host
 ```
+
+Mobile workspace: `mobile/README.md`.
 
 Branch `next` is the integration branch while scaffolding.

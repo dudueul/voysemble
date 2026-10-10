@@ -129,12 +129,35 @@ export function toSwift(t) {
   return l.join('\n');
 }
 
-export function generate(outDir = join(root, 'dist')) {
+/** Extra destinations inside the repo so mobile builds never depend on dist/ being present. */
+const REPO_TARGETS = {
+  kotlin: join(
+    root,
+    '..',
+    '..',
+    'mobile',
+    'core',
+    'src',
+    'commonMain',
+    'kotlin',
+    'com',
+    'voysemble',
+    'design',
+    'Tokens.kt',
+  ),
+  swift: join(root, '..', '..', 'mobile', 'ios-app', 'Voysemble', 'Design', 'Tokens.swift'),
+};
+
+export function generate(outDir = join(root, 'dist'), repoTargets = REPO_TARGETS) {
   const t = loadTokens();
   mkdirSync(outDir, { recursive: true });
   writeFileSync(join(outDir, 'tokens.css'), toCss(t));
   writeFileSync(join(outDir, 'Tokens.kt'), toKotlin(t));
   writeFileSync(join(outDir, 'Tokens.swift'), toSwift(t));
+  for (const [kind, target] of Object.entries(repoTargets)) {
+    mkdirSync(dirname(target), { recursive: true });
+    writeFileSync(target, kind === 'kotlin' ? toKotlin(t) : toSwift(t));
+  }
   return outDir;
 }
 

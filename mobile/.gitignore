@@ -1,0 +1,10 @@
+.gradle/
+build/
+.kotlin/
+local.properties
+*.iml
+.idea/
+ios-app/*.xcodeproj
+ios-app/*.xcworkspace
+ios-app/Pods/
+ios-app/DerivedData/

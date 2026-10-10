@@ -39,7 +39,13 @@ const COMMENT_PREFIX = {
 
 /** Paths never checked: generated, vendored, or comment-less formats. */
 const EXEMPT_BASENAMES = new Set(['pnpm-lock.yaml', 'worker-configuration.d.ts']);
-const EXEMPT_PREFIXES = ['node_modules/', 'dist/', '.wrangler/', 'docs/references/'];
+const EXEMPT_PREFIXES = [
+  'node_modules/',
+  'dist/',
+  '.wrangler/',
+  'docs/references/',
+  'mobile/gradle/wrapper/',
+];
 
 export function headerLineFor(ext) {
   const prefix = COMMENT_PREFIX[ext];

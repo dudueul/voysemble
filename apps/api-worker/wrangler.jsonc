@@ -14,15 +14,15 @@
     "preview": {
       "vars": { "ENV_NAME": "preview", "BUILD_ID": "__BUILD_ID__" },
       "routes": [
-        { "pattern": "voysemble.__BUILD_ID__.dev.vida.re", "custom_domain": true },
-        { "pattern": "api-voysemble.__BUILD_ID__.dev.vida.re", "custom_domain": true }
+        { "pattern": "__BUILD_ID__.dev.voysemble.cfd", "custom_domain": true },
+        { "pattern": "api.__BUILD_ID__.dev.voysemble.cfd", "custom_domain": true }
       ]
     },
     "staging": {
       "vars": { "ENV_NAME": "staging", "BUILD_ID": "__BUILD_ID__" },
       "routes": [
-        { "pattern": "voysemble.staging.dev.vida.re", "custom_domain": true },
-        { "pattern": "api-voysemble.staging.dev.vida.re", "custom_domain": true }
+        { "pattern": "staging.dev.voysemble.cfd", "custom_domain": true },
+        { "pattern": "api.staging.dev.voysemble.cfd", "custom_domain": true }
       ]
     },
     "production": {
