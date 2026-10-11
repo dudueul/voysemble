@@ -14,8 +14,10 @@ options:
   createIntermediateGroups: true
 settings:
   base:
-    SWIFT_VERSION: "6.0"
-    SWIFT_STRICT_CONCURRENCY: complete
+    # Swift 5 language mode: Kotlin/Native (ObjC) types are not Sendable, and Swift 6 strict
+    # concurrency rejects every async call into the framework. Revisit when SKIE marks results.
+    SWIFT_VERSION: "5.0"
+    SWIFT_STRICT_CONCURRENCY: minimal
     ENABLE_USER_SCRIPT_SANDBOXING: NO
     FRAMEWORK_SEARCH_PATHS: "$(SRCROOT)/../core/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)"
 targets:

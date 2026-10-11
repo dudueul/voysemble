@@ -41,7 +41,7 @@ class BulletinScreenshotTest {
 
     @Test
     fun bulletin_offline_queued_ack() {
-        val vm = BulletinViewModel(KoreaConcertTourFixture.announcements().copy(offline = true))
+        val vm = BulletinViewModel(initial = KoreaConcertTourFixture.announcements().copy(offline = true))
         compose.setContent { VoysembleTheme(darkTheme = false) { BulletinRoute(vm) } }
         compose.onNodeWithText("Got it").performClick()
         compose.onNodeWithText("Queued · sends when online").assertExists()
