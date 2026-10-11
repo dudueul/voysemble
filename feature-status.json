@@ -65,11 +65,17 @@
     "web.settings": "simulated",
     "web.responsive-layout": "working",
     "mobile.headcount": "simulated",
-    "mobile.bulletin": "simulated",
+    "mobile.bulletin": "working",
     "mobile.meeting-window": "simulated",
     "mobile.navigation": "simulated",
     "announcements.publish": "working",
     "announcements.ack-status": "working",
-    "mobile.core.announcements-api": "working"
+    "mobile.core.announcements-api": "working",
+    "mobile.auth.magic-link": "working",
+    "mobile.auth.invite-redeem": "working",
+    "mobile.session.secure-store": "working",
+    "me.participations": "working",
+    "mobile.auth.app-links": "deferred",
+    "mobile.auth.apple-google": "deferred"
   }
 }

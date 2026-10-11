@@ -10,6 +10,7 @@ import {
   MagicLinkRequest,
   MagicLinkVerifyRequest,
   MeResponse,
+  MyParticipationList,
   SessionResponse,
 } from '@voysemble/contracts';
 import { eq } from 'drizzle-orm';
@@ -27,6 +28,7 @@ import { memberships, organizations } from '../db/schema';
 import { createEmailPort } from '../email/EmailPort';
 import { magicLinkEmail } from '../email/templates';
 import type { AppEnv } from '../env';
+import { orgObject } from '../org/client';
 import { ERROR_RESPONSES, SESSION_SECURITY } from './openapi-common';
 
 const magicLinkRoute = createRoute({
@@ -94,7 +96,47 @@ const meRoute = createRoute({
   },
 });
 
+const myParticipationsRoute = createRoute({
+  method: 'get',
+  path: '/v1/me/participations',
+  tags: ['auth'],
+  summary: 'Trips the caller participates in, across organizations (mobile home screen source)',
+  security: SESSION_SECURITY,
+  responses: {
+    200: {
+      description: 'Participations with their trip and organization.',
+      content: { 'application/json': { schema: MyParticipationList } },
+    },
+    401: ERROR_RESPONSES[401],
+    500: ERROR_RESPONSES[500],
+  },
+});
+
 export function mountAuthRoutes(app: OpenAPIHono<AppEnv>): void {
+  app.openapi(myParticipationsRoute, async (c) => {
+    const auth = requireAuth(c);
+    const orgs = await db(c.env.DB)
+      .select({ id: organizations.id, name: organizations.name })
+      .from(memberships)
+      .innerJoin(organizations, eq(organizations.id, memberships.organizationId))
+      .where(eq(memberships.accountId, auth.accountId))
+      .all();
+    const participations = [];
+    for (const org of orgs) {
+      const stub = await orgObject(c.env, org.id);
+      for (const row of await stub.participationsForAccount(auth.accountId)) {
+        participations.push({
+          organizationId: org.id,
+          organizationName: org.name,
+          tripId: row.trip.id,
+          tripName: row.trip.name,
+          participation: row.participation,
+        });
+      }
+    }
+    return c.json({ participations }, 200);
+  });
+
   app.openapi(magicLinkRoute, async (c) => {
     const { email, locale } = c.req.valid('json');
     const { token } = await issueMagicLink(db(c.env.DB), email, locale);

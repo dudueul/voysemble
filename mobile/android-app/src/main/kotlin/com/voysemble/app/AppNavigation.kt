@@ -1,8 +1,9 @@
 // Copyright 2026- At Day. All rights reserved.
 //
-// In-app routing without a navigation library: tabs from the Today screen plus two pushed leader
-// and traveler screens (head count, meeting window). State lives in a ViewModel so rotation
-// keeps the place. A real back stack and deep links arrive with the sync slice.
+// In-app routing without a navigation library. The session state (core SessionManager) decides
+// the top level: sign-in, invite, or the app; "sample mode" shows the fixture app without an
+// account. Inside the app: tabs from the Today screen plus two pushed leader and traveler
+// screens. A real back stack and deep links arrive with a later slice.
 
 package com.voysemble.app
 
@@ -21,15 +22,21 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.voysemble.app.auth.InviteScreen
+import com.voysemble.app.auth.SignInScreen
 import com.voysemble.app.bulletin.BulletinRoute
 import com.voysemble.app.bulletin.BulletinViewModel
 import com.voysemble.app.headcount.HeadcountRoute
 import com.voysemble.app.headcount.HeadcountViewModel
+import com.voysemble.app.session.AppGraph
+import com.voysemble.app.session.SessionViewModel
 import com.voysemble.app.today.MainTab
 import com.voysemble.app.today.TodayRoute
 import com.voysemble.app.today.TodayViewModel
 import com.voysemble.app.window.MeetingWindowRoute
 import com.voysemble.app.window.MeetingWindowViewModel
+import com.voysemble.core.session.ActiveTrip
+import com.voysemble.core.session.SessionState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -45,6 +52,29 @@ class NavViewModel : ViewModel() {
 
 @Composable
 fun AppRoot() {
+    val sessionVm: SessionViewModel = viewModel { SessionViewModel(AppGraph.sessionManager) }
+    val s by sessionVm.state.collectAsStateWithLifecycle()
+    when (val session = s.session) {
+        is SessionState.Ready -> AppScreens(trip = session.trip, onSignOut = sessionVm::signOut)
+        is SessionState.NeedsInvite -> InviteScreen(state = s, onRedeem = sessionVm::redeem, onSignOut = sessionVm::signOut)
+        else -> if (s.sampleMode) {
+            BackHandler { sessionVm.leaveSampleMode() }
+            AppScreens(trip = null, onSignOut = sessionVm::leaveSampleMode)
+        } else {
+            SignInScreen(
+                state = s,
+                onRequestLink = sessionVm::requestLink,
+                onVerify = sessionVm::verify,
+                onBrowseSample = sessionVm::enterSampleMode,
+                onStartOver = sessionVm::signOut,
+            )
+        }
+    }
+}
+
+/** The signed-in (or sample) app: tabs plus pushed screens. `trip == null` means sample mode. */
+@Composable
+fun AppScreens(trip: ActiveTrip?, onSignOut: () -> Unit) {
     val nav: NavViewModel = viewModel()
     val screen by nav.screen.collectAsStateWithLifecycle()
     val today: TodayViewModel = viewModel()
@@ -63,8 +93,10 @@ fun AppRoot() {
         Screen.MAIN -> when (todayState.tab) {
             MainTab.TODAY -> TodayRoute(today, onOpenHeadcount = { nav.open(Screen.HEADCOUNT) }, onOpenWindow = { nav.open(Screen.WINDOW) })
             MainTab.BULLETIN -> TabHost(today) {
-                val vm: BulletinViewModel = viewModel()
-                BulletinRoute(vm)
+                val vm: BulletinViewModel = viewModel(key = trip?.tripId ?: "sample") {
+                    if (trip == null) BulletinViewModel() else BulletinViewModel(AppGraph.apiClient, trip)
+                }
+                BulletinRoute(vm, tripName = trip?.tripName, onSignOut = onSignOut)
             }
             else -> TabHost(today) { NotBuilt(todayState.tab.name.lowercase().replaceFirstChar { it.uppercase() }) }
         }

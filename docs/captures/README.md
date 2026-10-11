@@ -35,3 +35,8 @@ here from the run page (the authoring sandbox cannot reach GitHub's artifact sto
 
 `web/desktop-1440/communication-live.png`: Communication page after publishing from the console
 against `wrangler dev`, with the ack meter and unacked names from the API.
+
+## Slice 011 (2026-10-11): Android sign-in and invite
+
+`android/sign-in.png`, `android/sign-in-awaiting-dark.png`, `android/invite.png` from the CI
+`mobile` job (`android-captures` artifact).

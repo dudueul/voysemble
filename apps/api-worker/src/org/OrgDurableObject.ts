@@ -349,6 +349,42 @@ export class OrgDurableObject extends DurableObject<Env> {
     return r ? this.participationFromRow(r) : null;
   }
 
+  /** Every participation of an account in this organization, with its trip. */
+  async participationsForAccount(
+    accountId: string,
+  ): Promise<{ trip: Trip; participation: Participation }[]> {
+    this.requireOrg();
+    const rows = this.ctx.storage.sql
+      .exec<
+        ParticipationRow & {
+          t_id: string;
+          t_name: string;
+          t_starts_on: string;
+          t_ends_on: string;
+          t_timezone: string;
+          t_created_at: string;
+        }
+      >(
+        `SELECT p.*, t.id AS t_id, t.name AS t_name, t.starts_on AS t_starts_on, t.ends_on AS t_ends_on,
+                t.timezone AS t_timezone, t.created_at AS t_created_at
+         FROM participations p JOIN trips t ON t.id = p.trip_id
+         WHERE p.account_id = ? ORDER BY t.starts_on DESC`,
+        accountId,
+      )
+      .toArray();
+    return rows.map((r) => ({
+      trip: this.tripFromRow({
+        id: r.t_id,
+        name: r.t_name,
+        starts_on: r.t_starts_on,
+        ends_on: r.t_ends_on,
+        timezone: r.t_timezone,
+        created_at: r.t_created_at,
+      }),
+      participation: this.participationFromRow(r),
+    }));
+  }
+
   /** Who must acknowledge: travelers and leaders of the trip (D16: guardians never ack). */
   private ackDuty(tripId: string): ParticipationRow[] {
     return this.ctx.storage.sql

@@ -25,6 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -42,13 +43,29 @@ import com.voysemble.core.announcements.AnnouncementItem
 import com.voysemble.core.today.AckState
 
 @Composable
-fun BulletinRoute(vm: BulletinViewModel) {
-    val feed by vm.state.collectAsStateWithLifecycle()
-    BulletinScreen(feed = feed, onAcknowledge = vm::acknowledge)
+fun BulletinRoute(vm: BulletinViewModel, tripName: String? = null, onSignOut: () -> Unit = {}) {
+    val state by vm.state.collectAsStateWithLifecycle()
+    BulletinScreen(
+        feed = state.feed,
+        live = state.live,
+        syncing = state.syncing,
+        tripName = tripName,
+        onAcknowledge = vm::acknowledge,
+        onRefresh = vm::refresh,
+        onSignOut = onSignOut,
+    )
 }
 
 @Composable
-fun BulletinScreen(feed: AnnouncementFeed, onAcknowledge: (String) -> Unit) {
+fun BulletinScreen(
+    feed: AnnouncementFeed,
+    onAcknowledge: (String) -> Unit,
+    live: Boolean = false,
+    syncing: Boolean = false,
+    tripName: String? = null,
+    onRefresh: () -> Unit = {},
+    onSignOut: () -> Unit = {},
+) {
     val c = LocalVoysembleColors.current
     val sorted = feed.items.sortedWith(compareBy({ !(it.requiresAck && it.ack == AckState.UNACKNOWLEDGED) }))
     LazyColumn(
@@ -58,15 +75,25 @@ fun BulletinScreen(feed: AnnouncementFeed, onAcknowledge: (String) -> Unit) {
     ) {
         item {
             ScreenHeader(
-                eyebrow = "Korea Concert Tour",
+                eyebrow = tripName ?: "Korea Concert Tour",
                 title = "Bulletin",
                 subtitle = when (val n = feed.unackedRequired.size) {
-                    0 -> "Nothing waiting for you"
+                    0 -> if (live && feed.items.isEmpty() && !syncing) "No announcements yet" else "Nothing waiting for you"
                     1 -> "1 update needs your acknowledgment"
                     else -> "$n updates need your acknowledgment"
                 },
                 onBack = null,
-            ) { SampleDataChip() }
+            ) {
+                if (live) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        if (syncing) LabelChip("Syncing", c.textMuted, AppIcons.Sync) else LabelChip("Live", c.success, AppIcons.Sync)
+                        TextButton(onClick = onRefresh) { Text("Refresh") }
+                        TextButton(onClick = onSignOut) { Text("Sign out") }
+                    }
+                } else {
+                    SampleDataChip()
+                }
+            }
         }
         if (feed.offline) {
             item {

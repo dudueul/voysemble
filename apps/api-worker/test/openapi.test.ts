@@ -21,6 +21,7 @@ describe('GET /openapi.json', () => {
         '/v1/auth/magic-link/verify',
         '/v1/auth/logout',
         '/v1/me',
+        '/v1/me/participations',
         '/v1/orgs',
         '/v1/orgs/{orgId}/trips',
         '/v1/orgs/{orgId}/trips/{tripId}/roster/import',

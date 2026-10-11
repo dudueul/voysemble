@@ -400,3 +400,26 @@ Four CI rounds got the iOS app from "never compiled" to green on a macOS runner:
 2. Generated `Tokens.swift` declared `enum Type` → Swift forbids it; the generator now emits `Typography` for Swift.
 3. Swift called Kotlin top-level extension functions through `…Kt` facades and switched Kotlin enums via SKIE `onEnum` → extensions are Swift members and SKIE enums switch directly.
 4. Green: app + tests on the simulator in about 2 minutes after the framework build.
+
+## Slice 011: mobile sign-in, invite redeem, live Bulletin
+
+Status: built 2026-10-11, core and worker gates green, Android/iOS compile pending CI. Commit: `feat(mobile): native sign-in ...`.
+Spec: ADR-0007 (mobile magic link), D12, D16, D28. Details: `docs/engineering/mobile-auth.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 10 files, 34 tests (adds `GET /v1/me/participations`) |
+| Core JVM tests | `cd mobile && ./gradlew :core:jvmTest -Pvoysemble.android=false` | 30 tests (adds SessionManagerTest 3, BulletinSyncTest 2) |
+| Android + iOS | CI `mobile` and `ios` jobs | pending |
+
+Facts established by tests:
+- `GET /v1/me/participations` lists the redeemed traveler's trip with names and role; the organizer with no participation gets an empty list; anonymous 401.
+- Token extraction accepts a pasted link fragment or a bare token; rejects short strings and query-string tokens.
+- Full native flow against a mock server: request → AwaitingLink; verify stores the token and lands on NeedsInvite; redeem stores the active trip with its name; authenticated calls carry `Bearer`; sign-out calls logout and clears the store.
+- A 401 on verify or a garbage token leaves the state SignedOut.
+- Bulletin sync replays the outbox before listing (call order asserted), merges server acks, reports confirmations; an unreachable server keeps the local feed offline with the outbox intact.
+- Android view model: safe messages for expired link, missing token, unknown code; sample mode is UI-only.
+
+Built: see the engineering doc. Captures (CI): `sign-in.png`, `sign-in-awaiting-dark.png`, `invite.png`.
+
+Not done: App Links / Universal Links, Apple/Google sign-in, native refresh rotation, KO strings.

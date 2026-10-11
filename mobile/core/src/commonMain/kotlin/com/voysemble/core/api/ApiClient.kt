@@ -72,6 +72,47 @@ public class ApiClient(
             }
         }
 
+    /** POST /v1/auth/magic-link. Always 202; the server never reveals whether the address exists. */
+    public suspend fun requestMagicLink(email: String, locale: String): ApiResult<MagicLinkAcceptedDto> =
+        call(null) {
+            http.post {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "auth", "magic-link") }
+                common(null)
+                contentType(ContentType.Application.Json)
+                setBody(MagicLinkRequestDto(email, locale))
+            }
+        }
+
+    /** POST /v1/auth/magic-link/verify with client=native: the session token comes back once. */
+    public suspend fun verifyMagicLink(token: String): ApiResult<SessionResponseDto> =
+        call(null) {
+            http.post {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "auth", "magic-link", "verify") }
+                common(null)
+                contentType(ContentType.Application.Json)
+                setBody(MagicLinkVerifyRequestDto(token))
+            }
+        }
+
+    public suspend fun me(): ApiResult<MeResponseDto> =
+        call(null) { http.get { url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "me") }; common(null) } }
+
+    public suspend fun myParticipations(): ApiResult<MyParticipationListDto> =
+        call(null) { http.get { url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "me", "participations") }; common(null) } }
+
+    public suspend fun redeemInvite(code: String): ApiResult<RedeemInviteResponseDto> =
+        call(null) {
+            http.post {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "invites", "redeem") }
+                common(null)
+                contentType(ContentType.Application.Json)
+                setBody(RedeemInviteRequestDto(code))
+            }
+        }
+
+    public suspend fun logout(): ApiResult<LogoutResponseDto> =
+        call(null) { http.post { url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "auth", "logout") }; common(null) } }
+
     private fun io.ktor.client.request.HttpRequestBuilder.common(correlationId: String?) {
         header("User-Agent", config.userAgent)
         correlationId?.let { header(CORRELATION_HEADER, it) }

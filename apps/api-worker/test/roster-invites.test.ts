@@ -211,3 +211,35 @@ describe('leaders and dev mailbox', () => {
     expect((await api(null).get('/v1/dev/mailbox?to=nobody@example.com')).status).toBe(404);
   });
 });
+
+describe('GET /v1/me/participations', () => {
+  it('lists the trips a redeemed account participates in, empty for the organizer', async () => {
+    const { nate, org, trip, body } = await setup();
+    const issued = await json<IssueInvitesResponse>(
+      await api(nate).post(`/v1/orgs/${org.id}/trips/${trip.id}/invites`),
+    );
+    const minji = body.participations.find((p) => p.displayName === 'Minji Park');
+    const code = issued.invites.find((i) => i.participationId === minji?.id)?.code ?? '';
+    const traveler = await signIn('minji@example.com');
+    await api(traveler).post('/v1/invites/redeem', { code });
+    const mine = await json<{
+      participations: {
+        tripId: string;
+        tripName: string;
+        organizationName: string;
+        participation: { role: string };
+      }[];
+    }>(await api(traveler).get('/v1/me/participations'));
+    // Storage persists across tests in this file (same account, several orgs): scope to this org.
+    const here = mine.participations.filter((p) => p.tripId === trip.id);
+    expect(here).toHaveLength(1);
+    expect(here[0]?.tripName).toBe('Korea Concert Tour');
+    expect(here[0]?.organizationName).toBe('Seoul Arts High');
+    expect(here[0]?.participation.role).toBe('traveler');
+    const none = await json<{ participations: unknown[] }>(
+      await api(nate).get('/v1/me/participations'),
+    );
+    expect(none.participations).toEqual([]);
+    expect((await api(null).get('/v1/me/participations')).status).toBe(401);
+  });
+});

@@ -98,3 +98,20 @@ export const RedeemInviteResponse = z
   })
   .openapi('RedeemInviteResponse');
 export type RedeemInviteResponse = z.infer<typeof RedeemInviteResponse>;
+
+/** A participation of the signed-in account, with the trip and organization it belongs to. */
+export const MyParticipation = z
+  .object({
+    organizationId: Id,
+    organizationName: z.string(),
+    tripId: Id,
+    tripName: z.string(),
+    participation: Participation,
+  })
+  .openapi('MyParticipation');
+export type MyParticipation = z.infer<typeof MyParticipation>;
+
+export const MyParticipationList = z
+  .object({ participations: z.array(MyParticipation) })
+  .openapi('MyParticipationList');
+export type MyParticipationList = z.infer<typeof MyParticipationList>;
