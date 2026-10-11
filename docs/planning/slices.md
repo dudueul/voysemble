@@ -403,14 +403,14 @@ Four CI rounds got the iOS app from "never compiled" to green on a macOS runner:
 
 ## Slice 011: mobile sign-in, invite redeem, live Bulletin
 
-Status: built 2026-10-11, core and worker gates green, Android/iOS compile pending CI. Commit: `feat(mobile): native sign-in ...`.
+Status: done 2026-10-11. Commits `d316d52` … `96b32bd`. **CI verified**: mobile job green on run 38111178582 (Android build, unit tests incl. SessionViewModelTest, Roborazzi captures incl. sign-in and invite); ios job green on run 38110567423 (Swift 5 mode, Keychain store, SessionModel, sign-in and invite views, XCTest). Three rounds: positional fixture arg in a test, Swift 6 strict concurrency vs non-Sendable framework types, and coroutine timing in a view model test (actions now return their Job).
 Spec: ADR-0007 (mobile magic link), D12, D16, D28. Details: `docs/engineering/mobile-auth.md`.
 
 | Gate | Command | Result |
 |---|---|---|
 | Worker tests | `pnpm --filter @voysemble/api-worker test` | 10 files, 34 tests (adds `GET /v1/me/participations`) |
 | Core JVM tests | `cd mobile && ./gradlew :core:jvmTest -Pvoysemble.android=false` | 30 tests (adds SessionManagerTest 3, BulletinSyncTest 2) |
-| Android + iOS | CI `mobile` and `ios` jobs | pending |
+| Android + iOS | CI `mobile` and `ios` jobs | green (runs 38111178582, 38110567423) |
 
 Facts established by tests:
 - `GET /v1/me/participations` lists the redeemed traveler's trip with names and role; the organizer with no participation gets an empty list; anonymous 401.
