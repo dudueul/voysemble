@@ -11,12 +11,27 @@ describe('GET /openapi.json', () => {
     const doc = (await res.json()) as {
       openapi: string;
       paths: Record<string, unknown>;
-      components: { schemas: Record<string, unknown> };
+      components: { schemas: Record<string, unknown>; securitySchemes: Record<string, unknown> };
     };
     expect(doc.openapi).toBe('3.1.0');
-    expect(Object.keys(doc.paths)).toContain('/v1/health');
+    expect(Object.keys(doc.paths)).toEqual(
+      expect.arrayContaining([
+        '/v1/health',
+        '/v1/auth/magic-link',
+        '/v1/auth/magic-link/verify',
+        '/v1/auth/logout',
+        '/v1/me',
+        '/v1/orgs',
+        '/v1/orgs/{orgId}/trips',
+        '/v1/orgs/{orgId}/trips/{tripId}/roster/import',
+        '/v1/orgs/{orgId}/trips/{tripId}/roster',
+        '/v1/orgs/{orgId}/trips/{tripId}/invites',
+        '/v1/invites/redeem',
+      ]),
+    );
+    expect(Object.keys(doc.components.securitySchemes)).toEqual(['sessionCookie', 'bearerToken']);
     expect(Object.keys(doc.components.schemas)).toEqual(
-      expect.arrayContaining(['HealthResponse', 'ErrorEnvelope']),
+      expect.arrayContaining(['HealthResponse', 'ErrorEnvelope', 'Participation', 'InviteRole']),
     );
   });
 });

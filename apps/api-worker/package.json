@@ -15,7 +15,10 @@
   },
   "dependencies": {
     "@hono/zod-openapi": "catalog:",
+    "@oslojs/crypto": "catalog:",
+    "@oslojs/encoding": "catalog:",
     "@voysemble/contracts": "workspace:*",
+    "drizzle-orm": "catalog:",
     "hono": "catalog:",
     "zod": "catalog:"
   },

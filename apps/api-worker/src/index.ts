@@ -4,6 +4,8 @@
 
 import { createApp } from './app';
 
+export { OrgDurableObject } from './org/OrgDurableObject';
+
 const app = createApp();
 
 export default {

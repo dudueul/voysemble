@@ -12,6 +12,8 @@
 | Wrangler | 4.149.0 | Dev, types, deploy |
 | Vitest | 4.1.11 | `@cloudflare/vitest-plugin` 1.4.0 requires ^4.1 or ^5 |
 | @cloudflare/vitest-plugin | 1.4.0 | Tests inside workerd. Successor of `vitest-pool-workers` |
+| drizzle-orm | 0.45.4 | Typed queries on D1 (`drizzle-orm/d1`); DO SQLite uses `ctx.storage.sql` directly with the same table names |
+| @oslojs/crypto, @oslojs/encoding | 1.0.1, 1.1.0 | SHA-256 and base64url/hex for tokens (ADR-0007) |
 
 Versions live in `pnpm-workspace.yaml` `catalog:`; packages reference `catalog:`. Bump in one place.
 

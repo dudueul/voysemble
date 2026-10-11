@@ -241,3 +241,37 @@ Captures: the artifact lives on GitHub's blob storage (`*.blob.core.windows.net`
 authoring sandbox's network policy denies, so `docs/captures/android/` is not yet populated from
 this run. Download the `android-captures` artifact from the run page, or allow that host, then
 copy `today-light.png`, `today-dark.png`, `today-offline-pending.png` into `docs/captures/android/`.
+
+## Slice 006: identity + organizations + trips + roster + invites (API vertical)
+
+Status: built 2026-10-11, local gate green, CI pending. Commit: `feat(api): identity ...`.
+Spec: ADR-0007, ADR-0009 (D12, D21, D26). Details: `docs/engineering/identity-and-roster.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 9 files, 28 tests passed (workerd, D1 migrations applied per file, isolated storage) |
+| Full gate | `pnpm check` | lint 97 files 0 errors, typecheck (contracts, api-worker src + test, organizer-web), 28 worker + 19 web + 10 script + 4 token tests, headers ok |
+
+Facts established by tests:
+- Magic link: 202 is identical for unknown and known addresses; token is single-use (second verify 401); garbage token 401; web verify sets `vy_session` HttpOnly/Secure/SameSite=Lax and omits the token from the body; native verify returns the token once; cookie authenticates `/v1/me`; logout revokes.
+- Same email twice resolves to one account (case-insensitive).
+- Org creator is `owner`; `/v1/orgs` and `/v1/me` list the membership.
+- Trips: created by owner, listed by members; `endsOn < startsOn` and unknown IANA zone are 400.
+- Cross-org: another org's owner gets 403 on list and create; unknown org id gives the same 403; anonymous gets 401 everywhere.
+- Roster CSV: 3 rows with 2 guardians create 5 participations; guardians bound via `guardianOf`; quoted `"Lee, Hana"` survives; `guardian_contact` never appears in the response; missing `name` column 400; empty-name rows reported in `skipped`; unknown trip 404.
+- Invites: 5 codes for 5 unbound rows, `XXXX-XXXX` shape, no re-issue while live; redeem accepts lower-case/no-dash, joins as `member`, binds the row, second use 409, unknown 404, bound row skipped on re-issue; member can list trips but not roster and cannot create trips.
+- Leader invite grants `leader`: roster readable (6 rows incl. the leader), trip create and import still 403. Invite role enum cannot carry owner/organizer.
+- CSV parser: BOM, CRLF, escaped quotes, case-insensitive headers; per-row rejection for unterminated quotes, overlong rows, too many fields; document-level throw for no header, >2000 rows, >64 KiB.
+- D1 migration SQL contains every Drizzle column (`schema.test.ts`).
+- OpenAPI lists all 11 paths and both security schemes.
+
+Built:
+- `packages/contracts`: `common` (Id, OrgRole, TripRole, InviteRole, Locale), `auth`, `organization`, `trip`, `roster`.
+- `apps/api-worker`: `migrations/0001_identity.sql`, `src/db/{schema,client}.ts`, `src/org/{OrgDurableObject,client}.ts`, `src/email/{EmailPort,templates}.ts`, `src/auth/{service,middleware}.ts`, `src/lib/{tokens,csv,time}.ts`, routes `auth`, `organizations`, `trips`, `roster`, `openapi-common`; bindings `DB`, `ORG_DO`, `DEV_MAILBOX` (local only) in `wrangler.jsonc`; vitest config reads D1 migrations, `test/setup.ts` applies them.
+
+Deviations found while building:
+- `wrangler types` already emits `DEV_MAILBOX?: KVNamespace` because named environments omit the binding; no manual type override needed.
+- `cloudflare:test` `env` is typed `Cloudflare.Env`; `TEST_MIGRATIONS` is injected via `miniflare.bindings` and cast in `test/setup.ts`.
+- With `exactOptionalPropertyTypes`, `RequestInit.body` must be `null`, not `undefined`, when absent.
+
+Not done (next slices): OIDC/native sign-in, rate limiting, native refresh rotation, leader endpoint, invite email delivery, organizer web onboarding screens, Cloudflare Email Sending transport.

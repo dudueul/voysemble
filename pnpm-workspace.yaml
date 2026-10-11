@@ -24,6 +24,9 @@ catalog:
   "@playwright/test": 1.56.1
   "@testing-library/react": 16.3.3
   happy-dom: 20.14.6
+  drizzle-orm: 0.45.4
+  "@oslojs/crypto": 1.0.1
+  "@oslojs/encoding": 1.1.0
 
 onlyBuiltDependencies:
   - esbuild

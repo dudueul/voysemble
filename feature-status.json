@@ -5,8 +5,8 @@
     "api.health": "working",
     "api.openapi": "working",
     "auth.oidc": "deferred",
-    "auth.invitations": "deferred",
-    "trips.create": "deferred",
+    "auth.invitations": "working",
+    "trips.create": "working",
     "itinerary.publish": "deferred",
     "announcements.ack": "deferred",
     "headcount.durable": "deferred",
@@ -24,8 +24,8 @@
     "mobile.core.api-client": "working",
     "web.itinerary-editor": "simulated",
     "mobile.today": "simulated",
-    "onboarding.roster-import": "deferred",
-    "onboarding.invite-codes": "deferred",
+    "onboarding.roster-import": "working",
+    "onboarding.invite-codes": "working",
     "guardian.status-view": "deferred",
     "headcount.missing-list": "deferred",
     "location.meeting-windows": "deferred",
@@ -40,6 +40,13 @@
     "roster.care-notes": "deferred",
     "documents.sealed-links": "deferred",
     "devices.revoke-wipe": "deferred",
-    "notifications.lanes": "deferred"
+    "notifications.lanes": "deferred",
+    "auth.magic-link": "working",
+    "auth.sessions": "working",
+    "orgs.create": "working",
+    "email.fixture-port": "working",
+    "email.cloudflare-sending": "deferred",
+    "auth.rate-limit": "deferred",
+    "auth.native-refresh-rotation": "deferred"
   }
 }

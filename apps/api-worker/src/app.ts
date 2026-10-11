@@ -9,8 +9,13 @@ import { OpenAPIHono } from '@hono/zod-openapi';
 import type { ErrorEnvelope } from '@voysemble/contracts';
 import { HTTPException } from 'hono/http-exception';
 import { secureHeaders } from 'hono/secure-headers';
+import { authenticate } from './auth/middleware';
 import type { AppEnv } from './env';
+import { mountAuthRoutes } from './routes/auth';
 import { healthHandler, healthRoute } from './routes/health';
+import { mountOrganizationRoutes } from './routes/organizations';
+import { mountRosterRoutes } from './routes/roster';
+import { mountTripRoutes } from './routes/trips';
 
 const CORRELATION_HEADER = 'X-Correlation-Id';
 /** Mirrors wrangler.jsonc assets.run_worker_first. */
@@ -54,6 +59,8 @@ export function createApp(): OpenAPIHono<AppEnv> {
     c.header(CORRELATION_HEADER, id);
   });
   app.use('*', secureHeaders());
+  // Resolves the session (cookie or bearer) for every request; routes decide if one is required.
+  app.use('/v1/*', authenticate);
 
   // API namespaces answer JSON 404. Everything else falls through to the organizer console
   // bundle (Workers Static Assets, SPA fallback). In production asset-first routing serves those
@@ -99,6 +106,20 @@ export function createApp(): OpenAPIHono<AppEnv> {
   });
 
   app.openapi(healthRoute, healthHandler);
+  mountAuthRoutes(app);
+  mountOrganizationRoutes(app);
+  mountTripRoutes(app);
+  mountRosterRoutes(app);
+
+  app.openAPIRegistry.registerComponent('securitySchemes', 'sessionCookie', {
+    type: 'apiKey',
+    in: 'cookie',
+    name: 'vy_session',
+  });
+  app.openAPIRegistry.registerComponent('securitySchemes', 'bearerToken', {
+    type: 'http',
+    scheme: 'bearer',
+  });
 
   app.doc31('/openapi.json', {
     openapi: '3.1.0',

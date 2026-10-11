@@ -10,6 +10,23 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
   "vars": { "ENV_NAME": "local", "BUILD_ID": "local" },
+  // Global D1: identity, org directory, invites, sessions (ADR-0002). Migrations in ./migrations.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "voysemble-local",
+      "database_id": "local",
+      "migrations_dir": "migrations"
+    }
+  ],
+  // OrgDO: SQLite-backed canonical store per organization (ADR-0002). Schema managed in-object.
+  "durable_objects": {
+    "bindings": [{ "name": "ORG_DO", "class_name": "OrgDurableObject" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OrgDurableObject"] }],
+  // Local-only fixture mailbox for the FixtureEmailPort (magic links land here in dev/tests).
+  // Not inherited by named environments: preview/staging/production must bind a real transport.
+  "kv_namespaces": [{ "binding": "DEV_MAILBOX", "id": "dev-mailbox-local" }],
   // Organizer console bundle. Asset-first: anything not under run_worker_first is served from
   // dist/ without invoking the Worker (free, cached). SPA fallback for client routes.
   "assets": {
@@ -20,6 +37,15 @@
   },
   "env": {
     "preview": {
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "voysemble-__BUILD_ID__",
+          "database_id": "__D1_ID__",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "durable_objects": { "bindings": [{ "name": "ORG_DO", "class_name": "OrgDurableObject" }] },
       "vars": { "ENV_NAME": "preview", "BUILD_ID": "__BUILD_ID__" },
       "routes": [
         { "pattern": "__BUILD_ID__.dev.voysemble.cfd", "custom_domain": true },
@@ -27,6 +53,15 @@
       ]
     },
     "staging": {
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "voysemble-staging",
+          "database_id": "__D1_ID__",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "durable_objects": { "bindings": [{ "name": "ORG_DO", "class_name": "OrgDurableObject" }] },
       "vars": { "ENV_NAME": "staging", "BUILD_ID": "__BUILD_ID__" },
       "routes": [
         { "pattern": "staging.dev.voysemble.cfd", "custom_domain": true },
@@ -34,6 +69,15 @@
       ]
     },
     "production": {
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "voysemble-prod",
+          "database_id": "__D1_ID__",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "durable_objects": { "bindings": [{ "name": "ORG_DO", "class_name": "OrgDurableObject" }] },
       "vars": { "ENV_NAME": "production", "BUILD_ID": "__BUILD_ID__" },
       "routes": [
         { "pattern": "app.voysemble.com", "custom_domain": true },
