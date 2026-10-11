@@ -1,6 +1,6 @@
 {
-  "$comment": "working = verified backend integration + tests; simulated = deterministic fixture with UI label; deferred = designed, not presented as available. Update in the same commit as the feature.",
-  "updatedAt": "2026-10-10",
+  "$comment": "working = verified backend integration + tests; simulated = deterministic fixture with UI label; deferred = designed, not presented as available. Update in the same commit as the feature. Behavioural rules per feature: docs/decisions/ADR-0009-roles-visibility-offline-semantics.md.",
+  "updatedAt": "2026-10-11",
   "features": {
     "api.health": "working",
     "api.openapi": "working",
@@ -23,6 +23,19 @@
     "api.static-assets": "working",
     "mobile.core.api-client": "working",
     "web.itinerary-editor": "simulated",
-    "mobile.today": "simulated"
+    "mobile.today": "simulated",
+    "onboarding.roster-import": "deferred",
+    "onboarding.invite-codes": "deferred",
+    "guardian.status-view": "deferred",
+    "headcount.missing-list": "deferred",
+    "location.meeting-windows": "deferred",
+    "incident.person-timeline": "deferred",
+    "incident.card": "deferred",
+    "media.guardian-album": "deferred",
+    "itinerary.change-proposals": "deferred",
+    "itinerary.disruption-ai": "deferred",
+    "retention.crypto-shred": "deferred",
+    "chat.fixed-channels": "deferred",
+    "billing.fee-ledger": "deferred"
   }
 }
