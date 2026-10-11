@@ -1195,6 +1195,36 @@ p {
     grid-template-columns: 1fr;
   }
 
+  /* Let every card and row shrink below its content's natural width (runner fonts differ). */
+  .stack > *,
+  .grid > *,
+  .card,
+  .card__body,
+  .card__head > * {
+    min-width: 0;
+  }
+
+  .card__head {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .movement {
+    grid-template-columns: 48px 1fr;
+  }
+
+  .movement__icon {
+    display: none;
+  }
+
+  .movement__right {
+    grid-column: 2;
+  }
+
+  .headcount__row {
+    grid-template-columns: 56px minmax(0, 1fr) auto;
+  }
+
   .missing,
   .flagrow {
     grid-template-columns: auto 1fr;
@@ -2068,6 +2098,36 @@ fieldset.filters {
 
   .setup__two {
     grid-template-columns: 1fr;
+  }
+
+  /* Let every card and row shrink below its content's natural width (runner fonts differ). */
+  .stack > *,
+  .grid > *,
+  .card,
+  .card__body,
+  .card__head > * {
+    min-width: 0;
+  }
+
+  .card__head {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .movement {
+    grid-template-columns: 48px 1fr;
+  }
+
+  .movement__icon {
+    display: none;
+  }
+
+  .movement__right {
+    grid-column: 2;
+  }
+
+  .headcount__row {
+    grid-template-columns: 56px minmax(0, 1fr) auto;
   }
 
   .missing,
