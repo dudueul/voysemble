@@ -46,6 +46,12 @@ export function api(client: Client | null) {
         headers,
         body: body === undefined ? null : JSON.stringify(body),
       }),
+    put: (path: string, body?: unknown) =>
+      SELF.fetch(`https://example.com${path}`, {
+        method: 'PUT',
+        headers,
+        body: body === undefined ? null : JSON.stringify(body),
+      }),
   };
 }
 

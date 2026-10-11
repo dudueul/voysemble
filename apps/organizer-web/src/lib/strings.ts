@@ -171,6 +171,10 @@ export const strings = {
     whoHasNot: 'Who has not?',
     everyoneAcked: 'Everyone acknowledged.',
     statusFailed: 'Could not load the list.',
+    machineTranslation: (locale: 'ko' | 'en') =>
+      `Machine translation · ${locale === 'ko' ? '한국어' : 'English'}`,
+    editedTranslation: (by: string, locale: 'ko' | 'en') =>
+      `Translation edited by ${by} · ${locale === 'ko' ? '한국어' : 'English'}`,
     translationNote:
       'KO ↔ EN machine translation is added when the AI slice lands; the original is always shown.',
     unreadNote: (n: number) => `${n} unread in the sample.`,

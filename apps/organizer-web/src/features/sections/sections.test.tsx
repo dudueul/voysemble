@@ -52,6 +52,12 @@ const ANN = {
   ackTotal: 38,
   ackCount: 36,
   myAck: 'unacknowledged',
+  translation: {
+    locale: 'ko',
+    body: '로비. 버스는 07:15에 출발합니다.',
+    provider: 'machine',
+    editedBy: null,
+  },
 };
 
 /** Fetch stub keyed by "METHOD path"; unknown paths answer 404 envelopes. */
@@ -134,6 +140,9 @@ describe('sample sections', () => {
     });
     renderWithQuery(<CommunicationPage />);
     await waitFor(() => expect(text(screen.getByTestId(`ack-${ANN.id}`))).toBe('36/38'));
+    const tr = screen.getByTestId(`translation-${ANN.id}`);
+    expect(text(tr)).toContain('Machine translation · 한국어');
+    expect(text(tr)).toContain('로비. 버스는 07:15에 출발합니다.');
     expect(text(screen.getByRole('heading', { level: 1 }).parentElement)).toContain(
       '1 announcement still waiting',
     );

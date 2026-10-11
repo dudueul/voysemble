@@ -55,6 +55,9 @@ test('publish, ack progress, unacked names', async ({ page, browser }, info) => 
   const row = page.getByTestId('announcement-list').getByRole('listitem').first();
   await expect(row).toContainText('Breakfast moved to 06:30');
   await expect(row.getByTestId(/^ack-/)).toHaveText('0/2');
+  // Slice 015: translated once at publish (fixture AI port locally), labelled machine.
+  await expect(row.getByTestId(/^translation-/)).toContainText('Machine translation · 한국어');
+  await expect(row.getByTestId(/^translation-/)).toContainText('로비. 버스는 07:15에 출발합니다.');
   await row.getByRole('button', { name: 'Who has not?' }).click();
   await expect(row.getByTestId(/^unacked-/)).toContainText('Juho Kim, Minji Park');
   await page.mouse.move(0, 0);

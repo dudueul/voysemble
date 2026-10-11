@@ -22,7 +22,18 @@ public data class AnnouncementItem(
     val ack: AckState,
     val acknowledgedCount: Int,
     val totalCount: Int,
-)
+    /** "ko" | "en" of `machineTranslation`; null when there is none. */
+    val translationLocale: String? = null,
+    /** Set when a bilingual staff member replaced the machine text (label "edited by"). */
+    val translationEditedBy: String? = null,
+) {
+    /** Label shown above the translation block, in the reader's UI language (EN strings for now). */
+    public val translationLabel: String?
+        get() = machineTranslation?.let {
+            val lang = if (translationLocale == "en") "English" else "한국어"
+            if (translationEditedBy != null) "Translation edited by $translationEditedBy · $lang" else "Machine translation · $lang"
+        }
+}
 
 public data class AnnouncementFeed(
     val items: List<AnnouncementItem>,

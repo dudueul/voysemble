@@ -7,7 +7,8 @@
 // - Ack: the caller's own participation must have ack duty (traveler or leader). Idempotent by
 //   (announcement, participation) so the offline outbox can replay freely.
 // - Ack status: owner/organizer or participating leader; names of acked/unacked people.
-// Machine translation (Workers AI) is a later slice; the response carries no translation yet.
+// Machine translation (Workers AI, ADR-0006) runs once at publish through the AI port and is
+// cached on the row; a bilingual leader may replace it (`PUT .../translation`, labelled edited).
 
 import { createRoute, type OpenAPIHono } from '@hono/zod-openapi';
 import {
@@ -17,11 +18,13 @@ import {
   Announcement,
   AnnouncementList,
   CreateAnnouncementRequest,
+  EditTranslationRequest,
   Id,
   type Participation,
   z,
 } from '@voysemble/contracts';
 import { HTTPException } from 'hono/http-exception';
+import { aiPort, detectLocale, otherLocale } from '../ai/AiPort';
 import { type OrgAccess, requireAuth, requireOrgRole } from '../auth/middleware';
 import type { AppEnv, AuthContext } from '../env';
 import { orgObject } from '../org/client';
@@ -43,6 +46,26 @@ const createAnnouncementRoute = createRoute({
   },
   responses: {
     201: { description: 'Published.', content: { 'application/json': { schema: Announcement } } },
+    400: ERROR_RESPONSES[400],
+    401: ERROR_RESPONSES[401],
+    403: ERROR_RESPONSES[403],
+    404: ERROR_RESPONSES[404],
+    500: ERROR_RESPONSES[500],
+  },
+});
+
+const editTranslationRoute = createRoute({
+  method: 'put',
+  path: '/v1/orgs/{orgId}/trips/{tripId}/announcements/{announcementId}/translation',
+  tags: ['announcements'],
+  summary: "Replace the translation with a bilingual staff member's text (labelled edited)",
+  security: SESSION_SECURITY,
+  request: {
+    params: AnnouncementParams,
+    body: { content: { 'application/json': { schema: EditTranslationRequest } } },
+  },
+  responses: {
+    200: { description: 'Updated.', content: { 'application/json': { schema: Announcement } } },
     400: ERROR_RESPONSES[400],
     401: ERROR_RESPONSES[401],
     403: ERROR_RESPONSES[403],
@@ -142,13 +165,46 @@ export function mountAnnouncementRoutes(app: OpenAPIHono<AppEnv>): void {
         message: 'Only organizers and trip leaders publish announcements.',
       });
     }
+    // Translate once into the other supported language; the original is always what is shown
+    // first. A null answer (provider down, budget out, fixture miss) stores no translation.
+    const source = detectLocale(body.body);
+    const target = otherLocale(source);
+    const translated = await aiPort(c.env).translate({ text: body.body, source, target });
     const created = await org.createAnnouncement({
       tripId,
       ...body,
       authorParticipationId: me?.id ?? null,
       authorName: me?.displayName ?? 'Organizer',
+      translation: translated
+        ? { locale: target, body: translated, provider: 'machine', editedBy: null }
+        : null,
     });
     return c.json(created, 201);
+  });
+
+  app.openapi(editTranslationRoute, async (c) => {
+    const auth = requireAuth(c);
+    const { orgId, tripId, announcementId } = c.req.valid('param');
+    const body = c.req.valid('json');
+    const { access, org, me } = await tripContext(c.env, auth, orgId, tripId);
+    if (!canPublish(access, me)) {
+      throw new HTTPException(403, {
+        message: 'Only organizers and trip leaders edit translations.',
+      });
+    }
+    const current = await org.getAnnouncement(announcementId, me);
+    if (!current || current.tripId !== tripId) {
+      throw new HTTPException(404, { message: 'Announcement not found.' });
+    }
+    const locale = current.translation?.locale ?? otherLocale(detectLocale(current.body));
+    const updated = await org.setTranslation(
+      tripId,
+      announcementId,
+      { locale, body: body.body, provider: 'edited', editedBy: me?.displayName ?? 'Organizer' },
+      me?.id ?? null,
+    );
+    if (!updated) throw new HTTPException(404, { message: 'Announcement not found.' });
+    return c.json(updated, 200);
   });
 
   app.openapi(listAnnouncementsRoute, async (c) => {

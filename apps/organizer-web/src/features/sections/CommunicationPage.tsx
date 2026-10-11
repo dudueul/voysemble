@@ -64,6 +64,18 @@ function AnnouncementRow({ orgId, tripId, a }: { orgId: string; tripId: string; 
         </span>
       </div>
       <p className="ann__body">{a.body}</p>
+      {a.translation ? (
+        <div className="ann__translation" data-testid={`translation-${a.id}`}>
+          <span className="muted small">
+            {a.translation.provider === 'edited'
+              ? s.editedTranslation(a.translation.editedBy ?? '', a.translation.locale)
+              : s.machineTranslation(a.translation.locale)}
+          </span>
+          <p className="ann__body" lang={a.translation.locale}>
+            {a.translation.body}
+          </p>
+        </div>
+      ) : null}
       <div className="ann__meta">
         {a.requiresAck ? <span className="chip chip--scheduled">{s.requiresAck}</span> : null}
         {a.sharedWithGuardians ? (

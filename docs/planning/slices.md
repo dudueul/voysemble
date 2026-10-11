@@ -514,3 +514,26 @@ Deviations found while building:
   reads "starts in N days" and "ended" after. "0% Acknowledged" with nothing to acknowledge reads "—".
 
 Not done: movements on the API, trip switching, account display names.
+
+## Slice 015: announcement translation through the AI port
+
+Status: built 2026-10-11, CI pending (run id recorded below once green).
+Spec: D03, D16, ADR-0006, ADR-0009 (translation rule). Details: `docs/engineering/translation.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 13 files, 41 tests (adds ai.test.ts: 3; announcements publish case grows) |
+| Core JVM tests | `cd mobile && ./gradlew :core:jvmTest -Pvoysemble.android=false` | 35 tests (merge carries translation + label) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 10 files, 57 tests (Communication shows the labelled block) |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e` | `announcements.spec.ts` asserts the translation; see the CI row |
+
+Facts established by tests: see the engineering doc.
+
+Built:
+- `ai/AiPort.ts` (Workers AI via gateway, fixture, disabled; `detectLocale`), `ai` binding in named
+  environments only, `Bindings` extended with optional `AI` and `AI_GATEWAY_ID`.
+- Contracts `AnnouncementTranslation`, `Announcement.translation`, `EditTranslationRequest`; OrgDO schema v5;
+  publish translates once; `PUT .../translation` for staff.
+- Console translation block; core DTO, item fields, `translationLabel`; Android and iOS labels.
+
+Not done: title translation, both-direction storage, guardian parent-safe copy, usage rollups.

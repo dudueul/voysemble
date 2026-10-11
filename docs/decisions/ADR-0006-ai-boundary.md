@@ -52,6 +52,12 @@ Rules:
 - Broadcast content is translated once server-side and cached; 38 phones do not each translate
   the same announcement.
 
+## Amendments
+
+- 2026-10-11 (slice 015): the server-side interface is `AiPort` in `apps/api-worker/src/ai/`,
+  not in `packages/effect-runtime` (that package was never created). Implementations:
+  `WorkersAiPort`, `FixtureAiPort` (local and tests), `DisabledAiPort`. Same guardrails.
+
 ## Consequences
 
 - Mobile AI volume (translate/OCR/vision) costs nothing and keeps data on the phone.

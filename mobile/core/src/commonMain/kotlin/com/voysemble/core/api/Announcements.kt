@@ -26,6 +26,18 @@ public data class AnnouncementDto(
     val ackCount: Int,
     /** "unacknowledged" | "acknowledged" */
     val myAck: String,
+    /** Server-side KO<->EN translation (slice 015); null when none exists. */
+    val translation: AnnouncementTranslationDto? = null,
+)
+
+@Serializable
+public data class AnnouncementTranslationDto(
+    /** "ko" | "en" */
+    val locale: String,
+    val body: String,
+    /** "machine" | "edited" */
+    val provider: String,
+    val editedBy: String? = null,
 )
 
 @Serializable
@@ -63,7 +75,9 @@ public fun mergeAnnouncements(
             id = dto.id,
             title = dto.title,
             body = dto.body,
-            machineTranslation = null,
+            machineTranslation = dto.translation?.body,
+            translationLocale = dto.translation?.locale,
+            translationEditedBy = dto.translation?.takeIf { it.provider == "edited" }?.editedBy,
             author = dto.authorName,
             publishedAt = clock(dto.publishedAt),
             requiresAck = dto.requiresAck,

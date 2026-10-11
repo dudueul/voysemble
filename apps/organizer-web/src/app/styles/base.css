@@ -2177,3 +2177,15 @@ fieldset.filters {
   padding: 4px 8px;
   font-size: 0.85rem;
 }
+
+/* Slice 015: machine translation block under an announcement body */
+.ann__translation {
+  margin: 6px 0 4px;
+  padding: 8px 10px;
+  border-left: 3px solid var(--vy-border);
+  background: color-mix(in srgb, var(--vy-border) 35%, transparent);
+  border-radius: 6px;
+}
+.ann__translation .ann__body {
+  margin-top: 2px;
+}

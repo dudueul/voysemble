@@ -51,16 +51,54 @@ describe('announcements', () => {
     expect(a1.ackTotal).toBe(4); // 3 travelers + 1 leader
     expect(a1.ackCount).toBe(0);
     expect(a1.authorName).toBe('Organizer');
+    // Slice 015: translated once at publish (fixture port locally), labelled machine.
+    expect(a1.translation).toEqual({
+      locale: 'ko',
+      body: '로비. 버스 07:15.',
+      provider: 'machine',
+      editedBy: null,
+    });
     const a2 = await json<Announcement>(
       await api(kim).post(base, { title: 'Seats', body: 'Choir in rows 1-4.', requiresAck: false }),
     );
     expect(a2.authorName).toBe('Kim');
     expect(a2.sharedWithGuardians).toBe(false);
-
     const forMinji = await json<{ announcements: Announcement[] }>(await api(minji).get(base));
     expect(forMinji.announcements.map((a) => a.title)).toEqual(['Seats', 'Breakfast 06:30']);
     const forSora = await json<{ announcements: Announcement[] }>(await api(sora).get(base));
     expect(forSora.announcements.map((a) => a.title)).toEqual(['Breakfast 06:30']);
+
+    expect(a2.translation?.locale).toBe('ko');
+    const a3 = await json<Announcement>(
+      await api(nate).post(base, { title: 'No canned pair', body: 'Something new.' }),
+    );
+    expect(a3.translation).toBeNull();
+    const ko = await json<Announcement>(
+      await api(nate).post(base, { title: '한국어', body: '로비. 버스 07:15.' }),
+    );
+    expect(ko.translation).toEqual({
+      locale: 'en',
+      body: 'Lobby. Bus 07:15.',
+      provider: 'machine',
+      editedBy: null,
+    });
+
+    // A bilingual leader replaces the machine text; the label changes to edited by name.
+    const edited = await json<Announcement>(
+      await api(kim).put(`${base}/${a1.id}/translation`, {
+        body: '로비에서 만나요. 버스는 07:15.',
+      }),
+    );
+    expect(edited.translation).toEqual({
+      locale: 'ko',
+      body: '로비에서 만나요. 버스는 07:15.',
+      provider: 'edited',
+      editedBy: 'Kim',
+    });
+    expect((await api(minji).put(`${base}/${a1.id}/translation`, { body: 'x' })).status).toBe(403);
+    expect(
+      (await api(nate).put(`${base}/${crypto.randomUUID()}/translation`, { body: 'x' })).status,
+    ).toBe(404);
   });
 
   it('traveler acks once; replay is idempotent; status lists the rest; guardian cannot ack', async () => {

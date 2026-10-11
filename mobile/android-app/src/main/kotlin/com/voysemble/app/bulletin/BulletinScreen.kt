@@ -132,7 +132,7 @@ private fun AnnouncementRow(a: AnnouncementItem, onAcknowledge: (String) -> Unit
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     Icon(AppIcons.Translate, contentDescription = null, tint = c.textMuted, modifier = Modifier.size(14.dp))
-                    Text("Machine translation · 한국어", style = MaterialTheme.typography.labelSmall, color = c.textMuted)
+                    Text(a.translationLabel ?: "Machine translation", style = MaterialTheme.typography.labelSmall, color = c.textMuted)
                 }
                 Text(t, style = MaterialTheme.typography.bodyMedium)
             }

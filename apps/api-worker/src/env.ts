@@ -4,7 +4,11 @@
 // worker-configuration.d.ts from wrangler.jsonc, so vars and bindings stay in one place.
 // DEV_MAILBOX exists only in the local (top-level) config; named environments omit it.
 
-export type Bindings = Env;
+/**
+ * `AI` and `AI_GATEWAY_ID` exist only in named environments (preview, staging, production), so the
+ * generated `Env` lacks them; they are optional here and `ai/AiPort.ts` degrades without them.
+ */
+export type Bindings = Env & { AI?: Ai; AI_GATEWAY_ID?: string };
 
 /** Who is calling, resolved from the session by auth/middleware.ts. */
 export type AuthContext = {

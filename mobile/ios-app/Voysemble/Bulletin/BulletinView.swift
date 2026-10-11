@@ -27,7 +27,7 @@ struct BulletinView: View {
                     Text(a.body)
                     if let t = a.machineTranslation {
                         VStack(alignment: .leading, spacing: 2) {
-                            Label("Machine translation · 한국어", systemImage: "character.book.closed").font(.caption).foregroundStyle(.secondary)
+                            Label(a.translationLabel ?? "Machine translation", systemImage: "character.book.closed").font(.caption).foregroundStyle(.secondary)
                             Text(t).font(.subheadline)
                         }
                         .padding(8).background(Color.secondary.opacity(0.1)).clipShape(RoundedRectangle(cornerRadius: 8))

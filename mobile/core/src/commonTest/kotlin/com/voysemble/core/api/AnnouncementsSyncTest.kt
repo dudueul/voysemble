@@ -16,13 +16,14 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 
 class AnnouncementsSyncTest {
     private val config = ApiClientConfig(host = "test.dev.voysemble.cfd", userAgent = "test", sessionToken = { "tok-1" })
 
     private val listJson = """
         {"announcements":[
-          {"id":"a1","tripId":"t","title":"Breakfast","body":"Lobby","requiresAck":true,"sharedWithGuardians":true,"authorName":"Organizer","publishedAt":"2026-12-30T20:30:00.000Z","ackTotal":4,"ackCount":1,"myAck":"acknowledged"},
+          {"id":"a1","tripId":"t","title":"Breakfast","body":"Lobby","requiresAck":true,"sharedWithGuardians":true,"authorName":"Organizer","publishedAt":"2026-12-30T20:30:00.000Z","ackTotal":4,"ackCount":1,"myAck":"acknowledged","translation":{"locale":"ko","body":"로비","provider":"edited","editedBy":"Kim"}},
           {"id":"a2","tripId":"t","title":"Seats","body":"Rows 1-4","requiresAck":true,"sharedWithGuardians":false,"authorName":"Kim","publishedAt":"2026-12-31T06:00:00.000Z","ackTotal":4,"ackCount":0,"myAck":"unacknowledged"},
           {"id":"a3","tripId":"t","title":"FYI","body":"No ack","requiresAck":false,"sharedWithGuardians":false,"authorName":"Kim","publishedAt":"2026-12-31T06:10:00.000Z","ackTotal":4,"ackCount":0,"myAck":"unacknowledged"}
         ]}
@@ -48,6 +49,10 @@ class AnnouncementsSyncTest {
         assertEquals(AckState.PENDING, merged.items[1].ack)
         assertEquals(AckState.UNACKNOWLEDGED, merged.items[2].ack)
         assertEquals("20:30", merged.items[0].publishedAt)
+        assertEquals("로비", merged.items[0].machineTranslation)
+        assertEquals("Translation edited by Kim · 한국어", merged.items[0].translationLabel)
+        assertNull(merged.items[1].machineTranslation)
+        assertNull(merged.items[1].translationLabel)
         assertEquals(listOf("a2"), merged.outbox)
     }
 

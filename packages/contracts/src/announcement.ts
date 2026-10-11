@@ -23,6 +23,23 @@ export const CreateAnnouncementRequest = z
   .openapi('CreateAnnouncementRequest');
 export type CreateAnnouncementRequest = z.infer<typeof CreateAnnouncementRequest>;
 
+/** Server-side KO<->EN translation (D16). Machine text is labelled; a leader may replace it. */
+export const AnnouncementTranslation = z
+  .object({
+    locale: z.enum(['ko', 'en']),
+    body: AnnouncementBody,
+    provider: z.enum(['machine', 'edited']),
+    /** Display name of the bilingual staff member who replaced the machine text. */
+    editedBy: z.string().nullable(),
+  })
+  .openapi('AnnouncementTranslation');
+export type AnnouncementTranslation = z.infer<typeof AnnouncementTranslation>;
+
+export const EditTranslationRequest = z
+  .object({ body: AnnouncementBody })
+  .openapi('EditTranslationRequest');
+export type EditTranslationRequest = z.infer<typeof EditTranslationRequest>;
+
 export const Announcement = z
   .object({
     id: Id,
@@ -38,6 +55,8 @@ export const Announcement = z
     ackCount: z.number().int(),
     /** The caller's own state; `unacknowledged` for viewers with no ack duty. */
     myAck: z.enum(['unacknowledged', 'acknowledged']),
+    /** Null when no translation exists (provider unavailable or same-language readers only). */
+    translation: AnnouncementTranslation.nullable(),
   })
   .openapi('Announcement');
 export type Announcement = z.infer<typeof Announcement>;

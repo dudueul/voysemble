@@ -47,6 +47,9 @@
       ],
       "durable_objects": { "bindings": [{ "name": "ORG_DO", "class_name": "OrgDurableObject" }] },
       "vars": { "ENV_NAME": "preview", "BUILD_ID": "__BUILD_ID__" },
+      // Workers AI for announcement translation (ADR-0006). Through AI Gateway when AI_GATEWAY_ID
+      // is set as a var or secret. Absent locally on purpose: tests and dev use the fixture port.
+      "ai": { "binding": "AI" },
       "routes": [
         { "pattern": "__BUILD_ID__.dev.voysemble.cfd", "custom_domain": true },
         { "pattern": "api.__BUILD_ID__.dev.voysemble.cfd", "custom_domain": true }
@@ -63,6 +66,9 @@
       ],
       "durable_objects": { "bindings": [{ "name": "ORG_DO", "class_name": "OrgDurableObject" }] },
       "vars": { "ENV_NAME": "staging", "BUILD_ID": "__BUILD_ID__" },
+      // Workers AI for announcement translation (ADR-0006). Through AI Gateway when AI_GATEWAY_ID
+      // is set as a var or secret. Absent locally on purpose: tests and dev use the fixture port.
+      "ai": { "binding": "AI" },
       "routes": [
         { "pattern": "staging.dev.voysemble.cfd", "custom_domain": true },
         { "pattern": "api.staging.dev.voysemble.cfd", "custom_domain": true }
@@ -79,6 +85,9 @@
       ],
       "durable_objects": { "bindings": [{ "name": "ORG_DO", "class_name": "OrgDurableObject" }] },
       "vars": { "ENV_NAME": "production", "BUILD_ID": "__BUILD_ID__" },
+      // Workers AI for announcement translation (ADR-0006). Through AI Gateway when AI_GATEWAY_ID
+      // is set as a var or secret. Absent locally on purpose: tests and dev use the fixture port.
+      "ai": { "binding": "AI" },
       "routes": [
         { "pattern": "app.voysemble.com", "custom_domain": true },
         { "pattern": "api.voysemble.com", "custom_domain": true }

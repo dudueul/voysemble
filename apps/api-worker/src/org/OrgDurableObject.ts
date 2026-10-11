@@ -127,6 +127,16 @@ const MIGRATIONS: { version: number; sql: string }[] = [
       );
     `,
   },
+  {
+    // Slice 015: one cached KO<->EN translation per announcement (ADR-0006, D16).
+    version: 5,
+    sql: `
+      ALTER TABLE announcements ADD COLUMN translated_body TEXT;
+      ALTER TABLE announcements ADD COLUMN translated_locale TEXT;
+      ALTER TABLE announcements ADD COLUMN translation_provider TEXT;
+      ALTER TABLE announcements ADD COLUMN translation_edited_by TEXT;
+    `,
+  },
 ];
 
 type IncidentRow = {
@@ -164,6 +174,17 @@ type AnnouncementRow = {
   author_participation_id: string | null;
   author_name: string;
   published_at: string;
+  translated_body: string | null;
+  translated_locale: string | null;
+  translation_provider: string | null;
+  translation_edited_by: string | null;
+};
+
+export type TranslationInput = {
+  locale: 'ko' | 'en';
+  body: string;
+  provider: 'machine' | 'edited';
+  editedBy: string | null;
 };
 
 export type RosterRowInput = {
@@ -512,6 +533,15 @@ export class OrgDurableObject extends DurableObject<Env> {
       ackTotal,
       ackCount,
       myAck: mine > 0 ? 'acknowledged' : 'unacknowledged',
+      translation:
+        r.translated_body && r.translated_locale && r.translation_provider
+          ? {
+              locale: r.translated_locale as 'ko' | 'en',
+              body: r.translated_body,
+              provider: r.translation_provider as 'machine' | 'edited',
+              editedBy: r.translation_edited_by,
+            }
+          : null,
     };
   }
 
@@ -523,6 +553,8 @@ export class OrgDurableObject extends DurableObject<Env> {
     sharedWithGuardians: boolean;
     authorParticipationId: string | null;
     authorName: string;
+    /** Computed by the Worker through the AI port before the row exists; null = none. */
+    translation: TranslationInput | null;
   }): Promise<Announcement> {
     this.requireOrg();
     if (!(await this.getTrip(input.tripId))) throw new Error('trip not found');
@@ -536,11 +568,16 @@ export class OrgDurableObject extends DurableObject<Env> {
       author_participation_id: input.authorParticipationId,
       author_name: input.authorName,
       published_at: nowIso(),
+      translated_body: input.translation?.body ?? null,
+      translated_locale: input.translation?.locale ?? null,
+      translation_provider: input.translation?.provider ?? null,
+      translation_edited_by: input.translation?.editedBy ?? null,
     };
     this.ctx.storage.sql.exec(
       `INSERT INTO announcements
-        (id, trip_id, title, body, requires_ack, shared_with_guardians, author_participation_id, author_name, published_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (id, trip_id, title, body, requires_ack, shared_with_guardians, author_participation_id, author_name, published_at,
+         translated_body, translated_locale, translation_provider, translation_edited_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       row.id,
       row.trip_id,
       row.title,
@@ -550,8 +587,44 @@ export class OrgDurableObject extends DurableObject<Env> {
       row.author_participation_id,
       row.author_name,
       row.published_at,
+      row.translated_body,
+      row.translated_locale,
+      row.translation_provider,
+      row.translation_edited_by,
     );
     return this.announcementFromRow(row, input.authorParticipationId);
+  }
+
+  /** Replace or set the translation (a bilingual leader's edit, ADR-0009). Null = not found. */
+  async setTranslation(
+    tripId: string,
+    announcementId: string,
+    translation: TranslationInput,
+    viewerParticipationId: string | null,
+  ): Promise<Announcement | null> {
+    this.requireOrg();
+    const sql = this.ctx.storage.sql;
+    const exists = sql
+      .exec<{ id: string }>(
+        'SELECT id FROM announcements WHERE id = ? AND trip_id = ?',
+        announcementId,
+        tripId,
+      )
+      .toArray()[0];
+    if (!exists) return null;
+    sql.exec(
+      `UPDATE announcements SET translated_body = ?, translated_locale = ?, translation_provider = ?, translation_edited_by = ?
+        WHERE id = ?`,
+      translation.body,
+      translation.locale,
+      translation.provider,
+      translation.editedBy,
+      announcementId,
+    );
+    const row = sql
+      .exec<AnnouncementRow>('SELECT * FROM announcements WHERE id = ?', announcementId)
+      .one();
+    return this.announcementFromRow(row, viewerParticipationId);
   }
 
   /**
