@@ -18,6 +18,9 @@ export function Announcements({ items }: { items: Announcement[] }) {
         </button>
       </div>
       <div className="card__body">
+        {items.length === 0 ? (
+          <p className="state__body">{strings.dashboard.noAnnouncements}</p>
+        ) : null}
         {items.map((a) => {
           const full = a.acknowledged >= a.total;
           return (

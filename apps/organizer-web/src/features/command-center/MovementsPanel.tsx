@@ -50,6 +50,7 @@ export function MovementsPanel({ movements, now }: { movements: Movement[]; now:
         </button>
       </div>
       <div className="card__body">
+        {groups.size === 0 ? <p className="state__body">{strings.dashboard.noMovements}</p> : null}
         {[...groups.entries()].map(([day, items]) => (
           <div key={day}>
             <div className="dayhead">{day}</div>

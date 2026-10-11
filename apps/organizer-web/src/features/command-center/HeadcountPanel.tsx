@@ -19,6 +19,9 @@ export function HeadcountPanel({ groups }: { groups: HeadcountGroup[] }) {
         </button>
       </div>
       <div className="card__body headcount">
+        {groups.length === 0 ? (
+          <p className="state__body">{strings.dashboard.noHeadcounts}</p>
+        ) : null}
         {groups.map((g) => {
           const pct = g.expected === 0 ? 0 : Math.round((g.checkedIn / g.expected) * 100);
           const short = g.checkedIn < g.expected;

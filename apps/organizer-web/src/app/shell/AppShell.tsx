@@ -1,13 +1,20 @@
 // Copyright 2026- At Day. All rights reserved.
 // Layout frame: sidebar + top bar + routed page. Organization, trip, and account come from the
-// real session (slice 007). The alert dot still comes from the dashboard fixture until the
-// command center moves onto the API.
+// real session (slice 007). The alert dot reads open incidents of the active trip (slice 014)
+// and falls back to the fixture dashboard only while no trip exists (sample mode).
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { fetchDashboard } from '../../lib/dashboard-api';
-import { auth, meQuery, orgsQuery, pickActiveOrg, tripsQuery } from '../../lib/session';
+import {
+  auth,
+  incidentsQuery,
+  meQuery,
+  orgsQuery,
+  pickActiveOrg,
+  tripsQuery,
+} from '../../lib/session';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 
@@ -27,7 +34,16 @@ export function AppShell() {
     queryKey: ['dashboard', 'live'],
     queryFn: () => fetchDashboard('live'),
     staleTime: 60_000,
+    enabled: !trips.isPending && activeTrip === null,
   });
+  const incidents = useQuery({
+    ...incidentsQuery(activeOrg?.id ?? '', activeTrip?.id ?? ''),
+    enabled: Boolean(activeOrg && activeTrip),
+    staleTime: 15_000,
+  });
+  const hasAlerts = activeTrip
+    ? Boolean(incidents.data?.some((i) => i.status === 'open'))
+    : Boolean(data?.alerts.some((a) => a.severity === 'red'));
   const orgName = activeOrg?.name ?? (orgs.isPending ? '…' : 'No organization yet');
   const signOut = async () => {
     await auth.logout();
@@ -48,7 +64,7 @@ export function AppShell() {
           tripName={activeTrip?.name ?? null}
           tripStatus={activeTrip ? tripStatusOn(activeTrip, new Date()) : null}
           accountLabel={me.data?.email ?? ''}
-          hasAlerts={Boolean(data?.alerts.some((a) => a.severity === 'red'))}
+          hasAlerts={hasAlerts}
           onSignOut={() => void signOut()}
           onMenu={() => setNavOpen((v) => !v)}
           menuOpen={navOpen}

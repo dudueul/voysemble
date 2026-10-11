@@ -67,6 +67,8 @@ export interface Dashboard {
   now: string;
   lastSyncAt: string;
   offline: boolean;
+  /** True when assembled from the API (slice 014); the fixture leaves it unset. */
+  live?: boolean;
   trips: Trip[];
   activeTripId: string | null;
   movements: Movement[];

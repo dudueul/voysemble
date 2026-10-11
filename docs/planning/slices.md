@@ -489,3 +489,28 @@ Deviations found while building:
 
 Not done: manual incident creation, leader confirmation from the phone, guardian status message,
 amber dashboard tile on real sessions, person timeline.
+
+## Slice 014: command center on the API
+
+Status: built 2026-10-11, CI pending (run id recorded below once green).
+Spec: D25 (amber tile), D16 (ack rate), ADR-0009. Details: `docs/engineering/command-center-live.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 10 files, 57 tests (adds live-dashboard.test.ts: 4, view live and subtitle cases: 2) |
+| Browser E2E (local) | `pnpm --filter @voysemble/organizer-web test:e2e` | 65 passed, 1 skipped across four viewports |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e` | `headcounts.spec.ts` now also covers the live Today page; see the CI row |
+
+Facts established by tests: see the engineering doc.
+
+Built:
+- `lib/live-dashboard.ts` (pure mapper + fetch), `CommandCenterPage` live/fixture switch, "Live" chip,
+  empty lines in the movements, head count, and announcements panels, shell alert dot on open incidents.
+- Capture `command-center-live.png`.
+
+Deviations found while building:
+- The Travelers tile summed active-status trips, so a trip in planning (the sample trip starts in
+  December) read 0; it now counts the selected trip. The subtitle read "Day -75" before a trip; it now
+  reads "starts in N days" and "ended" after. "0% Acknowledged" with nothing to acknowledge reads "—".
+
+Not done: movements on the API, trip switching, account display names.

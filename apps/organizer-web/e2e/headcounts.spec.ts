@@ -1,7 +1,8 @@
 // Copyright 2026- At Day. All rights reserved.
-// Browser facts for slice 013: a leader's closed head count with a missing traveler (sent through
-// the API, as the phone would) opens an incident card that the organizer sees on Safety and
-// resolves with a note; a clean close opens nothing.
+// Browser facts for slices 013 and 014: a leader's closed head count with a missing traveler
+// (sent through the API, as the phone would) opens an incident card that the organizer sees on
+// Safety and resolves with a note; the command center shows the same facts live (head count per
+// group, the incident as a red alert, traveler count) with a "Live" chip instead of "Sample data".
 
 import { expect, type Page, test } from '@playwright/test';
 import { OUT, signIn, signInWithOrg } from './helpers';
@@ -86,7 +87,26 @@ test('head count closed with a missing traveler opens an incident the organizer 
   expect(incidentId).not.toBeNull();
   await ctx.close();
 
-  await page.reload();
+  // Slice 014: the command center is live for this trip.
+  await page.goto('/');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Welcome back, E2e');
+  await expect(page.getByText('Live', { exact: true })).toBeVisible();
+  await expect(page.getByText('starts in', { exact: false })).toBeVisible();
+  await expect(page.getByTestId('stat-Travelers')).toHaveText('2');
+  await expect(page.getByTestId('stat-Open alerts')).toHaveText('1');
+  await expect(page.getByTestId('hc-Bus A')).toContainText('1/2');
+  await expect(page.getByTestId('hc-Bus A')).toContainText('1 missing');
+  await expect(page.getByRole('article').first()).toContainText(
+    'Head count closed with 1 missing (Bus A, 06:58)',
+  );
+  await expect(page.getByRole('article').first()).toContainText('Juho Kim');
+  await page.mouse.move(0, 0);
+  await page.screenshot({
+    path: `${OUT}/${info.project.name}/command-center-live.png`,
+    fullPage: true,
+  });
+
+  await page.goto('/safety');
   const card = page.getByTestId(`incident-${incidentId}`);
   await expect(card).toContainText('Head count closed with 1 missing (Bus A, 06:58)');
   await expect(card).toContainText('Juho Kim');

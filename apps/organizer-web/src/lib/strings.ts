@@ -27,6 +27,10 @@ export const strings = {
   dashboard: {
     welcome: (name: string) => `Welcome back, ${name}`,
     subtitle: (day: number, trip: string) => `${trip} · Day ${day}`,
+    subtitleBefore: (days: number, trip: string) =>
+      `${trip} · starts ${days === 1 ? 'tomorrow' : `in ${days} days`}`,
+    subtitleAfter: (trip: string) => `${trip} · ended`,
+    noAckYet: '—',
     activeTrips: 'Active trips',
     travelers: 'Travelers',
     ackRate: 'Acknowledged',
@@ -41,6 +45,13 @@ export const strings = {
     lastSync: (t: string) => `Synced ${t}`,
     simulated: 'Sample data',
     noAlerts: 'Nothing needs attention right now.',
+    live: 'Live',
+    openSafety: 'Open Safety',
+    noMovements:
+      'No movements in the next 48 hours. The itinerary moves onto the API in a later slice.',
+    noHeadcounts:
+      'No head count yet. Leaders open one from the phone; the latest per group shows here.',
+    noAnnouncements: 'No announcements requiring acknowledgment yet.',
   },
   states: {
     loading: 'Loading your command center…',

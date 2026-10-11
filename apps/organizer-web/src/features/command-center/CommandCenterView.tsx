@@ -2,10 +2,11 @@
 //
 // Command center (mobile "Today" counterpart for organizers). Pure view: takes a discriminated
 // state and renders loading / empty / error / offline / success. No data fetching here, so
-// every state is unit-testable and screenshot-able.
+// every state is unit-testable and screenshot-able. `data.live` (slice 014) swaps the
+// "Sample data" chip for "Live"; panels render their own empty lines when the API has nothing.
 
 import { Icons } from '../../app/shell/icons';
-import type { Dashboard } from '../../fixtures/korea-concert-tour';
+import type { Dashboard, Trip } from '../../fixtures/korea-concert-tour';
 import { formatTime, relativeTo, tripDayNumber } from '../../lib/format';
 import { strings } from '../../lib/strings';
 import { AlertsPanel } from './AlertsPanel';
@@ -38,17 +39,18 @@ export function CommandCenterView({ state }: { state: CommandCenterState }) {
           </h1>
           {activeTrip ? (
             <p className="page__subtitle">
-              {strings.dashboard.subtitle(
-                tripDayNumber(activeTrip.startDate, data.now, activeTrip.timeZone),
-                activeTrip.name,
-              )}
+              {tripPhrase(activeTrip, data.now)}
               {' · '}
               {formatTime(data.now, activeTrip.timeZone)} {activeTrip.destination}
             </p>
           ) : null}
         </div>
         <div className="page__meta">
-          <span className="chip chip--sample">{strings.dashboard.simulated}</span>
+          {data.live ? (
+            <span className="chip chip--active">{strings.dashboard.live}</span>
+          ) : (
+            <span className="chip chip--sample">{strings.dashboard.simulated}</span>
+          )}
           <span>{strings.dashboard.lastSync(relativeTo(data.now, data.lastSyncAt))}</span>
         </div>
       </div>
@@ -84,6 +86,15 @@ export function CommandCenterView({ state }: { state: CommandCenterState }) {
       )}
     </main>
   );
+}
+
+/** "Day 4" during the trip, "starts in 75 days" before it, "ended" after it. */
+function tripPhrase(trip: Trip, now: string): string {
+  const day = tripDayNumber(trip.startDate, now, trip.timeZone);
+  if (day < 1) return strings.dashboard.subtitleBefore(1 - day, trip.name);
+  const lastDay = tripDayNumber(trip.startDate, `${trip.endDate}T12:00:00Z`, trip.timeZone);
+  if (day > lastDay) return strings.dashboard.subtitleAfter(trip.name);
+  return strings.dashboard.subtitle(day, trip.name);
 }
 
 function LoadingState() {

@@ -26,6 +26,47 @@ describe('CommandCenterView', () => {
     expect(screen.getByText('Day 4', { exact: false })).toBeTruthy();
   });
 
+  it('ready + live: Live chip, empty panels explain themselves', () => {
+    render(
+      <CommandCenterView
+        state={{
+          kind: 'ready',
+          data: {
+            ...dashboardFixture,
+            live: true,
+            movements: [],
+            headcount: [],
+            announcements: [],
+          },
+        }}
+      />,
+    );
+    expect(screen.getByText('Live')).toBeTruthy();
+    expect(screen.queryByText('Sample data')).toBeNull();
+    expect(screen.getByText('No head count yet.', { exact: false })).toBeTruthy();
+    expect(screen.getByText('No movements in the next 48 hours.', { exact: false })).toBeTruthy();
+    expect(text(screen.getByTestId('hc-total'))).toBe('0/0');
+    expect(text(screen.getByTestId('stat-Acknowledged'))).toBe('—');
+  });
+
+  it('subtitle: day number during the trip, countdown before, ended after', () => {
+    const trip = dashboardFixture.trips[0] as (typeof dashboardFixture.trips)[number];
+    const at = (now: string) =>
+      render(
+        <CommandCenterView
+          state={{ kind: 'ready', data: { ...dashboardFixture, now, trips: [trip] } }}
+        />,
+      );
+    at('2026-12-31T06:12:00Z');
+    expect(screen.getByText('Day 4', { exact: false })).toBeTruthy();
+    cleanup();
+    at('2026-12-01T06:12:00Z');
+    expect(screen.getByText('starts in 27 days', { exact: false })).toBeTruthy();
+    cleanup();
+    at('2027-01-20T06:12:00Z');
+    expect(screen.getByText('Korea Concert Tour · ended', { exact: false })).toBeTruthy();
+  });
+
   it('ready + empty: shows create-a-trip call to action', () => {
     render(
       <CommandCenterView
