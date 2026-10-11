@@ -98,7 +98,7 @@ public enum Tokens {
         public static let sheet: CGFloat = 24
         public static let pill: CGFloat = 999
     }
-    public enum Type {
+    public enum Typography {
         public enum display { public static let size: CGFloat = 32; public static let lineHeight: CGFloat = 38; public static let weight: Int = 700 }
         public enum title { public static let size: CGFloat = 22; public static let lineHeight: CGFloat = 28; public static let weight: Int = 700 }
         public enum heading { public static let size: CGFloat = 17; public static let lineHeight: CGFloat = 22; public static let weight: Int = 600 }

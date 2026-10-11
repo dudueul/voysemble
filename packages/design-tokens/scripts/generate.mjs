@@ -120,7 +120,8 @@ export function toSwift(t) {
   l.push('    }', '    public enum Radius {');
   for (const [k, v] of Object.entries(t.radius))
     l.push(`        public static let ${k}: CGFloat = ${v}`);
-  l.push('    }', '    public enum Type {');
+  // Swift forbids a type member named `Type` (it clashes with `foo.Type`); Kotlin keeps `Type`.
+  l.push('    }', '    public enum Typography {');
   for (const [k, v] of Object.entries(t.type))
     l.push(
       `        public enum ${k} { public static let size: CGFloat = ${v.size}; public static let lineHeight: CGFloat = ${v.lineHeight}; public static let weight: Int = ${v.weight} }`,
