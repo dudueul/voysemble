@@ -278,7 +278,7 @@ Not done (next slices): OIDC/native sign-in, rate limiting, native refresh rotat
 
 ## Slice 007: organizer web onboarding on the real API (sign-in, session gate, setup checklist)
 
-Status: built 2026-10-11, local gate green, CI pending. Commit: `feat(web): onboarding ...`.
+Status: done 2026-10-11. Commit `ea3f263`. **CI verified**: run 38101949262 green (web job incl. Playwright against `wrangler dev` on the runner; mobile job), 2026-10-11 01:30 UTC.
 Spec: D26 first run, D12 roster + invites, ADR-0007 web sessions. Details: `docs/engineering/identity-and-roster.md` ("Web console").
 
 | Gate | Command | Result |
