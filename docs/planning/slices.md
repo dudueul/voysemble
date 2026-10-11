@@ -432,7 +432,7 @@ Spec: D14, D25 (ADR-0009). Details: `docs/engineering/headcounts.md`.
 | Gate | Command | Result |
 |---|---|---|
 | Worker tests | `pnpm --filter @voysemble/api-worker test` | 11 files, 36 tests (adds headcounts.test.ts: 2), no uncaught-exception log |
-| Core JVM tests | `cd mobile && ./gradlew :core:jvmTest -Pvoysemble.android=false` | 33 tests (adds HeadcountsSyncTest: 3) |
+| Core JVM tests | `cd mobile && ./gradlew :core:jvmTest -Pvoysemble.android=false` | 35 tests (adds HeadcountsSyncTest: 4, ApiClientTest verify body: 1) |
 | Android + iOS | CI `mobile` and `ios` jobs | HeadcountViewModelTest grows to 3 (two live), screenshots unchanged |
 
 Facts established by tests: see the engineering doc ("Facts established by tests").
@@ -449,6 +449,10 @@ Built:
 Deviations found while building:
 - A plain `throw` inside a Durable Object method shows up as "uncaught exception" in the workerd
   log even when the route catches it; expected outcomes now return values.
+- CI run 38112192499 (mobile red): the core JSON config omitted nulls and defaults when encoding,
+  so the open-session push lacked `closedAtDevice` and native verify lacked `client: "native"`
+  (a latent slice 011 bug: no session token on a real device). Fixed in `ApiClient`'s Json config
+  with regression tests; core JVM tests 35.
 
 Not done: incident auto-creation on close with missing, dashboard tile on real sessions, guardian
 status, iOS live mode.

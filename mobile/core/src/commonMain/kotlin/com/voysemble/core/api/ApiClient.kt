@@ -37,7 +37,13 @@ public class ApiClient(
     private val config: ApiClientConfig,
     engine: HttpClientEngine,
 ) {
-    private val json: Json = Json { ignoreUnknownKeys = true; explicitNulls = false }
+    /**
+     * Wire rules: unknown keys are ignored (the server may add fields); nulls and defaults are
+     * encoded (`closedAtDevice: null` and `client: "native"` must reach the server: Zod treats a
+     * missing nullable key as invalid and a missing `client` as web). Every nullable response field
+     * therefore carries a `= null` default so an absent key still decodes.
+     */
+    private val json: Json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
     private val http: HttpClient = HttpClient(engine) {
         expectSuccess = false

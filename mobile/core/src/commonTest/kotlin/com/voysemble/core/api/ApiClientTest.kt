@@ -66,6 +66,23 @@ class ApiClientTest {
         assertEquals("non-envelope:502", u.reason)
     }
 
+    /** Default-valued fields are encoded: without `client: "native"` the server answers as web and withholds the token. */
+    @Test
+    fun verify_sends_client_native_explicitly() = runTest {
+        var body: String? = null
+        val engine = MockEngine { req ->
+            body = (req.body as io.ktor.http.content.TextContent).text
+            respond(
+                """{"accountId":"acc","email":"a@b.c","isNewAccount":false,"expiresAt":"2026-11-01T00:00:00.000Z","sessionToken":"s"}""",
+                HttpStatusCode.OK,
+                headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+        }
+        val result = ApiClient(config, engine).verifyMagicLink("t".repeat(40))
+        assertIs<ApiResult.Ok<SessionResponseDto>>(result)
+        assertEquals("""{"token":"${"t".repeat(40)}","client":"native"}""", body)
+    }
+
     @Test
     fun transport_exception_is_unreachable() = runTest {
         val engine = MockEngine { throw IllegalStateException("socket closed") }

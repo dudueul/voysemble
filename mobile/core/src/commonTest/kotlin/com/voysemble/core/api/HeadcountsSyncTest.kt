@@ -87,6 +87,19 @@ class HeadcountsSyncTest {
         assertEquals(SyncState.SYNCED, r.session.syncState)
     }
 
+    /** The open-session push must carry `closedAtDevice: null` explicitly: the API rejects a missing key. */
+    @Test
+    fun open_session_body_encodes_null_closed_at_and_group() = runTest {
+        var body: String? = null
+        val engine = MockEngine { req ->
+            body = (req.body as TextContent).text
+            respond(sessionJson(closed = false), HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+        }
+        val whole = headcountFromRoster("11111111-1111-4111-8111-111111111111", roster, null, "Kim", "06:50")
+        pushHeadcount(ApiClient(config, engine), "o", "t", whole)
+        assertEquals("""{"openedAtDevice":"06:50","closedAtDevice":null,"groupName":null,"marks":[]}""", body)
+    }
+
     @Test
     fun already_closed_counts_as_synced_and_rejection_or_offline_stays_pending() = runTest {
         val s = headcountFromRoster("11111111-1111-4111-8111-111111111111", roster, "Bus A", "Kim", "06:50").close("06:58")

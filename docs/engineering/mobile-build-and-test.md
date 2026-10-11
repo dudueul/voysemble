@@ -104,6 +104,15 @@ Compose and Android:
 - Compose BOM 2026.09 requires `compileSdk` 37 (`android.suppressUnsupportedCompileSdk=37`).
 - Robolectric `createComposeRule` deprecation warnings are known; migrate to the v2 rule in one pass when Roborazzi supports it.
 
+Wire JSON (kotlinx.serialization in `ApiClient`):
+- Nulls and defaults are encoded (`encodeDefaults = true`, `explicitNulls` default). Zod on the server
+  treats a missing nullable key as invalid (`closedAtDevice`) and a missing defaulted key as its server
+  default (`client` → web, no session token). Request DTOs therefore never carry `= null` defaults on
+  fields the server must see.
+- Every nullable response-DTO field carries `= null` so an absent key still decodes.
+- A test that asserts a request body must cover the null case, not only the populated one; CI run
+  38112192499 is the one that caught the omitted `closedAtDevice`.
+
 Swift and the Kotlin framework (SKIE):
 - Kotlin top-level extension functions are Swift members: `session.close(atDevice:)`, not `HeadcountModelKt.close(...)`.
 - Kotlin enums are Swift enums: `switch mark { case .present: ... }`, not `onEnum(of:)` (that is for sealed classes).

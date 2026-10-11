@@ -78,6 +78,13 @@ iOS keeps the fixture model this slice (same core API is available through the f
   list, close pushes the whole session and lands SYNCED; a 403 keeps PENDING with the safe
   message and a later `retrySync` lands SYNCED.
 
+## Deviations found while building
+
+- The core JSON config dropped nulls and default-valued fields when encoding. The open-session push
+  lost `closedAtDevice: null` (the API rejects the missing key with 400), and native verify never
+  sent `client: "native"`, so a real device would have received no session token. Both are fixed
+  by encoding nulls and defaults, with regression tests in `HeadcountsSyncTest` and `ApiClientTest`.
+
 ## Not done
 
 Incident auto-creation on `closedWithMissing` (D25 second half), the dashboard tile on real
