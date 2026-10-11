@@ -30,3 +30,8 @@ Mobile captures (390x844 iOS, 412x915 Android) arrive with the P1 mobile slices.
 `bulletin-offline-queued.png`, `window-open.png`, `window-sharing-dark.png`. Recorded by the CI
 `mobile` job (Robolectric + Roborazzi, 412x915) into the `android-captures` artifact; copy them
 here from the run page (the authoring sandbox cannot reach GitHub's artifact storage).
+
+## Slice 010 (2026-10-11): announcements on the real API
+
+`web/desktop-1440/communication-live.png`: Communication page after publishing from the console
+against `wrangler dev`, with the ack meter and unacked names from the API.

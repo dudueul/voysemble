@@ -7,6 +7,7 @@
 // Invariant: anything a client can send or receive is described here first, then generated.
 
 export { z } from '@hono/zod-openapi';
+export * from './announcement';
 export * from './auth';
 export * from './common';
 export * from './error';

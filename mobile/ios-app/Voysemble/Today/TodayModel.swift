@@ -16,6 +16,6 @@ final class TodayModel: ObservableObject {
     }
 
     func acknowledge(_ id: String) {
-        snapshot = TodayModelKt.acknowledgeAnnouncement(snapshot, id: id)
+        snapshot = snapshot.acknowledgeAnnouncement(id: id)
     }
 }

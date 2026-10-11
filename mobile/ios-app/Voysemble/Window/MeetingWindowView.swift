@@ -14,7 +14,7 @@ final class MeetingWindowModel: ObservableObject {
         self.now = now
     }
     func setSharing(_ on: Bool) {
-        window = on ? MeetingWindowModelKt.optIn(window) : MeetingWindowModelKt.optOut(window)
+        window = on ? window.optIn() : window.optOut()
     }
 }
 
@@ -70,7 +70,7 @@ struct MeetingWindowView: View {
     }
 
     private func color(for s: WindowState) -> Color {
-        switch onEnum(of: s) {
+        switch s {
         case .inside: return .green
         case .outside: return .red
         case .uncertain: return .orange
@@ -80,7 +80,7 @@ struct MeetingWindowView: View {
     }
 
     private func label(for s: WindowState) -> String {
-        switch onEnum(of: s) {
+        switch s {
         case .inside: return "Inside"
         case .outside: return "Outside"
         case .uncertain: return "Uncertain"

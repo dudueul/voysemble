@@ -138,7 +138,7 @@ private struct AnnouncementCard: View {
             Text(announcement.title).font(.headline).padding(.top, 6)
             Text(announcement.body).font(.body).foregroundStyle(.secondary).padding(.top, 2)
             HStack(spacing: 10) {
-                switch onEnum(of: announcement.ack) {
+                switch announcement.ack {
                 case .unacknowledged:
                     Button("Acknowledge") { onAcknowledge(announcement.id) }
                         .buttonStyle(.borderedProminent)
@@ -206,7 +206,7 @@ private struct EventRow: View {
     }
 
     private func symbol(_ kind: EventKind) -> String {
-        switch onEnum(of: kind) {
+        switch kind {
         case .flight: return "airplane"
         case .bus: return "bus"
         case .meal: return "fork.knife"
@@ -222,7 +222,7 @@ private struct StatusChip: View {
     let status: EventStatus
     var body: some View {
         let (label, color): (String, UInt32) = {
-            switch onEnum(of: status) {
+            switch status {
             case .scheduled: return ("Scheduled", Tokens.Color.Light.textMuted)
             case .inProgress: return ("Now", Tokens.Color.Light.action)
             case .done: return ("Done", Tokens.Color.Light.success)

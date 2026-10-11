@@ -9,7 +9,7 @@ import VoysembleCore
 final class BulletinModel: ObservableObject {
     @Published private(set) var feed: AnnouncementFeed
     init(feed: AnnouncementFeed = KoreaConcertTourFixture.shared.announcements()) { self.feed = feed }
-    func acknowledge(_ id: String) { feed = AnnouncementsModelKt.acknowledge(feed, id: id) }
+    func acknowledge(_ id: String) { feed = feed.acknowledge(id: id) }
 }
 
 struct BulletinView: View {
@@ -34,7 +34,7 @@ struct BulletinView: View {
                     }
                     if a.requiresAck {
                         HStack {
-                            switch onEnum(of: a.ack) {
+                            switch a.ack {
                             case .unacknowledged: Button("Got it") { model.acknowledge(a.id) }.buttonStyle(.borderedProminent)
                             case .pending: Label("Queued · sends when online", systemImage: "clock").font(.subheadline)
                             case .acknowledged: Label("Acknowledged", systemImage: "checkmark").font(.subheadline)

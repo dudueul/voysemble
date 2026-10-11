@@ -11,6 +11,7 @@ import { HTTPException } from 'hono/http-exception';
 import { secureHeaders } from 'hono/secure-headers';
 import { authenticate } from './auth/middleware';
 import type { AppEnv } from './env';
+import { mountAnnouncementRoutes } from './routes/announcements';
 import { mountAuthRoutes } from './routes/auth';
 import { mountDevRoutes } from './routes/dev';
 import { healthHandler, healthRoute } from './routes/health';
@@ -111,6 +112,7 @@ export function createApp(): OpenAPIHono<AppEnv> {
   mountOrganizationRoutes(app);
   mountTripRoutes(app);
   mountRosterRoutes(app);
+  mountAnnouncementRoutes(app);
   mountDevRoutes(app);
 
   app.openAPIRegistry.registerComponent('securitySchemes', 'sessionCookie', {

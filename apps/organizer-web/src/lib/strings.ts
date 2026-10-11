@@ -149,6 +149,20 @@ export const strings = {
   },
   communication: {
     subtitle: (unread: number) => (unread ? `${unread} unread across channels` : 'All caught up'),
+    waiting: (n: number) =>
+      n === 1
+        ? '1 announcement still waiting for acknowledgments'
+        : `${n} announcements still waiting for acknowledgments`,
+    allAcked: 'Every required announcement is acknowledged',
+    noTripSubtitle: 'Announcements go to the active trip',
+    noTrip: 'Create an organization and a trip first.',
+    empty: 'No announcements yet. Publish the first one below.',
+    whoHasNot: 'Who has not?',
+    everyoneAcked: 'Everyone acknowledged.',
+    statusFailed: 'Could not load the list.',
+    translationNote:
+      'KO ↔ EN machine translation is added when the AI slice lands; the original is always shown.',
+    unreadNote: (n: number) => `${n} unread in the sample.`,
     newAnnouncement: 'New announcement',
     announcements: 'Announcements',
     requiresAck: 'Requires ack',

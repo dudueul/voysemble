@@ -6,6 +6,10 @@
 
 import { queryOptions } from '@tanstack/react-query';
 import type {
+  AckStatus,
+  Announcement,
+  AnnouncementList,
+  CreateAnnouncementRequest,
   IssueInvitesResponse,
   MeResponse,
   Organization,
@@ -48,6 +52,29 @@ export const rosterQuery = (orgId: string, tripId: string) =>
     queryFn: async () =>
       (await api<RosterResponse>(`/v1/orgs/${orgId}/trips/${tripId}/roster`)).participations,
   });
+
+export const announcementsQuery = (orgId: string, tripId: string) =>
+  queryOptions({
+    queryKey: ['orgs', orgId, 'trips', tripId, 'announcements'],
+    queryFn: async () =>
+      (await api<AnnouncementList>(`/v1/orgs/${orgId}/trips/${tripId}/announcements`))
+        .announcements,
+  });
+
+export const ackStatusQuery = (orgId: string, tripId: string, announcementId: string) =>
+  queryOptions({
+    queryKey: ['orgs', orgId, 'trips', tripId, 'announcements', announcementId, 'acks'],
+    queryFn: () =>
+      api<AckStatus>(`/v1/orgs/${orgId}/trips/${tripId}/announcements/${announcementId}/acks`),
+  });
+
+export const announcements = {
+  create: (orgId: string, tripId: string, input: CreateAnnouncementRequest) =>
+    api<Announcement>(`/v1/orgs/${orgId}/trips/${tripId}/announcements`, {
+      method: 'POST',
+      body: input,
+    }),
+};
 
 export const auth = {
   requestMagicLink: (email: string, locale: 'ko' | 'en') =>

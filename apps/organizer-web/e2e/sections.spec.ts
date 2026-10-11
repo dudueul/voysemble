@@ -18,7 +18,8 @@ const SECTIONS: {
   {
     path: '/communication',
     nav: 'Communication',
-    fact: async (p) => expect(p.getByTestId('ack-a1')).toHaveText('36/38'),
+    fact: async (p) =>
+      expect(p.getByRole('status')).toContainText('Create an organization and a trip first.'),
   },
   {
     path: '/safety',

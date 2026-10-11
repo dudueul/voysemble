@@ -360,3 +360,35 @@ Built:
 - `ios-app`: `HeadcountView`, `BulletinView`, `MeetingWindowView` with observable models over the same core functions (SKIE `onEnum`).
 
 Not done: real sync for the outbox and head-count sessions; navigation library.
+
+## Slice 010: announcements and acknowledgments end to end
+
+Status: built 2026-10-11, local gates green, CI pending. Commit: `feat: announcements ...`.
+Spec: D16, D13 (ADR-0009). Details: `docs/engineering/announcements.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 10 files, 33 tests (adds announcements.test.ts: 3) |
+| Core JVM tests | `cd mobile && ./gradlew :core:jvmTest -Pvoysemble.android=false` | 25 tests (adds AnnouncementsSyncTest: 2) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 9 files, 50 tests |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e` | sections + announcements specs pass on desktop-1440 (full matrix in CI) |
+
+Facts established by tests:
+- Organizer publishes with `authorName` "Organizer"; a participating leader publishes under their name; a plain member gets 403; another org 403; unknown trip 404.
+- Traveler and leader see every item; guardian sees only `sharedWithGuardians`; `ackTotal` counts travelers + leaders (4 in the fixture).
+- Ack is stored once; a replay returns `created: false` with the original `receivedAt`; `myAck` and `ackCount` reflect it; guardians and the organizer cannot ack (403); non-ack announcements reject acks (400).
+- Ack status lists acked and unacked names; travelers cannot read it.
+- Core: list sends the bearer token; merge keeps queued ids PENDING and confirms server-acknowledged ones; replay confirms on Ok and keeps failed ids with the exact JSON body sent.
+- Browser: organizer publishes from Communication, sees 0/2 with both names unacked; after the traveler redeems and acks through the API, the meter reads 1/2 and only Juho Kim remains.
+
+Built:
+- Contracts `announcement.ts`; OrgDO schema v2 (`announcements`, `acks`) and methods; routes `announcements.ts`.
+- KMP core `api/Announcements.kt` (DTOs, `mergeAnnouncements`, `replayAckOutbox`), `ApiClientConfig.sessionToken`, bearer header on authenticated calls.
+- Web `CommunicationPage` on the API with composer and unacked names; `SectionPage` gains `sample` so the page chip appears only on fixture pages; E2E `announcements.spec.ts` and capture `communication-live.png`.
+
+Deviations found while building:
+- Playwright's `page.request` does not send `Secure` cookies to `http://127.0.0.1`; the traveler's API calls in E2E run as in-page `fetch`.
+- A disabled TanStack query reports `isPending`; the page only counts the trips query once an organization exists.
+- TanStack `<Link>` throws outside a router; the setup pointer is a plain anchor so the page unit-tests without one.
+
+Not done: machine translation, nudge pushes, mobile Bulletin screen wired to the API (needs native sign-in, next slice candidate).

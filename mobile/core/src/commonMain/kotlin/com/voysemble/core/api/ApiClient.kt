@@ -12,6 +12,10 @@ import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.URLProtocol
@@ -24,6 +28,8 @@ public class ApiClientConfig(
     /** e.g. "next.dev.voysemble.cfd" or "api.voysemble.com". Scheme is always https. */
     public val host: String,
     public val userAgent: String,
+    /** Native session token (ADR-0007), read per request so a refreshed token is used at once. */
+    public val sessionToken: () -> String? = { null },
 )
 
 public class ApiClient(
@@ -39,6 +45,38 @@ public class ApiClient(
 
     public suspend fun health(correlationId: String? = null): ApiResult<HealthResponse> =
         call(correlationId) { http.get { url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "health") }; header("User-Agent", config.userAgent); correlationId?.let { header(CORRELATION_HEADER, it) } } }
+
+    /** GET /v1/orgs/{orgId}/trips/{tripId}/announcements (visible to the signed-in participant). */
+    public suspend fun listAnnouncements(orgId: String, tripId: String, correlationId: String? = null): ApiResult<AnnouncementListDto> =
+        call(correlationId) {
+            http.get {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "orgs", orgId, "trips", tripId, "announcements") }
+                common(correlationId)
+            }
+        }
+
+    /** POST .../announcements/{id}/ack. Idempotent server-side; safe to replay from the outbox. */
+    public suspend fun ackAnnouncement(
+        orgId: String,
+        tripId: String,
+        announcementId: String,
+        ackedAtDevice: String,
+        correlationId: String? = null,
+    ): ApiResult<AckResponseDto> =
+        call(correlationId) {
+            http.post {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "orgs", orgId, "trips", tripId, "announcements", announcementId, "ack") }
+                common(correlationId)
+                contentType(ContentType.Application.Json)
+                setBody(AckRequestDto(ackedAtDevice))
+            }
+        }
+
+    private fun io.ktor.client.request.HttpRequestBuilder.common(correlationId: String?) {
+        header("User-Agent", config.userAgent)
+        correlationId?.let { header(CORRELATION_HEADER, it) }
+        config.sessionToken()?.let { header("Authorization", "Bearer $it") }
+    }
 
     private suspend inline fun <reified T> call(
         correlationId: String?,

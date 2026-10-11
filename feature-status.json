@@ -8,7 +8,7 @@
     "auth.invitations": "working",
     "trips.create": "working",
     "itinerary.publish": "deferred",
-    "announcements.ack": "deferred",
+    "announcements.ack": "working",
     "headcount.durable": "deferred",
     "sync.offline": "deferred",
     "media.private-upload": "deferred",
@@ -54,7 +54,7 @@
     "onboarding.first-run": "working",
     "roster.add-leader": "working",
     "web.people": "simulated",
-    "web.communication": "simulated",
+    "web.communication": "working",
     "web.safety": "simulated",
     "web.journey-graph": "simulated",
     "web.travel": "simulated",
@@ -67,6 +67,9 @@
     "mobile.headcount": "simulated",
     "mobile.bulletin": "simulated",
     "mobile.meeting-window": "simulated",
-    "mobile.navigation": "simulated"
+    "mobile.navigation": "simulated",
+    "announcements.publish": "working",
+    "announcements.ack-status": "working",
+    "mobile.core.announcements-api": "working"
   }
 }

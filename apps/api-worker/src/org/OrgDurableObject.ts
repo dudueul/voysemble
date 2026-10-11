@@ -14,7 +14,7 @@
 // invite email. Care notes (D27) arrive in a later slice as tier-2 ciphertext.
 
 import { DurableObject } from 'cloudflare:workers';
-import type { Participation, Trip, TripRole } from '@voysemble/contracts';
+import type { AckStatus, Announcement, Participation, Trip, TripRole } from '@voysemble/contracts';
 import { nowIso } from '../lib/time';
 
 /** Versioned, idempotent schema steps. Append only; never edit an applied step. */
@@ -44,7 +44,44 @@ const MIGRATIONS: { version: number; sql: string }[] = [
       CREATE INDEX IF NOT EXISTS participations_account_idx ON participations(account_id);
     `,
   },
+  {
+    // Slice 010: announcements and idempotent acks (D16).
+    version: 2,
+    sql: `
+      CREATE TABLE IF NOT EXISTS announcements (
+        id TEXT PRIMARY KEY,
+        trip_id TEXT NOT NULL REFERENCES trips(id),
+        title TEXT NOT NULL,
+        body TEXT NOT NULL,
+        requires_ack INTEGER NOT NULL,
+        shared_with_guardians INTEGER NOT NULL,
+        author_participation_id TEXT,
+        author_name TEXT NOT NULL,
+        published_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS announcements_trip_idx ON announcements(trip_id, published_at);
+      CREATE TABLE IF NOT EXISTS acks (
+        announcement_id TEXT NOT NULL REFERENCES announcements(id),
+        participation_id TEXT NOT NULL REFERENCES participations(id),
+        acked_at_device TEXT NOT NULL,
+        received_at TEXT NOT NULL,
+        PRIMARY KEY (announcement_id, participation_id)
+      );
+    `,
+  },
 ];
+
+type AnnouncementRow = {
+  id: string;
+  trip_id: string;
+  title: string;
+  body: string;
+  requires_ack: number;
+  shared_with_guardians: number;
+  author_participation_id: string | null;
+  author_name: string;
+  published_at: string;
+};
 
 export type RosterRowInput = {
   displayName: string;
@@ -297,5 +334,195 @@ export class OrgDurableObject extends DurableObject<Env> {
       participationId,
     );
     return { ...existing, accountId };
+  }
+
+  /** The caller's participation in a trip, if any (one account has at most one per trip here). */
+  async participationForAccount(tripId: string, accountId: string): Promise<Participation | null> {
+    this.requireOrg();
+    const r = this.ctx.storage.sql
+      .exec<ParticipationRow>(
+        'SELECT * FROM participations WHERE trip_id = ? AND account_id = ? LIMIT 1',
+        tripId,
+        accountId,
+      )
+      .toArray()[0];
+    return r ? this.participationFromRow(r) : null;
+  }
+
+  /** Who must acknowledge: travelers and leaders of the trip (D16: guardians never ack). */
+  private ackDuty(tripId: string): ParticipationRow[] {
+    return this.ctx.storage.sql
+      .exec<ParticipationRow>(
+        "SELECT * FROM participations WHERE trip_id = ? AND role IN ('traveler', 'leader') ORDER BY group_name, display_name",
+        tripId,
+      )
+      .toArray();
+  }
+
+  private announcementFromRow(
+    r: AnnouncementRow,
+    viewerParticipationId: string | null,
+  ): Announcement {
+    const ackCount = this.ctx.storage.sql
+      .exec<{ n: number }>('SELECT COUNT(*) AS n FROM acks WHERE announcement_id = ?', r.id)
+      .one().n;
+    const ackTotal = this.ctx.storage.sql
+      .exec<{ n: number }>(
+        "SELECT COUNT(*) AS n FROM participations WHERE trip_id = ? AND role IN ('traveler', 'leader')",
+        r.trip_id,
+      )
+      .one().n;
+    const mine = viewerParticipationId
+      ? this.ctx.storage.sql
+          .exec<{ n: number }>(
+            'SELECT COUNT(*) AS n FROM acks WHERE announcement_id = ? AND participation_id = ?',
+            r.id,
+            viewerParticipationId,
+          )
+          .one().n
+      : 0;
+    return {
+      id: r.id,
+      tripId: r.trip_id,
+      title: r.title,
+      body: r.body,
+      requiresAck: r.requires_ack === 1,
+      sharedWithGuardians: r.shared_with_guardians === 1,
+      authorName: r.author_name,
+      publishedAt: r.published_at,
+      ackTotal,
+      ackCount,
+      myAck: mine > 0 ? 'acknowledged' : 'unacknowledged',
+    };
+  }
+
+  async createAnnouncement(input: {
+    tripId: string;
+    title: string;
+    body: string;
+    requiresAck: boolean;
+    sharedWithGuardians: boolean;
+    authorParticipationId: string | null;
+    authorName: string;
+  }): Promise<Announcement> {
+    this.requireOrg();
+    if (!(await this.getTrip(input.tripId))) throw new Error('trip not found');
+    const row: AnnouncementRow = {
+      id: crypto.randomUUID(),
+      trip_id: input.tripId,
+      title: input.title,
+      body: input.body,
+      requires_ack: input.requiresAck ? 1 : 0,
+      shared_with_guardians: input.sharedWithGuardians ? 1 : 0,
+      author_participation_id: input.authorParticipationId,
+      author_name: input.authorName,
+      published_at: nowIso(),
+    };
+    this.ctx.storage.sql.exec(
+      `INSERT INTO announcements
+        (id, trip_id, title, body, requires_ack, shared_with_guardians, author_participation_id, author_name, published_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      row.id,
+      row.trip_id,
+      row.title,
+      row.body,
+      row.requires_ack,
+      row.shared_with_guardians,
+      row.author_participation_id,
+      row.author_name,
+      row.published_at,
+    );
+    return this.announcementFromRow(row, input.authorParticipationId);
+  }
+
+  /**
+   * Newest first. Guardians see only `sharedWithGuardians` items (D13); everyone else sees all.
+   * `viewer` is the caller's participation (null for an organizer with no participation).
+   */
+  async listAnnouncements(tripId: string, viewer: Participation | null): Promise<Announcement[]> {
+    this.requireOrg();
+    const guardian = viewer?.role === 'guardian';
+    const rows = this.ctx.storage.sql
+      .exec<AnnouncementRow>(
+        guardian
+          ? 'SELECT * FROM announcements WHERE trip_id = ? AND shared_with_guardians = 1 ORDER BY published_at DESC'
+          : 'SELECT * FROM announcements WHERE trip_id = ? ORDER BY published_at DESC',
+        tripId,
+      )
+      .toArray();
+    return rows.map((r) => this.announcementFromRow(r, viewer?.id ?? null));
+  }
+
+  async getAnnouncement(
+    announcementId: string,
+    viewer: Participation | null,
+  ): Promise<Announcement | null> {
+    this.requireOrg();
+    const r = this.ctx.storage.sql
+      .exec<AnnouncementRow>('SELECT * FROM announcements WHERE id = ?', announcementId)
+      .toArray()[0];
+    if (!r) return null;
+    if (viewer?.role === 'guardian' && r.shared_with_guardians !== 1) return null;
+    return this.announcementFromRow(r, viewer?.id ?? null);
+  }
+
+  /** Idempotent: the first ack wins and later replays return `created: false` with the stored row. */
+  async ack(
+    announcementId: string,
+    participationId: string,
+    ackedAtDevice: string,
+  ): Promise<{ created: boolean; ackedAtDevice: string; receivedAt: string }> {
+    this.requireOrg();
+    const existing = this.ctx.storage.sql
+      .exec<{ acked_at_device: string; received_at: string }>(
+        'SELECT acked_at_device, received_at FROM acks WHERE announcement_id = ? AND participation_id = ?',
+        announcementId,
+        participationId,
+      )
+      .toArray()[0];
+    if (existing)
+      return {
+        created: false,
+        ackedAtDevice: existing.acked_at_device,
+        receivedAt: existing.received_at,
+      };
+    const receivedAt = nowIso();
+    this.ctx.storage.sql.exec(
+      'INSERT INTO acks (announcement_id, participation_id, acked_at_device, received_at) VALUES (?, ?, ?, ?)',
+      announcementId,
+      participationId,
+      ackedAtDevice,
+      receivedAt,
+    );
+    return { created: true, ackedAtDevice, receivedAt };
+  }
+
+  /** Leader view: who has and has not acknowledged, among those with ack duty. */
+  async ackStatus(announcementId: string): Promise<AckStatus | null> {
+    this.requireOrg();
+    const a = this.ctx.storage.sql
+      .exec<AnnouncementRow>('SELECT * FROM announcements WHERE id = ?', announcementId)
+      .toArray()[0];
+    if (!a) return null;
+    const acks = new Map(
+      this.ctx.storage.sql
+        .exec<{ participation_id: string; received_at: string }>(
+          'SELECT participation_id, received_at FROM acks WHERE announcement_id = ?',
+          announcementId,
+        )
+        .toArray()
+        .map((r) => [r.participation_id, r.received_at]),
+    );
+    const entries = this.ackDuty(a.trip_id).map((p) => ({
+      participationId: p.id,
+      displayName: p.display_name,
+      groupName: p.group_name,
+      ackedAt: acks.get(p.id) ?? null,
+    }));
+    return {
+      announcementId,
+      acked: entries.filter((e) => e.ackedAt !== null),
+      unacked: entries.filter((e) => e.ackedAt === null),
+    };
   }
 }

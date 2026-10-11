@@ -15,10 +15,10 @@ final class HeadcountModel: ObservableObject {
         self.deviceClock = deviceClock
     }
 
-    func toggle(_ id: String) { session = HeadcountModelKt.togglePresent(session, memberId: id) }
-    func excuse(_ id: String) { session = HeadcountModelKt.mark(session, memberId: id, mark: .excused) }
-    func withOtherGroup(_ id: String) { session = HeadcountModelKt.mark(session, memberId: id, mark: .withOtherGroup) }
-    func close() { session = HeadcountModelKt.close(session, atDevice: deviceClock()) }
+    func toggle(_ id: String) { session = session.togglePresent(memberId: id) }
+    func excuse(_ id: String) { session = session.mark(memberId: id, mark: .excused) }
+    func withOtherGroup(_ id: String) { session = session.mark(memberId: id, mark: .withOtherGroup) }
+    func close() { session = session.close(atDevice: deviceClock()) }
 }
 
 struct HeadcountView: View {
@@ -78,7 +78,7 @@ struct HeadcountView: View {
     }
 
     private func label(for mark: HeadcountMark) -> String {
-        switch onEnum(of: mark) {
+        switch mark {
         case .present: return "Present"
         case .missing: return "Missing"
         case .withOtherGroup: return "Other group"

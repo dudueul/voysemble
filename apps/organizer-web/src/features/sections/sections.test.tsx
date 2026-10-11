@@ -2,8 +2,9 @@
 // Facts: every sample section renders its heading and the "Sample data" chip; counts derive from
 // the fixtures; People filters narrow the table; chart scale helper rounds to clean maxima.
 
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BillingPage } from './BillingPage';
 import { CommunicationPage } from './CommunicationPage';
 import { niceMax } from './charts';
@@ -16,9 +17,66 @@ import { SafetyPage } from './SafetyPage';
 import { SettingsPage } from './SettingsPage';
 import { TravelPage } from './TravelPage';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 const text = (el: Element | null) => el?.textContent ?? '';
+
+const ORG = {
+  id: '11111111-1111-4111-8111-111111111111',
+  name: 'Seoul Arts High',
+  defaultLocale: 'ko',
+  createdAt: '2026-10-11T00:00:00.000Z',
+  role: 'owner',
+};
+const TRIP = {
+  id: '22222222-2222-4222-8222-222222222222',
+  organizationId: ORG.id,
+  name: 'Tour',
+  startsOn: '2026-12-26',
+  endsOn: '2027-01-07',
+  timezone: 'Asia/Seoul',
+  createdAt: '2026-10-11T00:00:00.000Z',
+};
+const ANN = {
+  id: '33333333-3333-4333-8333-333333333333',
+  tripId: TRIP.id,
+  title: 'Breakfast moved to 06:30',
+  body: 'Lobby. Bus leaves 07:15.',
+  requiresAck: true,
+  sharedWithGuardians: true,
+  authorName: 'Organizer',
+  publishedAt: '2026-12-30T20:30:00.000Z',
+  ackTotal: 38,
+  ackCount: 36,
+  myAck: 'unacknowledged',
+};
+
+/** Fetch stub keyed by "METHOD path"; unknown paths answer 404 envelopes. */
+function stubApi(routes: Record<string, () => unknown>) {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const key = `${init?.method ?? 'GET'} ${String(input)}`;
+      const h = routes[key];
+      if (!h)
+        return Response.json(
+          { error: { code: 'NOT_FOUND', message: key, correlationId: 't' } },
+          { status: 404 },
+        );
+      return Response.json(h(), { status: init?.method === 'POST' ? 201 : 200 });
+    }),
+  );
+}
+
+function renderWithQuery(ui: React.ReactElement) {
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
+}
 
 const PAGES = [
   ['People', PeoplePage],
@@ -36,9 +94,10 @@ const PAGES = [
 describe('sample sections', () => {
   for (const [title, Page] of PAGES) {
     it(`${title}: heading and Sample data chip`, () => {
-      render(<Page />);
+      stubApi({});
+      renderWithQuery(<Page />);
       expect(text(screen.getByRole('heading', { level: 1 }))).toBe(title);
-      expect(screen.getByText('Sample data')).toBeTruthy();
+      expect(screen.getAllByText('Sample data').length).toBeGreaterThan(0);
     });
   }
 
@@ -54,11 +113,50 @@ describe('sample sections', () => {
     expect(text(screen.getByTestId('people-joined'))).toBe('61');
   });
 
-  it('Communication: ack counts and unacked names per announcement', () => {
-    render(<CommunicationPage />);
-    expect(text(screen.getByTestId('ack-a1'))).toBe('36/38');
-    expect(text(screen.getByTestId('announcement-list'))).toContain('Seojun Choi, Jiwoo Han');
+  it('Communication: real announcements with ack counts, unacked names on demand, publish', async () => {
+    const posted: unknown[] = [];
+    stubApi({
+      'GET /v1/orgs': () => ({ organizations: [ORG] }),
+      [`GET /v1/orgs/${ORG.id}/trips`]: () => ({ trips: [TRIP] }),
+      [`GET /v1/orgs/${ORG.id}/trips/${TRIP.id}/announcements`]: () => ({ announcements: [ANN] }),
+      [`GET /v1/orgs/${ORG.id}/trips/${TRIP.id}/announcements/${ANN.id}/acks`]: () => ({
+        announcementId: ANN.id,
+        acked: [],
+        unacked: [
+          { participationId: 'p1', displayName: 'Seojun Choi', groupName: 'Bus A', ackedAt: null },
+          { participationId: 'p2', displayName: 'Jiwoo Han', groupName: 'Bus A', ackedAt: null },
+        ],
+      }),
+      [`POST /v1/orgs/${ORG.id}/trips/${TRIP.id}/announcements`]: () => {
+        posted.push(1);
+        return { ...ANN, id: '44444444-4444-4444-8444-444444444444', title: 'New' };
+      },
+    });
+    renderWithQuery(<CommunicationPage />);
+    await waitFor(() => expect(text(screen.getByTestId(`ack-${ANN.id}`))).toBe('36/38'));
+    expect(text(screen.getByRole('heading', { level: 1 }).parentElement)).toContain(
+      '1 announcement still waiting',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Who has not?' }));
+    await waitFor(() =>
+      expect(text(screen.getByTestId(`unacked-${ANN.id}`))).toContain('Seojun Choi, Jiwoo Han'),
+    );
     expect(within(screen.getByTestId('channel-list')).getAllByRole('listitem')).toHaveLength(5);
+
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'New' } });
+    fireEvent.change(screen.getByLabelText('Message'), { target: { value: 'Body' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Publish' }));
+    await waitFor(() => expect(posted).toHaveLength(1));
+  });
+
+  it('Communication: without a trip it points to setup', () => {
+    stubApi({ 'GET /v1/orgs': () => ({ organizations: [] }) });
+    renderWithQuery(<CommunicationPage />);
+    return waitFor(() =>
+      expect(screen.getByRole('status').textContent).toContain(
+        'Create an organization and a trip first.',
+      ),
+    );
   });
 
   it('Safety: window state counts and missing list', () => {

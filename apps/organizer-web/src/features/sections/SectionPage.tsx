@@ -11,12 +11,15 @@ export function SectionPage({
   actions,
   children,
   className,
+  sample = true,
 }: {
   title: string;
   subtitle?: string;
   actions?: ReactNode;
   children: ReactNode;
   className?: string;
+  /** False once the page's main content comes from the API; cards on fixtures show their own chip. */
+  sample?: boolean;
 }) {
   return (
     <main className={`page${className ? ` ${className}` : ''}`}>
@@ -26,7 +29,7 @@ export function SectionPage({
           {subtitle ? <p className="page__subtitle">{subtitle}</p> : null}
         </div>
         <div className="page__meta">
-          <span className="chip chip--sample">{strings.dashboard.simulated}</span>
+          {sample ? <span className="chip chip--sample">{strings.dashboard.simulated}</span> : null}
           {actions}
         </div>
       </header>
