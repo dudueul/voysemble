@@ -244,7 +244,7 @@ copy `today-light.png`, `today-dark.png`, `today-offline-pending.png` into `docs
 
 ## Slice 006: identity + organizations + trips + roster + invites (API vertical)
 
-Status: built 2026-10-11, local gate green, CI pending. Commit: `feat(api): identity ...`.
+Status: done 2026-10-11. Commit `bc09e1d`. **CI verified**: run 38100632835 green (web job: lint, typecheck, 28 worker tests in workerd with D1 migrations, web unit + Playwright; mobile job: Gradle build + Roborazzi), 2026-10-11 01:07 UTC.
 Spec: ADR-0007, ADR-0009 (D12, D21, D26). Details: `docs/engineering/identity-and-roster.md`.
 
 | Gate | Command | Result |
