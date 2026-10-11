@@ -72,7 +72,9 @@ for (const s of SECTIONS) {
   test(`section ${s.path} renders sample data`, async ({ page }, info) => {
     await page.goto(s.path);
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(s.nav);
-    await expect(page.getByText('Sample data')).toBeVisible();
+    // At least one chip: a page on fixtures carries one at page level, a page with live content
+    // (Communication, Safety) carries one per fixture card.
+    await expect(page.getByText('Sample data').first()).toBeVisible();
     await expect(page.getByRole('link', { name: s.nav, exact: true })).toHaveAttribute(
       'aria-current',
       'page',

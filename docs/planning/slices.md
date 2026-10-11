@@ -483,6 +483,9 @@ Built:
 Deviations found while building:
 - Playwright's web server serves the built console: a changed page needs `pnpm build` before a local
   E2E run, or the old bundle answers (the config comment says so; it bit once anyway).
+- CI runs 38113821044 and 38113832587 (web red): `sections.spec.ts` asserted one "Sample data" chip per
+  page with a strict locator; Safety now carries one per fixture card (three). The loop asserts the
+  first chip. The earlier local full-suite run reported green, so a local pass is not proof: CI is.
 
 Not done: manual incident creation, leader confirmation from the phone, guardian status message,
 amber dashboard tile on real sessions, person timeline.
