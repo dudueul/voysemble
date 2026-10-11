@@ -26,7 +26,7 @@ API from a phone: Bulletin with the ack outbox (D16).
 |---|---|---|
 | API | `routes/auth.ts` `GET /v1/me/participations` | Walks the caller's memberships and asks each OrgDO for participations with trip names. |
 | Core | `api/Auth.kt`, `ApiClient` | DTOs and calls: requestMagicLink, verifyMagicLink, me, myParticipations, redeemInvite, logout. |
-| Core | `api/Headcounts.kt` (slice 012) | Head count DTOs, roster seed, idempotent push; see `headcounts.md`. |
+| Core | `api/Headcounts.kt` (slices 012–013) | Head count DTOs, roster seed, idempotent push, incident id; see `headcounts.md`, `incidents.md`. |
 | Core | `session/SecureStore.kt` | Interface + in-memory impl for tests. |
 | Core | `session/SessionManager.kt` | `SessionState` (SignedOut, AwaitingLink, NeedsInvite, Ready), `ActiveTrip`, `extractMagicToken`. |
 | Core | `sync/BulletinSync.kt` | One refresh: replay outbox, list, merge. |

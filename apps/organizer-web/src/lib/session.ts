@@ -10,6 +10,9 @@ import type {
   Announcement,
   AnnouncementList,
   CreateAnnouncementRequest,
+  HeadcountList,
+  Incident,
+  IncidentList,
   IssueInvitesResponse,
   MeResponse,
   Organization,
@@ -73,6 +76,28 @@ export const announcements = {
     api<Announcement>(`/v1/orgs/${orgId}/trips/${tripId}/announcements`, {
       method: 'POST',
       body: input,
+    }),
+};
+
+export const headcountsQuery = (orgId: string, tripId: string) =>
+  queryOptions({
+    queryKey: ['orgs', orgId, 'trips', tripId, 'headcounts'],
+    queryFn: async () =>
+      (await api<HeadcountList>(`/v1/orgs/${orgId}/trips/${tripId}/headcounts`)).headcounts,
+  });
+
+export const incidentsQuery = (orgId: string, tripId: string) =>
+  queryOptions({
+    queryKey: ['orgs', orgId, 'trips', tripId, 'incidents'],
+    queryFn: async () =>
+      (await api<IncidentList>(`/v1/orgs/${orgId}/trips/${tripId}/incidents`)).incidents,
+  });
+
+export const incidents = {
+  resolve: (orgId: string, tripId: string, incidentId: string, note: string | null) =>
+    api<Incident>(`/v1/orgs/${orgId}/trips/${tripId}/incidents/${incidentId}/resolve`, {
+      method: 'POST',
+      body: { note },
     }),
 };
 

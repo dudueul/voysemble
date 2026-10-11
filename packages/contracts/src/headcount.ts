@@ -63,6 +63,8 @@ export const SyncHeadcountResponse = z
     session: HeadcountSession,
     /** False when the server already held this session closed and ignored the replay. */
     applied: z.boolean(),
+    /** The incident card opened because this close left travelers missing (D25), if any. */
+    incidentId: z.uuid().nullable(),
   })
   .openapi('SyncHeadcountResponse');
 export type SyncHeadcountResponse = z.infer<typeof SyncHeadcountResponse>;

@@ -32,6 +32,8 @@ describe('GET /openapi.json', () => {
         '/v1/orgs/{orgId}/trips/{tripId}/announcements',
         '/v1/orgs/{orgId}/trips/{tripId}/announcements/{announcementId}/ack',
         '/v1/orgs/{orgId}/trips/{tripId}/headcounts/{headcountId}',
+        '/v1/orgs/{orgId}/trips/{tripId}/incidents',
+        '/v1/orgs/{orgId}/trips/{tripId}/incidents/{incidentId}/resolve',
       ]),
     );
     expect(Object.keys(doc.components.securitySchemes)).toEqual(['sessionCookie', 'bearerToken']);

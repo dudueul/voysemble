@@ -19,6 +19,7 @@ import type {
   Announcement,
   HeadcountMark,
   HeadcountSession,
+  Incident,
   Participation,
   Trip,
   TripRole,
@@ -100,7 +101,47 @@ const MIGRATIONS: { version: number; sql: string }[] = [
       );
     `,
   },
+  {
+    // Slice 013: incident cards (D17, D25). One card per head count that closed with missing
+    // travelers (UNIQUE headcount_id keeps replays from opening a second one).
+    version: 4,
+    sql: `
+      CREATE TABLE IF NOT EXISTS incidents (
+        id TEXT PRIMARY KEY,
+        trip_id TEXT NOT NULL REFERENCES trips(id),
+        kind TEXT NOT NULL,
+        status TEXT NOT NULL,
+        title TEXT NOT NULL,
+        headcount_id TEXT UNIQUE REFERENCES headcounts(id),
+        opened_at TEXT NOT NULL,
+        opened_by_name TEXT NOT NULL,
+        resolved_at TEXT,
+        resolved_by_name TEXT,
+        resolution_note TEXT
+      );
+      CREATE INDEX IF NOT EXISTS incidents_trip_idx ON incidents(trip_id, opened_at);
+      CREATE TABLE IF NOT EXISTS incident_people (
+        incident_id TEXT NOT NULL REFERENCES incidents(id),
+        participation_id TEXT NOT NULL REFERENCES participations(id),
+        PRIMARY KEY (incident_id, participation_id)
+      );
+    `,
+  },
 ];
+
+type IncidentRow = {
+  id: string;
+  trip_id: string;
+  kind: string;
+  status: string;
+  title: string;
+  headcount_id: string | null;
+  opened_at: string;
+  opened_by_name: string;
+  resolved_at: string | null;
+  resolved_by_name: string | null;
+  resolution_note: string | null;
+};
 
 type HeadcountRow = {
   id: string;
@@ -690,7 +731,10 @@ export class OrgDurableObject extends DurableObject<Env> {
     openedAtDevice: string;
     closedAtDevice: string | null;
     marks: { participationId: string; mark: HeadcountMark }[];
-  }): Promise<{ session: HeadcountSession; applied: boolean } | { conflict: 'other-trip' }> {
+  }): Promise<
+    | { session: HeadcountSession; applied: boolean; incidentId: string | null }
+    | { conflict: 'other-trip' }
+  > {
     this.requireOrg();
     if (!(await this.getTrip(input.tripId))) throw new Error('trip not found');
     const sql = this.ctx.storage.sql;
@@ -699,8 +743,13 @@ export class OrgDurableObject extends DurableObject<Env> {
       .toArray()[0];
     if (existing) {
       if (existing.trip_id !== input.tripId) return { conflict: 'other-trip' };
-      if (existing.closed_at_device !== null)
-        return { session: this.headcountFromRow(existing), applied: false };
+      if (existing.closed_at_device !== null) {
+        return {
+          session: this.headcountFromRow(existing),
+          applied: false,
+          incidentId: this.incidentForHeadcount(existing.id),
+        };
+      }
     }
     const validIds = new Set(
       sql
@@ -745,7 +794,128 @@ export class OrgDurableObject extends DurableObject<Env> {
       }
     });
     const row = sql.exec<HeadcountRow>('SELECT * FROM headcounts WHERE id = ?', input.id).one();
-    return { session: this.headcountFromRow(row), applied: true };
+    const session = this.headcountFromRow(row);
+    // D25: a close that leaves travelers missing opens one incident card naming them.
+    const incidentId = session.closedWithMissing ? this.openHeadcountIncident(session) : null;
+    return { session, applied: true, incidentId };
+  }
+
+  private incidentForHeadcount(headcountId: string): string | null {
+    return (
+      this.ctx.storage.sql
+        .exec<{ id: string }>('SELECT id FROM incidents WHERE headcount_id = ?', headcountId)
+        .toArray()[0]?.id ?? null
+    );
+  }
+
+  /** Idempotent per head count: a second call returns the existing card. */
+  private openHeadcountIncident(session: HeadcountSession): string {
+    const existing = this.incidentForHeadcount(session.id);
+    if (existing) return existing;
+    const sql = this.ctx.storage.sql;
+    const id = crypto.randomUUID();
+    const scope = session.groupName ?? 'Whole trip';
+    const n = session.missing.length;
+    const title = `Head count closed with ${n} missing (${scope}, ${session.closedAtDevice ?? ''})`;
+    this.ctx.storage.transactionSync(() => {
+      sql.exec(
+        `INSERT INTO incidents
+          (id, trip_id, kind, status, title, headcount_id, opened_at, opened_by_name)
+         VALUES (?, ?, 'headcount_missing', 'open', ?, ?, ?, ?)`,
+        id,
+        session.tripId,
+        title,
+        session.id,
+        nowIso(),
+        session.openedByName,
+      );
+      for (const m of session.missing) {
+        sql.exec(
+          'INSERT OR IGNORE INTO incident_people (incident_id, participation_id) VALUES (?, ?)',
+          id,
+          m.participationId,
+        );
+      }
+    });
+    return id;
+  }
+
+  private incidentFromRow(r: IncidentRow): Incident {
+    const people = this.ctx.storage.sql
+      .exec<{ id: string; display_name: string; group_name: string | null }>(
+        `SELECT p.id, p.display_name, p.group_name
+           FROM incident_people ip JOIN participations p ON p.id = ip.participation_id
+          WHERE ip.incident_id = ? ORDER BY p.display_name`,
+        r.id,
+      )
+      .toArray()
+      .map((p) => ({
+        participationId: p.id,
+        displayName: p.display_name,
+        groupName: p.group_name,
+      }));
+    return {
+      id: r.id,
+      tripId: r.trip_id,
+      kind: r.kind as Incident['kind'],
+      status: r.status as Incident['status'],
+      title: r.title,
+      headcountId: r.headcount_id,
+      people,
+      openedAt: r.opened_at,
+      openedByName: r.opened_by_name,
+      resolvedAt: r.resolved_at,
+      resolvedByName: r.resolved_by_name,
+      resolutionNote: r.resolution_note,
+    };
+  }
+
+  /** Open cards first, newest first within a status. */
+  async listIncidents(tripId: string): Promise<Incident[]> {
+    this.requireOrg();
+    return this.ctx.storage.sql
+      .exec<IncidentRow>(
+        `SELECT * FROM incidents WHERE trip_id = ?
+          ORDER BY CASE status WHEN 'open' THEN 0 ELSE 1 END, opened_at DESC`,
+        tripId,
+      )
+      .toArray()
+      .map((r) => this.incidentFromRow(r));
+  }
+
+  /**
+   * Resolve a card. Returns the card, `{ notFound: true }` when the id is not on this trip, or
+   * `{ alreadyResolved: Incident }` so a double click is reported, not treated as an error.
+   */
+  async resolveIncident(input: {
+    tripId: string;
+    incidentId: string;
+    byName: string;
+    note: string | null;
+  }): Promise<{ incident: Incident } | { notFound: true } | { alreadyResolved: Incident }> {
+    this.requireOrg();
+    const sql = this.ctx.storage.sql;
+    const row = sql
+      .exec<IncidentRow>(
+        'SELECT * FROM incidents WHERE id = ? AND trip_id = ?',
+        input.incidentId,
+        input.tripId,
+      )
+      .toArray()[0];
+    if (!row) return { notFound: true };
+    if (row.status === 'resolved') return { alreadyResolved: this.incidentFromRow(row) };
+    sql.exec(
+      `UPDATE incidents SET status = 'resolved', resolved_at = ?, resolved_by_name = ?, resolution_note = ?
+        WHERE id = ?`,
+      nowIso(),
+      input.byName,
+      input.note,
+      input.incidentId,
+    );
+    const updated = sql
+      .exec<IncidentRow>('SELECT * FROM incidents WHERE id = ?', input.incidentId)
+      .one();
+    return { incident: this.incidentFromRow(updated) };
   }
 
   async listHeadcounts(tripId: string): Promise<HeadcountSession[]> {

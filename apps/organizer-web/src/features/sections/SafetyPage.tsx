@@ -1,21 +1,171 @@
 // Copyright 2026- At Day. All rights reserved.
 // Safety: meeting window map (gallery #25, D15), head count missing list (D25), incident cards
-// (D17). The map is a schematic SVG (no tiles, no real coordinates): the zone circle, members by
-// state, and a legend. Guardians never see this page's content.
+// (D17). Incidents are real (slice 013): cards the head count sync opened for the active
+// organization's first trip, resolved here with a note. The window map and the missing list stay
+// fixtures with their own "Sample data" chip. The map is a schematic SVG (no tiles, no real
+// coordinates). Guardians never see this page's content.
 
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { Incident } from '@voysemble/contracts';
+import { useState } from 'react';
 import { Icons } from '../../app/shell/icons';
 import { FROZEN_NOW } from '../../fixtures/korea-concert-tour';
 import {
   headcountMissing,
-  incidents,
+  incidents as incidentFixture,
   meetingWindow,
   type WindowState,
 } from '../../fixtures/sections';
+import { ApiError } from '../../lib/api-client';
 import { relativeTo } from '../../lib/format';
+import {
+  incidents as incidentsApi,
+  incidentsQuery,
+  orgsQuery,
+  pickActiveOrg,
+  tripsQuery,
+} from '../../lib/session';
 import { strings } from '../../lib/strings';
 import { Card, Initials, SectionPage } from './SectionPage';
 
 const s = strings.safety;
+
+function SampleChip() {
+  return <span className="chip chip--sample">{strings.dashboard.simulated}</span>;
+}
+
+function LiveIncident({ orgId, tripId, i }: { orgId: string; tripId: string; i: Incident }) {
+  const qc = useQueryClient();
+  const [note, setNote] = useState('');
+  const resolve = useMutation({
+    mutationFn: () => incidentsApi.resolve(orgId, tripId, i.id, note.trim() || null),
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: incidentsQuery(orgId, tripId).queryKey }),
+  });
+  const open = i.status === 'open';
+  return (
+    <li className="incident" data-testid={`incident-${i.id}`}>
+      <span
+        className={`incident__badge incident__badge--${open ? 'open' : 'closed'}`}
+        aria-hidden="true"
+      >
+        {open ? <Icons.alert /> : <Icons.check />}
+      </span>
+      <div className="incident__text">
+        <strong>{i.title}</strong>
+        <span className="muted small">
+          {i.people.map((p) => p.displayName).join(', ')} · {s.opened}{' '}
+          {relativeTo(new Date().toISOString(), i.openedAt)} · {i.openedByName}
+        </span>
+        {open ? (
+          <span className="small incident__resolve">
+            <input
+              className="field__input field__input--inline"
+              aria-label={s.resolveNote}
+              placeholder={s.resolveNote}
+              maxLength={500}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+            <button
+              type="button"
+              className="btn btn--primary btn--sm"
+              disabled={resolve.isPending}
+              onClick={() => resolve.mutate()}
+            >
+              {s.resolve}
+            </button>
+            {resolve.isError ? (
+              <span className="field__error" role="alert">
+                {resolve.error instanceof ApiError ? resolve.error.message : s.resolveFailed}
+              </span>
+            ) : null}
+          </span>
+        ) : (
+          <span className="small">
+            {s.resolvedBy(
+              i.resolvedByName ?? '',
+              relativeTo(new Date().toISOString(), i.resolvedAt ?? i.openedAt),
+            )}
+            {i.resolutionNote ? ` · ${i.resolutionNote}` : ''}
+          </span>
+        )}
+      </div>
+      <span className={`chip chip--${open ? 'delayed' : 'done'}`}>
+        {open ? s.incidentStatus.open : s.incidentStatus.resolved}
+      </span>
+    </li>
+  );
+}
+
+function LiveIncidents({ orgId, tripId }: { orgId: string; tripId: string }) {
+  const list = useQuery(incidentsQuery(orgId, tripId));
+  if (list.isPending) {
+    return (
+      <p className="state__body" role="status">
+        {strings.states.loading}
+      </p>
+    );
+  }
+  if (list.isError) {
+    return (
+      <p className="field__error" role="alert">
+        {list.error instanceof ApiError
+          ? `${list.error.message} (${strings.auth.reference(list.error.correlationId)})`
+          : String(list.error)}
+      </p>
+    );
+  }
+  if (list.data.length === 0) {
+    return (
+      <p className="state__body" role="status">
+        {s.noIncidents}
+      </p>
+    );
+  }
+  return (
+    <ul className="list" data-testid="incident-list">
+      {list.data.map((i) => (
+        <LiveIncident key={i.id} orgId={orgId} tripId={tripId} i={i} />
+      ))}
+    </ul>
+  );
+}
+
+function FixtureIncidents() {
+  return (
+    <ul className="list" data-testid="incident-list">
+      {incidentFixture.map((i) => (
+        <li key={i.id} className="incident">
+          <span className={`incident__badge incident__badge--${i.status}`} aria-hidden="true">
+            {i.status === 'open' ? <Icons.alert /> : <Icons.check />}
+          </span>
+          <div className="incident__text">
+            <strong>{i.title}</strong>
+            <span className="muted small">
+              {i.person} · {s.opened} {relativeTo(FROZEN_NOW, i.openedAt)}
+            </span>
+            {i.confirmedBy ? (
+              <span className="small">
+                {s.confirmed(i.confirmedBy, relativeTo(FROZEN_NOW, i.confirmedAt ?? i.openedAt))}
+                {i.guardianNotified ? ` · ${s.guardianNotified}` : ''}
+              </span>
+            ) : (
+              <span className="small">
+                <button type="button" className="linkbtn">
+                  {s.pingLeader}
+                </button>
+              </span>
+            )}
+          </div>
+          <span className={`chip chip--${i.status === 'open' ? 'delayed' : 'done'}`}>
+            {s.incidentStatus[i.status]}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 const STATE_TONE: Record<WindowState, string> = {
   inside: 'ok',
@@ -26,6 +176,16 @@ const STATE_TONE: Record<WindowState, string> = {
 };
 
 export function SafetyPage() {
+  const orgs = useQuery(orgsQuery);
+  const org = orgs.data ? pickActiveOrg(orgs.data) : null;
+  const trips = useQuery({ ...tripsQuery(org?.id ?? ''), enabled: Boolean(org) });
+  const trip = trips.data?.[0] ?? null;
+  const live = useQuery({
+    ...incidentsQuery(org?.id ?? '', trip?.id ?? ''),
+    enabled: Boolean(org && trip),
+  });
+  const ready = Boolean(org && trip);
+  const openCount = (live.data ?? []).filter((i) => i.status === 'open').length;
   const counts = meetingWindow.members.reduce(
     (acc, m) => {
       acc[m.state] += 1;
@@ -35,7 +195,12 @@ export function SafetyPage() {
   );
   const R = 120;
   return (
-    <SectionPage title={strings.nav.safety} subtitle={s.subtitle} className="safety">
+    <SectionPage
+      title={strings.nav.safety}
+      subtitle={ready && live.data ? `${s.liveIncidents(openCount)} · ${s.subtitle}` : s.subtitle}
+      sample={false}
+      className="safety"
+    >
       <div className="grid">
         <div className="stack">
           <Card
@@ -43,7 +208,7 @@ export function SafetyPage() {
             id="safety-window"
             action={
               <span className="muted small">
-                {s.windowMeta(meetingWindow.radiusMeters, meetingWindow.openedBy)}
+                {s.windowMeta(meetingWindow.radiusMeters, meetingWindow.openedBy)} <SampleChip />
               </span>
             }
           >
@@ -104,47 +269,32 @@ export function SafetyPage() {
               {s.windowTimes(meetingWindow.startsAt, meetingWindow.endsAt)} · {s.autoStop}
             </p>
           </Card>
-          <Card title={s.incidents} id="safety-incidents">
-            <ul className="list" data-testid="incident-list">
-              {incidents.map((i) => (
-                <li key={i.id} className="incident">
-                  <span
-                    className={`incident__badge incident__badge--${i.status}`}
-                    aria-hidden="true"
-                  >
-                    {i.status === 'open' ? <Icons.alert /> : <Icons.check />}
-                  </span>
-                  <div className="incident__text">
-                    <strong>{i.title}</strong>
-                    <span className="muted small">
-                      {i.person} · {s.opened} {relativeTo(FROZEN_NOW, i.openedAt)}
-                    </span>
-                    {i.confirmedBy ? (
-                      <span className="small">
-                        {s.confirmed(
-                          i.confirmedBy,
-                          relativeTo(FROZEN_NOW, i.confirmedAt ?? i.openedAt),
-                        )}
-                        {i.guardianNotified ? ` · ${s.guardianNotified}` : ''}
-                      </span>
-                    ) : (
-                      <span className="small">
-                        <button type="button" className="linkbtn">
-                          {s.pingLeader}
-                        </button>
-                      </span>
-                    )}
-                  </div>
-                  <span className={`chip chip--${i.status === 'open' ? 'delayed' : 'done'}`}>
-                    {s.incidentStatus[i.status]}
-                  </span>
-                </li>
-              ))}
-            </ul>
+          <Card
+            title={s.incidents}
+            id="safety-incidents"
+            action={ready ? undefined : <SampleChip />}
+          >
+            {org && trip ? (
+              <LiveIncidents orgId={org.id} tripId={trip.id} />
+            ) : orgs.isPending || (org !== null && trips.isPending) ? (
+              <p className="state__body" role="status">
+                {strings.states.loading}
+              </p>
+            ) : (
+              <>
+                <p className="muted small">
+                  {s.noTrip}{' '}
+                  <a href="/setup" className="linkbtn">
+                    {strings.setup.nav}
+                  </a>
+                </p>
+                <FixtureIncidents />
+              </>
+            )}
           </Card>
         </div>
         <div className="stack">
-          <Card title={s.missing} id="safety-missing">
+          <Card title={s.missing} id="safety-missing" action={<SampleChip />}>
             <p className="muted small">{s.missingIntro}</p>
             <ul className="list" data-testid="missing-list">
               {headcountMissing.map((m) => (

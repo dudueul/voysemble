@@ -2162,3 +2162,18 @@ fieldset.filters {
     max-width: 100%;
   }
 }
+
+/* Slice 013: live incident card resolve row */
+.incident__resolve {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.field__input--inline {
+  flex: 1 1 200px;
+  min-width: 0;
+  padding: 4px 8px;
+  font-size: 0.85rem;
+}

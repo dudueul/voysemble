@@ -159,13 +159,76 @@ describe('sample sections', () => {
     );
   });
 
-  it('Safety: window state counts and missing list', () => {
-    render(<SafetyPage />);
+  it('Safety: window state counts, missing list, fixture incidents without a trip', async () => {
+    stubApi({ 'GET /v1/orgs': () => ({ organizations: [] }) });
+    renderWithQuery(<SafetyPage />);
     expect(text(screen.getByTestId('win-inside'))).toBe('6');
     expect(text(screen.getByTestId('win-outside'))).toBe('1');
     expect(text(screen.getByTestId('win-opted_out'))).toBe('1');
     expect(within(screen.getByTestId('missing-list')).getAllByRole('listitem')).toHaveLength(2);
-    expect(within(screen.getByTestId('incident-list')).getAllByRole('listitem')).toHaveLength(2);
+    await waitFor(() =>
+      expect(within(screen.getByTestId('incident-list')).getAllByRole('listitem')).toHaveLength(2),
+    );
+    expect(
+      screen.getByText('Create an organization and a trip first.', { exact: false }),
+    ).toBeTruthy();
+  });
+
+  it('Safety: real incidents list open first and resolve with a note', async () => {
+    const INC = {
+      id: '55555555-5555-4555-8555-555555555555',
+      tripId: TRIP.id,
+      kind: 'headcount_missing',
+      status: 'open',
+      title: 'Head count closed with 1 missing (Bus A, 06:58)',
+      headcountId: '66666666-6666-4666-8666-666666666666',
+      people: [{ participationId: 'p2', displayName: 'Juho Kim', groupName: 'Bus A' }],
+      openedAt: '2026-12-30T21:58:00.000Z',
+      openedByName: 'Kim',
+      resolvedAt: null,
+      resolvedByName: null,
+      resolutionNote: null,
+    };
+    const posted: unknown[] = [];
+    let resolved = false;
+    stubApi({
+      'GET /v1/orgs': () => ({ organizations: [ORG] }),
+      [`GET /v1/orgs/${ORG.id}/trips`]: () => ({ trips: [TRIP] }),
+      [`GET /v1/orgs/${ORG.id}/trips/${TRIP.id}/incidents`]: () => ({
+        incidents: resolved
+          ? [
+              {
+                ...INC,
+                status: 'resolved',
+                resolvedByName: 'Organizer',
+                resolvedAt: INC.openedAt,
+                resolutionNote: 'Lobby',
+              },
+            ]
+          : [INC],
+      }),
+      [`POST /v1/orgs/${ORG.id}/trips/${TRIP.id}/incidents/${INC.id}/resolve`]: () => {
+        posted.push(1);
+        resolved = true;
+        return { ...INC, status: 'resolved', resolvedByName: 'Organizer' };
+      },
+    });
+    renderWithQuery(<SafetyPage />);
+    const card = await screen.findByTestId(`incident-${INC.id}`);
+    expect(text(card)).toContain('Juho Kim');
+    expect(text(card)).toContain('Open');
+    expect(text(screen.getByRole('heading', { level: 1 }).parentElement)).toContain(
+      '1 open incident',
+    );
+    fireEvent.change(within(card).getByLabelText('What happened (optional)'), {
+      target: { value: 'Lobby' },
+    });
+    fireEvent.click(within(card).getByRole('button', { name: 'Resolve' }));
+    await waitFor(() => expect(posted).toHaveLength(1));
+    await waitFor(() =>
+      expect(text(screen.getByTestId(`incident-${INC.id}`))).toContain('Resolved by Organizer'),
+    );
+    expect(text(screen.getByTestId(`incident-${INC.id}`))).toContain('Lobby');
   });
 
   it('Journey graph: ten nodes today, tight connections flagged', () => {

@@ -39,7 +39,7 @@ class HeadcountsSyncTest {
     private fun sessionJson(closed: Boolean) = """
         {"session":{"id":"11111111-1111-4111-8111-111111111111","tripId":"t","groupName":"Bus A","openedByName":"Kim",
          "openedAtDevice":"06:50","closedAtDevice":${if (closed) "\"06:58\"" else "null"},"receivedAt":"2026-12-31T06:58:01.000Z",
-         "expected":2,"present":1,"accounted":2,"missing":[],"closedWithMissing":false},"applied":${!closed}}
+         "expected":2,"present":1,"accounted":2,"missing":[],"closedWithMissing":false},"applied":${!closed},"incidentId":${if (closed) "null" else "\"77777777-7777-4777-8777-777777777777\""}}
     """.trimIndent()
 
     @Test
@@ -85,6 +85,7 @@ class HeadcountsSyncTest {
         )
         assertEquals("synced", r.outcome)
         assertEquals(SyncState.SYNCED, r.session.syncState)
+        assertEquals("77777777-7777-4777-8777-777777777777", r.incidentId)
     }
 
     /** The open-session push must carry `closedAtDevice: null` explicitly: the API rejects a missing key. */
@@ -107,6 +108,7 @@ class HeadcountsSyncTest {
         val kept = pushHeadcount(ApiClient(config, closedEngine), "o", "t", s)
         assertEquals("already-closed", kept.outcome)
         assertEquals(SyncState.SYNCED, kept.session.syncState)
+        assertNull(kept.incidentId)
 
         val conflictEngine = MockEngine {
             respond("""{"error":{"code":"CONFLICT","message":"other trip","correlationId":"c"}}""", HttpStatusCode.Conflict, headersOf(HttpHeaders.ContentType, "application/json"))

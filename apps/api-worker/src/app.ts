@@ -16,6 +16,7 @@ import { mountAuthRoutes } from './routes/auth';
 import { mountDevRoutes } from './routes/dev';
 import { mountHeadcountRoutes } from './routes/headcounts';
 import { healthHandler, healthRoute } from './routes/health';
+import { mountIncidentRoutes } from './routes/incidents';
 import { mountOrganizationRoutes } from './routes/organizations';
 import { mountRosterRoutes } from './routes/roster';
 import { mountTripRoutes } from './routes/trips';
@@ -115,6 +116,7 @@ export function createApp(): OpenAPIHono<AppEnv> {
   mountRosterRoutes(app);
   mountAnnouncementRoutes(app);
   mountHeadcountRoutes(app);
+  mountIncidentRoutes(app);
   mountDevRoutes(app);
 
   app.openAPIRegistry.registerComponent('securitySchemes', 'sessionCookie', {

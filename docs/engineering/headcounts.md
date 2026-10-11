@@ -87,5 +87,6 @@ iOS keeps the fixture model this slice (same core API is available through the f
 
 ## Not done
 
-Incident auto-creation on `closedWithMissing` (D25 second half), the dashboard tile on real
-sessions, guardian status, iOS live mode, push "come now" to a missing traveler.
+The dashboard tile on real sessions, guardian status, iOS live mode, push "come now" to a
+missing traveler. Incident auto-creation on `closedWithMissing` landed in slice 013
+(`incidents.md`).

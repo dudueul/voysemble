@@ -52,7 +52,12 @@ public data class HeadcountSessionDto(
 )
 
 @Serializable
-public data class SyncHeadcountResponseDto(val session: HeadcountSessionDto, val applied: Boolean)
+public data class SyncHeadcountResponseDto(
+    val session: HeadcountSessionDto,
+    val applied: Boolean,
+    /** The incident card the server opened because this close left travelers missing (D25). */
+    val incidentId: String? = null,
+)
 
 @Serializable
 public data class HeadcountListDto(val headcounts: List<HeadcountSessionDto>)
@@ -115,6 +120,8 @@ public data class HeadcountPushResult(
     val session: HeadcountSession,
     /** "synced" | "already-closed" | "rejected:<status>" | "offline" */
     val outcome: String,
+    /** Incident card id when the server opened one for this close; null otherwise. */
+    val incidentId: String? = null,
 )
 
 /**
@@ -129,7 +136,7 @@ public suspend fun pushHeadcount(
     session: HeadcountSession,
 ): HeadcountPushResult =
     when (val r = api.syncHeadcount(orgId, tripId, session.id, session.toSyncRequest())) {
-        is ApiResult.Ok -> HeadcountPushResult(session.markSynced(), if (r.value.applied) "synced" else "already-closed")
+        is ApiResult.Ok -> HeadcountPushResult(session.markSynced(), if (r.value.applied) "synced" else "already-closed", r.value.incidentId)
         is ApiResult.Failed -> HeadcountPushResult(session, "rejected:${r.status}")
         is ApiResult.Unreachable -> HeadcountPushResult(session, "offline")
     }

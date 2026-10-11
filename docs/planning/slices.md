@@ -456,3 +456,33 @@ Deviations found while building:
 
 Not done: incident auto-creation on close with missing, dashboard tile on real sessions, guardian
 status, iOS live mode.
+
+## Slice 013: incidents from head counts, live Safety page
+
+Status: built 2026-10-11, CI pending (run id recorded below once green).
+Spec: D25 (second half), D17 (card), ADR-0009. Details: `docs/engineering/incidents.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 12 files, 38 tests (adds incidents.test.ts: 2) |
+| Core JVM tests | `cd mobile && ./gradlew :core:jvmTest -Pvoysemble.android=false` | 35 tests (incidentId on push result asserted) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 9 files, 51 tests (Safety live + fixture cases) |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e` | adds `headcounts.spec.ts`; see the CI row |
+
+Facts established by tests: see the engineering doc.
+
+Built:
+- Contracts `incident.ts`; `SyncHeadcountResponse.incidentId`.
+- OrgDO schema v4 (`incidents` with UNIQUE `headcount_id`, `incident_people`), `openHeadcountIncident`
+  (idempotent per head count), `listIncidents`, `resolveIncident` (results as values: notFound,
+  alreadyResolved); routes `incidents.ts` (list, resolve) for staff.
+- Console: `incidentsQuery`, `headcountsQuery`, `incidents.resolve`; Safety page Incidents card on the
+  API with inline resolve note; fixture cards carry their own "Sample data" chip; capture `safety-live.png`.
+- Core: `incidentId` on `SyncHeadcountResponseDto` and `HeadcountPushResult`.
+
+Deviations found while building:
+- Playwright's web server serves the built console: a changed page needs `pnpm build` before a local
+  E2E run, or the old bundle answers (the config comment says so; it bit once anyway).
+
+Not done: manual incident creation, leader confirmation from the phone, guardian status message,
+amber dashboard tile on real sessions, person timeline.

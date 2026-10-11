@@ -13,6 +13,7 @@ export * from './common';
 export * from './error';
 export * from './headcount';
 export * from './health';
+export * from './incident';
 export * from './organization';
 export * from './roster';
 export * from './trip';
