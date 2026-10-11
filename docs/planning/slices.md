@@ -628,7 +628,7 @@ Not done: proposing from iOS, add/remove proposals from the phone, the revision 
 
 ## Slice 019: App Links and Universal Links for the magic link
 
-Status: built 2026-10-11, CI pending (run id recorded below once green).
+Status: done 2026-10-11. Commit `a5834c4`. **CI verified**: run 38183800421 green (web, mobile incl. AppLinksTest and the autoVerify manifest, ios incl. the associated-domains entitlement under XcodeGen), 2026-10-11 23:28 UTC. First push green.
 Spec: ADR-0007 (mobile magic link), ADR-0008 (hosts). Details: `docs/engineering/mobile-auth.md` (slice 019 section).
 
 | Gate | Command | Result |
