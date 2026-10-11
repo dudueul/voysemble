@@ -5,6 +5,8 @@
 package com.voysemble.app.bulletin
 
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
@@ -31,7 +33,8 @@ class BulletinScreenshotTest {
     fun bulletin_light() {
         compose.setContent { VoysembleTheme(darkTheme = false) { BulletinRoute(BulletinViewModel()) } }
         compose.onNodeWithText("1 update needs your acknowledgment").assertExists()
-        compose.onNodeWithText("Machine translation · 한국어").assertExists()
+        // Two of the three announcements carry a translation.
+        compose.onAllNodesWithText("Machine translation · 한국어").assertCountEquals(2)
         compose.onRoot().captureRoboImage("$OUT/bulletin-light.png")
     }
 
