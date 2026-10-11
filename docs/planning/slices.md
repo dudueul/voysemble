@@ -594,3 +594,34 @@ Deviations found while building:
   asserts the real count.
 
 Not done: day labels, leader change proposals, revision diff with ack, disruption drafts, iOS live Today.
+
+## Slice 018: leader change proposals
+
+Status: built 2026-10-11, CI pending (run id recorded below once green).
+Spec: D24, D19 (single publisher). Details: `docs/engineering/itinerary.md` (slice 018 section).
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 14 files, 44 tests (itinerary.test.ts grows to 2) |
+| Core JVM tests | `cd mobile && ./gradlew :core:jvmTest -Pvoysemble.android=false` | 40 tests (adds ProposalsTest: 1) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 11 files, 62 tests (reducer seeding, describePatch) |
+| Android + iOS | CI `mobile` and `ios` jobs | TodayViewModelTest grows to 6 (propose live, propose 403) |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e` | adds the proposal case; see the CI row |
+
+Facts established by tests: see the engineering doc.
+
+Built:
+- Contracts: `ProposalKind`, `ProposalStatus`, `ProposalPatch`, `CreateProposalRequest`, `ItineraryProposal`,
+  `ProposalList`, `DecideProposalRequest`. OrgDO schema v8; `createProposal`, `listProposals`,
+  `decideProposal` (accept applies edit/add/remove to the draft); routes create, list, decide.
+- Console `ProposalsPanel` above the live editor; `proposalsApi`, `describePatch`; the reducer seeds its draft
+  count from unpublished rows on init and load; capture `itinerary-proposal.png`.
+- Core `ProposalPatchDto` (untouched fields omitted), `CreateProposalRequestDto`, `ItineraryProposalDto`,
+  `ApiClient.createProposal`. Android `TodayViewModel.propose`, "Propose a change" on the up-next card with a
+  dialog (new start, note), sent/error states.
+
+Deviations found while building:
+- The client's "encode nulls and defaults" rule (slice 012) would have sent every untouched patch field as
+  null; the patch DTO opts out per field with `EncodeDefault.Mode.NEVER` and the core test pins the body.
+
+Not done: proposing from iOS, add/remove proposals from the phone, the revision diff with ack, day labels.

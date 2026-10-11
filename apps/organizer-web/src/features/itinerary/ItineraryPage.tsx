@@ -15,6 +15,7 @@ import { orgsQuery, pickActiveOrg, tripsQuery } from '../../lib/session';
 import { strings } from '../../lib/strings';
 import { ItineraryView } from './ItineraryView';
 import { type EditorAction, type EditorState, editorReducer, initEditor } from './itinerary-model';
+import { ProposalsPanel } from './ProposalsPanel';
 
 const SAVE_DEBOUNCE_MS = 500;
 
@@ -231,5 +232,15 @@ function LiveEditor({
     };
   }, []);
 
-  return <ItineraryView state={{ kind: 'ready', editor, dispatch, notice }} />;
+  return (
+    <ItineraryView
+      state={{
+        kind: 'ready',
+        editor,
+        dispatch,
+        notice,
+        proposals: <ProposalsPanel orgId={orgId} tripId={tripId} onApplied={() => void reload()} />,
+      }}
+    />
+  );
 }

@@ -7,6 +7,8 @@ import type {
   Itinerary as ApiItinerary,
   ItineraryEvent as ApiItineraryEvent,
   ItineraryEventInput,
+  ItineraryProposal,
+  ProposalList,
 } from '@voysemble/contracts';
 import { type Itinerary, type ItineraryEvent, itineraryFixture } from '../fixtures/itinerary';
 import { api } from './api-client';
@@ -100,3 +102,31 @@ export const itineraryApi = {
       }),
     ),
 };
+
+/* ---------- Leader change proposals (slice 018) ---------- */
+
+export const proposalsApi = {
+  list: async (orgId: string, tripId: string) =>
+    (await api<ProposalList>(`/v1/orgs/${orgId}/trips/${tripId}/itinerary/proposals`)).proposals,
+  decide: (
+    orgId: string,
+    tripId: string,
+    proposalId: string,
+    decision: 'accept' | 'reject',
+    note: string | null,
+  ) =>
+    api<ItineraryProposal>(
+      `/v1/orgs/${orgId}/trips/${tripId}/itinerary/proposals/${proposalId}/decide`,
+      { method: 'POST', body: { decision, note } },
+    ),
+};
+
+/** "start 09:00 → 08:30 · note: Gate opens early." for the proposal card. */
+export function describePatch(patch: ItineraryProposal['patch']): string {
+  const parts: string[] = [];
+  for (const [k, v] of Object.entries(patch)) {
+    if (v === undefined) continue;
+    parts.push(`${k}: ${v === null ? '—' : String(v)}`);
+  }
+  return parts.join(' · ');
+}

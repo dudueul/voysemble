@@ -1,8 +1,22 @@
 // Copyright 2026- At Day. All rights reserved.
 // Browser facts + captures for the itinerary editor (second visual-acceptance screen).
 
-import { expect, test } from '@playwright/test';
-import { OUT, signInWithOrg } from './helpers';
+import { expect, type Page, test } from '@playwright/test';
+import { OUT, signIn, signInWithOrg } from './helpers';
+
+async function call(page: Page, method: 'GET' | 'POST', url: string, body?: unknown) {
+  return page.evaluate(
+    async ({ method, url, body }) => {
+      const r = await fetch(url, {
+        method,
+        headers: body === undefined ? {} : { 'content-type': 'application/json' },
+        body: body === undefined ? null : JSON.stringify(body),
+      });
+      return { ok: r.ok, status: r.status, text: await r.text() };
+    },
+    { method, url, body },
+  );
+}
 
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -82,4 +96,78 @@ test('live itinerary: add, edit, publish, persist (slice 017)', async ({ page },
   await expect(page.getByTestId('revision')).toHaveText('Revision 1');
   await expect(page.getByRole('button', { name: '09:00 Group check-in' })).toBeVisible();
   await expect(page.getByTestId('itinerary-notice')).toHaveCount(0);
+});
+
+test('leader proposal: filed from the phone, accepted on the console (slice 018)', async ({
+  page,
+  browser,
+}, info) => {
+  await page.getByRole('button', { name: 'Use the sample trip' }).click();
+  await page.getByRole('button', { name: 'Create trip' }).click();
+  await expect(page.getByTestId('step-3')).toHaveAttribute('data-state', 'open');
+  await page
+    .getByLabel('Or paste CSV')
+    .fill('name,group,guardian_name,guardian_contact\nMinji Park,Bus A,,');
+  await page.getByRole('button', { name: 'Import rows' }).click();
+  await expect(page.getByTestId('count-traveler')).toHaveText('1');
+  await page.getByLabel('Leader name').fill('Kim');
+  await page.getByLabel('Group', { exact: true }).fill('Bus A');
+  await page.getByRole('button', { name: 'Add leader' }).click();
+  await page.getByRole('button', { name: 'Issue invite codes' }).click();
+  const code = await page
+    .getByTestId('invite-table')
+    .locator('tbody tr', { hasText: 'Kim' })
+    .first()
+    .locator('code')
+    .textContent();
+
+  // The organizer publishes one event.
+  await page.goto('/itinerary');
+  await page.getByRole('button', { name: 'Add event' }).click();
+  await page.getByLabel('Title').fill('Colosseum guided tour');
+  await page.getByRole('button', { name: 'Publish changes' }).click();
+  await expect(page.getByTestId('revision')).toHaveText('Revision 1');
+
+  // Kim proposes an earlier start from "the phone".
+  const ctx = await browser.newContext();
+  const kim = await ctx.newPage();
+  await signIn(kim);
+  const redeem = await call(kim, 'POST', '/v1/invites/redeem', { code });
+  expect(redeem.ok, `redeem: ${redeem.status} ${redeem.text}`).toBeTruthy();
+  const { organizationId, tripId } = JSON.parse(redeem.text) as {
+    organizationId: string;
+    tripId: string;
+  };
+  const published = await call(kim, 'GET', `/v1/orgs/${organizationId}/trips/${tripId}/itinerary`);
+  const { events } = JSON.parse(published.text) as { events: { id: string }[] };
+  const filed = await call(
+    kim,
+    'POST',
+    `/v1/orgs/${organizationId}/trips/${tripId}/itinerary/proposals`,
+    {
+      kind: 'edit',
+      eventId: events[0]?.id,
+      patch: { start: '08:30' },
+      note: 'Guide asked us to come 30 min earlier.',
+    },
+  );
+  expect(filed.ok, `proposal: ${filed.status} ${filed.text}`).toBeTruthy();
+  await ctx.close();
+
+  await page.reload();
+  const panel = page.getByTestId('proposals');
+  await expect(panel).toContainText('1 change proposal from a leader');
+  await expect(panel).toContainText('start: 08:30');
+  await expect(panel).toContainText('Guide asked us to come 30 min earlier.');
+  await page.mouse.move(0, 0);
+  await page.screenshot({
+    path: `${OUT}/${info.project.name}/itinerary-proposal.png`,
+    fullPage: true,
+  });
+  await panel.getByRole('button', { name: 'Accept' }).click();
+  await expect(panel).toContainText('accepted by Organizer');
+  await expect(page.getByTestId('drafts')).toHaveText('1 unpublished change');
+  await expect(page.getByRole('button', { name: '08:30 Colosseum guided tour' })).toBeVisible();
+  await page.getByRole('button', { name: 'Publish changes' }).click();
+  await expect(page.getByTestId('revision')).toHaveText('Revision 2');
 });

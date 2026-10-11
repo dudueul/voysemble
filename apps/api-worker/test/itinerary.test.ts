@@ -9,6 +9,8 @@ import type {
   IssueInvitesResponse,
   Itinerary,
   ItineraryEvent,
+  ItineraryProposal,
+  ProposalList,
   RosterImportResponse,
 } from '@voysemble/contracts';
 import { describe, expect, it } from 'vitest';
@@ -132,5 +134,185 @@ describe('itinerary', () => {
       (await api(nate).put(`/v1/orgs/${org.id}/trips/${other.id}/itinerary/events/${id}`, EVENT))
         .status,
     ).toBe(409);
+  });
+
+  it('leader proposals: file, list, accept applies to the draft, reject records, roles', async () => {
+    const nate = await signIn('nate-prop@example.com');
+    const org = await createOrg(nate);
+    const trip = await createTrip(nate, org.id);
+    const base = `/v1/orgs/${org.id}/trips/${trip.id}/itinerary`;
+    await api(nate).post(`/v1/orgs/${org.id}/trips/${trip.id}/roster/import`, { csv: SAMPLE_CSV });
+    await api(nate).post(`/v1/orgs/${org.id}/trips/${trip.id}/roster/leaders`, {
+      displayName: 'Kim',
+      groupName: 'Bus A',
+    });
+    const issued = await json<IssueInvitesResponse>(
+      await api(nate).post(`/v1/orgs/${org.id}/trips/${trip.id}/invites`),
+    );
+    const codeFor = (n: string) => issued.invites.find((i) => i.displayName === n)?.code ?? '';
+    const kim = await signIn('kim-prop@example.com');
+    await api(kim).post('/v1/invites/redeem', { code: codeFor('Kim') });
+    const minji = await signIn('minji-prop@example.com');
+    await api(minji).post('/v1/invites/redeem', { code: codeFor('Minji Park') });
+
+    const id = crypto.randomUUID();
+    await api(nate).put(`${base}/events/${id}`, EVENT);
+    await api(nate).post(`${base}/publish`, { expectedRevision: 0 });
+
+    // Traveler cannot propose; unknown event 404; add without a full event 400.
+    expect(
+      (
+        await api(minji).post(`${base}/proposals`, {
+          kind: 'edit',
+          eventId: id,
+          patch: { start: '08:30' },
+          note: 'x',
+        })
+      ).status,
+    ).toBe(403);
+    expect(
+      (
+        await api(kim).post(`${base}/proposals`, {
+          kind: 'edit',
+          eventId: crypto.randomUUID(),
+          patch: { start: '08:30' },
+          note: 'x',
+        })
+      ).status,
+    ).toBe(404);
+    expect(
+      (
+        await api(kim).post(`${base}/proposals`, {
+          kind: 'add',
+          eventId: null,
+          patch: { title: 'Snack' },
+          note: 'x',
+        })
+      ).status,
+    ).toBe(400);
+
+    const edit = await json<ItineraryProposal>(
+      await api(kim).post(`${base}/proposals`, {
+        kind: 'edit',
+        eventId: id,
+        patch: { start: '08:30', note: 'Gate opens early.' },
+        note: 'Guide asked us to come 30 min earlier.',
+      }),
+    );
+    expect(edit).toMatchObject({
+      kind: 'edit',
+      status: 'pending',
+      proposedByName: 'Kim',
+      eventTitle: EVENT.title,
+    });
+    const add = await json<ItineraryProposal>(
+      await api(kim).post(`${base}/proposals`, {
+        kind: 'add',
+        eventId: null,
+        patch: {
+          ...EVENT,
+          title: 'Gelato stop',
+          kind: 'free',
+          start: '11:15',
+          end: '11:45',
+          order: 2,
+        },
+        note: 'Kids need a break.',
+      }),
+    );
+    const remove = await json<ItineraryProposal>(
+      await api(kim).post(`${base}/proposals`, {
+        kind: 'remove',
+        eventId: id,
+        patch: {},
+        note: 'Closed today.',
+      }),
+    );
+    expect(add.eventTitle).toBe('Gelato stop');
+
+    // Draft untouched so far; the leader sees the list; the traveler does not.
+    const before = await json<Itinerary>(await api(nate).get(base));
+    expect(before.unpublished).toBe(0);
+    const list = await json<ProposalList>(await api(kim).get(`${base}/proposals`));
+    expect(list.proposals.map((p) => p.kind)).toEqual(['remove', 'add', 'edit']);
+    expect((await api(minji).get(`${base}/proposals`)).status).toBe(403);
+    expect(
+      (
+        await api(kim).post(`${base}/proposals/${edit.id}/decide`, {
+          decision: 'accept',
+          note: null,
+        })
+      ).status,
+    ).toBe(403);
+
+    // Accept edit: the draft row carries the patch and is unpublished; accept add: a new row.
+    const accepted = await json<ItineraryProposal>(
+      await api(nate).post(`${base}/proposals/${edit.id}/decide`, {
+        decision: 'accept',
+        note: null,
+      }),
+    );
+    expect(accepted.status).toBe('accepted');
+    expect(accepted.decidedByName).toBe('Organizer');
+    await api(nate).post(`${base}/proposals/${add.id}/decide`, {
+      decision: 'accept',
+      note: 'Good call.',
+    });
+    const after = await json<Itinerary>(await api(nate).get(base));
+    expect(after.unpublished).toBe(2);
+    const edited = after.events.find((e) => e.id === id);
+    expect(edited?.start).toBe('08:30');
+    expect(edited?.note).toBe('Gate opens early.');
+    expect(edited?.title).toBe(EVENT.title);
+    expect(edited?.published).toBe(false);
+    expect(after.events.map((e) => e.title).sort()).toEqual([
+      'Colosseum guided tour',
+      'Gelato stop',
+    ]);
+
+    // Reject the removal with a reason; deciding twice is 409.
+    const rejected = await json<ItineraryProposal>(
+      await api(nate).post(`${base}/proposals/${remove.id}/decide`, {
+        decision: 'reject',
+        note: 'It reopens at noon.',
+      }),
+    );
+    expect(rejected.status).toBe('rejected');
+    expect(rejected.decisionNote).toBe('It reopens at noon.');
+    expect(
+      (
+        await api(nate).post(`${base}/proposals/${remove.id}/decide`, {
+          decision: 'accept',
+          note: null,
+        })
+      ).status,
+    ).toBe(409);
+    expect(after.events).toHaveLength(2);
+
+    // A remove proposal whose event vanished answers 409 on accept.
+    const stale = await json<ItineraryProposal>(
+      await api(kim).post(`${base}/proposals`, {
+        kind: 'remove',
+        eventId: id,
+        patch: {},
+        note: 'Again.',
+      }),
+    );
+    await api(nate).delete(`${base}/events/${id}`);
+    expect(
+      (
+        await api(nate).post(`${base}/proposals/${stale.id}/decide`, {
+          decision: 'accept',
+          note: null,
+        })
+      ).status,
+    ).toBe(409);
+    const final = await json<ProposalList>(await api(nate).get(`${base}/proposals`));
+    expect(final.proposals.map((p) => p.status)).toEqual([
+      'pending',
+      'rejected',
+      'accepted',
+      'accepted',
+    ]);
   });
 });

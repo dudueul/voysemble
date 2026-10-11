@@ -27,6 +27,12 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -59,6 +65,17 @@ import com.voysemble.core.today.TodaySnapshot
 @Composable
 fun TodayRoute(vm: TodayViewModel, onOpenHeadcount: () -> Unit = {}, onOpenWindow: () -> Unit = {}, onOpenIncidents: () -> Unit = {}) {
     val state by vm.state.collectAsStateWithLifecycle()
+    var proposing by remember { mutableStateOf<String?>(null) }
+    proposing?.let { eventId ->
+        ProposeChangeDialog(
+            eventTitle = state.snapshot.events.firstOrNull { it.id == eventId }?.title ?: "",
+            onDismiss = { proposing = null },
+            onSend = { start, note ->
+                vm.propose(eventId, start, note)
+                proposing = null
+            },
+        )
+    }
     TodayScreen(
         state = state,
         onAcknowledge = vm::acknowledge,
@@ -66,6 +83,8 @@ fun TodayRoute(vm: TodayViewModel, onOpenHeadcount: () -> Unit = {}, onOpenWindo
         onOpenHeadcount = onOpenHeadcount,
         onOpenWindow = onOpenWindow,
         onOpenIncidents = onOpenIncidents,
+        onPropose = { proposing = it },
+        onDismissProposal = vm::dismissProposal,
     )
 }
 
@@ -77,6 +96,8 @@ fun TodayScreen(
     onOpenHeadcount: () -> Unit = {},
     onOpenWindow: () -> Unit = {},
     onOpenIncidents: () -> Unit = {},
+    onPropose: (eventId: String) -> Unit = {},
+    onDismissProposal: () -> Unit = {},
 ) {
     val snap = state.snapshot
     Scaffold(
@@ -90,7 +111,7 @@ fun TodayScreen(
         ) {
             item { Header(snap, live = state.live, syncing = state.syncing) }
             if (snap.offline) item { OfflineBanner(snap) }
-            snap.upNext?.let { next -> item { UpNextCard(next, snap.timeZoneLabel, onOpenWindow) } }
+            snap.upNext?.let { next -> item { UpNextCard(next, snap.timeZoneLabel, onOpenWindow, onPropose = { onPropose(next.id) }, proposal = state.proposal?.takeIf { it.eventId == next.id }, onDismissProposal = onDismissProposal) } }
             snap.announcement?.let { a -> item { AnnouncementCard(a, onAcknowledge) } }
             item { HeadcountCard(snap.headcount, snap.checkedIn, snap.expected, onOpenHeadcount, onOpenIncidents) }
             item { SectionTitle("Later today") }
@@ -159,7 +180,14 @@ private fun OfflineBanner(snap: TodaySnapshot) {
 }
 
 @Composable
-private fun UpNextCard(e: TodayEvent, tz: String, onOpenWindow: () -> Unit) {
+private fun UpNextCard(
+    e: TodayEvent,
+    tz: String,
+    onOpenWindow: () -> Unit,
+    onPropose: () -> Unit = {},
+    proposal: ProposalState? = null,
+    onDismissProposal: () -> Unit = {},
+) {
     val c = LocalVoysembleColors.current
     Surface(
         shape = MaterialTheme.shapes.medium,
@@ -192,8 +220,59 @@ private fun UpNextCard(e: TodayEvent, tz: String, onOpenWindow: () -> Unit) {
                 Spacer(Modifier.width(8.dp))
                 Text(if (e.isMeetingPoint) "Meeting point" else "Directions")
             }
+            // D24: leaders propose; the organizer decides on the console.
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = onPropose, enabled = proposal?.sending != true) {
+                    Text(
+                        when {
+                            proposal?.sending == true -> "Sending proposal…"
+                            proposal?.sent == true -> "Proposal sent to the organizer"
+                            else -> "Propose a change"
+                        },
+                        color = c.onAction,
+                    )
+                }
+                if (proposal != null && !proposal.sending) {
+                    TextButton(onClick = onDismissProposal) { Text("OK", color = c.onAction) }
+                }
+            }
+            proposal?.error?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = c.onAction) }
         }
     }
+}
+
+/** Minimal proposal form: a new start time (optional) and a note (required). */
+@Composable
+private fun ProposeChangeDialog(eventTitle: String, onDismiss: () -> Unit, onSend: (start: String?, note: String) -> Unit) {
+    var start by remember { mutableStateOf("") }
+    var note by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Propose a change") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(eventTitle, style = MaterialTheme.typography.bodyMedium)
+                OutlinedTextField(
+                    value = start,
+                    onValueChange = { start = it },
+                    label = { Text("New start (HH:mm, optional)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = note,
+                    onValueChange = { note = it },
+                    label = { Text("Why") },
+                    minLines = 2,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSend(start.trim().ifBlank { null }, note) }, enabled = note.isNotBlank()) { Text("Send") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 @Composable

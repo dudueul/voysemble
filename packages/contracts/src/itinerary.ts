@@ -79,3 +79,59 @@ export const PublishItineraryRequest = z
   })
   .openapi('PublishItineraryRequest');
 export type PublishItineraryRequest = z.infer<typeof PublishItineraryRequest>;
+
+/* ---------- Leader change proposals (D24, slice 018) ---------- */
+
+export const ProposalKind = z.enum(['edit', 'add', 'remove']).openapi('ProposalKind');
+export type ProposalKind = z.infer<typeof ProposalKind>;
+
+export const ProposalStatus = z.enum(['pending', 'accepted', 'rejected']).openapi('ProposalStatus');
+export type ProposalStatus = z.infer<typeof ProposalStatus>;
+
+/** What the leader wants changed. `edit` patches fields, `add` needs the full event, `remove` needs none. */
+export const ProposalPatch = ItineraryEventInput.partial().openapi('ProposalPatch');
+export type ProposalPatch = z.infer<typeof ProposalPatch>;
+
+export const CreateProposalRequest = z
+  .object({
+    kind: ProposalKind,
+    /** The draft event this is about; null only for `add`. */
+    eventId: z.uuid().nullable(),
+    patch: ProposalPatch,
+    note: z.string().trim().min(1).max(500),
+  })
+  .openapi('CreateProposalRequest');
+export type CreateProposalRequest = z.infer<typeof CreateProposalRequest>;
+
+export const ItineraryProposal = z
+  .object({
+    id: z.uuid(),
+    tripId: Id,
+    kind: ProposalKind,
+    eventId: z.uuid().nullable(),
+    /** Title of the event at proposal time, so the card reads even after the event changed. */
+    eventTitle: z.string().nullable(),
+    patch: ProposalPatch,
+    note: z.string(),
+    status: ProposalStatus,
+    proposedByName: z.string(),
+    proposedAt: Timestamp,
+    decidedAt: Timestamp.nullable(),
+    decidedByName: z.string().nullable(),
+    decisionNote: z.string().nullable(),
+  })
+  .openapi('ItineraryProposal');
+export type ItineraryProposal = z.infer<typeof ItineraryProposal>;
+
+export const ProposalList = z
+  .object({ proposals: z.array(ItineraryProposal) })
+  .openapi('ProposalList');
+export type ProposalList = z.infer<typeof ProposalList>;
+
+export const DecideProposalRequest = z
+  .object({
+    decision: z.enum(['accept', 'reject']),
+    note: z.string().trim().min(1).max(500).nullable(),
+  })
+  .openapi('DecideProposalRequest');
+export type DecideProposalRequest = z.infer<typeof DecideProposalRequest>;

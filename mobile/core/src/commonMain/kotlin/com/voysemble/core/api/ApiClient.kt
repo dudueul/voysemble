@@ -149,6 +149,22 @@ public class ApiClient(
             }
         }
 
+    /** POST .../itinerary/proposals: a leader's change proposal (D24); the draft is untouched until accepted. */
+    public suspend fun createProposal(
+        orgId: String,
+        tripId: String,
+        body: CreateProposalRequestDto,
+        correlationId: String? = null,
+    ): ApiResult<ItineraryProposalDto> =
+        call(correlationId) {
+            http.post {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "orgs", orgId, "trips", tripId, "itinerary", "proposals") }
+                common(correlationId)
+                contentType(ContentType.Application.Json)
+                setBody(body)
+            }
+        }
+
     /** POST /v1/auth/magic-link. Always 202; the server never reveals whether the address exists. */
     public suspend fun requestMagicLink(email: String, locale: String): ApiResult<MagicLinkAcceptedDto> =
         call(null) {

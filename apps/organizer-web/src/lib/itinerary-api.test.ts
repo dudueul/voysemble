@@ -4,7 +4,7 @@
 
 import type { ItineraryEvent as ApiEvent, Itinerary as ApiItinerary } from '@voysemble/contracts';
 import { describe, expect, it } from 'vitest';
-import { fromApiEvent, fromApiItinerary, toApiInput } from './itinerary-api';
+import { describePatch, fromApiEvent, fromApiItinerary, toApiInput } from './itinerary-api';
 
 const apiEvent: ApiEvent = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -69,5 +69,13 @@ describe('itinerary API mapping', () => {
     expect(mapped.revision).toBe(2);
     expect(mapped.days).toHaveLength(2);
     expect(mapped.events[0]?.id).toBe(apiEvent.id);
+  });
+
+  it('describes a proposal patch field by field', () => {
+    expect(describePatch({ start: '08:30', note: 'Gate opens early.' })).toBe(
+      'start: 08:30 · note: Gate opens early.',
+    );
+    expect(describePatch({ end: null })).toBe('end: —');
+    expect(describePatch({})).toBe('');
   });
 });

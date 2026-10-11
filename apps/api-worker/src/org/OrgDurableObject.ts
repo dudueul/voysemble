@@ -23,6 +23,7 @@ import type {
   Itinerary,
   ItineraryEvent,
   ItineraryEventInput,
+  ItineraryProposal,
   Participation,
   Trip,
   TripRole,
@@ -194,7 +195,48 @@ const MIGRATIONS: { version: number; sql: string }[] = [
       );
     `,
   },
+  {
+    // Slice 018: leader change proposals (D24). A proposal never touches the draft until the
+    // organizer accepts it; the patch is stored as JSON exactly as the leader sent it.
+    version: 8,
+    sql: `
+      CREATE TABLE IF NOT EXISTS itinerary_proposals (
+        id TEXT PRIMARY KEY,
+        trip_id TEXT NOT NULL REFERENCES trips(id),
+        kind TEXT NOT NULL,
+        event_id TEXT,
+        event_title TEXT,
+        patch TEXT NOT NULL,
+        note TEXT NOT NULL,
+        status TEXT NOT NULL,
+        proposed_by_participation_id TEXT,
+        proposed_by_name TEXT NOT NULL,
+        proposed_at TEXT NOT NULL,
+        decided_at TEXT,
+        decided_by_name TEXT,
+        decision_note TEXT
+      );
+      CREATE INDEX IF NOT EXISTS itinerary_proposals_trip_idx ON itinerary_proposals(trip_id, status, proposed_at);
+    `,
+  },
 ];
+
+type ProposalRow = {
+  id: string;
+  trip_id: string;
+  kind: string;
+  event_id: string | null;
+  event_title: string | null;
+  patch: string;
+  note: string;
+  status: string;
+  proposed_by_participation_id: string | null;
+  proposed_by_name: string;
+  proposed_at: string;
+  decided_at: string | null;
+  decided_by_name: string | null;
+  decision_note: string | null;
+};
 
 type ItineraryEventRow = {
   id: string;
@@ -221,6 +263,23 @@ type RevisionRow = {
   published_by_name: string;
   snapshot: string;
 };
+
+/** An `add` proposal must carry every field the draft row needs. */
+function isCompleteEvent(patch: ItineraryProposal['patch']): patch is ItineraryEventInput {
+  return (
+    typeof patch.date === 'string' &&
+    typeof patch.start === 'string' &&
+    patch.end !== undefined &&
+    typeof patch.timeZone === 'string' &&
+    typeof patch.kind === 'string' &&
+    typeof patch.title === 'string' &&
+    typeof patch.place === 'string' &&
+    patch.pax !== undefined &&
+    typeof patch.status === 'string' &&
+    patch.note !== undefined &&
+    typeof patch.order === 'number'
+  );
+}
 
 /** Every calendar date from start to end inclusive (YYYY-MM-DD arithmetic in UTC, no DST). */
 export function datesBetween(startsOn: string, endsOn: string): string[] {
@@ -1465,5 +1524,167 @@ export class OrgDurableObject extends DurableObject<Env> {
     });
     const itinerary = await this.getItinerary(tripId, 'draft');
     return { itinerary: itinerary as Itinerary };
+  }
+
+  /* ---------- Leader change proposals (slice 018) ---------- */
+
+  private proposalFromRow(r: ProposalRow): ItineraryProposal {
+    return {
+      id: r.id,
+      tripId: r.trip_id,
+      kind: r.kind as ItineraryProposal['kind'],
+      eventId: r.event_id,
+      eventTitle: r.event_title,
+      patch: JSON.parse(r.patch) as ItineraryProposal['patch'],
+      note: r.note,
+      status: r.status as ItineraryProposal['status'],
+      proposedByName: r.proposed_by_name,
+      proposedAt: r.proposed_at,
+      decidedAt: r.decided_at,
+      decidedByName: r.decided_by_name,
+      decisionNote: r.decision_note,
+    };
+  }
+
+  /** File a proposal. `edit` and `remove` need an existing draft event; `add` needs a full event. */
+  async createProposal(input: {
+    tripId: string;
+    kind: 'edit' | 'add' | 'remove';
+    eventId: string | null;
+    patch: ItineraryProposal['patch'];
+    note: string;
+    byParticipationId: string | null;
+    byName: string;
+  }): Promise<
+    | { proposal: ItineraryProposal }
+    | { notFound: true }
+    | { eventNotFound: true }
+    | { incomplete: true }
+  > {
+    this.requireOrg();
+    if (!(await this.getTrip(input.tripId))) return { notFound: true };
+    const sql = this.ctx.storage.sql;
+    let title: string | null = null;
+    if (input.kind !== 'add') {
+      if (!input.eventId) return { eventNotFound: true };
+      const ev = sql
+        .exec<ItineraryEventRow>(
+          'SELECT * FROM itinerary_events WHERE id = ? AND trip_id = ?',
+          input.eventId,
+          input.tripId,
+        )
+        .toArray()[0];
+      if (!ev) return { eventNotFound: true };
+      title = ev.title;
+    } else if (!isCompleteEvent(input.patch)) {
+      return { incomplete: true };
+    }
+    const id = crypto.randomUUID();
+    sql.exec(
+      `INSERT INTO itinerary_proposals
+        (id, trip_id, kind, event_id, event_title, patch, note, status, proposed_by_participation_id, proposed_by_name, proposed_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)`,
+      id,
+      input.tripId,
+      input.kind,
+      input.kind === 'add' ? null : input.eventId,
+      title ?? (typeof input.patch.title === 'string' ? input.patch.title : null),
+      JSON.stringify(input.patch),
+      input.note,
+      input.byParticipationId,
+      input.byName,
+      nowIso(),
+    );
+    const row = sql.exec<ProposalRow>('SELECT * FROM itinerary_proposals WHERE id = ?', id).one();
+    return { proposal: this.proposalFromRow(row) };
+  }
+
+  /** Pending first, newest first within a status. */
+  async listProposals(tripId: string): Promise<ItineraryProposal[]> {
+    this.requireOrg();
+    return this.ctx.storage.sql
+      .exec<ProposalRow>(
+        `SELECT * FROM itinerary_proposals WHERE trip_id = ?
+          ORDER BY CASE status WHEN 'pending' THEN 0 ELSE 1 END, proposed_at DESC`,
+        tripId,
+      )
+      .toArray()
+      .map((r) => this.proposalFromRow(r));
+  }
+
+  /**
+   * Accept applies the proposal to the draft (an edit merges the patch, an add inserts a row,
+   * a remove deletes the row) and the organizer publishes as usual; reject records the reason.
+   * A proposal already decided answers `decided`; an edit whose event vanished answers `gone`.
+   */
+  async decideProposal(input: {
+    tripId: string;
+    proposalId: string;
+    decision: 'accept' | 'reject';
+    note: string | null;
+    byName: string;
+  }): Promise<
+    { proposal: ItineraryProposal } | { notFound: true } | { decided: true } | { gone: true }
+  > {
+    this.requireOrg();
+    const sql = this.ctx.storage.sql;
+    const row = sql
+      .exec<ProposalRow>(
+        'SELECT * FROM itinerary_proposals WHERE id = ? AND trip_id = ?',
+        input.proposalId,
+        input.tripId,
+      )
+      .toArray()[0];
+    if (!row) return { notFound: true };
+    if (row.status !== 'pending') return { decided: true };
+    const proposal = this.proposalFromRow(row);
+    if (input.decision === 'accept') {
+      if (proposal.kind === 'add') {
+        if (!isCompleteEvent(proposal.patch)) return { gone: true };
+        await this.upsertItineraryEvent(input.tripId, crypto.randomUUID(), proposal.patch);
+      } else {
+        const ev = proposal.eventId
+          ? sql
+              .exec<ItineraryEventRow>(
+                'SELECT * FROM itinerary_events WHERE id = ? AND trip_id = ?',
+                proposal.eventId,
+                input.tripId,
+              )
+              .toArray()[0]
+          : undefined;
+        if (!ev) return { gone: true };
+        if (proposal.kind === 'remove') {
+          sql.exec('DELETE FROM itinerary_events WHERE id = ?', ev.id);
+        } else {
+          const current = this.itineraryEventFromRow(ev);
+          const merged: ItineraryEventInput = {
+            date: proposal.patch.date ?? current.date,
+            start: proposal.patch.start ?? current.start,
+            end: proposal.patch.end === undefined ? current.end : proposal.patch.end,
+            timeZone: proposal.patch.timeZone ?? current.timeZone,
+            kind: proposal.patch.kind ?? current.kind,
+            title: proposal.patch.title ?? current.title,
+            place: proposal.patch.place ?? current.place,
+            pax: proposal.patch.pax === undefined ? current.pax : proposal.patch.pax,
+            status: proposal.patch.status ?? current.status,
+            note: proposal.patch.note === undefined ? current.note : proposal.patch.note,
+            order: proposal.patch.order ?? current.order,
+          };
+          await this.upsertItineraryEvent(input.tripId, ev.id, merged);
+        }
+      }
+    }
+    sql.exec(
+      `UPDATE itinerary_proposals SET status = ?, decided_at = ?, decided_by_name = ?, decision_note = ? WHERE id = ?`,
+      input.decision === 'accept' ? 'accepted' : 'rejected',
+      nowIso(),
+      input.byName,
+      input.note,
+      input.proposalId,
+    );
+    const updated = sql
+      .exec<ProposalRow>('SELECT * FROM itinerary_proposals WHERE id = ?', input.proposalId)
+      .one();
+    return { proposal: this.proposalFromRow(updated) };
   }
 }

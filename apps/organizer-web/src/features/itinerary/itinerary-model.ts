@@ -55,10 +55,15 @@ export function initEditor(
     itinerary,
     selectedDay: day,
     selectedEventId: null,
-    draftIds: new Set(),
+    // A live draft may already carry unpublished rows (an accepted proposal, an earlier session).
+    draftIds: unpublishedIds(itinerary),
     nextLocalId: 1,
     ...(makeId ? { makeId } : {}),
   };
+}
+
+function unpublishedIds(itinerary: Itinerary): Set<string> {
+  return new Set(itinerary.events.filter((e) => !e.published).map((e) => e.id));
 }
 
 export function eventsForDay(state: EditorState, date: string | null): ItineraryEvent[] {
@@ -174,7 +179,7 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
         selectedEventId: action.itinerary.events.some((e) => e.id === state.selectedEventId)
           ? state.selectedEventId
           : null,
-        draftIds: new Set(),
+        draftIds: unpublishedIds(action.itinerary),
       };
     }
     default:

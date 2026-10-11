@@ -2,6 +2,7 @@
 // Itinerary editor layout: header (revision, drafts, publish) + day rail + day timeline + detail.
 // Pure view over EditorState; loading/empty/error handled here for screenshots and tests.
 
+import type { ReactNode } from 'react';
 import { Icons } from '../../app/shell/icons';
 import { strings } from '../../lib/strings';
 import { DayRail } from './DayRail';
@@ -18,6 +19,8 @@ export type ItineraryViewState =
       dispatch: (a: EditorAction) => void;
       /** Live editors report sync problems here (a failed save, a publish conflict). */
       notice?: string | null;
+      /** Live editors render the leader proposals panel above the grid (slice 018). */
+      proposals?: ReactNode;
     };
 
 export function ItineraryView({ state }: { state: ItineraryViewState }) {
@@ -98,6 +101,8 @@ export function ItineraryView({ state }: { state: ItineraryViewState }) {
           {state.notice}
         </div>
       ) : null}
+
+      {state.proposals ?? null}
 
       {it.days.length === 0 ? (
         <section className="card">

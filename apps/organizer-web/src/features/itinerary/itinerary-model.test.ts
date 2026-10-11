@@ -90,4 +90,15 @@ describe('itinerary editor reducer', () => {
     expect(s4.selectedDay).toBe(DAY);
     expect(s4.selectedEventId).toBeNull();
   });
+
+  it('init and load seed drafts from unpublished rows', () => {
+    const first = itineraryFixture.events[0] as (typeof itineraryFixture.events)[number];
+    const dirty = {
+      ...itineraryFixture,
+      events: [{ ...first, published: false }, ...itineraryFixture.events.slice(1)],
+    };
+    expect(draftCount(initEditor(dirty))).toBe(1);
+    const loaded = editorReducer(initEditor(itineraryFixture), { type: 'load', itinerary: dirty });
+    expect(draftCount(loaded)).toBe(1);
+  });
 });

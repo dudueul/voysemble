@@ -7,10 +7,14 @@
 
 import { createRoute, type OpenAPIHono } from '@hono/zod-openapi';
 import {
+  CreateProposalRequest,
+  DecideProposalRequest,
   Id,
   Itinerary,
   ItineraryEvent,
   ItineraryEventInput,
+  ItineraryProposal,
+  ProposalList,
   PublishItineraryRequest,
   z,
 } from '@voysemble/contracts';
@@ -99,6 +103,69 @@ const publishRoute = createRoute({
   },
 });
 
+const ProposalParams = z.object({ orgId: Id, tripId: Id, proposalId: z.uuid() });
+
+const createProposalRoute = createRoute({
+  method: 'post',
+  path: '/v1/orgs/{orgId}/trips/{tripId}/itinerary/proposals',
+  tags: ['itinerary'],
+  summary:
+    'File a change proposal (participating leader, owner, organizer); the draft is untouched until accepted',
+  security: SESSION_SECURITY,
+  request: {
+    params: TripParams,
+    body: { content: { 'application/json': { schema: CreateProposalRequest } } },
+  },
+  responses: {
+    201: { description: 'Filed.', content: { 'application/json': { schema: ItineraryProposal } } },
+    400: ERROR_RESPONSES[400],
+    401: ERROR_RESPONSES[401],
+    403: ERROR_RESPONSES[403],
+    404: ERROR_RESPONSES[404],
+    500: ERROR_RESPONSES[500],
+  },
+});
+
+const listProposalsRoute = createRoute({
+  method: 'get',
+  path: '/v1/orgs/{orgId}/trips/{tripId}/itinerary/proposals',
+  tags: ['itinerary'],
+  summary: 'Proposals of a trip, pending first (participating leader, owner, organizer)',
+  security: SESSION_SECURITY,
+  request: { params: TripParams },
+  responses: {
+    200: { description: 'Proposals.', content: { 'application/json': { schema: ProposalList } } },
+    401: ERROR_RESPONSES[401],
+    403: ERROR_RESPONSES[403],
+    404: ERROR_RESPONSES[404],
+    500: ERROR_RESPONSES[500],
+  },
+});
+
+const decideProposalRoute = createRoute({
+  method: 'post',
+  path: '/v1/orgs/{orgId}/trips/{tripId}/itinerary/proposals/{proposalId}/decide',
+  tags: ['itinerary'],
+  summary: 'Accept (applies to the draft) or reject a proposal (owner, organizer)',
+  security: SESSION_SECURITY,
+  request: {
+    params: ProposalParams,
+    body: { content: { 'application/json': { schema: DecideProposalRequest } } },
+  },
+  responses: {
+    200: {
+      description: 'Decided.',
+      content: { 'application/json': { schema: ItineraryProposal } },
+    },
+    400: ERROR_RESPONSES[400],
+    401: ERROR_RESPONSES[401],
+    403: ERROR_RESPONSES[403],
+    404: ERROR_RESPONSES[404],
+    409: ERROR_RESPONSES[409],
+    500: ERROR_RESPONSES[500],
+  },
+});
+
 function isWriter(access: OrgAccess): boolean {
   return access.role === 'owner' || access.role === 'organizer';
 }
@@ -161,5 +228,79 @@ export function mountItineraryRoutes(app: OpenAPIHono<AppEnv>): void {
       throw new HTTPException(409, { message: 'Nothing to publish.' });
     }
     return c.json(result.itinerary, 200);
+  });
+
+  app.openapi(createProposalRoute, async (c) => {
+    const auth = requireAuth(c);
+    const { orgId, tripId } = c.req.valid('param');
+    const body = c.req.valid('json');
+    const access = await requireOrgRole(c.env, auth, orgId, 'member');
+    const org = await orgObject(c.env, orgId);
+    if (!(await org.getTrip(tripId))) throw new HTTPException(404, { message: 'Trip not found.' });
+    const me = await org.participationForAccount(tripId, auth.accountId);
+    if (!isWriter(access) && me?.role !== 'leader') {
+      throw new HTTPException(403, {
+        message: 'Only trip leaders and organizers propose itinerary changes.',
+      });
+    }
+    const result = await org.createProposal({
+      tripId,
+      kind: body.kind,
+      eventId: body.eventId,
+      patch: body.patch,
+      note: body.note,
+      byParticipationId: me?.id ?? null,
+      byName: me?.displayName ?? 'Organizer',
+    });
+    if ('notFound' in result) throw new HTTPException(404, { message: 'Trip not found.' });
+    if ('eventNotFound' in result) {
+      throw new HTTPException(404, { message: 'That itinerary event no longer exists.' });
+    }
+    if ('incomplete' in result) {
+      throw new HTTPException(400, {
+        message: 'An add proposal needs every event field in its patch.',
+      });
+    }
+    return c.json(result.proposal, 201);
+  });
+
+  app.openapi(listProposalsRoute, async (c) => {
+    const auth = requireAuth(c);
+    const { orgId, tripId } = c.req.valid('param');
+    const access = await requireOrgRole(c.env, auth, orgId, 'member');
+    const org = await orgObject(c.env, orgId);
+    if (!(await org.getTrip(tripId))) throw new HTTPException(404, { message: 'Trip not found.' });
+    const me = await org.participationForAccount(tripId, auth.accountId);
+    if (!isWriter(access) && me?.role !== 'leader') {
+      throw new HTTPException(403, { message: 'Only trip leaders and organizers see proposals.' });
+    }
+    return c.json({ proposals: await org.listProposals(tripId) }, 200);
+  });
+
+  app.openapi(decideProposalRoute, async (c) => {
+    const auth = requireAuth(c);
+    const { orgId, tripId, proposalId } = c.req.valid('param');
+    const body = c.req.valid('json');
+    await requireOrgRole(c.env, auth, orgId, 'organizer');
+    const org = await orgObject(c.env, orgId);
+    if (!(await org.getTrip(tripId))) throw new HTTPException(404, { message: 'Trip not found.' });
+    const me = await org.participationForAccount(tripId, auth.accountId);
+    const result = await org.decideProposal({
+      tripId,
+      proposalId,
+      decision: body.decision,
+      note: body.note,
+      byName: me?.displayName ?? 'Organizer',
+    });
+    if ('notFound' in result) throw new HTTPException(404, { message: 'Proposal not found.' });
+    if ('decided' in result) {
+      throw new HTTPException(409, { message: 'This proposal was already decided.' });
+    }
+    if ('gone' in result) {
+      throw new HTTPException(409, {
+        message: 'The event this proposal is about no longer exists; reject it instead.',
+      });
+    }
+    return c.json(result.proposal, 200);
   });
 }

@@ -65,7 +65,48 @@ and clock in the trip's zone; offline keeps the last snapshot marked offline. Th
 - Android: live Today from the published itinerary for the device date and clock; unreachable
   marks offline and keeps the trip name.
 
+## Leader change proposals (slice 018, D24)
+
+Leaders cannot edit; they propose. Storage version 8 adds `itinerary_proposals` (kind `edit`,
+`add`, or `remove`; the event id; the event's title at filing time; the patch as JSON; note;
+status `pending`, `accepted`, `rejected`; who and when; the decision and its note). A proposal
+never touches the draft until the organizer accepts it.
+
+| Route | Who | Behaviour |
+|---|---|---|
+| `POST .../itinerary/proposals` | participating leader, owner, organizer | `{ kind, eventId, patch, note }`. `edit` and `remove` need an existing draft event (404 otherwise); `add` needs a complete event in the patch (400 otherwise). |
+| `GET .../itinerary/proposals` | same | Pending first, newest first within a status. Travelers 403. |
+| `POST .../itinerary/proposals/{id}/decide` | owner, organizer | `{ decision: accept \| reject, note }`. Accept merges an edit's patch into the draft row, inserts an add as a new row, or deletes the row for a remove; the result is an unpublished draft the organizer publishes as usual. 409 when already decided or when the event vanished (reject it instead). |
+
+Console: a "change proposals from leaders" card above the live editor lists pending and decided
+proposals with the patch spelled out field by field, the note, and the leader; Accept reloads
+the draft (the editor now seeds its draft count from unpublished rows, so an accepted proposal
+reads "1 unpublished change" at once); Reject records the reason.
+
+Phone: Android Today's up-next card has "Propose a change" (a new start time and a note); the
+view model posts an `edit` proposal and shows "Proposal sent to the organizer", or the safe error
+(403 for non-leaders, offline). Sample mode shows the sent state without a call. The core patch
+DTO omits untouched fields on the wire (`EncodeDefault.Mode.NEVER`), because the client encodes
+nulls elsewhere and the server reads a null `end` or `note` as "clear" and rejects a null title.
+Clearing a field from the phone is therefore not possible this slice; the console can.
+
+## Facts established by tests (slice 018)
+
+- Worker: a traveler cannot propose (403); an unknown event is 404; an `add` without a full event
+  is 400; a leader's edit, add, and remove proposals list pending-first and leave the draft
+  untouched; the leader cannot decide (403); accepting the edit patches the draft row (start and
+  note changed, title kept, unpublished) and accepting the add inserts "Gelato stop"; rejecting
+  records the reason; deciding twice is 409; accepting a remove whose event vanished is 409.
+- Console unit: init and load seed drafts from unpublished rows; `describePatch` spells out a
+  patch. Browser: Kim's proposal appears on the organizer's editor with its patch and note; Accept
+  reads "accepted by Organizer", the timeline shows the event at 08:30, "1 unpublished change",
+  and Publish reaches revision 2. Capture `itinerary-proposal.png`.
+- Core: the proposal body carries only the touched patch field with the bearer token.
+- Android: live propose posts the edit with the new start and note and lands on "sent"; a 403
+  reads as the safe message; sample mode reports sent without a call.
+
 ## Not done
 
-Day labels, leader change proposals (D24), the revision diff view with required ack (D19),
-disruption drafts (D19 AI), iOS live Today, announcements and head counts on the live Today.
+Day labels, proposing from iOS, add and remove proposals from the phone, the revision diff view
+with required ack (D19), disruption drafts (D19 AI), iOS live Today, announcements and head
+counts on the live Today.

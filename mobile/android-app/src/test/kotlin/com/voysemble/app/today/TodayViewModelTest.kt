@@ -12,7 +12,9 @@ import com.voysemble.core.today.AckState
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.TextContent
 import io.ktor.http.headersOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -24,6 +26,7 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -92,5 +95,50 @@ class TodayViewModelTest {
         vm.ready.join()
         assertTrue(vm.state.value.snapshot.offline)
         assertEquals("Korea Concert Tour 2026", vm.state.value.snapshot.tripName)
+    }
+
+    @Test
+    fun propose_posts_edit_and_lands_on_sent() = runTest {
+        val posts = mutableListOf<String>()
+        val engine = MockEngine { req ->
+            if (req.method == HttpMethod.Post) {
+                posts += (req.body as TextContent).text
+                assertEquals("/v1/orgs/org_1/trips/trip_1/itinerary/proposals", req.url.encodedPath)
+                respond(
+                    """{"id":"11111111-1111-4111-8111-111111111111","tripId":"trip_1","kind":"edit","eventId":"e1","eventTitle":"Breakfast","patch":{"start":"07:00"},"note":"Earlier.","status":"pending","proposedByName":"Kim","proposedAt":"2026-12-31T06:00:00.000Z","decidedAt":null,"decidedByName":null,"decisionNote":null}""",
+                    HttpStatusCode.Created,
+                    headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+            } else {
+                respond(itineraryJson, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+            }
+        }
+        val vm = TodayViewModel(api = ApiClient(ApiClientConfig("h", "t") { "tok" }, engine), trip = trip, deviceDate = { "2026-12-31" }, deviceClock = { "06:00" })
+        vm.ready.join()
+        vm.propose("e1", "07:00", " Earlier. ").join()
+        assertEquals(listOf("""{"kind":"edit","eventId":"e1","patch":{"start":"07:00"},"note":"Earlier."}"""), posts)
+        assertTrue(vm.state.value.proposal?.sent == true)
+        assertNull(vm.state.value.proposal?.error)
+        vm.dismissProposal()
+        assertNull(vm.state.value.proposal)
+    }
+
+    @Test
+    fun propose_refused_shows_safe_message_and_sample_mode_sends_nothing() = runTest {
+        val engine = MockEngine { req ->
+            if (req.method == HttpMethod.Post) {
+                respond("""{"error":{"code":"FORBIDDEN","message":"no","correlationId":"c"}}""", HttpStatusCode.Forbidden, headersOf(HttpHeaders.ContentType, "application/json"))
+            } else {
+                respond(itineraryJson, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+            }
+        }
+        val vm = TodayViewModel(api = ApiClient(ApiClientConfig("h", "t") { "tok" }, engine), trip = trip, deviceDate = { "2026-12-31" }, deviceClock = { "06:00" })
+        vm.ready.join()
+        vm.propose("e1", null, "Why").join()
+        assertEquals("Only trip leaders propose changes.", vm.state.value.proposal?.error)
+
+        val sample = TodayViewModel()
+        sample.propose("ev_2", null, "Why").join()
+        assertTrue(sample.state.value.proposal?.sent == true)
     }
 }
