@@ -597,7 +597,7 @@ Not done: day labels, leader change proposals, revision diff with ack, disruptio
 
 ## Slice 018: leader change proposals
 
-Status: built 2026-10-11, CI pending (run id recorded below once green).
+Status: done 2026-10-11. Commit `4c2f824`. **CI verified**: run 38166422967 green (web incl. 70 E2E across four viewports, mobile incl. TodayViewModelTest propose cases, ios), 2026-10-11 19:10 UTC. First push green.
 Spec: D24, D19 (single publisher). Details: `docs/engineering/itinerary.md` (slice 018 section).
 
 | Gate | Command | Result |
