@@ -426,7 +426,7 @@ Not done: App Links / Universal Links, Apple/Google sign-in, native refresh rota
 
 ## Slice 012: head count sessions on the API, live Android head count
 
-Status: built 2026-10-11, CI pending (run id recorded below once green).
+Status: done 2026-10-11. Commits `b30e99a`, `63cf589`. **CI verified**: run 38112801875 green (web incl. E2E, mobile incl. HeadcountViewModelTest live cases, ios), 2026-10-11 04:58 UTC. Run 38112192499 (first push) was red on mobile: see deviations.
 Spec: D14, D25 (ADR-0009). Details: `docs/engineering/headcounts.md`.
 
 | Gate | Command | Result |
