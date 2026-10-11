@@ -14,6 +14,7 @@ export * from './error';
 export * from './headcount';
 export * from './health';
 export * from './incident';
+export * from './itinerary';
 export * from './organization';
 export * from './roster';
 export * from './trip';

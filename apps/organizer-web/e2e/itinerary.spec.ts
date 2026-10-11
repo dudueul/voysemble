@@ -56,3 +56,30 @@ for (const state of ['loading', 'empty', 'error'] as const) {
     });
   });
 }
+
+test('live itinerary: add, edit, publish, persist (slice 017)', async ({ page }, info) => {
+  await page.getByRole('button', { name: 'Use the sample trip' }).click();
+  await page.getByRole('button', { name: 'Create trip' }).click();
+  await expect(page.getByTestId('step-3')).toHaveAttribute('data-state', 'open');
+
+  await page.goto('/itinerary');
+  await expect(page.getByText('Live', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('revision')).toHaveText('Revision 0');
+  await expect(page.getByRole('navigation', { name: 'Days' }).getByRole('button')).toHaveCount(13);
+  await expect(page.getByText('No events on this day yet.')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Add event' }).click();
+  await page.getByLabel('Title').fill('Group check-in');
+  await page.getByLabel('Place', { exact: true }).fill('ICN Terminal 2, counter K');
+  await expect(page.getByTestId('drafts')).toHaveText('1 unpublished change');
+  await page.getByRole('button', { name: 'Publish changes' }).click();
+  await expect(page.getByTestId('revision')).toHaveText('Revision 1');
+  await expect(page.getByTestId('drafts')).toHaveText('All changes published');
+  await page.mouse.move(0, 0);
+  await page.screenshot({ path: `${OUT}/${info.project.name}/itinerary-live.png`, fullPage: true });
+
+  await page.reload();
+  await expect(page.getByTestId('revision')).toHaveText('Revision 1');
+  await expect(page.getByRole('button', { name: '09:00 Group check-in' })).toBeVisible();
+  await expect(page.getByTestId('itinerary-notice')).toHaveCount(0);
+});

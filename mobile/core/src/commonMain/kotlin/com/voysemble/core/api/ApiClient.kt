@@ -140,6 +140,15 @@ public class ApiClient(
             }
         }
 
+    /** GET .../itinerary: the draft for owners and organizers, the latest published revision otherwise. */
+    public suspend fun getItinerary(orgId: String, tripId: String, correlationId: String? = null): ApiResult<ItineraryDto> =
+        call(correlationId) {
+            http.get {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "orgs", orgId, "trips", tripId, "itinerary") }
+                common(correlationId)
+            }
+        }
+
     /** POST /v1/auth/magic-link. Always 202; the server never reveals whether the address exists. */
     public suspend fun requestMagicLink(email: String, locale: String): ApiResult<MagicLinkAcceptedDto> =
         call(null) {

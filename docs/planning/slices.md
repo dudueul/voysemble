@@ -563,3 +563,34 @@ Built:
   Today; iOS `IncidentsView` (fixture); fixture `incidents()`.
 
 Not done: push delivery, guardian phone screen, iOS live incidents, manual incident creation.
+
+## Slice 017: itinerary on the API
+
+Status: built 2026-10-11, CI pending (run id recorded below once green).
+Spec: D24, D19 (revisions), D13 (guardians read the published itinerary). Details: `docs/engineering/itinerary.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 14 files, 43 tests (adds itinerary.test.ts: 1 long case) |
+| Core JVM tests | `cd mobile && ./gradlew :core:jvmTest -Pvoysemble.android=false` | 39 tests (adds TodayBuilderTest: 2) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 11 files, 60 tests (adds itinerary-api.test.ts: 2, reducer live helpers: 1) |
+| Android + iOS | CI `mobile` and `ios` jobs | TodayViewModelTest grows to 4 (two live) |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e` | adds the live itinerary case; see the CI row |
+
+Facts established by tests: see the engineering doc.
+
+Built:
+- Contracts `itinerary.ts`; OrgDO schema v7 (`itinerary_events`, `itinerary_revisions`), `getItinerary`
+  (draft or published view, unpublished count, derived days), `upsertItineraryEvent`, `deleteItineraryEvent`,
+  `publishItinerary` (optimistic revision); routes get, put, delete, publish; `delete` helper in tests.
+- Console `itinerary-api.ts` (mapping both ways, `itineraryApi`), reducer `makeId`/`publish(revision)`/`load`,
+  `LiveEditor` with debounced saves and conflict reload, "Live" chip and notice banner; capture `itinerary-live.png`.
+- Core `api/Itinerary.kt`, `today/TodayBuilder.kt`; Android live `TodayViewModel` and header chip.
+
+Deviations found while building:
+- `getByLabel('Place')` also matched the top-bar search placeholder ("Search trips, people, places"); the
+  E2E uses an exact label.
+- The sample roster import creates 5 participations (3 travelers + 2 guardians), not 3; the itinerary test
+  asserts the real count.
+
+Not done: day labels, leader change proposals, revision diff with ack, disruption drafts, iOS live Today.

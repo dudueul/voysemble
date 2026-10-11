@@ -46,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.voysemble.app.ui.AppIcons
+import com.voysemble.app.ui.LabelChip
 import com.voysemble.app.ui.LocalVoysembleColors
 import com.voysemble.core.today.AckState
 import com.voysemble.core.today.EventKind
@@ -87,7 +88,7 @@ fun TodayScreen(
             contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            item { Header(snap) }
+            item { Header(snap, live = state.live, syncing = state.syncing) }
             if (snap.offline) item { OfflineBanner(snap) }
             snap.upNext?.let { next -> item { UpNextCard(next, snap.timeZoneLabel, onOpenWindow) } }
             snap.announcement?.let { a -> item { AnnouncementCard(a, onAcknowledge) } }
@@ -100,7 +101,7 @@ fun TodayScreen(
 }
 
 @Composable
-private fun Header(snap: TodaySnapshot) {
+private fun Header(snap: TodaySnapshot, live: Boolean = false, syncing: Boolean = false) {
     val c = LocalVoysembleColors.current
     Column {
         Text(
@@ -111,7 +112,7 @@ private fun Header(snap: TodaySnapshot) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Today", style = MaterialTheme.typography.headlineLarge)
             Spacer(Modifier.weight(1f))
-            SampleChip()
+            if (live) LabelChip(if (syncing) "Syncing" else "Live", c.info, AppIcons.Check) else SampleChip()
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("${snap.dateLabel} · ${snap.timeZoneLabel}", style = MaterialTheme.typography.bodyMedium, color = c.textMuted)

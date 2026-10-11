@@ -71,4 +71,23 @@ describe('itinerary editor reducer', () => {
     expect(eventsForDay(s1, DAY).some((e) => e.id === id)).toBe(false);
     expect(s1.draftIds.has(`removed:${id}`)).toBe(true);
   });
+
+  it('live helpers: minted ids, publish with a server revision, load replaces everything', () => {
+    const s0 = initEditor(itineraryFixture, DAY, (n) => `srv_${n}`);
+    const s1 = editorReducer(s0, { type: 'add', date: DAY });
+    expect(s1.selectedEventId).toBe('srv_1');
+    const s2 = editorReducer(s1, { type: 'publish', revision: 12 });
+    expect(s2.itinerary.revision).toBe(12);
+    expect(draftCount(s2)).toBe(0);
+    expect(editorReducer(s2, { type: 'publish', revision: 13 }).itinerary.revision).toBe(13);
+    const s3 = editorReducer(s2, { type: 'edit', id: 'srv_1', patch: { title: 'X' } });
+    const s4 = editorReducer(s3, {
+      type: 'load',
+      itinerary: { ...itineraryFixture, revision: 20 },
+    });
+    expect(s4.itinerary.revision).toBe(20);
+    expect(draftCount(s4)).toBe(0);
+    expect(s4.selectedDay).toBe(DAY);
+    expect(s4.selectedEventId).toBeNull();
+  });
 });

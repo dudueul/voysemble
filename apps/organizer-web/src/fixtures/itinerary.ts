@@ -44,6 +44,8 @@ export interface Itinerary {
   revision: number;
   days: ItineraryDay[];
   events: ItineraryEvent[];
+  /** True when loaded from the API (slice 017); the fixture leaves it unset. */
+  live?: boolean;
 }
 
 const T = 'trip_korea_concert_tour';

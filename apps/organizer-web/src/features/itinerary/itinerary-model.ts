@@ -14,6 +14,8 @@ export interface EditorState {
   draftIds: ReadonlySet<string>;
   /** Monotonic counter for new local ids. */
   nextLocalId: number;
+  /** Live editors mint server-ready ids (UUID); the fixture editor uses `local_n`. */
+  makeId?: (n: number) => string;
 }
 
 /** Keys set to `undefined` are cleared on the event (e.g. remove the end time). */
@@ -35,9 +37,16 @@ export type EditorAction =
   | { type: 'move'; id: string; direction: 'up' | 'down' }
   | { type: 'add'; date: string }
   | { type: 'remove'; id: string }
-  | { type: 'publish' };
+  /** Local publish bumps by one; a live publish carries the server's revision. */
+  | { type: 'publish'; revision?: number }
+  /** Replace everything with a fresh server copy (after a conflict or a reload). */
+  | { type: 'load'; itinerary: Itinerary };
 
-export function initEditor(itinerary: Itinerary, selectedDay?: string): EditorState {
+export function initEditor(
+  itinerary: Itinerary,
+  selectedDay?: string,
+  makeId?: (n: number) => string,
+): EditorState {
   const day =
     selectedDay && itinerary.days.some((d) => d.date === selectedDay)
       ? selectedDay
@@ -48,6 +57,7 @@ export function initEditor(itinerary: Itinerary, selectedDay?: string): EditorSt
     selectedEventId: null,
     draftIds: new Set(),
     nextLocalId: 1,
+    ...(makeId ? { makeId } : {}),
   };
 }
 
@@ -103,7 +113,7 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       if (!day) return state;
       const siblings = eventsForDay(state, action.date);
       const last = siblings[siblings.length - 1];
-      const id = `local_${state.nextLocalId}`;
+      const id = state.makeId ? state.makeId(state.nextLocalId) : `local_${state.nextLocalId}`;
       const created: ItineraryEvent = {
         id,
         tripId: state.itinerary.tripId,
@@ -141,13 +151,29 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       };
     }
     case 'publish': {
-      if (state.draftIds.size === 0) return state;
+      if (state.draftIds.size === 0 && action.revision === undefined) return state;
       const events = state.itinerary.events.map((e) =>
         e.published ? e : { ...e, published: true },
       );
       return {
         ...state,
-        itinerary: { ...state.itinerary, revision: state.itinerary.revision + 1, events },
+        itinerary: {
+          ...state.itinerary,
+          revision: action.revision ?? state.itinerary.revision + 1,
+          events,
+        },
+        draftIds: new Set(),
+      };
+    }
+    case 'load': {
+      const stillThere = action.itinerary.days.some((d) => d.date === state.selectedDay);
+      return {
+        ...state,
+        itinerary: action.itinerary,
+        selectedDay: stillThere ? state.selectedDay : (action.itinerary.days[0]?.date ?? null),
+        selectedEventId: action.itinerary.events.some((e) => e.id === state.selectedEventId)
+          ? state.selectedEventId
+          : null,
         draftIds: new Set(),
       };
     }

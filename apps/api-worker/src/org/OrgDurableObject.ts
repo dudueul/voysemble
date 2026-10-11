@@ -20,6 +20,9 @@ import type {
   HeadcountMark,
   HeadcountSession,
   Incident,
+  Itinerary,
+  ItineraryEvent,
+  ItineraryEventInput,
   Participation,
   Trip,
   TripRole,
@@ -158,7 +161,78 @@ const MIGRATIONS: { version: number; sql: string }[] = [
       ALTER TABLE incidents ADD COLUMN guardian_message_by_name TEXT;
     `,
   },
+  {
+    // Slice 017: itinerary draft rows and published revisions (D19, D24). The draft is the
+    // organizer's working copy; a revision is a JSON snapshot everyone else reads.
+    version: 7,
+    sql: `
+      CREATE TABLE IF NOT EXISTS itinerary_events (
+        id TEXT PRIMARY KEY,
+        trip_id TEXT NOT NULL REFERENCES trips(id),
+        date TEXT NOT NULL,
+        start TEXT NOT NULL,
+        end TEXT,
+        time_zone TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        title TEXT NOT NULL,
+        place TEXT NOT NULL,
+        pax INTEGER,
+        status TEXT NOT NULL,
+        note TEXT,
+        sort_order INTEGER NOT NULL,
+        published INTEGER NOT NULL DEFAULT 0,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS itinerary_events_trip_idx ON itinerary_events(trip_id, date, sort_order);
+      CREATE TABLE IF NOT EXISTS itinerary_revisions (
+        trip_id TEXT NOT NULL REFERENCES trips(id),
+        revision INTEGER NOT NULL,
+        published_at TEXT NOT NULL,
+        published_by_name TEXT NOT NULL,
+        snapshot TEXT NOT NULL,
+        PRIMARY KEY (trip_id, revision)
+      );
+    `,
+  },
 ];
+
+type ItineraryEventRow = {
+  id: string;
+  trip_id: string;
+  date: string;
+  start: string;
+  end: string | null;
+  time_zone: string;
+  kind: string;
+  title: string;
+  place: string;
+  pax: number | null;
+  status: string;
+  note: string | null;
+  sort_order: number;
+  published: number;
+  updated_at: string;
+};
+
+type RevisionRow = {
+  trip_id: string;
+  revision: number;
+  published_at: string;
+  published_by_name: string;
+  snapshot: string;
+};
+
+/** Every calendar date from start to end inclusive (YYYY-MM-DD arithmetic in UTC, no DST). */
+export function datesBetween(startsOn: string, endsOn: string): string[] {
+  const out: string[] = [];
+  const start = Date.parse(`${startsOn}T00:00:00Z`);
+  const end = Date.parse(`${endsOn}T00:00:00Z`);
+  if (Number.isNaN(start) || Number.isNaN(end)) return out;
+  for (let t = start; t <= end && out.length < 400; t += 86_400_000) {
+    out.push(new Date(t).toISOString().slice(0, 10));
+  }
+  return out;
+}
 
 type IncidentRow = {
   id: string;
@@ -1219,5 +1293,177 @@ export class OrgDurableObject extends DurableObject<Env> {
       )
       .toArray()
       .map((r) => this.headcountFromRow(r));
+  }
+
+  /* ---------- Itinerary (slice 017) ---------- */
+
+  private itineraryEventFromRow(r: ItineraryEventRow): ItineraryEvent {
+    return {
+      id: r.id,
+      tripId: r.trip_id,
+      date: r.date,
+      start: r.start,
+      end: r.end,
+      timeZone: r.time_zone,
+      kind: r.kind as ItineraryEvent['kind'],
+      title: r.title,
+      place: r.place,
+      pax: r.pax,
+      status: r.status as ItineraryEvent['status'],
+      note: r.note,
+      order: r.sort_order,
+      published: r.published === 1,
+    };
+  }
+
+  private latestRevision(tripId: string): RevisionRow | null {
+    return (
+      this.ctx.storage.sql
+        .exec<RevisionRow>(
+          'SELECT * FROM itinerary_revisions WHERE trip_id = ? ORDER BY revision DESC LIMIT 1',
+          tripId,
+        )
+        .toArray()[0] ?? null
+    );
+  }
+
+  private draftEvents(tripId: string): ItineraryEvent[] {
+    return this.ctx.storage.sql
+      .exec<ItineraryEventRow>(
+        'SELECT * FROM itinerary_events WHERE trip_id = ? ORDER BY date, sort_order, start',
+        tripId,
+      )
+      .toArray()
+      .map((r) => this.itineraryEventFromRow(r));
+  }
+
+  /**
+   * The itinerary as one viewer sees it. `draft`: the working rows with an unpublished count
+   * (edited or added rows, plus rows removed since the last revision). `published`: the latest
+   * revision's snapshot, or no events before the first publish. Days span the trip's dates.
+   */
+  async getItinerary(tripId: string, view: 'draft' | 'published'): Promise<Itinerary | null> {
+    this.requireOrg();
+    const trip = await this.getTrip(tripId);
+    if (!trip) return null;
+    const latest = this.latestRevision(tripId);
+    const snapshot: ItineraryEvent[] = latest
+      ? (JSON.parse(latest.snapshot) as ItineraryEvent[])
+      : [];
+    const draft = this.draftEvents(tripId);
+    const events = view === 'draft' ? draft : snapshot;
+    const draftIds = new Set(draft.map((e) => e.id));
+    const removed = snapshot.filter((e) => !draftIds.has(e.id)).length;
+    const unpublished = view === 'draft' ? draft.filter((e) => !e.published).length + removed : 0;
+    const days = datesBetween(trip.startsOn, trip.endsOn).map((date, i) => ({
+      date,
+      timeZone: trip.timezone,
+      label: `Day ${i + 1}`,
+    }));
+    return {
+      tripId,
+      tripName: trip.name,
+      startDate: trip.startsOn,
+      endDate: trip.endsOn,
+      revision: latest?.revision ?? 0,
+      publishedAt: latest?.published_at ?? null,
+      view,
+      days,
+      events,
+      unpublished,
+    };
+  }
+
+  /** Create or replace a draft event (client-minted id). The row is unpublished until the next publish. */
+  async upsertItineraryEvent(
+    tripId: string,
+    id: string,
+    input: ItineraryEventInput,
+  ): Promise<ItineraryEvent | { otherTrip: true } | { notFound: true }> {
+    this.requireOrg();
+    if (!(await this.getTrip(tripId))) return { notFound: true };
+    const sql = this.ctx.storage.sql;
+    const existing = sql
+      .exec<{ trip_id: string }>('SELECT trip_id FROM itinerary_events WHERE id = ?', id)
+      .toArray()[0];
+    if (existing && existing.trip_id !== tripId) return { otherTrip: true };
+    sql.exec(
+      `INSERT INTO itinerary_events
+        (id, trip_id, date, start, end, time_zone, kind, title, place, pax, status, note, sort_order, published, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         date = excluded.date, start = excluded.start, end = excluded.end, time_zone = excluded.time_zone,
+         kind = excluded.kind, title = excluded.title, place = excluded.place, pax = excluded.pax,
+         status = excluded.status, note = excluded.note, sort_order = excluded.sort_order,
+         published = 0, updated_at = excluded.updated_at`,
+      id,
+      tripId,
+      input.date,
+      input.start,
+      input.end,
+      input.timeZone,
+      input.kind,
+      input.title,
+      input.place,
+      input.pax,
+      input.status,
+      input.note,
+      input.order,
+      nowIso(),
+    );
+    const row = sql
+      .exec<ItineraryEventRow>('SELECT * FROM itinerary_events WHERE id = ?', id)
+      .one();
+    return this.itineraryEventFromRow(row);
+  }
+
+  /** Remove a draft event. Its absence from the next snapshot is the published removal. */
+  async deleteItineraryEvent(tripId: string, id: string): Promise<boolean> {
+    this.requireOrg();
+    const sql = this.ctx.storage.sql;
+    const existing = sql
+      .exec<{ id: string }>(
+        'SELECT id FROM itinerary_events WHERE id = ? AND trip_id = ?',
+        id,
+        tripId,
+      )
+      .toArray()[0];
+    if (!existing) return false;
+    sql.exec('DELETE FROM itinerary_events WHERE id = ?', id);
+    return true;
+  }
+
+  /**
+   * Snapshot the draft as revision n+1 and mark every row published. `expectedRevision` must be
+   * the current one (optimistic concurrency, doc 01 §11.3): a stale editor gets `conflict`.
+   */
+  async publishItinerary(
+    tripId: string,
+    expectedRevision: number,
+    byName: string,
+  ): Promise<
+    { itinerary: Itinerary } | { conflict: number } | { notFound: true } | { nothing: true }
+  > {
+    this.requireOrg();
+    const current = await this.getItinerary(tripId, 'draft');
+    if (!current) return { notFound: true };
+    if (current.revision !== expectedRevision) return { conflict: current.revision };
+    if (current.unpublished === 0 && current.revision > 0) return { nothing: true };
+    const next = current.revision + 1;
+    const published = current.events.map((e) => ({ ...e, published: true }));
+    const sql = this.ctx.storage.sql;
+    this.ctx.storage.transactionSync(() => {
+      sql.exec(
+        'INSERT INTO itinerary_revisions (trip_id, revision, published_at, published_by_name, snapshot) VALUES (?, ?, ?, ?, ?)',
+        tripId,
+        next,
+        nowIso(),
+        byName,
+        JSON.stringify(published),
+      );
+      sql.exec('UPDATE itinerary_events SET published = 1 WHERE trip_id = ?', tripId);
+    });
+    const itinerary = await this.getItinerary(tripId, 'draft');
+    return { itinerary: itinerary as Itinerary };
   }
 }

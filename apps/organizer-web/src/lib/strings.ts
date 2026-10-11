@@ -430,6 +430,8 @@ export const strings = {
     draft: 'Draft',
     emptyTitle: 'No days in this trip yet',
     emptyBody: 'Set the trip dates to start building the itinerary.',
+    saveFailed: 'A change could not be saved. It will be retried on your next edit.',
+    publishFailed: 'Publishing failed. Reload and try again.',
   },
   kind: {
     flight: 'Flight',

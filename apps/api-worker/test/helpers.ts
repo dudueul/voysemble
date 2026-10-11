@@ -46,6 +46,8 @@ export function api(client: Client | null) {
         headers,
         body: body === undefined ? null : JSON.stringify(body),
       }),
+    delete: (path: string) =>
+      SELF.fetch(`https://example.com${path}`, { method: 'DELETE', headers }),
     put: (path: string, body?: unknown) =>
       SELF.fetch(`https://example.com${path}`, {
         method: 'PUT',

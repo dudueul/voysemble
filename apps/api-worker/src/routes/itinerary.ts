@@ -1,0 +1,165 @@
+// Copyright 2026- At Day. All rights reserved.
+//
+// /v1/orgs/{orgId}/trips/{tripId}/itinerary (D19, D24). Single writer: owners and organizers edit
+// the draft and publish numbered revisions from the console. Leaders, travelers, and guardians
+// read the latest published revision (guardians get the same published view: D13 lists the
+// published itinerary among what they may see). Change proposals from leaders are a later slice.
+
+import { createRoute, type OpenAPIHono } from '@hono/zod-openapi';
+import {
+  Id,
+  Itinerary,
+  ItineraryEvent,
+  ItineraryEventInput,
+  PublishItineraryRequest,
+  z,
+} from '@voysemble/contracts';
+import { HTTPException } from 'hono/http-exception';
+import { type OrgAccess, requireAuth, requireOrgRole } from '../auth/middleware';
+import type { AppEnv } from '../env';
+import { orgObject } from '../org/client';
+import { ERROR_RESPONSES, SESSION_SECURITY } from './openapi-common';
+import { TripParams } from './trips';
+
+const EventParams = z.object({ orgId: Id, tripId: Id, eventId: z.uuid() });
+
+const getRoute = createRoute({
+  method: 'get',
+  path: '/v1/orgs/{orgId}/trips/{tripId}/itinerary',
+  tags: ['itinerary'],
+  summary:
+    'The itinerary: draft for owners and organizers, latest published revision for everyone else',
+  security: SESSION_SECURITY,
+  request: { params: TripParams },
+  responses: {
+    200: { description: 'Itinerary.', content: { 'application/json': { schema: Itinerary } } },
+    401: ERROR_RESPONSES[401],
+    403: ERROR_RESPONSES[403],
+    404: ERROR_RESPONSES[404],
+    500: ERROR_RESPONSES[500],
+  },
+});
+
+const upsertRoute = createRoute({
+  method: 'put',
+  path: '/v1/orgs/{orgId}/trips/{tripId}/itinerary/events/{eventId}',
+  tags: ['itinerary'],
+  summary: 'Create or replace a draft event (owner, organizer)',
+  security: SESSION_SECURITY,
+  request: {
+    params: EventParams,
+    body: { content: { 'application/json': { schema: ItineraryEventInput } } },
+  },
+  responses: {
+    200: { description: 'Draft row.', content: { 'application/json': { schema: ItineraryEvent } } },
+    400: ERROR_RESPONSES[400],
+    401: ERROR_RESPONSES[401],
+    403: ERROR_RESPONSES[403],
+    404: ERROR_RESPONSES[404],
+    409: ERROR_RESPONSES[409],
+    500: ERROR_RESPONSES[500],
+  },
+});
+
+const deleteRoute = createRoute({
+  method: 'delete',
+  path: '/v1/orgs/{orgId}/trips/{tripId}/itinerary/events/{eventId}',
+  tags: ['itinerary'],
+  summary: 'Remove a draft event (owner, organizer); published once the next revision is out',
+  security: SESSION_SECURITY,
+  request: { params: EventParams },
+  responses: {
+    204: { description: 'Removed.' },
+    401: ERROR_RESPONSES[401],
+    403: ERROR_RESPONSES[403],
+    404: ERROR_RESPONSES[404],
+    500: ERROR_RESPONSES[500],
+  },
+});
+
+const publishRoute = createRoute({
+  method: 'post',
+  path: '/v1/orgs/{orgId}/trips/{tripId}/itinerary/publish',
+  tags: ['itinerary'],
+  summary:
+    'Publish the draft as the next revision (owner, organizer); 409 on a stale expected revision',
+  security: SESSION_SECURITY,
+  request: {
+    params: TripParams,
+    body: { content: { 'application/json': { schema: PublishItineraryRequest } } },
+  },
+  responses: {
+    200: { description: 'Published.', content: { 'application/json': { schema: Itinerary } } },
+    400: ERROR_RESPONSES[400],
+    401: ERROR_RESPONSES[401],
+    403: ERROR_RESPONSES[403],
+    404: ERROR_RESPONSES[404],
+    409: ERROR_RESPONSES[409],
+    500: ERROR_RESPONSES[500],
+  },
+});
+
+function isWriter(access: OrgAccess): boolean {
+  return access.role === 'owner' || access.role === 'organizer';
+}
+
+export function mountItineraryRoutes(app: OpenAPIHono<AppEnv>): void {
+  app.openapi(getRoute, async (c) => {
+    const auth = requireAuth(c);
+    const { orgId, tripId } = c.req.valid('param');
+    const access = await requireOrgRole(c.env, auth, orgId, 'member');
+    const org = await orgObject(c.env, orgId);
+    const it = await org.getItinerary(tripId, isWriter(access) ? 'draft' : 'published');
+    if (!it) throw new HTTPException(404, { message: 'Trip not found.' });
+    return c.json(it, 200);
+  });
+
+  app.openapi(upsertRoute, async (c) => {
+    const auth = requireAuth(c);
+    const { orgId, tripId, eventId } = c.req.valid('param');
+    const body = c.req.valid('json');
+    await requireOrgRole(c.env, auth, orgId, 'organizer');
+    const org = await orgObject(c.env, orgId);
+    const result = await org.upsertItineraryEvent(tripId, eventId, body);
+    if ('notFound' in result) throw new HTTPException(404, { message: 'Trip not found.' });
+    if ('otherTrip' in result) {
+      throw new HTTPException(409, { message: 'This event id belongs to another trip.' });
+    }
+    return c.json(result, 200);
+  });
+
+  app.openapi(deleteRoute, async (c) => {
+    const auth = requireAuth(c);
+    const { orgId, tripId, eventId } = c.req.valid('param');
+    await requireOrgRole(c.env, auth, orgId, 'organizer');
+    const org = await orgObject(c.env, orgId);
+    if (!(await org.deleteItineraryEvent(tripId, eventId))) {
+      throw new HTTPException(404, { message: 'Event not found.' });
+    }
+    return c.body(null, 204);
+  });
+
+  app.openapi(publishRoute, async (c) => {
+    const auth = requireAuth(c);
+    const { orgId, tripId } = c.req.valid('param');
+    const body = c.req.valid('json');
+    await requireOrgRole(c.env, auth, orgId, 'organizer');
+    const org = await orgObject(c.env, orgId);
+    const me = await org.participationForAccount(tripId, auth.accountId);
+    const result = await org.publishItinerary(
+      tripId,
+      body.expectedRevision,
+      me?.displayName ?? 'Organizer',
+    );
+    if ('notFound' in result) throw new HTTPException(404, { message: 'Trip not found.' });
+    if ('conflict' in result) {
+      throw new HTTPException(409, {
+        message: `The itinerary is at revision ${result.conflict}; reload before publishing.`,
+      });
+    }
+    if ('nothing' in result) {
+      throw new HTTPException(409, { message: 'Nothing to publish.' });
+    }
+    return c.json(result.itinerary, 200);
+  });
+}

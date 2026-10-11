@@ -79,7 +79,9 @@ fun AppRoot() {
 fun AppScreens(trip: ActiveTrip?, onSignOut: () -> Unit) {
     val nav: NavViewModel = viewModel()
     val screen by nav.screen.collectAsStateWithLifecycle()
-    val today: TodayViewModel = viewModel()
+    val today: TodayViewModel = viewModel(key = "today-${trip?.tripId ?: "sample"}") {
+        if (trip == null) TodayViewModel() else TodayViewModel(api = AppGraph.apiClient, trip = trip)
+    }
     val todayState by today.state.collectAsStateWithLifecycle()
     when (screen) {
         Screen.HEADCOUNT -> {

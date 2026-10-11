@@ -12,7 +12,13 @@ import { draftCount, type EditorAction, type EditorState, eventsForDay } from '.
 export type ItineraryViewState =
   | { kind: 'loading' }
   | { kind: 'error'; correlationId: string; retry: () => void }
-  | { kind: 'ready'; editor: EditorState; dispatch: (a: EditorAction) => void };
+  | {
+      kind: 'ready';
+      editor: EditorState;
+      dispatch: (a: EditorAction) => void;
+      /** Live editors report sync problems here (a failed save, a publish conflict). */
+      notice?: string | null;
+    };
 
 export function ItineraryView({ state }: { state: ItineraryViewState }) {
   if (state.kind === 'loading') {
@@ -67,7 +73,11 @@ export function ItineraryView({ state }: { state: ItineraryViewState }) {
           </p>
         </div>
         <div className="page__meta">
-          <span className="chip chip--sample">{strings.dashboard.simulated}</span>
+          {it.live ? (
+            <span className="chip chip--active">{strings.dashboard.live}</span>
+          ) : (
+            <span className="chip chip--sample">{strings.dashboard.simulated}</span>
+          )}
           <span data-testid="revision">{strings.itinerary.revision(it.revision)}</span>
           <span data-testid="drafts">{strings.itinerary.drafts(drafts)}</span>
           <button
@@ -81,6 +91,13 @@ export function ItineraryView({ state }: { state: ItineraryViewState }) {
           </button>
         </div>
       </div>
+
+      {state.notice ? (
+        <div className="banner" role="alert" data-testid="itinerary-notice">
+          <Icons.alert />
+          {state.notice}
+        </div>
+      ) : null}
 
       {it.days.length === 0 ? (
         <section className="card">
