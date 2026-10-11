@@ -309,7 +309,7 @@ Not done (next slices): sample screens for the ten remaining menus + tablet/phon
 
 ## Slice 008: sample screens for all ten remaining menus + tablet/phone layouts
 
-Status: built 2026-10-11, local gate green, CI pending. Commit: `feat(web): sample sections ...`.
+Status: done 2026-10-11. Commits `9fe63f1` + `eccbac9`. **CI verified**: run 38104048258 green (61 E2E across four viewports, unit, lint, typecheck, mobile job), 2026-10-11 02:08 UTC. First run 38103438669 failed only on the phone command center overflowing 8px with runner fonts; fixed by `eccbac9` (cards and rows shrink at <=768px).
 Requested by founder ("show sample screens on other devices and all other menus"). Fixtures in
 `apps/organizer-web/src/fixtures/sections.ts`; chart rules in `docs/engineering/dataviz-palette.md`.
 
