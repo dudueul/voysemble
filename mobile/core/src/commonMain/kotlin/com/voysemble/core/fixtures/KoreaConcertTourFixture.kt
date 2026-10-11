@@ -11,6 +11,11 @@ import com.voysemble.core.headcount.HeadcountMark
 import com.voysemble.core.headcount.HeadcountMember
 import com.voysemble.core.headcount.HeadcountSession
 import com.voysemble.core.headcount.SyncState
+import com.voysemble.core.incidents.ConfirmationStatus
+import com.voysemble.core.incidents.IncidentCard
+import com.voysemble.core.incidents.IncidentConfirmation
+import com.voysemble.core.incidents.IncidentFeed
+import com.voysemble.core.incidents.IncidentStatus
 import com.voysemble.core.today.AckState
 import com.voysemble.core.today.EventKind
 import com.voysemble.core.today.EventStatus
@@ -87,6 +92,33 @@ public object KoreaConcertTourFixture {
             syncState = SyncState.SYNCED,
         )
     }
+
+    /** Incidents: one open card from the Bus B head count, one confirmed and resolved earlier (D17). */
+    public fun incidents(): IncidentFeed = IncidentFeed(
+        cards = listOf(
+            IncidentCard(
+                id = "inc_busB_0650",
+                title = "Head count closed with 2 missing (Bus B, 06:50)",
+                status = IncidentStatus.OPEN,
+                people = listOf("Dohyun Kang", "Eunwoo Shin"),
+                openedAt = "06:52",
+                openedBy = "Lee Minho",
+                confirmations = emptyList(),
+                guardianMessage = null,
+            ),
+            IncidentCard(
+                id = "inc_phone_lost",
+                title = "Phone lost, not reachable",
+                status = IncidentStatus.RESOLVED,
+                people = listOf("Minji Park"),
+                openedAt = "14:30",
+                openedBy = "Organizer",
+                confirmations = listOf(IncidentConfirmation(ConfirmationStatus.WITH_GROUP, "Phone lost.", "Kim Daeun", "15:42")),
+                guardianMessage = "Minji Park is with the group. Phone lost. Confirmed by leader Kim Daeun at 15:42.",
+            ),
+        ),
+        offline = false,
+    )
 
     /** Bulletin: three announcements, the first requiring an ack and carrying a KO machine translation. */
     public fun announcements(): AnnouncementFeed = AnnouncementFeed(

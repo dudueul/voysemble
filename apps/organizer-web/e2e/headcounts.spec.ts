@@ -85,6 +85,14 @@ test('head count closed with a missing traveler opens an incident the organizer 
   expect(sync.ok, `sync: ${sync.status} ${sync.text}`).toBeTruthy();
   const { incidentId } = JSON.parse(sync.text) as { incidentId: string | null };
   expect(incidentId).not.toBeNull();
+  // Slice 016: Kim confirms from "the phone" what she sees.
+  const confirm = await call(
+    kim,
+    'POST',
+    `/v1/orgs/${organizationId}/trips/${tripId}/incidents/${incidentId}/confirm`,
+    { status: 'with_group', note: 'Found in the lobby.' },
+  );
+  expect(confirm.ok, `confirm: ${confirm.status} ${confirm.text}`).toBeTruthy();
   await ctx.close();
 
   // Slice 014: the command center is live for this trip.
@@ -111,6 +119,15 @@ test('head count closed with a missing traveler opens an incident the organizer 
   await expect(card).toContainText('Head count closed with 1 missing (Bus A, 06:58)');
   await expect(card).toContainText('Juho Kim');
   await expect(card).toContainText('Open');
+  await expect(card.getByTestId(`confirmation-${incidentId}`)).toContainText('With the group');
+  await expect(card.getByTestId(`confirmation-${incidentId}`)).toContainText(
+    'Confirmed by leader Kim',
+  );
+  await card.getByRole('button', { name: 'Send guardian message' }).click();
+  await expect(card.getByTestId(`guardian-${incidentId}`)).toContainText(
+    'Juho Kim is with the group. Found in the lobby. Confirmed by leader Kim at',
+  );
+  await expect(card.getByTestId(`guardian-${incidentId}`)).toContainText('인솔자 Kim');
   await expect(page.getByRole('heading', { level: 1 }).locator('..')).toContainText(
     '1 open incident',
   );

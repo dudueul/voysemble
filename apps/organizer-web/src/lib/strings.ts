@@ -229,6 +229,16 @@ export const strings = {
     resolveNote: 'What happened (optional)',
     resolvedBy: (by: string, when: string) => `Resolved by ${by} ${when}`,
     resolveFailed: 'Could not resolve the incident.',
+    confirmation: {
+      with_group: 'With the group',
+      not_with_group: 'Not with the group',
+      unknown: 'Status unknown',
+    },
+    confirmedBy: (by: string, role: string, when: string) => `Confirmed by ${role} ${by} ${when}`,
+    awaitingConfirmation: 'Waiting for a leader to confirm from the phone.',
+    sendGuardianMessage: 'Send guardian message',
+    guardianMessageSent: (when: string) => `Guardian message sent ${when}`,
+    guardianMessageFailed: 'Could not send the guardian message.',
     liveIncidents: (open: number) =>
       open === 0 ? 'No open incidents' : `${open} open incident${open === 1 ? '' : 's'}`,
     missing: 'Missing at last head count',

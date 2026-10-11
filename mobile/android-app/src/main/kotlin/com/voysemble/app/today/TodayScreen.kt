@@ -56,7 +56,7 @@ import com.voysemble.core.today.TodayEvent
 import com.voysemble.core.today.TodaySnapshot
 
 @Composable
-fun TodayRoute(vm: TodayViewModel, onOpenHeadcount: () -> Unit = {}, onOpenWindow: () -> Unit = {}) {
+fun TodayRoute(vm: TodayViewModel, onOpenHeadcount: () -> Unit = {}, onOpenWindow: () -> Unit = {}, onOpenIncidents: () -> Unit = {}) {
     val state by vm.state.collectAsStateWithLifecycle()
     TodayScreen(
         state = state,
@@ -64,6 +64,7 @@ fun TodayRoute(vm: TodayViewModel, onOpenHeadcount: () -> Unit = {}, onOpenWindo
         onSelectTab = vm::selectTab,
         onOpenHeadcount = onOpenHeadcount,
         onOpenWindow = onOpenWindow,
+        onOpenIncidents = onOpenIncidents,
     )
 }
 
@@ -74,6 +75,7 @@ fun TodayScreen(
     onSelectTab: (MainTab) -> Unit,
     onOpenHeadcount: () -> Unit = {},
     onOpenWindow: () -> Unit = {},
+    onOpenIncidents: () -> Unit = {},
 ) {
     val snap = state.snapshot
     Scaffold(
@@ -89,7 +91,7 @@ fun TodayScreen(
             if (snap.offline) item { OfflineBanner(snap) }
             snap.upNext?.let { next -> item { UpNextCard(next, snap.timeZoneLabel, onOpenWindow) } }
             snap.announcement?.let { a -> item { AnnouncementCard(a, onAcknowledge) } }
-            item { HeadcountCard(snap.headcount, snap.checkedIn, snap.expected, onOpenHeadcount) }
+            item { HeadcountCard(snap.headcount, snap.checkedIn, snap.expected, onOpenHeadcount, onOpenIncidents) }
             item { SectionTitle("Later today") }
             items(snap.later, key = { it.id }) { e -> EventRow(e) }
             item { Spacer(Modifier.height(8.dp)) }
@@ -231,7 +233,7 @@ private fun AnnouncementCard(a: TodayAnnouncement, onAcknowledge: (String) -> Un
 }
 
 @Composable
-private fun HeadcountCard(groups: List<HeadcountGroup>, checkedIn: Int, expected: Int, onOpenHeadcount: () -> Unit) {
+private fun HeadcountCard(groups: List<HeadcountGroup>, checkedIn: Int, expected: Int, onOpenHeadcount: () -> Unit, onOpenIncidents: () -> Unit = {}) {
     val c = LocalVoysembleColors.current
     Card {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -240,7 +242,10 @@ private fun HeadcountCard(groups: List<HeadcountGroup>, checkedIn: Int, expected
             Text("$checkedIn / $expected checked in", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
         }
         Spacer(Modifier.height(6.dp))
-        OutlinedButton(onClick = onOpenHeadcount, shape = MaterialTheme.shapes.small) { Text("Open head count") }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = onOpenHeadcount, shape = MaterialTheme.shapes.small) { Text("Open head count") }
+            OutlinedButton(onClick = onOpenIncidents, shape = MaterialTheme.shapes.small) { Text("Incidents") }
+        }
         Spacer(Modifier.height(10.dp))
         groups.forEach { g ->
             val short = g.checkedIn < g.expected

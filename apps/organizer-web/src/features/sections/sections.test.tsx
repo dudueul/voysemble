@@ -197,9 +197,21 @@ describe('sample sections', () => {
       resolvedAt: null,
       resolvedByName: null,
       resolutionNote: null,
+      confirmations: [
+        {
+          id: '77777777-7777-4777-8777-777777777777',
+          status: 'with_group',
+          note: 'Phone lost.',
+          confirmedByName: 'Kim',
+          confirmedByRole: 'leader',
+          confirmedAt: '2026-12-30T22:10:00.000Z',
+        },
+      ],
+      guardianMessage: null,
     };
     const posted: unknown[] = [];
     let resolved = false;
+    let messaged = false;
     stubApi({
       'GET /v1/orgs': () => ({ organizations: [ORG] }),
       [`GET /v1/orgs/${ORG.id}/trips`]: () => ({ trips: [TRIP] }),
@@ -214,8 +226,26 @@ describe('sample sections', () => {
                 resolutionNote: 'Lobby',
               },
             ]
-          : [INC],
+          : [
+              messaged
+                ? {
+                    ...INC,
+                    guardianMessage: {
+                      bodyEn:
+                        'Juho Kim is with the group. Phone lost. Confirmed by leader Kim at 07:10.',
+                      bodyKo:
+                        'Juho Kim 학생은 그룹과 함께 있습니다. Phone lost. 인솔자 Kim 님이 07:10에 확인했습니다.',
+                      sentAt: INC.openedAt,
+                      sentByName: 'Organizer',
+                    },
+                  }
+                : INC,
+            ],
       }),
+      [`POST /v1/orgs/${ORG.id}/trips/${TRIP.id}/incidents/${INC.id}/guardian-message`]: () => {
+        messaged = true;
+        return INC;
+      },
       [`POST /v1/orgs/${ORG.id}/trips/${TRIP.id}/incidents/${INC.id}/resolve`]: () => {
         posted.push(1);
         resolved = true;
@@ -229,6 +259,17 @@ describe('sample sections', () => {
     expect(text(screen.getByRole('heading', { level: 1 }).parentElement)).toContain(
       '1 open incident',
     );
+    expect(text(within(card).getByTestId(`confirmation-${INC.id}`))).toContain('With the group');
+    expect(text(within(card).getByTestId(`confirmation-${INC.id}`))).toContain(
+      'Confirmed by leader Kim',
+    );
+    fireEvent.click(within(card).getByRole('button', { name: 'Send guardian message' }));
+    await waitFor(() =>
+      expect(text(screen.getByTestId(`guardian-${INC.id}`))).toContain(
+        'Confirmed by leader Kim at 07:10.',
+      ),
+    );
+    expect(text(screen.getByTestId(`guardian-${INC.id}`))).toContain('인솔자 Kim');
     fireEvent.change(within(card).getByLabelText('What happened (optional)'), {
       target: { value: 'Lobby' },
     });

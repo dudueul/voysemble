@@ -1,0 +1,130 @@
+// Copyright 2026- At Day. All rights reserved.
+//
+// Leader incident cards (D17). Open cards first with three one-tap answers (with the group, not
+// with the group, unknown); the latest answer and the guardian message the organizer sent are
+// shown on the card. Pending answers are explicit, as acks are on the bulletin.
+
+package com.voysemble.app.incidents
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.voysemble.app.ui.AppIcons
+import com.voysemble.app.ui.LabelChip
+import com.voysemble.app.ui.LocalVoysembleColors
+import com.voysemble.app.ui.SampleDataChip
+import com.voysemble.app.ui.ScreenHeader
+import com.voysemble.app.ui.SectionLabel
+import com.voysemble.app.ui.VyCard
+import com.voysemble.core.incidents.ConfirmationStatus
+import com.voysemble.core.incidents.IncidentCard
+import com.voysemble.core.incidents.labelOf
+
+@Composable
+fun IncidentsRoute(vm: IncidentsViewModel, onBack: () -> Unit) {
+    val state by vm.state.collectAsStateWithLifecycle()
+    IncidentsScreen(state = state, onConfirm = { id, status -> vm.confirm(id, status, null) }, onBack = onBack)
+}
+
+@Composable
+fun IncidentsScreen(state: IncidentsUiState, onConfirm: (String, ConfirmationStatus) -> Unit, onBack: () -> Unit) {
+    val c = LocalVoysembleColors.current
+    val open = state.feed.cards.filter { it.isOpen }
+    val closed = state.feed.cards.filter { !it.isOpen }
+    Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            item {
+                ScreenHeader(
+                    eyebrow = "Incidents",
+                    title = if (open.isEmpty()) "Nothing open" else "${open.size} open",
+                    subtitle = "Answer what you see; the organizer tells the guardian.",
+                    onBack = onBack,
+                ) {
+                    Column(horizontalAlignment = androidx.compose.ui.Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        if (!state.live) SampleDataChip() else LabelChip(if (state.syncing) "Syncing" else "Live", c.info, AppIcons.Check)
+                        if (state.feed.offline) LabelChip("Offline", c.warning, AppIcons.Offline)
+                    }
+                }
+            }
+            state.error?.let { message -> item { Text(message, style = MaterialTheme.typography.bodyMedium, color = c.danger) } }
+            if (open.isEmpty() && closed.isEmpty() && !state.syncing) {
+                item { Text("No incidents on this trip.", style = MaterialTheme.typography.bodyMedium, color = c.textMuted) }
+            }
+            if (open.isNotEmpty()) item { SectionLabel("Open") }
+            items(open, key = { it.id }) { card -> IncidentRow(card, onConfirm) }
+            if (closed.isNotEmpty()) item { SectionLabel("Resolved") }
+            items(closed, key = { it.id }) { card -> IncidentRow(card, onConfirm) }
+        }
+    }
+}
+
+@Composable
+private fun IncidentRow(card: IncidentCard, onConfirm: (String, ConfirmationStatus) -> Unit) {
+    val c = LocalVoysembleColors.current
+    VyCard {
+        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(card.title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            LabelChip(if (card.isOpen) "Open" else "Resolved", if (card.isOpen) c.danger else c.success)
+        }
+        Text("${card.people.joinToString(", ")} · opened ${card.openedAt} · ${card.openedBy}", style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
+        Spacer(Modifier.height(8.dp))
+        val latest = card.latest
+        if (latest != null) {
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                LabelChip(labelOf(latest.status), if (latest.status == ConfirmationStatus.WITH_GROUP) c.success else c.warning)
+                Text("${latest.byName} · ${latest.at}", style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
+                if (card.pending != null) LabelChip("Pending sync", c.warning, AppIcons.Clock)
+            }
+            latest.note?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+        } else {
+            Text("Not confirmed yet", style = MaterialTheme.typography.bodyMedium, color = c.warning, fontWeight = FontWeight.SemiBold)
+        }
+        card.guardianMessage?.let { msg ->
+            Spacer(Modifier.height(8.dp))
+            Column(Modifier.fillMaxWidth().background(c.success.copy(alpha = 0.10f), MaterialTheme.shapes.small).padding(10.dp)) {
+                Text("Guardian message sent", style = MaterialTheme.typography.labelSmall, color = c.textMuted)
+                Text(msg, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+        if (card.isOpen) {
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = { onConfirm(card.id, ConfirmationStatus.WITH_GROUP) },
+                    colors = ButtonDefaults.buttonColors(containerColor = c.action, contentColor = c.onAction),
+                    shape = MaterialTheme.shapes.small,
+                    contentPadding = PaddingValues(horizontal = 12.dp),
+                ) { Text("With group") }
+                OutlinedButton(onClick = { onConfirm(card.id, ConfirmationStatus.NOT_WITH_GROUP) }, shape = MaterialTheme.shapes.small, contentPadding = PaddingValues(horizontal = 12.dp)) { Text("Not with group") }
+                Spacer(Modifier.width(0.dp))
+                OutlinedButton(onClick = { onConfirm(card.id, ConfirmationStatus.UNKNOWN) }, shape = MaterialTheme.shapes.small, contentPadding = PaddingValues(horizontal = 12.dp)) { Text("Unknown") }
+            }
+        }
+    }
+}

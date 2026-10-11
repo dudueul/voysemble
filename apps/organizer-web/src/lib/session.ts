@@ -99,6 +99,11 @@ export const incidents = {
       method: 'POST',
       body: { note },
     }),
+  /** Organizer action (D17): compose the guardian message from the latest leader confirmation. */
+  sendGuardianMessage: (orgId: string, tripId: string, incidentId: string) =>
+    api<Incident>(`/v1/orgs/${orgId}/trips/${tripId}/incidents/${incidentId}/guardian-message`, {
+      method: 'POST',
+    }),
 };
 
 export const auth = {

@@ -59,6 +59,8 @@ const incident: Incident = {
   resolvedAt: null,
   resolvedByName: null,
   resolutionNote: null,
+  confirmations: [],
+  guardianMessage: null,
 };
 
 describe('live dashboard mapping', () => {

@@ -2,7 +2,10 @@
 // Facts: a head count closed with missing travelers opens exactly one incident naming them (a
 // replay of the closed session returns the same id); a clean close opens none; the list puts
 // open cards first; staff resolve with a note (second resolve 409, unknown id 404); travelers
-// get 403 on list and resolve.
+// get 403 on list and resolve. Slice 016: a leader confirms with a note (traveler 403); the
+// organizer sends the guardian message composed in both languages from the latest confirmation
+// (409 before any confirmation; leaders cannot send); the guardian lists only their traveler's
+// card, projected, with the message; a resolved card takes no confirmation.
 
 import type {
   Incident,
@@ -33,6 +36,8 @@ async function setupTrip() {
   await api(kim).post('/v1/invites/redeem', { code: codeFor('Kim') });
   const minji = await signIn('minji-inc@example.com');
   await api(minji).post('/v1/invites/redeem', { code: codeFor('Minji Park') });
+  const sora = await signIn('sora-inc@example.com');
+  await api(sora).post('/v1/invites/redeem', { code: codeFor('Sora Park') });
   const byName = (name: string) =>
     imported.participations.find((p) => p.displayName === name)?.id ?? '';
   const { SELF } = await import('cloudflare:test');
@@ -46,6 +51,7 @@ async function setupTrip() {
     nate,
     kim,
     minji,
+    sora,
     org,
     trip,
     byName,
@@ -150,5 +156,69 @@ describe('incidents', () => {
       await api(kim).post(`${base}/${newer.incidentId}/resolve`, { note: null }),
     );
     expect(byLeader.resolvedByName).toBe('Kim');
+  });
+
+  it('leader confirms; organizer sends the guardian message; guardian sees own card only', async () => {
+    const { kim, nate, minji, sora, byName, putHeadcount, base } = await setupTrip();
+    // Minji (Sora's traveler) and Juho are missing on a whole-trip close; Hana is present.
+    const sync = await json<SyncHeadcountResponse>(
+      await putHeadcount(nate.token, crypto.randomUUID(), {
+        openedAtDevice: '13:30',
+        closedAtDevice: '13:35',
+        groupName: null,
+        marks: [{ participationId: byName('Lee, Hana'), mark: 'present' }],
+      }),
+    );
+    const id = sync.incidentId as string;
+
+    expect(
+      (await api(minji).post(`${base}/${id}/confirm`, { status: 'with_group', note: null })).status,
+    ).toBe(403);
+    expect((await api(nate).post(`${base}/${id}/guardian-message`)).status).toBe(409);
+    expect((await api(kim).post(`${base}/${id}/guardian-message`)).status).toBe(403);
+
+    const confirmed = await json<Incident>(
+      await api(kim).post(`${base}/${id}/confirm`, { status: 'with_group', note: 'Phone lost.' }),
+    );
+    expect(confirmed.confirmations).toHaveLength(1);
+    expect(confirmed.confirmations[0]).toMatchObject({
+      status: 'with_group',
+      note: 'Phone lost.',
+      confirmedByName: 'Kim',
+      confirmedByRole: 'leader',
+    });
+    expect(confirmed.guardianMessage).toBeNull();
+
+    const sent = await json<Incident>(await api(nate).post(`${base}/${id}/guardian-message`));
+    const clock = /\b\d{2}:\d{2}\b/;
+    expect(sent.guardianMessage?.bodyEn).toMatch(
+      /^Juho Kim, Minji Park are with the group\. Phone lost\. Confirmed by leader Kim at \d{2}:\d{2}\.$/,
+    );
+    expect(sent.guardianMessage?.bodyKo).toMatch(
+      /^Juho Kim, Minji Park 학생은 그룹과 함께 있습니다\. Phone lost\. 인솔자 Kim 님이 \d{2}:\d{2}에 확인했습니다\.$/,
+    );
+    expect(sent.guardianMessage?.bodyEn).toMatch(clock);
+    expect(sent.guardianMessage?.sentByName).toBe('Organizer');
+
+    // Guardian projection: own traveler only, generic title, no trail, message present.
+    const forSora = await json<IncidentList>(await api(sora).get(base));
+    expect(forSora.incidents).toHaveLength(1);
+    expect(forSora.incidents[0]).toMatchObject({
+      id,
+      title: 'Status update about Minji Park',
+      confirmations: [],
+      resolutionNote: null,
+    });
+    expect(forSora.incidents[0]?.people.map((p) => p.displayName)).toEqual(['Minji Park']);
+    expect(forSora.incidents[0]?.guardianMessage?.bodyKo).toContain('인솔자 Kim');
+    expect(
+      (await api(sora).post(`${base}/${id}/confirm`, { status: 'unknown', note: null })).status,
+    ).toBe(403);
+
+    // Resolved cards take no more confirmations.
+    await api(nate).post(`${base}/${id}/resolve`, { note: null });
+    expect(
+      (await api(kim).post(`${base}/${id}/confirm`, { status: 'unknown', note: null })).status,
+    ).toBe(409);
   });
 });

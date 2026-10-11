@@ -28,6 +28,8 @@ import com.voysemble.app.bulletin.BulletinRoute
 import com.voysemble.app.bulletin.BulletinViewModel
 import com.voysemble.app.headcount.HeadcountRoute
 import com.voysemble.app.headcount.HeadcountViewModel
+import com.voysemble.app.incidents.IncidentsRoute
+import com.voysemble.app.incidents.IncidentsViewModel
 import com.voysemble.app.session.AppGraph
 import com.voysemble.app.session.SessionViewModel
 import com.voysemble.app.today.MainTab
@@ -41,7 +43,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 
-enum class Screen { MAIN, HEADCOUNT, WINDOW }
+enum class Screen { MAIN, HEADCOUNT, WINDOW, INCIDENTS }
 
 class NavViewModel : ViewModel() {
     private val _screen = MutableStateFlow(Screen.MAIN)
@@ -93,8 +95,15 @@ fun AppScreens(trip: ActiveTrip?, onSignOut: () -> Unit) {
             val vm: MeetingWindowViewModel = viewModel()
             MeetingWindowRoute(vm, onBack = nav::back)
         }
+        Screen.INCIDENTS -> {
+            BackHandler { nav.back() }
+            val vm: IncidentsViewModel = viewModel(key = "incidents-${trip?.tripId ?: "sample"}") {
+                if (trip == null) IncidentsViewModel() else IncidentsViewModel(AppGraph.apiClient, trip, deviceClock = { IncidentsViewModel.deviceClockNow() })
+            }
+            IncidentsRoute(vm, onBack = nav::back)
+        }
         Screen.MAIN -> when (todayState.tab) {
-            MainTab.TODAY -> TodayRoute(today, onOpenHeadcount = { nav.open(Screen.HEADCOUNT) }, onOpenWindow = { nav.open(Screen.WINDOW) })
+            MainTab.TODAY -> TodayRoute(today, onOpenHeadcount = { nav.open(Screen.HEADCOUNT) }, onOpenWindow = { nav.open(Screen.WINDOW) }, onOpenIncidents = { nav.open(Screen.INCIDENTS) })
             MainTab.BULLETIN -> TabHost(today) {
                 val vm: BulletinViewModel = viewModel(key = trip?.tripId ?: "sample") {
                     if (trip == null) BulletinViewModel() else BulletinViewModel(AppGraph.apiClient, trip)

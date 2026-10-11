@@ -18,6 +18,45 @@ export const IncidentPerson = z
   .object({ participationId: Id, displayName: z.string(), groupName: z.string().nullable() })
   .openapi('IncidentPerson');
 
+/** A leader's answer from the phone (D17): what they see right now. */
+export const ConfirmationStatus = z
+  .enum(['with_group', 'not_with_group', 'unknown'])
+  .openapi('ConfirmationStatus');
+export type ConfirmationStatus = z.infer<typeof ConfirmationStatus>;
+
+export const IncidentConfirmation = z
+  .object({
+    id: z.uuid(),
+    status: ConfirmationStatus,
+    note: z.string().nullable(),
+    confirmedByName: z.string(),
+    /** `leader` from the phone, `organizer` from the console. */
+    confirmedByRole: z.enum(['leader', 'organizer']),
+    confirmedAt: Timestamp,
+  })
+  .openapi('IncidentConfirmation');
+export type IncidentConfirmation = z.infer<typeof IncidentConfirmation>;
+
+export const ConfirmIncidentRequest = z
+  .object({ status: ConfirmationStatus, note: z.string().trim().min(1).max(500).nullable() })
+  .openapi('ConfirmIncidentRequest');
+export type ConfirmIncidentRequest = z.infer<typeof ConfirmIncidentRequest>;
+
+/**
+ * The status message guardians receive (D17). Composed by the server from the latest
+ * confirmation in both supported languages; clients show the reader's. Sent only on the
+ * organizer's action, never automatically.
+ */
+export const GuardianMessage = z
+  .object({
+    bodyEn: z.string(),
+    bodyKo: z.string(),
+    sentAt: Timestamp,
+    sentByName: z.string(),
+  })
+  .openapi('GuardianMessage');
+export type GuardianMessage = z.infer<typeof GuardianMessage>;
+
 export const Incident = z
   .object({
     id: z.uuid(),
@@ -33,6 +72,9 @@ export const Incident = z
     resolvedAt: Timestamp.nullable(),
     resolvedByName: z.string().nullable(),
     resolutionNote: z.string().nullable(),
+    /** Newest first. Empty for guardians (they get the message, not the trail). */
+    confirmations: z.array(IncidentConfirmation),
+    guardianMessage: GuardianMessage.nullable(),
   })
   .openapi('Incident');
 export type Incident = z.infer<typeof Incident>;

@@ -63,8 +63,52 @@ the device; the Android close bar already reads "Closed with N missing · incide
   the card with the missing name and "1 open incident", resolves it with a note, and reads
   "No open incidents". Capture: `docs/captures/web/<project>/safety-live.png`.
 
+## Leader confirmation and the guardian message (slice 016)
+
+The second half of D17. Storage version 6 adds `incident_confirmations` (append-only trail:
+status `with_group | not_with_group | unknown`, note, who, role, when) and the guardian message
+columns on `incidents` (English and Korean bodies, sent at, sent by).
+
+| Route | Who | Behaviour |
+|---|---|---|
+| `POST .../incidents/{id}/confirm` | owner, organizer, participating leader | `{ status, note }`; appends to the trail; 409 on a resolved card. |
+| `POST .../incidents/{id}/guardian-message` | owner, organizer | Composes both languages from the latest confirmation and stores them; 409 when nobody confirmed yet. Sending again replaces the message. |
+| `GET .../incidents` | staff, and now guardians | A guardian gets only the cards naming their traveler, projected: generic title "Status update about <name>", their traveler alone, no trail, no resolution note, the message intact. |
+
+The message is a fixed sentence, never paraphrased by AI: "<names> is with the group. <note>
+Confirmed by leader <name> at <HH:mm>." and its Korean counterpart, with the clock in the trip's
+time zone. `not_with_group` reads "… not with the group right now. Leaders are handling it."
+and `unknown` reads "… status is being checked." Delivery to guardian devices rides the push
+lane of a later slice; the guardian app can already read it on list.
+
+Console: the Safety card shows the latest confirmation as a chip ("With the group", "Confirmed
+by leader Kim 2 min ago · note"), a "Send guardian message" button on open cards that have a
+confirmation, and the sent message in both languages.
+
+Phone: KMP core `incidents/IncidentsModel.kt` (cards, local-first `confirmLocally`, `confirmed`),
+`api/Incidents.kt` (DTOs, `toCard`, `mergeIncidents`), `ApiClient.listIncidents` and
+`confirmIncident`. Android `IncidentsScreen` (open cards first, three one-tap answers, pending
+chip, guardian message) with `IncidentsViewModel` (live when signed in on a trip: list on start,
+post an answer at once, keep it pending when offline and replay on refresh; sample fixture
+otherwise), reachable from Today next to "Open head count". iOS `IncidentsView` on the fixture.
+
+## Facts established by tests (slice 016)
+
+- Worker: a traveler cannot confirm (403); sending before any confirmation is 409 and a leader
+  cannot send (403); the leader's answer with a note lands in the trail with role `leader`; the
+  organizer's send yields both bodies naming the people, the note, "leader Kim", and a clock;
+  the guardian lists one projected card with the message and cannot confirm; a resolved card
+  answers 409 to a confirmation.
+- Console unit and browser: the card shows "With the group" and "Confirmed by leader Kim";
+  clicking "Send guardian message" renders the English and Korean bodies.
+- Core: rows map to cards with clock-rendered times and the locale's guardian text; a pending
+  answer survives a merge and becomes the newest trail entry once confirmed; confirm posts the
+  wire status and note with the bearer token; an unreachable server is `Unreachable`.
+- Android: sample mode records an answer locally with the device clock; live mode lists on
+  start, posts an answer into the trail; offline keeps it pending and marks the feed offline,
+  and the next refresh replays it once.
+
 ## Not done
 
-Manual incident creation from the console, leader confirmation from the phone (`with_group`,
-`not_with_group`, `unknown`), the guardian status message, the amber dashboard tile on real
-sessions, the person timeline.
+Manual incident creation from the console, push delivery of the guardian message (D29 lane), a
+guardian-facing screen on the phone, iOS live mode for incidents, the person timeline.

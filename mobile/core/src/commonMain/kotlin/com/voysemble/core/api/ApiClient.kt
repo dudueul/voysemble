@@ -114,6 +114,32 @@ public class ApiClient(
             }
         }
 
+    /** GET .../incidents: cards the caller may see (staff: all; guardian: own traveler's, projected). */
+    public suspend fun listIncidents(orgId: String, tripId: String, correlationId: String? = null): ApiResult<IncidentListDto> =
+        call(correlationId) {
+            http.get {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "orgs", orgId, "trips", tripId, "incidents") }
+                common(correlationId)
+            }
+        }
+
+    /** POST .../incidents/{id}/confirm: the leader's answer (D17). */
+    public suspend fun confirmIncident(
+        orgId: String,
+        tripId: String,
+        incidentId: String,
+        body: ConfirmIncidentRequestDto,
+        correlationId: String? = null,
+    ): ApiResult<IncidentDto> =
+        call(correlationId) {
+            http.post {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "orgs", orgId, "trips", tripId, "incidents", incidentId, "confirm") }
+                common(correlationId)
+                contentType(ContentType.Application.Json)
+                setBody(body)
+            }
+        }
+
     /** POST /v1/auth/magic-link. Always 202; the server never reveals whether the address exists. */
     public suspend fun requestMagicLink(email: String, locale: String): ApiResult<MagicLinkAcceptedDto> =
         call(null) {

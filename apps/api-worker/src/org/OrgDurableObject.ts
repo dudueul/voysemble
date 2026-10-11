@@ -137,6 +137,27 @@ const MIGRATIONS: { version: number; sql: string }[] = [
       ALTER TABLE announcements ADD COLUMN translation_edited_by TEXT;
     `,
   },
+  {
+    // Slice 016: leader confirmations and the guardian status message (D17).
+    version: 6,
+    sql: `
+      CREATE TABLE IF NOT EXISTS incident_confirmations (
+        id TEXT PRIMARY KEY,
+        incident_id TEXT NOT NULL REFERENCES incidents(id),
+        status TEXT NOT NULL,
+        note TEXT,
+        by_participation_id TEXT,
+        by_name TEXT NOT NULL,
+        by_role TEXT NOT NULL,
+        confirmed_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS incident_confirmations_idx ON incident_confirmations(incident_id, confirmed_at);
+      ALTER TABLE incidents ADD COLUMN guardian_message_en TEXT;
+      ALTER TABLE incidents ADD COLUMN guardian_message_ko TEXT;
+      ALTER TABLE incidents ADD COLUMN guardian_message_sent_at TEXT;
+      ALTER TABLE incidents ADD COLUMN guardian_message_by_name TEXT;
+    `,
+  },
 ];
 
 type IncidentRow = {
@@ -151,7 +172,71 @@ type IncidentRow = {
   resolved_at: string | null;
   resolved_by_name: string | null;
   resolution_note: string | null;
+  guardian_message_en: string | null;
+  guardian_message_ko: string | null;
+  guardian_message_sent_at: string | null;
+  guardian_message_by_name: string | null;
 };
+
+type ConfirmationRow = {
+  id: string;
+  incident_id: string;
+  status: string;
+  note: string | null;
+  by_participation_id: string | null;
+  by_name: string;
+  by_role: string;
+  confirmed_at: string;
+};
+
+/** HH:mm of an instant in the trip's zone, for the guardian message. */
+function localClock(iso: string, timeZone: string): string {
+  try {
+    return new Intl.DateTimeFormat('en-GB', {
+      timeZone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).format(new Date(iso));
+  } catch {
+    return iso.slice(11, 16);
+  }
+}
+
+/**
+ * Guardian status message templates (D17): the traveler's name, what the leader saw, who
+ * confirmed and when, plus the leader's note. Both languages are composed so the reader's
+ * client picks one; no AI is involved (a fixed sentence must never be paraphrased).
+ */
+export function composeGuardianMessage(input: {
+  names: string[];
+  status: 'with_group' | 'not_with_group' | 'unknown';
+  note: string | null;
+  byName: string;
+  byRole: 'leader' | 'organizer';
+  clock: string;
+}): { en: string; ko: string } {
+  const names = input.names.join(', ');
+  const plural = input.names.length > 1;
+  const roleEn = input.byRole === 'leader' ? 'leader' : 'organizer';
+  const roleKo = input.byRole === 'leader' ? '인솔자' : '주최자';
+  const stateEn = {
+    with_group: `${names} ${plural ? 'are' : 'is'} with the group.`,
+    not_with_group: `${names} ${plural ? 'are' : 'is'} not with the group right now. Leaders are handling it.`,
+    unknown: `${names}: status is being checked.`,
+  }[input.status];
+  const stateKo = {
+    with_group: `${names} 학생은 그룹과 함께 있습니다.`,
+    not_with_group: `${names} 학생은 지금 그룹과 함께 있지 않습니다. 인솔자가 대응 중입니다.`,
+    unknown: `${names} 학생의 상태를 확인하는 중입니다.`,
+  }[input.status];
+  const noteEn = input.note ? ` ${input.note}` : '';
+  const noteKo = input.note ? ` ${input.note}` : '';
+  return {
+    en: `${stateEn}${noteEn} Confirmed by ${roleEn} ${input.byName} at ${input.clock}.`,
+    ko: `${stateKo}${noteKo} ${roleKo} ${input.byName} 님이 ${input.clock}에 확인했습니다.`,
+  };
+}
 
 type HeadcountRow = {
   id: string;
@@ -940,13 +1025,55 @@ export class OrgDurableObject extends DurableObject<Env> {
       resolvedAt: r.resolved_at,
       resolvedByName: r.resolved_by_name,
       resolutionNote: r.resolution_note,
+      confirmations: this.ctx.storage.sql
+        .exec<ConfirmationRow>(
+          'SELECT * FROM incident_confirmations WHERE incident_id = ? ORDER BY confirmed_at DESC',
+          r.id,
+        )
+        .toArray()
+        .map((c) => ({
+          id: c.id,
+          status: c.status as Incident['confirmations'][number]['status'],
+          note: c.note,
+          confirmedByName: c.by_name,
+          confirmedByRole: c.by_role as 'leader' | 'organizer',
+          confirmedAt: c.confirmed_at,
+        })),
+      guardianMessage:
+        r.guardian_message_en && r.guardian_message_ko && r.guardian_message_sent_at
+          ? {
+              bodyEn: r.guardian_message_en,
+              bodyKo: r.guardian_message_ko,
+              sentAt: r.guardian_message_sent_at,
+              sentByName: r.guardian_message_by_name ?? 'Organizer',
+            }
+          : null,
     };
   }
 
-  /** Open cards first, newest first within a status. */
-  async listIncidents(tripId: string): Promise<Incident[]> {
+  /**
+   * Guardian projection (visibility matrix): only cards about their own traveler, a generic
+   * title, that traveler alone, no confirmation trail and no resolution note; the status
+   * message stays.
+   */
+  private guardianView(i: Incident, travelerId: string): Incident {
+    const mine = i.people.filter((p) => p.participationId === travelerId);
+    return {
+      ...i,
+      title: `Status update about ${mine.map((p) => p.displayName).join(', ')}`,
+      people: mine,
+      confirmations: [],
+      resolutionNote: null,
+    };
+  }
+
+  /**
+   * Open cards first, newest first within a status. A guardian viewer gets only the cards
+   * naming their traveler, projected (`guardianView`); staff get everything.
+   */
+  async listIncidents(tripId: string, viewer: Participation | null = null): Promise<Incident[]> {
     this.requireOrg();
-    return this.ctx.storage.sql
+    const all = this.ctx.storage.sql
       .exec<IncidentRow>(
         `SELECT * FROM incidents WHERE trip_id = ?
           ORDER BY CASE status WHEN 'open' THEN 0 ELSE 1 END, opened_at DESC`,
@@ -954,6 +1081,98 @@ export class OrgDurableObject extends DurableObject<Env> {
       )
       .toArray()
       .map((r) => this.incidentFromRow(r));
+    if (viewer?.role === 'guardian') {
+      const travelerId = viewer.guardianOf;
+      if (!travelerId) return [];
+      return all
+        .filter((i) => i.people.some((p) => p.participationId === travelerId))
+        .map((i) => this.guardianView(i, travelerId));
+    }
+    return all;
+  }
+
+  /** A leader's (or organizer's) answer on an open card. Resolved cards take no more answers. */
+  async confirmIncident(input: {
+    tripId: string;
+    incidentId: string;
+    status: 'with_group' | 'not_with_group' | 'unknown';
+    note: string | null;
+    byParticipationId: string | null;
+    byName: string;
+    byRole: 'leader' | 'organizer';
+  }): Promise<{ incident: Incident } | { notFound: true } | { resolved: true }> {
+    this.requireOrg();
+    const sql = this.ctx.storage.sql;
+    const row = sql
+      .exec<IncidentRow>(
+        'SELECT * FROM incidents WHERE id = ? AND trip_id = ?',
+        input.incidentId,
+        input.tripId,
+      )
+      .toArray()[0];
+    if (!row) return { notFound: true };
+    if (row.status === 'resolved') return { resolved: true };
+    sql.exec(
+      `INSERT INTO incident_confirmations
+        (id, incident_id, status, note, by_participation_id, by_name, by_role, confirmed_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      crypto.randomUUID(),
+      input.incidentId,
+      input.status,
+      input.note,
+      input.byParticipationId,
+      input.byName,
+      input.byRole,
+      nowIso(),
+    );
+    return { incident: this.incidentFromRow(row) };
+  }
+
+  /**
+   * Compose and store the guardian status message from the latest confirmation (D17). Sending
+   * again replaces the message (a newer confirmation, a correction). Delivery to guardian
+   * devices rides the push lane of a later slice; guardians can already read it on list.
+   */
+  async sendGuardianMessage(input: {
+    tripId: string;
+    incidentId: string;
+    byName: string;
+  }): Promise<{ incident: Incident } | { notFound: true } | { noConfirmation: true }> {
+    this.requireOrg();
+    const sql = this.ctx.storage.sql;
+    const row = sql
+      .exec<IncidentRow>(
+        'SELECT * FROM incidents WHERE id = ? AND trip_id = ?',
+        input.incidentId,
+        input.tripId,
+      )
+      .toArray()[0];
+    if (!row) return { notFound: true };
+    const incident = this.incidentFromRow(row);
+    const latest = incident.confirmations[0];
+    if (!latest) return { noConfirmation: true };
+    const trip = await this.getTrip(input.tripId);
+    const body = composeGuardianMessage({
+      names: incident.people.map((p) => p.displayName),
+      status: latest.status,
+      note: latest.note,
+      byName: latest.confirmedByName,
+      byRole: latest.confirmedByRole,
+      clock: localClock(latest.confirmedAt, trip?.timezone ?? 'UTC'),
+    });
+    sql.exec(
+      `UPDATE incidents SET guardian_message_en = ?, guardian_message_ko = ?, guardian_message_sent_at = ?, guardian_message_by_name = ?
+        WHERE id = ?`,
+      body.en,
+      body.ko,
+      nowIso(),
+      input.byName,
+      input.incidentId,
+    );
+    const updated = sql
+      .exec<IncidentRow>('SELECT * FROM incidents WHERE id = ?', input.incidentId)
+      .one();
+    return { incident: this.incidentFromRow(updated) };
   }
 
   /**

@@ -2189,3 +2189,22 @@ fieldset.filters {
 .ann__translation .ann__body {
   margin-top: 2px;
 }
+
+/* Slice 016: confirmation line and guardian message under an incident */
+.incident__confirmation {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+.incident__guardian {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+  padding: 8px 10px;
+  border-left: 3px solid var(--vy-success);
+  background: color-mix(in srgb, var(--vy-success) 8%, transparent);
+  border-radius: 6px;
+}

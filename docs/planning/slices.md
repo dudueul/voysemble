@@ -537,3 +537,29 @@ Built:
 - Console translation block; core DTO, item fields, `translationLabel`; Android and iOS labels.
 
 Not done: title translation, both-direction storage, guardian parent-safe copy, usage rollups.
+
+## Slice 016: leader confirmation and the guardian status message
+
+Status: built 2026-10-11, CI pending (run id recorded below once green).
+Spec: D17, D13 visibility (guardian sees incident status), ADR-0009. Details: `docs/engineering/incidents.md` (slice 016 section).
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 13 files, 42 tests (incidents.test.ts grows to 3) |
+| Core JVM tests | `cd mobile && ./gradlew :core:jvmTest -Pvoysemble.android=false` | 37 tests (adds IncidentsSyncTest: 2) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 10 files, 57 tests (Safety live case grows) |
+| Android + iOS | CI `mobile` and `ios` jobs | IncidentsViewModelTest (3), IncidentsScreenshotTest (2), iOS IncidentsView compiles |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e` | `headcounts.spec.ts` covers confirm + guardian message; see the CI row |
+
+Facts established by tests: see the engineering doc.
+
+Built:
+- Contracts `ConfirmationStatus`, `IncidentConfirmation`, `ConfirmIncidentRequest`, `GuardianMessage`;
+  `Incident.confirmations`, `Incident.guardianMessage`. OrgDO schema v6; `confirmIncident`,
+  `sendGuardianMessage`, `composeGuardianMessage` (EN + KO templates, trip-zone clock), guardian projection
+  on `listIncidents`; routes confirm and guardian-message; guardians may list.
+- Console: confirmation chip and line, "Send guardian message", sent bodies.
+- Core incidents model + API; Android `IncidentsScreen`/`IncidentsViewModel` (live and sample) reachable from
+  Today; iOS `IncidentsView` (fixture); fixture `incidents()`.
+
+Not done: push delivery, guardian phone screen, iOS live incidents, manual incident creation.

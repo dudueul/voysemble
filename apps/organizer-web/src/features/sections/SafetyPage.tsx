@@ -37,12 +37,19 @@ function SampleChip() {
 function LiveIncident({ orgId, tripId, i }: { orgId: string; tripId: string; i: Incident }) {
   const qc = useQueryClient();
   const [note, setNote] = useState('');
+  const invalidate = () =>
+    void qc.invalidateQueries({ queryKey: incidentsQuery(orgId, tripId).queryKey });
   const resolve = useMutation({
     mutationFn: () => incidentsApi.resolve(orgId, tripId, i.id, note.trim() || null),
-    onSuccess: () =>
-      void qc.invalidateQueries({ queryKey: incidentsQuery(orgId, tripId).queryKey }),
+    onSuccess: invalidate,
+  });
+  const send = useMutation({
+    mutationFn: () => incidentsApi.sendGuardianMessage(orgId, tripId, i.id),
+    onSuccess: invalidate,
   });
   const open = i.status === 'open';
+  const latest = i.confirmations[0] ?? null;
+  const now = new Date().toISOString();
   return (
     <li className="incident" data-testid={`incident-${i.id}`}>
       <span
@@ -54,9 +61,52 @@ function LiveIncident({ orgId, tripId, i }: { orgId: string; tripId: string; i: 
       <div className="incident__text">
         <strong>{i.title}</strong>
         <span className="muted small">
-          {i.people.map((p) => p.displayName).join(', ')} · {s.opened}{' '}
-          {relativeTo(new Date().toISOString(), i.openedAt)} · {i.openedByName}
+          {i.people.map((p) => p.displayName).join(', ')} · {s.opened} {relativeTo(now, i.openedAt)}{' '}
+          · {i.openedByName}
         </span>
+        <span className="small incident__confirmation" data-testid={`confirmation-${i.id}`}>
+          {latest ? (
+            <>
+              <span className={`chip chip--${latest.status === 'with_group' ? 'done' : 'delayed'}`}>
+                {s.confirmation[latest.status]}
+              </span>{' '}
+              {s.confirmedBy(
+                latest.confirmedByName,
+                latest.confirmedByRole,
+                relativeTo(now, latest.confirmedAt),
+              )}
+              {latest.note ? ` · ${latest.note}` : ''}
+            </>
+          ) : (
+            <span className="muted">{s.awaitingConfirmation}</span>
+          )}
+        </span>
+        {i.guardianMessage ? (
+          <span className="small incident__guardian" data-testid={`guardian-${i.id}`}>
+            <span className="muted">
+              {s.guardianMessageSent(relativeTo(now, i.guardianMessage.sentAt))}
+            </span>
+            <span lang="en">{i.guardianMessage.bodyEn}</span>
+            <span lang="ko">{i.guardianMessage.bodyKo}</span>
+          </span>
+        ) : null}
+        {open && latest ? (
+          <span className="small">
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              disabled={send.isPending}
+              onClick={() => send.mutate()}
+            >
+              {s.sendGuardianMessage}
+            </button>
+            {send.isError ? (
+              <span className="field__error" role="alert">
+                {send.error instanceof ApiError ? send.error.message : s.guardianMessageFailed}
+              </span>
+            ) : null}
+          </span>
+        ) : null}
         {open ? (
           <span className="small incident__resolve">
             <input
@@ -83,10 +133,7 @@ function LiveIncident({ orgId, tripId, i }: { orgId: string; tripId: string; i: 
           </span>
         ) : (
           <span className="small">
-            {s.resolvedBy(
-              i.resolvedByName ?? '',
-              relativeTo(new Date().toISOString(), i.resolvedAt ?? i.openedAt),
-            )}
+            {s.resolvedBy(i.resolvedByName ?? '', relativeTo(now, i.resolvedAt ?? i.openedAt))}
             {i.resolutionNote ? ` · ${i.resolutionNote}` : ''}
           </span>
         )}

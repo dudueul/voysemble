@@ -37,6 +37,8 @@ struct TodayView: View {
                         NavigationLink("Open head count") { HeadcountView(model: HeadcountModel()) }
                         Spacer()
                         NavigationLink("Meeting window") { MeetingWindowView(model: MeetingWindowModel()) }
+                        Spacer()
+                        NavigationLink("Incidents") { IncidentsView(model: IncidentsModel()) }
                     }
                     .font(.subheadline.weight(.semibold))
                     Text("Later today").font(.headline).padding(.top, 4)
