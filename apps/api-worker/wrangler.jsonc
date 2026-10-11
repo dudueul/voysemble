@@ -33,7 +33,7 @@
     "directory": "../organizer-web/dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/v1/*", "/openapi.json", "/webhooks/*"]
+    "run_worker_first": ["/v1/*", "/openapi.json", "/webhooks/*", "/.well-known/*"]
   },
   "env": {
     "preview": {
@@ -50,6 +50,9 @@
       // Workers AI for announcement translation (ADR-0006). Through AI Gateway when AI_GATEWAY_ID
       // is set as a var or secret. Absent locally on purpose: tests and dev use the fixture port.
       "ai": { "binding": "AI" },
+      // App Links / Universal Links (slice 019) read ANDROID_CERT_SHA256 (comma-separated SHA-256
+      // fingerprints of the signing certificates) and APPLE_APP_IDS (TEAMID.com.voysemble.app) from
+      // vars set with `wrangler secret put` or the dashboard; unset publishes an empty association.
       "routes": [
         { "pattern": "__BUILD_ID__.dev.voysemble.cfd", "custom_domain": true },
         { "pattern": "api.__BUILD_ID__.dev.voysemble.cfd", "custom_domain": true }
@@ -69,6 +72,9 @@
       // Workers AI for announcement translation (ADR-0006). Through AI Gateway when AI_GATEWAY_ID
       // is set as a var or secret. Absent locally on purpose: tests and dev use the fixture port.
       "ai": { "binding": "AI" },
+      // App Links / Universal Links (slice 019) read ANDROID_CERT_SHA256 (comma-separated SHA-256
+      // fingerprints of the signing certificates) and APPLE_APP_IDS (TEAMID.com.voysemble.app) from
+      // vars set with `wrangler secret put` or the dashboard; unset publishes an empty association.
       "routes": [
         { "pattern": "staging.dev.voysemble.cfd", "custom_domain": true },
         { "pattern": "api.staging.dev.voysemble.cfd", "custom_domain": true }
@@ -88,6 +94,9 @@
       // Workers AI for announcement translation (ADR-0006). Through AI Gateway when AI_GATEWAY_ID
       // is set as a var or secret. Absent locally on purpose: tests and dev use the fixture port.
       "ai": { "binding": "AI" },
+      // App Links / Universal Links (slice 019) read ANDROID_CERT_SHA256 (comma-separated SHA-256
+      // fingerprints of the signing certificates) and APPLE_APP_IDS (TEAMID.com.voysemble.app) from
+      // vars set with `wrangler secret put` or the dashboard; unset publishes an empty association.
       "routes": [
         { "pattern": "app.voysemble.com", "custom_domain": true },
         { "pattern": "api.voysemble.com", "custom_domain": true }

@@ -43,6 +43,16 @@ targets:
           ./gradlew :core:embedAndSignAppleFrameworkForXcode -Pvoysemble.android="${VOYSEMBLE_ANDROID:-true}" --console=plain
         inputFiles: []
         outputFiles: []
+    # Universal Links (slice 019): the magic link opens the app, which verifies the token. The
+    # association file is served by the Worker at /.well-known/apple-app-site-association; the
+    # entitlement needs a provisioning profile with Associated Domains on device (not on the
+    # simulator, where CI builds with signing off).
+    entitlements:
+      path: Voysemble/Voysemble.entitlements
+      properties:
+        com.apple.developer.associated-domains:
+          - applinks:app.voysemble.com
+          - applinks:next.dev.voysemble.cfd
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.voysemble.app

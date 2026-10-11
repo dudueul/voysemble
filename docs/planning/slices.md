@@ -625,3 +625,23 @@ Deviations found while building:
   null; the patch DTO opts out per field with `EncodeDefault.Mode.NEVER` and the core test pins the body.
 
 Not done: proposing from iOS, add/remove proposals from the phone, the revision diff with ack, day labels.
+
+## Slice 019: App Links and Universal Links for the magic link
+
+Status: built 2026-10-11, CI pending (run id recorded below once green).
+Spec: ADR-0007 (mobile magic link), ADR-0008 (hosts). Details: `docs/engineering/mobile-auth.md` (slice 019 section).
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 15 files, 46 tests (adds wellknown.test.ts: 2) |
+| Android + iOS | CI `mobile` and `ios` jobs | AppLinksTest (2); manifest with autoVerify filter; iOS entitlement embedded |
+
+Built:
+- Worker `routes/wellknown.ts` (assetlinks.json, apple-app-site-association from vars; empties when unset),
+  `/.well-known/*` in `run_worker_first`, optional vars on `Bindings`.
+- Android: autoVerify intent filter with a per-build-type host placeholder, `BuildConfig.LINK_HOST`, `singleTop`,
+  `magicLinkFrom`, `PendingLink`, `AppRoot` verifies a pending link once.
+- iOS: associated-domains entitlement, `onOpenURL` / `onContinueUserActivity`, `SessionModel.openMagicLink`.
+
+Not done: real fingerprints and team id (deploy-time vars), claiming every preview host (only `next`),
+Apple/Google native sign-in.

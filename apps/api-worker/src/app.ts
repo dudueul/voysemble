@@ -21,6 +21,7 @@ import { mountItineraryRoutes } from './routes/itinerary';
 import { mountOrganizationRoutes } from './routes/organizations';
 import { mountRosterRoutes } from './routes/roster';
 import { mountTripRoutes } from './routes/trips';
+import { mountWellKnownRoutes } from './routes/wellknown';
 
 const CORRELATION_HEADER = 'X-Correlation-Id';
 /** Mirrors wrangler.jsonc assets.run_worker_first. */
@@ -120,6 +121,7 @@ export function createApp(): OpenAPIHono<AppEnv> {
   mountIncidentRoutes(app);
   mountItineraryRoutes(app);
   mountDevRoutes(app);
+  mountWellKnownRoutes(app);
 
   app.openAPIRegistry.registerComponent('securitySchemes', 'sessionCookie', {
     type: 'apiKey',

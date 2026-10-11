@@ -15,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,6 +32,7 @@ import com.voysemble.app.headcount.HeadcountViewModel
 import com.voysemble.app.incidents.IncidentsRoute
 import com.voysemble.app.incidents.IncidentsViewModel
 import com.voysemble.app.session.AppGraph
+import com.voysemble.app.session.PendingLink
 import com.voysemble.app.session.SessionViewModel
 import com.voysemble.app.today.MainTab
 import com.voysemble.app.today.TodayRoute
@@ -56,6 +58,13 @@ class NavViewModel : ViewModel() {
 fun AppRoot() {
     val sessionVm: SessionViewModel = viewModel { SessionViewModel(AppGraph.sessionManager) }
     val s by sessionVm.state.collectAsStateWithLifecycle()
+    // App Links (slice 019): a magic link that opened the app verifies itself, once.
+    val pendingLink by PendingLink.link.collectAsStateWithLifecycle()
+    LaunchedEffect(pendingLink) {
+        val link = pendingLink ?: return@LaunchedEffect
+        PendingLink.consume()
+        if (s.session !is SessionState.Ready) sessionVm.verify(link)
+    }
     when (val session = s.session) {
         is SessionState.Ready -> AppScreens(trip = session.trip, onSignOut = sessionVm::signOut)
         is SessionState.NeedsInvite -> InviteScreen(state = s, onRedeem = sessionVm::redeem, onSignOut = sessionVm::signOut)

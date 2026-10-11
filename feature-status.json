@@ -93,7 +93,7 @@
     "mobile.auth.invite-redeem": "working",
     "mobile.session.secure-store": "working",
     "me.participations": "working",
-    "mobile.auth.app-links": "deferred",
+    "mobile.auth.app-links": "working",
     "mobile.auth.apple-google": "deferred"
   }
 }

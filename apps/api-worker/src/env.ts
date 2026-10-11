@@ -8,7 +8,14 @@
  * `AI` and `AI_GATEWAY_ID` exist only in named environments (preview, staging, production), so the
  * generated `Env` lacks them; they are optional here and `ai/AiPort.ts` degrades without them.
  */
-export type Bindings = Env & { AI?: Ai; AI_GATEWAY_ID?: string };
+export type Bindings = Env & {
+  AI?: Ai;
+  AI_GATEWAY_ID?: string;
+  /** App Links / Universal Links (slice 019): set per environment, unset locally. */
+  ANDROID_PACKAGE?: string;
+  ANDROID_CERT_SHA256?: string;
+  APPLE_APP_IDS?: string;
+};
 
 /** Who is calling, resolved from the session by auth/middleware.ts. */
 export type AuthContext = {

@@ -12,6 +12,11 @@ struct VoysembleApp: App {
     var body: some Scene {
         WindowGroup {
             RootView(session: session)
+                // Universal Links (slice 019): the magic link opens the app and verifies itself.
+                .onOpenURL { url in Task { await session.openMagicLink(url) } }
+                .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
+                    if let url = activity.webpageURL { Task { await session.openMagicLink(url) } }
+                }
         }
     }
 }

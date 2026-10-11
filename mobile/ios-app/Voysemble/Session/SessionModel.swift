@@ -30,6 +30,13 @@ final class SessionModel: ObservableObject {
         await run { try await self.manager.requestLink(email: email, locale: "ko") }
     }
 
+    /** A magic link that opened the app: only /auth/verify links verify; anything else is ignored. */
+    func openMagicLink(_ url: URL) async {
+        guard url.scheme == "https", url.path == "/auth/verify", (url.fragment ?? "").contains("token=") else { return }
+        if session is SessionStateReady { return }
+        await verify(url.absoluteString)
+    }
+
     func verify(_ linkOrToken: String) async {
         await run { try await self.manager.verify(linkOrToken: linkOrToken) }
     }

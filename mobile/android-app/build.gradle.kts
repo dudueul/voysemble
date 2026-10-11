@@ -22,11 +22,18 @@ android {
         versionName = "0.0.1"
         // Backend host per flavor (ADR-0008). Debug defaults to the `next` preview; release is production only.
         buildConfigField("String", "API_HOST", "\"api.voysemble.com\"")
+        // App Links host (slice 019): the console origin the magic link points at. The manifest
+        // intent filter claims https://<LINK_HOST>/auth/verify with autoVerify against
+        // /.well-known/assetlinks.json served by the Worker.
+        buildConfigField("String", "LINK_HOST", "\"app.voysemble.com\"")
+        manifestPlaceholders["appLinkHost"] = "app.voysemble.com"
     }
 
     buildTypes {
         debug {
             buildConfigField("String", "API_HOST", "\"api.next.dev.voysemble.cfd\"")
+            buildConfigField("String", "LINK_HOST", "\"next.dev.voysemble.cfd\"")
+            manifestPlaceholders["appLinkHost"] = "next.dev.voysemble.cfd"
         }
         release {
             isMinifyEnabled = true
