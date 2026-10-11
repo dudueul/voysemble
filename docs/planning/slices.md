@@ -566,7 +566,7 @@ Not done: push delivery, guardian phone screen, iOS live incidents, manual incid
 
 ## Slice 017: itinerary on the API
 
-Status: built 2026-10-11, CI pending (run id recorded below once green).
+Status: done 2026-10-11. Commit `d990748`. **CI verified**: run 38161008881 green (web incl. 68 E2E across four viewports, mobile incl. TodayViewModelTest live cases, ios), 2026-10-11 17:53 UTC. First push green.
 Spec: D24, D19 (revisions), D13 (guardians read the published itinerary). Details: `docs/engineering/itinerary.md`.
 
 | Gate | Command | Result |
