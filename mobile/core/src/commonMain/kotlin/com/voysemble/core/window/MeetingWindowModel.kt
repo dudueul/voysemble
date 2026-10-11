@@ -40,8 +40,8 @@ public data class MeetingWindow(
         return if (cur >= end) 0 else end - cur
     }
 
-    public val self: WindowMember? get() = members.firstOrNull { it.id == selfId }
-    public val selfOptedIn: Boolean get() = self?.state?.let { it != WindowState.OPTED_OUT } ?: false
+    public val me: WindowMember? get() = members.firstOrNull { it.id == selfId }
+    public val selfOptedIn: Boolean get() = me?.state?.let { it != WindowState.OPTED_OUT } ?: false
 
     public fun count(state: WindowState): Int = members.count { it.state == state }
     public val insideCount: Int get() = count(WindowState.INSIDE)
@@ -50,14 +50,14 @@ public data class MeetingWindow(
 
 /** The traveler opts in: state becomes UNCERTAIN until the first report lands. No-op for others. */
 public fun MeetingWindow.optIn(): MeetingWindow {
-    val me = self ?: return this
+    val me = me ?: return this
     if (me.state != WindowState.OPTED_OUT) return this
     return copy(members = members.map { if (it.id == me.id) it.copy(state = WindowState.UNCERTAIN) else it })
 }
 
 /** The traveler opts out at any time; the device stops sending and the state is OPTED_OUT. */
 public fun MeetingWindow.optOut(): MeetingWindow {
-    val me = self ?: return this
+    val me = me ?: return this
     if (me.state == WindowState.OPTED_OUT) return this
     return copy(members = members.map { if (it.id == me.id) it.copy(state = WindowState.OPTED_OUT) else it })
 }

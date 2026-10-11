@@ -29,11 +29,11 @@ class MeetingWindowModelTest {
         assertFalse(w.selfOptedIn)
         val on = w.optIn()
         assertTrue(on.selfOptedIn)
-        assertEquals(WindowState.UNCERTAIN, on.self?.state)
+        assertEquals(WindowState.UNCERTAIN, on.me?.state)
         assertEquals(9, on.sharingCount)
         assertSame(on, on.optIn())
         val off = on.optOut()
-        assertEquals(WindowState.OPTED_OUT, off.self?.state)
+        assertEquals(WindowState.OPTED_OUT, off.me?.state)
         assertEquals(w.members.filter { it.id != "t1" }, off.members.filter { it.id != "t1" })
     }
 

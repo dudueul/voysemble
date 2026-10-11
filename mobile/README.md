@@ -44,3 +44,11 @@ Ktor 3.6.0, kotlinx.serialization 1.11.0, coroutines 1.11.0, datetime 0.8.0, SKI
 Known-unverified as of 2026-10-10 (no Google Maven in the authoring sandbox): Android target
 script (`core/android-target.gradle.kts`), `android-app` build file. First build on a host with
 the SDK must confirm; fix forward and record in `docs/planning/slices.md`.
+
+## iOS in CI
+
+`.github/workflows/ci.yml` job `ios` runs on `macos-15`: `brew install xcodegen`, `xcodegen
+generate`, a warm `./gradlew :core:linkDebugFrameworkIosSimulatorArm64 -Pvoysemble.android=false`,
+then `xcodebuild test` on an iPhone 16 simulator. The Xcode pre-build script reads
+`VOYSEMBLE_ANDROID=false` so Gradle skips the Android included build on that host. The log is
+uploaded as the `ios-build-log` artifact.

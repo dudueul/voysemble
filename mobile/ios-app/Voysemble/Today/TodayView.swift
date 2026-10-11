@@ -14,7 +14,8 @@ struct TodayView: View {
         TabView(selection: $model.tab) {
             todayTab.tabItem { Label("Today", systemImage: "calendar") }.tag(MainTab.today)
             placeholder("Plan").tabItem { Label("Plan", systemImage: "list.bullet.rectangle") }.tag(MainTab.plan)
-            placeholder("Bulletin").tabItem { Label("Bulletin", systemImage: "bell") }.tag(MainTab.bulletin)
+            NavigationStack { BulletinView(model: BulletinModel()) }
+                .tabItem { Label("Bulletin", systemImage: "bell") }.tag(MainTab.bulletin)
             placeholder("Chats").tabItem { Label("Chats", systemImage: "bubble.left") }.tag(MainTab.chats)
             placeholder("Memories").tabItem { Label("Memories", systemImage: "photo.on.rectangle") }.tag(MainTab.memories)
         }
@@ -23,19 +24,28 @@ struct TodayView: View {
 
     private var todayTab: some View {
         let s = model.snapshot
-        return ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                header(s)
-                if s.offline { offlineBanner }
-                if let next = s.upNext { UpNextCard(event: next, timeZone: s.timeZoneLabel) }
-                if let a = s.announcement { AnnouncementCard(announcement: a) { model.acknowledge($0) } }
-                HeadcountCard(groups: s.headcount, checkedIn: Int(s.checkedIn), expected: Int(s.expected))
-                Text("Later today").font(.headline).padding(.top, 4)
-                ForEach(s.later, id: \.id) { EventRow(event: $0) }
+        return NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    header(s)
+                    if s.offline { offlineBanner }
+                    if let next = s.upNext { UpNextCard(event: next, timeZone: s.timeZoneLabel) }
+                    if let a = s.announcement { AnnouncementCard(announcement: a) { model.acknowledge($0) } }
+                    HeadcountCard(groups: s.headcount, checkedIn: Int(s.checkedIn), expected: Int(s.expected))
+                    // Slice 009: leader and traveler screens reachable from Today, as on Android.
+                    HStack {
+                        NavigationLink("Open head count") { HeadcountView(model: HeadcountModel()) }
+                        Spacer()
+                        NavigationLink("Meeting window") { MeetingWindowView(model: MeetingWindowModel()) }
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    Text("Later today").font(.headline).padding(.top, 4)
+                    ForEach(s.later, id: \.id) { EventRow(event: $0) }
+                }
+                .padding(16)
             }
-            .padding(16)
+            .background(Color(argb: Tokens.Color.Light.bg))
         }
-        .background(Color(argb: Tokens.Color.Light.bg))
     }
 
     private func header(_ s: TodaySnapshot) -> some View {

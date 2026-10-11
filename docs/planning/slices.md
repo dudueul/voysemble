@@ -347,7 +347,7 @@ Spec: D14, D15, D16, D25 (ADR-0009). Atlas screens #7, #9, #15.
 |---|---|---|
 | Core JVM tests | `cd mobile && ./gradlew :core:jvmTest -Pvoysemble.android=false` | 6 classes, 23 tests passed (adds HeadcountModelTest 6, AnnouncementsModelTest 3, MeetingWindowModelTest 4) |
 | Android build + unit + screenshots | CI `mobile` job: `./gradlew build` then `:android-app:recordRoborazziDebug` | pending |
-| iOS | Xcode on the founder's Mac | not run |
+| iOS | CI `ios` job on `macos-15`: XcodeGen, Gradle framework, `xcodebuild test` on iPhone 16 simulator (XCTest: AppConfig + CoreModelsTests interop) | pending |
 
 Facts established by core tests:
 - Head count: fixture opens 18/20 with Dohyun Kang and Eunwoo Shin pinned as missing; a toggle marks present and flips the session to PENDING sync; excused and with-other-group count as accounted; close turns every unmarked member into MISSING, records `closedWithMissing`, stays PENDING until `markSynced`, and later marks are ignored; unknown ids are ignored; explicit MISSING sorts before unmarked.
@@ -359,4 +359,4 @@ Built:
 - `android-app`: `ui/Widgets.kt` (VyCard, ScreenHeader, LabelChip, SyncChip, SampleDataChip), five icons, `headcount/`, `bulletin/`, `window/` view models + screens, `AppNavigation.kt` (tabs + pushed screens, BackHandler), Today wires "Open head count" and the meeting-point button. Screenshot tests: `headcount-open`, `headcount-closed-dark`, `bulletin-light`, `bulletin-offline-queued`, `window-open`, `window-sharing-dark`. Unit test: HeadcountViewModelTest.
 - `ios-app`: `HeadcountView`, `BulletinView`, `MeetingWindowView` with observable models over the same core functions (SKIE `onEnum`).
 
-Not done: real sync for the outbox and head-count sessions; navigation library; iOS verification.
+Not done: real sync for the outbox and head-count sessions; navigation library.

@@ -56,3 +56,43 @@ jobs:
           name: mobile-test-reports
           path: mobile/**/build/reports/tests
           if-no-files-found: ignore
+  ios:
+    # iOS verification on a macOS runner: XcodeGen project, Gradle-built VoysembleCore framework
+    # (SKIE), xcodebuild + XCTest on the simulator. No Android SDK here, so the Xcode pre-build
+    # script passes -Pvoysemble.android=false via VOYSEMBLE_ANDROID.
+    runs-on: macos-15
+    env:
+      VOYSEMBLE_ANDROID: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+      - run: sudo xcode-select -s /Applications/Xcode_16.4.app || sudo xcode-select -s /Applications/Xcode.app
+      - run: xcodebuild -version
+      - run: brew install xcodegen
+      - run: xcodegen generate
+        working-directory: mobile/ios-app
+      # Warm the framework outside Xcode first so Gradle/Kotlin/Native download failures show up
+      # as their own step, not inside a script phase.
+      - run: ./gradlew :core:linkDebugFrameworkIosSimulatorArm64 -Pvoysemble.android=false --console=plain
+        working-directory: mobile
+      - run: |
+          xcodebuild test \
+            -project Voysemble.xcodeproj \
+            -scheme Voysemble \
+            -configuration Debug \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -derivedDataPath DerivedData \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            | tee xcodebuild.log | grep -E "error:|warning: unre|Test Case|Executed|BUILD|TEST" || true
+          grep -qE "\*\* TEST SUCCEEDED \*\*" xcodebuild.log
+        working-directory: mobile/ios-app
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-build-log
+          path: mobile/ios-app/xcodebuild.log
+          if-no-files-found: ignore

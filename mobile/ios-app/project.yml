@@ -4,6 +4,7 @@
 #   brew install xcodegen && cd mobile/ios-app && xcodegen generate
 # The generated .xcodeproj is gitignored; this file is the source of truth.
 # The VoysembleCore framework is built by Gradle (:core) in a pre-build script phase.
+# CI builds and tests this project on a macOS runner (.github/workflows/ci.yml, job `ios`).
 name: Voysemble
 options:
   bundleIdPrefix: com.voysemble
@@ -36,7 +37,8 @@ targets:
       - name: Build VoysembleCore (Gradle)
         script: |
           cd "$SRCROOT/.."
-          ./gradlew :core:embedAndSignAppleFrameworkForXcode
+          # VOYSEMBLE_ANDROID=false skips the Android included build on hosts without an SDK (CI macOS).
+          ./gradlew :core:embedAndSignAppleFrameworkForXcode -Pvoysemble.android="${VOYSEMBLE_ANDROID:-true}" --console=plain
         inputFiles: []
         outputFiles: []
     settings:

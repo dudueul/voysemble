@@ -101,7 +101,7 @@ fun MeetingWindowScreen(window: MeetingWindow, now: String, onSharingChange: (Bo
                             modifier = Modifier.semantics { contentDescription = "Share my position" },
                         )
                     }
-                    window.self?.let { me ->
+                    window.me?.let { me ->
                         Spacer(Modifier.height(8.dp))
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text("Your state:", style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
