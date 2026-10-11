@@ -13,6 +13,7 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
@@ -69,6 +70,41 @@ public class ApiClient(
                 common(correlationId)
                 contentType(ContentType.Application.Json)
                 setBody(AckRequestDto(ackedAtDevice))
+            }
+        }
+
+    /** PUT .../headcounts/{id}: the whole device session, idempotent by client id (D14). */
+    public suspend fun syncHeadcount(
+        orgId: String,
+        tripId: String,
+        headcountId: String,
+        body: SyncHeadcountRequestDto,
+        correlationId: String? = null,
+    ): ApiResult<SyncHeadcountResponseDto> =
+        call(correlationId) {
+            http.put {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "orgs", orgId, "trips", tripId, "headcounts", headcountId) }
+                common(correlationId)
+                contentType(ContentType.Application.Json)
+                setBody(body)
+            }
+        }
+
+    /** GET .../headcounts: sessions newest first (owner, organizer, participating leader). */
+    public suspend fun listHeadcounts(orgId: String, tripId: String, correlationId: String? = null): ApiResult<HeadcountListDto> =
+        call(correlationId) {
+            http.get {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "orgs", orgId, "trips", tripId, "headcounts") }
+                common(correlationId)
+            }
+        }
+
+    /** GET .../roster: every participation of the trip (org role leader or above). */
+    public suspend fun listRoster(orgId: String, tripId: String, correlationId: String? = null): ApiResult<RosterResponseDto> =
+        call(correlationId) {
+            http.get {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "orgs", orgId, "trips", tripId, "roster") }
+                common(correlationId)
             }
         }
 

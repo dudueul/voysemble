@@ -423,3 +423,32 @@ Facts established by tests:
 Built: see the engineering doc. Captures (CI): `sign-in.png`, `sign-in-awaiting-dark.png`, `invite.png`.
 
 Not done: App Links / Universal Links, Apple/Google sign-in, native refresh rotation, KO strings.
+
+## Slice 012: head count sessions on the API, live Android head count
+
+Status: built 2026-10-11, CI pending (run id recorded below once green).
+Spec: D14, D25 (ADR-0009). Details: `docs/engineering/headcounts.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 11 files, 36 tests (adds headcounts.test.ts: 2), no uncaught-exception log |
+| Core JVM tests | `cd mobile && ./gradlew :core:jvmTest -Pvoysemble.android=false` | 33 tests (adds HeadcountsSyncTest: 3) |
+| Android + iOS | CI `mobile` and `ios` jobs | HeadcountViewModelTest grows to 3 (two live), screenshots unchanged |
+
+Facts established by tests: see the engineering doc ("Facts established by tests").
+
+Built:
+- Contracts `headcount.ts`; OrgDO schema v3 (`headcounts`, `headcount_marks`), `syncHeadcount`
+  (idempotent upsert, closed is final, conflict returned as a value), `listHeadcounts`; routes
+  `headcounts.ts` (PUT by client id, GET list) for owner/organizer/participating leader.
+- KMP core `api/Headcounts.kt`: DTOs, `toSyncRequest`, `headcountFromRoster`, `pushHeadcount`;
+  `ApiClient.syncHeadcount`, `listHeadcounts`, `listRoster`.
+- Android `HeadcountViewModel` live mode (roster seed, open push, close push, retry), `HeadcountStatus`
+  on the screen ("Live"/"Syncing" chip, loading and error lines, tappable "Pending sync").
+
+Deviations found while building:
+- A plain `throw` inside a Durable Object method shows up as "uncaught exception" in the workerd
+  log even when the route catches it; expected outcomes now return values.
+
+Not done: incident auto-creation on close with missing, dashboard tile on real sessions, guardian
+status, iOS live mode.

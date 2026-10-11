@@ -14,7 +14,15 @@
 // invite email. Care notes (D27) arrive in a later slice as tier-2 ciphertext.
 
 import { DurableObject } from 'cloudflare:workers';
-import type { AckStatus, Announcement, Participation, Trip, TripRole } from '@voysemble/contracts';
+import type {
+  AckStatus,
+  Announcement,
+  HeadcountMark,
+  HeadcountSession,
+  Participation,
+  Trip,
+  TripRole,
+} from '@voysemble/contracts';
 import { nowIso } from '../lib/time';
 
 /** Versioned, idempotent schema steps. Append only; never edit an applied step. */
@@ -69,7 +77,41 @@ const MIGRATIONS: { version: number; sql: string }[] = [
       );
     `,
   },
+  {
+    // Slice 012: head count sessions synced from the leader's device (D14, D25).
+    version: 3,
+    sql: `
+      CREATE TABLE IF NOT EXISTS headcounts (
+        id TEXT PRIMARY KEY,
+        trip_id TEXT NOT NULL REFERENCES trips(id),
+        group_name TEXT,
+        opened_by_participation_id TEXT,
+        opened_by_name TEXT NOT NULL,
+        opened_at_device TEXT NOT NULL,
+        closed_at_device TEXT,
+        received_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS headcounts_trip_idx ON headcounts(trip_id, received_at);
+      CREATE TABLE IF NOT EXISTS headcount_marks (
+        headcount_id TEXT NOT NULL REFERENCES headcounts(id),
+        participation_id TEXT NOT NULL REFERENCES participations(id),
+        mark TEXT NOT NULL,
+        PRIMARY KEY (headcount_id, participation_id)
+      );
+    `,
+  },
 ];
+
+type HeadcountRow = {
+  id: string;
+  trip_id: string;
+  group_name: string | null;
+  opened_by_participation_id: string | null;
+  opened_by_name: string;
+  opened_at_device: string;
+  closed_at_device: string | null;
+  received_at: string;
+};
 
 type AnnouncementRow = {
   id: string;
@@ -560,5 +602,160 @@ export class OrgDurableObject extends DurableObject<Env> {
       acked: entries.filter((e) => e.ackedAt !== null),
       unacked: entries.filter((e) => e.ackedAt === null),
     };
+  }
+
+  private headcountFromRow(r: HeadcountRow): HeadcountSession {
+    const sql = this.ctx.storage.sql;
+    const scope = r.group_name
+      ? sql
+          .exec<ParticipationRow>(
+            "SELECT * FROM participations WHERE trip_id = ? AND role = 'traveler' AND group_name = ? ORDER BY display_name",
+            r.trip_id,
+            r.group_name,
+          )
+          .toArray()
+      : sql
+          .exec<ParticipationRow>(
+            "SELECT * FROM participations WHERE trip_id = ? AND role = 'traveler' ORDER BY display_name",
+            r.trip_id,
+          )
+          .toArray();
+    const marks = new Map(
+      sql
+        .exec<{ participation_id: string; mark: string }>(
+          'SELECT participation_id, mark FROM headcount_marks WHERE headcount_id = ?',
+          r.id,
+        )
+        .toArray()
+        .map((m) => [m.participation_id, m.mark as HeadcountMark]),
+    );
+    const closed = r.closed_at_device !== null;
+    let present = 0;
+    let accounted = 0;
+    const missing: HeadcountSession['missing'] = [];
+    for (const p of scope) {
+      const mark = marks.get(p.id);
+      if (mark === 'present') {
+        present++;
+        accounted++;
+      } else if (mark === 'with_other_group' || mark === 'excused') {
+        accounted++;
+      } else if (mark === 'missing' || closed) {
+        // Unmarked rows count as missing once the session is closed (D14 close semantics).
+        missing.push({
+          participationId: p.id,
+          displayName: p.display_name,
+          groupName: p.group_name,
+          mark: 'missing',
+        });
+      } else {
+        missing.push({
+          participationId: p.id,
+          displayName: p.display_name,
+          groupName: p.group_name,
+          mark: 'missing',
+        });
+      }
+    }
+    return {
+      id: r.id,
+      tripId: r.trip_id,
+      groupName: r.group_name,
+      openedByName: r.opened_by_name,
+      openedAtDevice: r.opened_at_device,
+      closedAtDevice: r.closed_at_device,
+      receivedAt: r.received_at,
+      expected: scope.length,
+      present,
+      accounted,
+      missing,
+      closedWithMissing: closed && missing.length > 0,
+    };
+  }
+
+  /**
+   * Idempotent upsert of a device head count. A session the server already holds closed is
+   * never changed (`applied: false`); otherwise marks are replaced wholesale with the device's.
+   *
+   * Returns `{ conflict: 'other-trip' }` instead of throwing when the id is already used by a
+   * different trip: an exception crossing the Durable Object RPC boundary is logged by workerd as
+   * an uncaught promise rejection, so expected outcomes travel as values.
+   */
+  async syncHeadcount(input: {
+    id: string;
+    tripId: string;
+    groupName: string | null;
+    openedByParticipationId: string | null;
+    openedByName: string;
+    openedAtDevice: string;
+    closedAtDevice: string | null;
+    marks: { participationId: string; mark: HeadcountMark }[];
+  }): Promise<{ session: HeadcountSession; applied: boolean } | { conflict: 'other-trip' }> {
+    this.requireOrg();
+    if (!(await this.getTrip(input.tripId))) throw new Error('trip not found');
+    const sql = this.ctx.storage.sql;
+    const existing = sql
+      .exec<HeadcountRow>('SELECT * FROM headcounts WHERE id = ?', input.id)
+      .toArray()[0];
+    if (existing) {
+      if (existing.trip_id !== input.tripId) return { conflict: 'other-trip' };
+      if (existing.closed_at_device !== null)
+        return { session: this.headcountFromRow(existing), applied: false };
+    }
+    const validIds = new Set(
+      sql
+        .exec<{ id: string }>('SELECT id FROM participations WHERE trip_id = ?', input.tripId)
+        .toArray()
+        .map((r) => r.id),
+    );
+    const receivedAt = nowIso();
+    this.ctx.storage.transactionSync(() => {
+      if (existing) {
+        sql.exec(
+          'UPDATE headcounts SET closed_at_device = ?, received_at = ?, group_name = ? WHERE id = ?',
+          input.closedAtDevice,
+          receivedAt,
+          input.groupName,
+          input.id,
+        );
+        sql.exec('DELETE FROM headcount_marks WHERE headcount_id = ?', input.id);
+      } else {
+        sql.exec(
+          `INSERT INTO headcounts
+            (id, trip_id, group_name, opened_by_participation_id, opened_by_name, opened_at_device, closed_at_device, received_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          input.id,
+          input.tripId,
+          input.groupName,
+          input.openedByParticipationId,
+          input.openedByName,
+          input.openedAtDevice,
+          input.closedAtDevice,
+          receivedAt,
+        );
+      }
+      for (const m of input.marks) {
+        if (!validIds.has(m.participationId)) continue;
+        sql.exec(
+          'INSERT OR REPLACE INTO headcount_marks (headcount_id, participation_id, mark) VALUES (?, ?, ?)',
+          input.id,
+          m.participationId,
+          m.mark,
+        );
+      }
+    });
+    const row = sql.exec<HeadcountRow>('SELECT * FROM headcounts WHERE id = ?', input.id).one();
+    return { session: this.headcountFromRow(row), applied: true };
+  }
+
+  async listHeadcounts(tripId: string): Promise<HeadcountSession[]> {
+    this.requireOrg();
+    return this.ctx.storage.sql
+      .exec<HeadcountRow>(
+        'SELECT * FROM headcounts WHERE trip_id = ? ORDER BY received_at DESC',
+        tripId,
+      )
+      .toArray()
+      .map((r) => this.headcountFromRow(r));
   }
 }

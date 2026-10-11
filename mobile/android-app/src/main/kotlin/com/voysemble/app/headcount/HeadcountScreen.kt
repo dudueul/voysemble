@@ -57,12 +57,15 @@ import com.voysemble.core.window.WindowState
 @Composable
 fun HeadcountRoute(vm: HeadcountViewModel, onBack: () -> Unit) {
     val session by vm.state.collectAsStateWithLifecycle()
+    val status by vm.status.collectAsStateWithLifecycle()
     HeadcountScreen(
         session = session,
+        status = status,
         onToggle = vm::togglePresent,
         onExcuse = vm::excuse,
         onWithOtherGroup = vm::withOtherGroup,
-        onClose = vm::close,
+        onClose = { vm.close() },
+        onRetrySync = { vm.retrySync() },
         onBack = onBack,
     )
 }
@@ -75,6 +78,8 @@ fun HeadcountScreen(
     onWithOtherGroup: (String) -> Unit,
     onClose: () -> Unit,
     onBack: () -> Unit,
+    status: HeadcountStatus = HeadcountStatus(live = false),
+    onRetrySync: () -> Unit = {},
 ) {
     val c = LocalVoysembleColors.current
     Scaffold(
@@ -95,10 +100,18 @@ fun HeadcountScreen(
                     onBack = onBack,
                 ) {
                     Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        SampleDataChip()
-                        SyncChip(pending = session.syncState == SyncState.PENDING)
+                        if (!status.live) SampleDataChip() else LabelChip(if (status.syncing) "Syncing" else "Live", c.info, AppIcons.Check)
+                        Box(Modifier.clickable(enabled = status.live && session.syncState == SyncState.PENDING && !status.syncing, onClick = onRetrySync)) {
+                            SyncChip(pending = session.syncState == SyncState.PENDING)
+                        }
                     }
                 }
+            }
+            if (status.loading) {
+                item { Text("Loading the roster…", style = MaterialTheme.typography.bodyMedium, color = c.textMuted) }
+            }
+            status.error?.let { message ->
+                item { Text(message, style = MaterialTheme.typography.bodyMedium, color = c.danger) }
             }
             item {
                 LinearProgressIndicator(

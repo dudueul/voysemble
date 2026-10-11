@@ -82,7 +82,10 @@ fun AppScreens(trip: ActiveTrip?, onSignOut: () -> Unit) {
     when (screen) {
         Screen.HEADCOUNT -> {
             BackHandler { nav.back() }
-            val vm: HeadcountViewModel = viewModel()
+            // Live when signed in on a trip; the fixture otherwise. Keyed so switching trips restarts.
+            val vm: HeadcountViewModel = viewModel(key = trip?.tripId ?: "sample") {
+                if (trip == null) HeadcountViewModel() else HeadcountViewModel(AppGraph.apiClient, trip, deviceClock = { HeadcountViewModel.deviceClockNow() })
+            }
             HeadcountRoute(vm, onBack = nav::back)
         }
         Screen.WINDOW -> {

@@ -11,6 +11,7 @@ export * from './announcement';
 export * from './auth';
 export * from './common';
 export * from './error';
+export * from './headcount';
 export * from './health';
 export * from './organization';
 export * from './roster';
