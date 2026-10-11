@@ -138,6 +138,9 @@ importers:
       '@tanstack/react-router':
         specifier: 'catalog:'
         version: 1.170.42(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@voysemble/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@voysemble/design-tokens':
         specifier: workspace:*
         version: link:../../packages/design-tokens

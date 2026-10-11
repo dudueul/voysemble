@@ -26,6 +26,7 @@ describe('GET /openapi.json', () => {
         '/v1/orgs/{orgId}/trips/{tripId}/roster/import',
         '/v1/orgs/{orgId}/trips/{tripId}/roster',
         '/v1/orgs/{orgId}/trips/{tripId}/invites',
+        '/v1/orgs/{orgId}/trips/{tripId}/roster/leaders',
         '/v1/invites/redeem',
       ]),
     );

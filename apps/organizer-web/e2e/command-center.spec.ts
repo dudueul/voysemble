@@ -3,11 +3,11 @@
 // artifacts the visual-acceptance review compares against docs/visual-references/.
 
 import { expect, test } from '@playwright/test';
-
-const OUT = '../../docs/captures/web';
+import { OUT, signInWithOrg } from './helpers';
 
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
+  await signInWithOrg(page);
 });
 
 test('command center renders fixture and sidebar', async ({ page }, info) => {

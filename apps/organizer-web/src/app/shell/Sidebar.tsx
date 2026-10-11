@@ -20,7 +20,7 @@ export const NAV: ReadonlyArray<{ to: string; label: string; icon: IconName }> =
   { to: '/settings', label: strings.nav.settings, icon: 'settings' },
 ];
 
-export function Sidebar({ orgName }: { orgName: string }) {
+export function Sidebar({ orgName, showSetup }: { orgName: string; showSetup: boolean }) {
   return (
     <div className="sidebar-col">
       <aside className="sidebar" aria-label="Primary">
@@ -32,6 +32,17 @@ export function Sidebar({ orgName }: { orgName: string }) {
           </div>
         </div>
         <nav className="sidebar__nav" aria-label="Sections">
+          {/* Setup is pinned on top until the first organization exists; stays reachable at /setup. */}
+          {showSetup ? (
+            <Link
+              to="/setup"
+              className="navlink navlink--accent"
+              activeProps={{ 'aria-current': 'page' }}
+            >
+              <Icons.checklist />
+              <span>{strings.setup.nav}</span>
+            </Link>
+          ) : null}
           {NAV.map((item) => {
             const Icon = Icons[item.icon];
             return (

@@ -9,21 +9,19 @@ export function TopBar({
   orgName,
   tripName,
   tripStatus,
-  organizerName,
+  accountLabel,
   hasAlerts,
+  onSignOut,
 }: {
   orgName: string;
   tripName: string | null;
   tripStatus: 'active' | 'planning' | 'completed' | null;
-  organizerName: string;
+  /** Email of the signed-in account; initials derive from it. */
+  accountLabel: string;
   hasAlerts: boolean;
+  onSignOut: () => void;
 }) {
-  const initials = organizerName
-    .split(' ')
-    .map((s) => s[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
+  const initials = accountLabel.slice(0, 2).toUpperCase();
   return (
     <header className="topbar">
       <section className="topbar__context" aria-label="Current organization and trip">
@@ -53,9 +51,13 @@ export function TopBar({
       <button
         type="button"
         className="avatar"
-        aria-label={`${strings.topbar.account}: ${organizerName}`}
+        aria-label={`${strings.topbar.account}: ${accountLabel}`}
+        title={accountLabel}
       >
         {initials}
+      </button>
+      <button type="button" className="btn btn--ghost btn--sm" onClick={onSignOut}>
+        {strings.auth.signOut}
       </button>
     </header>
   );

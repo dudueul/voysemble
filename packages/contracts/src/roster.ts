@@ -22,6 +22,15 @@ export const RosterImportRequest = z
   .openapi('RosterImportRequest');
 export type RosterImportRequest = z.infer<typeof RosterImportRequest>;
 
+/** Leaders are added by name by an organizer; they are not roster CSV rows. */
+export const AddLeaderRequest = z
+  .object({
+    displayName: DisplayName,
+    groupName: GroupName.nullable().default(null),
+  })
+  .openapi('AddLeaderRequest');
+export type AddLeaderRequest = z.infer<typeof AddLeaderRequest>;
+
 export const Participation = z
   .object({
     id: Id,

@@ -275,3 +275,34 @@ Deviations found while building:
 - With `exactOptionalPropertyTypes`, `RequestInit.body` must be `null`, not `undefined`, when absent.
 
 Not done (next slices): OIDC/native sign-in, rate limiting, native refresh rotation, leader endpoint, invite email delivery, organizer web onboarding screens, Cloudflare Email Sending transport.
+
+## Slice 007: organizer web onboarding on the real API (sign-in, session gate, setup checklist)
+
+Status: built 2026-10-11, local gate green, CI pending. Commit: `feat(web): onboarding ...`.
+Spec: D26 first run, D12 roster + invites, ADR-0007 web sessions. Details: `docs/engineering/identity-and-roster.md` ("Web console").
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 9 files, 30 tests (adds leader endpoint, dev mailbox) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 8 files, 30 tests (api client, sign-in, token parsing, setup checklist, CSV export, trip status) |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e` against `wrangler dev` (local D1 + DO + fixture mailbox) | 26 passed in 2 projects (desktop-1440, laptop-1280); captures in `docs/captures/web/*/{sign-in,setup-1-org,setup-2-trip,setup-3-roster,setup-4-invites}.png` |
+| Full gate | `pnpm check` | green |
+
+Facts established by tests:
+- Anonymous visit to `/` redirects to `/sign-in`; `/v1/me` is 401 after sign-out.
+- Real magic-link round trip in the browser: request, mail captured by the fixture port, link opened, cookie session, landing on `/setup`.
+- Checklist rebuilds from the API on reload (no client-only state); step states are `locked`/`open`/`done` via `data-state`.
+- Org creation puts the real org name in the top bar and sidebar; trip creation puts the real trip and a date-derived status (`Planning`) in the top bar.
+- Roster CSV paste creates 3 travelers + 2 guardians; "Add leader" adds 1 leader; invite issue returns 6 `XXXX-XXXX` codes rendered once; CSV download has the expected filename.
+- Unit: `ApiError` carries code and correlation id from the envelope or the header; sign-in never claims an account exists; token is read only from the documented fragment shape.
+
+Built:
+- API: `POST /v1/orgs/{orgId}/trips/{tripId}/roster/leaders`; `GET /v1/dev/mailbox?to=` mounted only when `DEV_MAILBOX` is bound and `ENV_NAME=local`.
+- Web: `src/lib/{api-client,query-client,session}.ts`; `features/auth/{SignInPage,VerifyPage}`; `features/setup/SetupPage` (4 steps); router with public `/sign-in`, `/auth/verify` and a pathless `app` layout whose `beforeLoad` requires a session; shell shows real org/trip/account and a sign-out button; Setup nav item pinned while no organization exists; Vite dev proxy to the Worker.
+- E2E now runs against the Worker (`playwright.config.ts` webServer = `wrangler d1 migrations apply` + `wrangler dev`), so command-center and itinerary specs sign in first. Those pages still render fixtures and say "Sample data".
+
+Deviations found while building:
+- `Secure` cookies are accepted by Chromium on `http://127.0.0.1`, so the E2E sign-in works without TLS.
+- Full-page Playwright screenshots render the sticky top bar at the current scroll offset; specs scroll to top before capturing.
+
+Not done (next slices): sample screens for the ten remaining menus + tablet/phone captures (slice 008, requested by founder), KO strings, OIDC, invite revocation, roster editing.

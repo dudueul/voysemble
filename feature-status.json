@@ -18,7 +18,7 @@
     "ai.ingest-suggestions": "deferred",
     "ai.broadcast-translation": "deferred",
     "ai.image-moderation-flags": "deferred",
-    "web.shell": "simulated",
+    "web.shell": "working",
     "web.command-center": "simulated",
     "api.static-assets": "working",
     "mobile.core.api-client": "working",
@@ -47,6 +47,11 @@
     "email.fixture-port": "working",
     "email.cloudflare-sending": "deferred",
     "auth.rate-limit": "deferred",
-    "auth.native-refresh-rotation": "deferred"
+    "auth.native-refresh-rotation": "deferred",
+    "web.auth.sign-in": "working",
+    "web.session-gate": "working",
+    "web.setup-checklist": "working",
+    "onboarding.first-run": "working",
+    "roster.add-leader": "working"
   }
 }

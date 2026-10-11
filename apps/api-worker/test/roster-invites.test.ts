@@ -182,3 +182,32 @@ describe('invites', () => {
     ).toBe(403);
   });
 });
+
+describe('leaders and dev mailbox', () => {
+  it('organizer adds a leader by name; member cannot', async () => {
+    const { nate, org, trip } = await setup();
+    const res = await api(nate).post(`/v1/orgs/${org.id}/trips/${trip.id}/roster/leaders`, {
+      displayName: 'Kim',
+      groupName: 'Bus A',
+    });
+    expect(res.status).toBe(201);
+    const kim = await json<{ role: string; groupName: string | null }>(res);
+    expect(kim.role).toBe('leader');
+    expect(kim.groupName).toBe('Bus A');
+    const other = await signIn('other@example.com');
+    const denied = await api(other).post(`/v1/orgs/${org.id}/trips/${trip.id}/roster/leaders`, {
+      displayName: 'Intruder',
+    });
+    expect(denied.status).toBe(403);
+  });
+
+  it('dev mailbox returns the newest fixture mail in local env', async () => {
+    await signIn('mailbox@example.com');
+    const res = await api(null).get('/v1/dev/mailbox?to=mailbox@example.com');
+    expect(res.status).toBe(200);
+    const mail = await json<{ tag: string; text: string }>(res);
+    expect(mail.tag).toBe('magic-link');
+    expect(mail.text).toContain('#token=');
+    expect((await api(null).get('/v1/dev/mailbox?to=nobody@example.com')).status).toBe(404);
+  });
+});

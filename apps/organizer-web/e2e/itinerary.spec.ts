@@ -2,11 +2,11 @@
 // Browser facts + captures for the itinerary editor (second visual-acceptance screen).
 
 import { expect, test } from '@playwright/test';
-
-const OUT = '../../docs/captures/web';
+import { OUT, signInWithOrg } from './helpers';
 
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
+  await signInWithOrg(page);
 });
 
 test('itinerary editor: day rail, timeline, edit, publish', async ({ page }, info) => {

@@ -91,8 +91,25 @@ pnpm --filter @voysemble/api-worker exec wrangler d1 migrations apply voysemble-
 In `wrangler dev`, magic-link emails land in the local KV namespace; read them with
 `wrangler kv key list --binding DEV_MAILBOX --local`.
 
+## Web console (slice 007)
+
+- `src/lib/api-client.ts`: same-origin `fetch` with `credentials: same-origin`; non-2xx becomes
+  `ApiError{status, code, correlationId, details}`. Screens show the correlation id as a support
+  reference.
+- `src/lib/session.ts`: query options (`meQuery`, `orgsQuery`, `tripsQuery`, `rosterQuery`),
+  `auth.*` and `setup.*` mutations, remembered active organization in `localStorage`.
+- Router: `/sign-in` and `/auth/verify` are public. Every other route is a child of the pathless
+  `app` layout whose `beforeLoad` calls `GET /v1/me` through the shared QueryClient and redirects
+  to `/sign-in` on 401. The verify page reads `#token=` from the fragment, posts it with
+  `client: web`, strips the fragment with `history.replaceState`, and navigates to `/setup`.
+- `/setup`: four-step checklist (org, trip, roster, invites) that re-derives its state from the
+  API on every load. Invite codes are rendered once and offered as a CSV download; nothing keeps
+  them client-side after navigation.
+- Browser E2E runs against `wrangler dev` with the fixture mailbox and reads magic links from
+  `/v1/dev/mailbox`, which exists only in the local environment.
+
 ## Open items
 
-- Leader participations have no HTTP endpoint yet (test uses the DO method `addLeader`).
+- Invite revocation endpoint; roster row editing and removal.
 - Invite email delivery (guardian contact) and invite revocation endpoint.
 - Organizer-facing web screens for onboarding checklist (D26) are slice 007 candidates.

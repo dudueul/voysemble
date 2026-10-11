@@ -15,5 +15,8 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
+    // `pnpm --filter @voysemble/api-worker dev` serves the API on 8787; the console proxies to
+    // it so cookies stay first-party during development.
+    proxy: { '/v1': 'http://127.0.0.1:8787', '/openapi.json': 'http://127.0.0.1:8787' },
   },
 });

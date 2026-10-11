@@ -12,9 +12,10 @@
 
 import { createRoute, type OpenAPIHono } from '@hono/zod-openapi';
 import {
+  AddLeaderRequest,
   type IssuedInvite,
   IssueInvitesResponse,
-  type Participation,
+  Participation,
   RedeemInviteRequest,
   RedeemInviteResponse,
   RosterImportRequest,
@@ -74,6 +75,29 @@ const listRosterRoute = createRoute({
       description: 'Participations.',
       content: { 'application/json': { schema: RosterResponse } },
     },
+    401: ERROR_RESPONSES[401],
+    403: ERROR_RESPONSES[403],
+    404: ERROR_RESPONSES[404],
+    500: ERROR_RESPONSES[500],
+  },
+});
+
+const addLeaderRoute = createRoute({
+  method: 'post',
+  path: '/v1/orgs/{orgId}/trips/{tripId}/roster/leaders',
+  tags: ['roster'],
+  summary: 'Add a leader to a trip by name (owner or organizer)',
+  security: SESSION_SECURITY,
+  request: {
+    params: TripParams,
+    body: { content: { 'application/json': { schema: AddLeaderRequest } } },
+  },
+  responses: {
+    201: {
+      description: 'Leader participation created.',
+      content: { 'application/json': { schema: Participation } },
+    },
+    400: ERROR_RESPONSES[400],
     401: ERROR_RESPONSES[401],
     403: ERROR_RESPONSES[403],
     404: ERROR_RESPONSES[404],
@@ -170,6 +194,16 @@ export function mountRosterRoutes(app: OpenAPIHono<AppEnv>): void {
     const org = await orgObject(c.env, orgId);
     if (!(await org.getTrip(tripId))) throw new HTTPException(404, { message: 'Trip not found.' });
     return c.json({ participations: await org.listRoster(tripId) }, 200);
+  });
+
+  app.openapi(addLeaderRoute, async (c) => {
+    const auth = requireAuth(c);
+    const { orgId, tripId } = c.req.valid('param');
+    await requireOrgRole(c.env, auth, orgId, 'organizer');
+    const { displayName, groupName } = c.req.valid('json');
+    const org = await orgObject(c.env, orgId);
+    if (!(await org.getTrip(tripId))) throw new HTTPException(404, { message: 'Trip not found.' });
+    return c.json(await org.addLeader(tripId, displayName, groupName), 201);
   });
 
   app.openapi(issueInvitesRoute, async (c) => {
