@@ -459,7 +459,7 @@ status, iOS live mode.
 
 ## Slice 013: incidents from head counts, live Safety page
 
-Status: built 2026-10-11, CI pending (run id recorded below once green).
+Status: done 2026-10-11. Commits `b9a4801` … `ffabde0`. **CI verified**: run 38114717623 green (web incl. 66 E2E across four viewports, mobile, ios), 2026-10-11 05:29 UTC. Runs 38113821044 and 38113832587 were red on the web job only: see deviations.
 Spec: D25 (second half), D17 (card), ADR-0009. Details: `docs/engineering/incidents.md`.
 
 | Gate | Command | Result |
