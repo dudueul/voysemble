@@ -540,7 +540,7 @@ Not done: title translation, both-direction storage, guardian parent-safe copy, 
 
 ## Slice 016: leader confirmation and the guardian status message
 
-Status: built 2026-10-11, CI pending (run id recorded below once green).
+Status: done 2026-10-11. Commit `1781316`. **CI verified**: run 38156194574 green (web incl. E2E, mobile incl. IncidentsViewModelTest and captures, ios incl. IncidentsView), 2026-10-11 16:46 UTC. First push green.
 Spec: D17, D13 visibility (guardian sees incident status), ADR-0009. Details: `docs/engineering/incidents.md` (slice 016 section).
 
 | Gate | Command | Result |
