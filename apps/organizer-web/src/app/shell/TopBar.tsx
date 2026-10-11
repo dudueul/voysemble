@@ -12,6 +12,8 @@ export function TopBar({
   accountLabel,
   hasAlerts,
   onSignOut,
+  onMenu,
+  menuOpen,
 }: {
   orgName: string;
   tripName: string | null;
@@ -20,10 +22,22 @@ export function TopBar({
   accountLabel: string;
   hasAlerts: boolean;
   onSignOut: () => void;
+  onMenu: () => void;
+  menuOpen: boolean;
 }) {
   const initials = accountLabel.slice(0, 2).toUpperCase();
   return (
     <header className="topbar">
+      <button
+        type="button"
+        className="iconbtn menubtn"
+        aria-label={strings.topbar.menu}
+        aria-expanded={menuOpen}
+        aria-controls="primary-nav"
+        onClick={onMenu}
+      >
+        <Icons.menu />
+      </button>
       <section className="topbar__context" aria-label="Current organization and trip">
         <span>{orgName}</span>
         {tripName ? (

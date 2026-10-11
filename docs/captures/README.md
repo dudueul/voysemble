@@ -16,3 +16,10 @@ Mobile captures (390x844 iOS, 412x915 Android) arrive with the P1 mobile slices.
 `web/<project>/sign-in.png`, `web/<project>/setup-1-org.png` … `setup-4-invites.png`. Produced by
 `e2e/setup.spec.ts` against `wrangler dev` (local D1, Durable Objects, fixture mailbox). Codes in
 `setup-4-invites.png` are random per run.
+
+## Slice 008 (2026-10-11): all menus, four viewports
+
+`web/desktop-1440/` and `web/laptop-1280/`: `people`, `communication`, `safety`, `journey-graph`,
+`travel`, `media`, `preparation`, `reports`, `billing`, `settings` (fixtures, "Sample data" chip).
+`web/tablet-1024/` and `web/phone-390/`: `command-center`, `itinerary`, `people`, `safety`,
+`reports`, `setup`; `phone-390/nav-drawer.png` shows the open drawer.

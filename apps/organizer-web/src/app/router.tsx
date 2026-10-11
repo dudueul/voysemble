@@ -11,11 +11,20 @@ import { VerifyPage } from '../features/auth/VerifyPage';
 import { CommandCenterPage } from '../features/command-center/CommandCenterPage';
 import { ItineraryPage } from '../features/itinerary/ItineraryPage';
 import { PlaceholderPage } from '../features/placeholder/PlaceholderPage';
+import { BillingPage } from '../features/sections/BillingPage';
+import { CommunicationPage } from '../features/sections/CommunicationPage';
+import { JourneyGraphPage } from '../features/sections/JourneyGraphPage';
+import { MediaPage } from '../features/sections/MediaPage';
+import { PeoplePage } from '../features/sections/PeoplePage';
+import { PreparationPage } from '../features/sections/PreparationPage';
+import { ReportsPage } from '../features/sections/ReportsPage';
+import { SafetyPage } from '../features/sections/SafetyPage';
+import { SettingsPage } from '../features/sections/SettingsPage';
+import { TravelPage } from '../features/sections/TravelPage';
 import { SetupPage } from '../features/setup/SetupPage';
 import { DashboardState } from '../lib/dashboard-api';
 import { queryClient } from '../lib/query-client';
 import { meQuery } from '../lib/session';
-import { strings } from '../lib/strings';
 import { AppShell } from './shell/AppShell';
 
 const rootRoute = createRootRoute();
@@ -91,25 +100,31 @@ const itineraryRoute = createRoute({
   },
 });
 
-const SECTIONS: Record<string, string> = {
-  'journey-graph': strings.nav.journeyGraph,
-  people: strings.nav.people,
-  communication: strings.nav.communication,
-  travel: strings.nav.travel,
-  safety: strings.nav.safety,
-  media: strings.nav.media,
-  preparation: strings.nav.preparation,
-  reports: strings.nav.reports,
-  billing: strings.nav.billing,
-  settings: strings.nav.settings,
-};
+/** Sample section pages (slice 008): fixtures with the "Sample data" chip; status `simulated`. */
+const SECTION_PAGES = {
+  'journey-graph': JourneyGraphPage,
+  people: PeoplePage,
+  communication: CommunicationPage,
+  travel: TravelPage,
+  safety: SafetyPage,
+  media: MediaPage,
+  preparation: PreparationPage,
+  reports: ReportsPage,
+  billing: BillingPage,
+  settings: SettingsPage,
+} as const;
 
-const sectionRoute = createRoute({
+const sectionRoutes = (Object.keys(SECTION_PAGES) as (keyof typeof SECTION_PAGES)[]).map((key) =>
+  createRoute({ getParentRoute: () => appRoute, path: `/${key}`, component: SECTION_PAGES[key] }),
+);
+
+/** Anything else under the shell stays an honest placeholder. */
+const unknownRoute = createRoute({
   getParentRoute: () => appRoute,
   path: '/$section',
   component: function Section() {
-    const { section } = sectionRoute.useParams();
-    return <PlaceholderPage title={SECTIONS[section] ?? section} />;
+    const { section } = unknownRoute.useParams();
+    return <PlaceholderPage title={section} />;
   },
 });
 
@@ -117,7 +132,7 @@ export const router = createRouter({
   routeTree: rootRoute.addChildren([
     signInRoute,
     verifyRoute,
-    appRoute.addChildren([indexRoute, setupRoute, itineraryRoute, sectionRoute]),
+    appRoute.addChildren([indexRoute, setupRoute, itineraryRoute, ...sectionRoutes, unknownRoute]),
   ]),
   defaultPreload: 'intent',
 });

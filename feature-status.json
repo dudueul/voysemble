@@ -52,6 +52,17 @@
     "web.session-gate": "working",
     "web.setup-checklist": "working",
     "onboarding.first-run": "working",
-    "roster.add-leader": "working"
+    "roster.add-leader": "working",
+    "web.people": "simulated",
+    "web.communication": "simulated",
+    "web.safety": "simulated",
+    "web.journey-graph": "simulated",
+    "web.travel": "simulated",
+    "web.media": "simulated",
+    "web.preparation": "simulated",
+    "web.reports": "simulated",
+    "web.billing": "simulated",
+    "web.settings": "simulated",
+    "web.responsive-layout": "working"
   }
 }

@@ -33,11 +33,30 @@ export default defineConfig({
   projects: [
     {
       name: 'desktop-1440',
+      testIgnore: /responsive\.spec\.ts$/,
       use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 960 } },
     },
     {
       name: 'laptop-1280',
+      testIgnore: /responsive\.spec\.ts$/,
       use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
+    },
+    // Smaller devices run only the responsive spec: key pages + the phone drawer.
+    {
+      name: 'tablet-1024',
+      testMatch: /responsive\.spec\.ts$/,
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1024, height: 768 }, hasTouch: true },
+    },
+    {
+      name: 'phone-390',
+      testMatch: /responsive\.spec\.ts$/,
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 390, height: 844 },
+        deviceScaleFactor: 2,
+        isMobile: true,
+        hasTouch: true,
+      },
     },
   ],
 });

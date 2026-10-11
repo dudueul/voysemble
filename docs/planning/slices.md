@@ -306,3 +306,34 @@ Deviations found while building:
 - Full-page Playwright screenshots render the sticky top bar at the current scroll offset; specs scroll to top before capturing.
 
 Not done (next slices): sample screens for the ten remaining menus + tablet/phone captures (slice 008, requested by founder), KO strings, OIDC, invite revocation, roster editing.
+
+## Slice 008: sample screens for all ten remaining menus + tablet/phone layouts
+
+Status: built 2026-10-11, local gate green, CI pending. Commit: `feat(web): sample sections ...`.
+Requested by founder ("show sample screens on other devices and all other menus"). Fixtures in
+`apps/organizer-web/src/fixtures/sections.ts`; chart rules in `docs/engineering/dataviz-palette.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 9 files, 49 tests |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e` | 61 passed, 1 skipped (drawer test on tablet) across desktop-1440, laptop-1280, tablet-1024, phone-390 |
+| Palette | dataviz validator on the six-kind categorical palette | light: all pass, contrast WARN on two hues covered by labels + legend; dark: all pass |
+
+Facts established by tests:
+- Each of People, Communication, Safety, Journey Graph, Travel, Media, Preparation, Reports, Billing, Settings renders its heading, the "Sample data" chip, and a fixture-derived fact (e.g. 61 joined, ack 36/38, 6 inside the window, 86% average ack, 6 ledger rows, 3 members); its nav item is `aria-current`.
+- People filters narrow the table (19 rows → 5 guardians → 2 in Bus A); guardians show "guardian of <traveler>".
+- Reports: hovering a column shows a tooltip; the table view exposes the same numbers.
+- Unknown paths under the shell remain honest placeholders.
+- Tablet and phone: six key pages render with zero horizontal overflow (the assertion names offending elements when it fails); on phones the Menu button opens the drawer (`aria-expanded`), navigation closes it.
+
+Built:
+- Ten section pages under `src/features/sections/` with a shared `SectionPage`/`Card`/`Meter` kit; SVG schematic map (meeting window states), SVG dependency chain with slack and risk, SVG column and line charts with hover + keyboard focus + table view.
+- Responsive CSS: icon rail at ≤1024, drawer + menu button at ≤768, grids collapse, itinerary stacks, tables scroll.
+- Playwright projects `tablet-1024` and `phone-390` run `responsive.spec.ts` only; desktop projects run everything else. Captures: `docs/captures/web/<project>/<section>.png`, plus `phone-390/nav-drawer.png`.
+
+Deviations found while building:
+- `1fr` grid tracks do not shrink below content min-width; the itinerary track needed `minmax(0, 1fr)` and `min-width: 0` on children at phone width.
+- Playwright leaves the pointer where the last click happened, which triggered a chart tooltip in captures; specs park the pointer at (0,0) first.
+- Biome rejects `role="button"` on SVG groups (no semantic element exists in SVG); two documented ignores in `charts.tsx`.
+
+Not done (next slices): KO strings; Android screens beyond Today (head count, announcements, window) in the Roborazzi suite; moving People/Communication onto the real API.

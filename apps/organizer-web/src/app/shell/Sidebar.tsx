@@ -20,9 +20,28 @@ export const NAV: ReadonlyArray<{ to: string; label: string; icon: IconName }> =
   { to: '/settings', label: strings.nav.settings, icon: 'settings' },
 ];
 
-export function Sidebar({ orgName, showSetup }: { orgName: string; showSetup: boolean }) {
+export function Sidebar({
+  orgName,
+  showSetup,
+  open,
+  onClose,
+}: {
+  orgName: string;
+  showSetup: boolean;
+  /** Phone drawer state; ignored at wider widths where the rail is always visible. */
+  open: boolean;
+  onClose: () => void;
+}) {
   return (
-    <div className="sidebar-col">
+    <div className={`sidebar-col${open ? ' sidebar-col--open' : ''}`}>
+      {open ? (
+        <button
+          type="button"
+          className="sidebar-backdrop"
+          aria-label={strings.topbar.closeMenu}
+          onClick={onClose}
+        />
+      ) : null}
       <aside className="sidebar" aria-label="Primary">
         <div className="sidebar__brand">
           <Icons.logo />
@@ -31,7 +50,7 @@ export function Sidebar({ orgName, showSetup }: { orgName: string; showSetup: bo
             <small>{strings.app.console}</small>
           </div>
         </div>
-        <nav className="sidebar__nav" aria-label="Sections">
+        <nav className="sidebar__nav" aria-label="Sections" id="primary-nav">
           {/* Setup is pinned on top until the first organization exists; stays reachable at /setup. */}
           {showSetup ? (
             <Link

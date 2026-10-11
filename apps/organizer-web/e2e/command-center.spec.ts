@@ -37,8 +37,3 @@ for (const state of ['loading', 'empty', 'error', 'offline'] as const) {
     });
   });
 }
-
-test('placeholder sections are honest', async ({ page }) => {
-  await page.goto('/billing');
-  await expect(page.getByRole('status')).toContainText('not built yet');
-});

@@ -4,7 +4,8 @@
 // command center moves onto the API.
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Outlet, useNavigate } from '@tanstack/react-router';
+import { Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
+import { useEffect, useState } from 'react';
 import { fetchDashboard } from '../../lib/dashboard-api';
 import { auth, meQuery, orgsQuery, pickActiveOrg, tripsQuery } from '../../lib/session';
 import { Sidebar } from './Sidebar';
@@ -13,6 +14,10 @@ import { TopBar } from './TopBar';
 export function AppShell() {
   const qc = useQueryClient();
   const navigate = useNavigate();
+  // Phone drawer (<= 768px). Closes on navigation so a tap on a link never leaves it open.
+  const [navOpen, setNavOpen] = useState(false);
+  const pathname = useRouterState({ select: (st) => st.location.pathname });
+  useEffect(() => setNavOpen(false), [pathname]);
   const me = useQuery(meQuery);
   const orgs = useQuery(orgsQuery);
   const activeOrg = orgs.data ? pickActiveOrg(orgs.data) : null;
@@ -31,7 +36,12 @@ export function AppShell() {
   };
   return (
     <div className="shell">
-      <Sidebar orgName={orgName} showSetup={!orgs.isPending && (orgs.data?.length ?? 0) === 0} />
+      <Sidebar
+        orgName={orgName}
+        showSetup={!orgs.isPending && (orgs.data?.length ?? 0) === 0}
+        open={navOpen}
+        onClose={() => setNavOpen(false)}
+      />
       <div className="main">
         <TopBar
           orgName={orgName}
@@ -40,6 +50,8 @@ export function AppShell() {
           accountLabel={me.data?.email ?? ''}
           hasAlerts={Boolean(data?.alerts.some((a) => a.severity === 'red'))}
           onSignOut={() => void signOut()}
+          onMenu={() => setNavOpen((v) => !v)}
+          menuOpen={navOpen}
         />
         <Outlet />
       </div>

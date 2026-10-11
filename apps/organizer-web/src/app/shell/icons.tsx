@@ -173,6 +173,11 @@ export const Icons = {
       <path d="M5 12h14M13 6l6 6-6 6" />
     </Svg>
   ),
+  menu: (p: IconProps) => (
+    <Svg {...p}>
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </Svg>
+  ),
   logo: (p: IconProps) => (
     <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true" {...p}>
       <path
