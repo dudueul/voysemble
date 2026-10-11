@@ -31,7 +31,8 @@ class BulletinScreenshotTest {
 
     @Test
     fun bulletin_light() {
-        compose.setContent { VoysembleTheme(darkTheme = false) { BulletinRoute(BulletinViewModel()) } }
+        val vm = BulletinViewModel()
+        compose.setContent { VoysembleTheme(darkTheme = false) { BulletinRoute(vm) } }
         compose.onNodeWithText("1 update needs your acknowledgment").assertExists()
         // Two of the three announcements carry a translation.
         compose.onAllNodesWithText("Machine translation · 한국어").assertCountEquals(2)

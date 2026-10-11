@@ -28,7 +28,8 @@ class MeetingWindowScreenshotTest {
 
     @Test
     fun window_open_not_sharing_light() {
-        compose.setContent { VoysembleTheme(darkTheme = false) { MeetingWindowRoute(MeetingWindowViewModel(), onBack = {}) } }
+        val vm = MeetingWindowViewModel()
+        compose.setContent { VoysembleTheme(darkTheme = false) { MeetingWindowRoute(vm, onBack = {}) } }
         compose.onNodeWithText("Open · 28 min left").assertExists()
         compose.onNodeWithText("Inside 5").assertExists()
         compose.onRoot().captureRoboImage("$OUT/window-open.png")
@@ -36,7 +37,8 @@ class MeetingWindowScreenshotTest {
 
     @Test
     fun window_opted_in_dark() {
-        compose.setContent { VoysembleTheme(darkTheme = true) { MeetingWindowRoute(MeetingWindowViewModel(), onBack = {}) } }
+        val vm = MeetingWindowViewModel()
+        compose.setContent { VoysembleTheme(darkTheme = true) { MeetingWindowRoute(vm, onBack = {}) } }
         compose.onNodeWithContentDescription("Share my position").performClick()
         compose.onNodeWithText("Sharing with leaders until 11:20. Stops automatically.").assertExists()
         compose.onNodeWithText("Uncertain 2").assertExists()

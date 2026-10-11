@@ -70,8 +70,26 @@ jobs:
           distribution: temurin
           java-version: "21"
       - uses: gradle/actions/setup-gradle@v4
-      - run: sudo xcode-select -s /Applications/Xcode_16.4.app || sudo xcode-select -s /Applications/Xcode.app
-      - run: xcodebuild -version
+      - run: xcodebuild -version && xcrun simctl list runtimes
+      # Pick whatever iPhone simulator the image ships (names change between Xcode releases);
+      # download the iOS platform first when the image has no runtime at all.
+      - name: Pick an iPhone simulator
+        run: |
+          pick() {
+            xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          data = json.load(sys.stdin)["devices"]
+          devs = [d for rt, ds in data.items() if "iOS" in rt for d in ds if d.get("isAvailable") and "iPhone" in d["name"]]
+          print(devs[-1]["udid"] if devs else "")'
+          }
+          UDID="$(pick)"
+          if [ -z "$UDID" ]; then
+            xcodebuild -downloadPlatform iOS
+            UDID="$(pick)"
+          fi
+          test -n "$UDID" || { echo "no iPhone simulator available"; xcrun simctl list devices; exit 1; }
+          echo "Using simulator $UDID"
+          echo "SIM_UDID=$UDID" >> "$GITHUB_ENV"
       - run: brew install xcodegen
       - run: xcodegen generate
         working-directory: mobile/ios-app
