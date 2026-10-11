@@ -340,14 +340,14 @@ Not done (next slices): KO strings; Android screens beyond Today (head count, an
 
 ## Slice 009: mobile head count, bulletin, meeting window (KMP models + Compose + SwiftUI)
 
-Status: built 2026-10-11, core gate green, Android compile and screenshots pending CI. Commit: `feat(mobile): head count ...`.
+Status: done 2026-10-11. Commits `903c57d` … `878a83d`. **CI verified**: mobile job green from run 38105667941 (Android build, unit tests, six Roborazzi captures); iOS job green on run 38106937743 (`macos-15`, XcodeGen, Gradle framework with SKIE, `xcodebuild test` on an iPhone simulator, XCTest incl. CoreModelsTests interop), 2026-10-11 03:07 UTC.
 Spec: D14, D15, D16, D25 (ADR-0009). Atlas screens #7, #9, #15.
 
 | Gate | Command | Result |
 |---|---|---|
 | Core JVM tests | `cd mobile && ./gradlew :core:jvmTest -Pvoysemble.android=false` | 6 classes, 23 tests passed (adds HeadcountModelTest 6, AnnouncementsModelTest 3, MeetingWindowModelTest 4) |
 | Android build + unit + screenshots | CI `mobile` job: `./gradlew build` then `:android-app:recordRoborazziDebug` | pending |
-| iOS | CI `ios` job on `macos-15`: XcodeGen, Gradle framework, `xcodebuild test` on iPhone 16 simulator (XCTest: AppConfig + CoreModelsTests interop) | pending |
+| iOS | CI `ios` job on `macos-15`: XcodeGen, Gradle framework, `xcodebuild test` on an iPhone simulator (XCTest: AppConfig + CoreModelsTests interop) | green, run 38106937743 |
 
 Facts established by core tests:
 - Head count: fixture opens 18/20 with Dohyun Kang and Eunwoo Shin pinned as missing; a toggle marks present and flips the session to PENDING sync; excused and with-other-group count as accounted; close turns every unmarked member into MISSING, records `closedWithMissing`, stays PENDING until `markSynced`, and later marks are ignored; unknown ids are ignored; explicit MISSING sorts before unmarked.
@@ -363,7 +363,7 @@ Not done: real sync for the outbox and head-count sessions; navigation library.
 
 ## Slice 010: announcements and acknowledgments end to end
 
-Status: built 2026-10-11, local gates green, CI pending. Commit: `feat: announcements ...`.
+Status: done 2026-10-11. Commit `878a83d`. **CI verified**: run 38106937743 green (web incl. 63 E2E, mobile, ios), 2026-10-11 03:07 UTC.
 Spec: D16, D13 (ADR-0009). Details: `docs/engineering/announcements.md`.
 
 | Gate | Command | Result |
@@ -371,7 +371,7 @@ Spec: D16, D13 (ADR-0009). Details: `docs/engineering/announcements.md`.
 | Worker tests | `pnpm --filter @voysemble/api-worker test` | 10 files, 33 tests (adds announcements.test.ts: 3) |
 | Core JVM tests | `cd mobile && ./gradlew :core:jvmTest -Pvoysemble.android=false` | 25 tests (adds AnnouncementsSyncTest: 2) |
 | Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 9 files, 50 tests |
-| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e` | sections + announcements specs pass on desktop-1440 (full matrix in CI) |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e` | 63 passed, 1 skipped across four viewports (local and CI) |
 
 Facts established by tests:
 - Organizer publishes with `authorName` "Organizer"; a participating leader publishes under their name; a plain member gets 403; another org 403; unknown trip 404.
@@ -392,3 +392,11 @@ Deviations found while building:
 - TanStack `<Link>` throws outside a router; the setup pointer is a plain anchor so the page unit-tests without one.
 
 Not done: machine translation, nudge pushes, mobile Bulletin screen wired to the API (needs native sign-in, next slice candidate).
+
+### iOS verification path (recorded 2026-10-11)
+
+Four CI rounds got the iOS app from "never compiled" to green on a macOS runner:
+1. `xcodebuild` found no simulator named "iPhone 16" on `macos-15` → pick an available iPhone by UDID, download the iOS platform if none.
+2. Generated `Tokens.swift` declared `enum Type` → Swift forbids it; the generator now emits `Typography` for Swift.
+3. Swift called Kotlin top-level extension functions through `…Kt` facades and switched Kotlin enums via SKIE `onEnum` → extensions are Swift members and SKIE enums switch directly.
+4. Green: app + tests on the simulator in about 2 minutes after the framework build.
