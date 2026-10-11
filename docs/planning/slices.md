@@ -337,3 +337,26 @@ Deviations found while building:
 - Biome rejects `role="button"` on SVG groups (no semantic element exists in SVG); two documented ignores in `charts.tsx`.
 
 Not done (next slices): KO strings; Android screens beyond Today (head count, announcements, window) in the Roborazzi suite; moving People/Communication onto the real API.
+
+## Slice 009: mobile head count, bulletin, meeting window (KMP models + Compose + SwiftUI)
+
+Status: built 2026-10-11, core gate green, Android compile and screenshots pending CI. Commit: `feat(mobile): head count ...`.
+Spec: D14, D15, D16, D25 (ADR-0009). Atlas screens #7, #9, #15.
+
+| Gate | Command | Result |
+|---|---|---|
+| Core JVM tests | `cd mobile && ./gradlew :core:jvmTest -Pvoysemble.android=false` | 6 classes, 23 tests passed (adds HeadcountModelTest 6, AnnouncementsModelTest 3, MeetingWindowModelTest 4) |
+| Android build + unit + screenshots | CI `mobile` job: `./gradlew build` then `:android-app:recordRoborazziDebug` | pending |
+| iOS | Xcode on the founder's Mac | not run |
+
+Facts established by core tests:
+- Head count: fixture opens 18/20 with Dohyun Kang and Eunwoo Shin pinned as missing; a toggle marks present and flips the session to PENDING sync; excused and with-other-group count as accounted; close turns every unmarked member into MISSING, records `closedWithMissing`, stays PENDING until `markSynced`, and later marks are ignored; unknown ids are ignored; explicit MISSING sorts before unmarked.
+- Announcements: only required, unacknowledged items can be acknowledged; the ack lands in the outbox as PENDING; confirm drains the outbox and increments the count; wrong transitions are no-ops; the fixture carries a KO machine translation next to the original.
+- Meeting window: open strictly between start and end; minutes left; opt-in moves the traveler to UNCERTAIN, opt-out back to OPTED_OUT, nobody else changes; counts per state; a leader device (no self) cannot opt in.
+
+Built:
+- `core`: `window/MeetingWindowModel.kt`, `headcount/HeadcountModel.kt`, `announcements/AnnouncementsModel.kt`; fixture gains `headcountBusA()`, `announcements()`, `meetingWindow()`.
+- `android-app`: `ui/Widgets.kt` (VyCard, ScreenHeader, LabelChip, SyncChip, SampleDataChip), five icons, `headcount/`, `bulletin/`, `window/` view models + screens, `AppNavigation.kt` (tabs + pushed screens, BackHandler), Today wires "Open head count" and the meeting-point button. Screenshot tests: `headcount-open`, `headcount-closed-dark`, `bulletin-light`, `bulletin-offline-queued`, `window-open`, `window-sharing-dark`. Unit test: HeadcountViewModelTest.
+- `ios-app`: `HeadcountView`, `BulletinView`, `MeetingWindowView` with observable models over the same core functions (SKIE `onEnum`).
+
+Not done: real sync for the outbox and head-count sessions; navigation library; iOS verification.

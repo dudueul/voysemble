@@ -43,5 +43,10 @@ object AppIcons {
     val Offline: ImageVector by lazy { stroke("offline", "M3 3l18 18M8.5 8.6A9 9 0 0 0 2.5 12M5.5 15.5a5 5 0 0 1 10.4-1.6M12 19h0.01M21.5 12a9 9 0 0 0-5.4-3.2") }
     val Sync: ImageVector by lazy { stroke("sync", "M20 12a8 8 0 0 1-14.9 4M4 12a8 8 0 0 1 14.9-4", "M4 16v4h4M20 8V4h-4") }
     val Map: ImageVector by lazy { stroke("map", "M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z", "M9 4v14M15 6v14") }
+    val Back: ImageVector by lazy { stroke("back", "M15 5l-7 7 7 7") }
+    val Phone: ImageVector by lazy { stroke("phone", "M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2") }
+    val Bell: ImageVector by lazy { stroke("bell", "M6 16V11a6 6 0 1 1 12 0v5l2 2H4z", "M10 21h4") }
+    val People: ImageVector by lazy { stroke("people", "M9 11m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0", "M3 20a6 6 0 0 1 12 0", "M17 11m-2.5 0a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0", "M15.5 20a5 5 0 0 1 5.5-4.5") }
+    val Translate: ImageVector by lazy { stroke("translate", "M4 5h10M9 3v2M12 5c-1 5-4 8-8 10M6 9c1 3 3 5 6 6", "M14 21l4-9 4 9M15.5 17h5") }
     val Clock: ImageVector by lazy { stroke("clock", "M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0-18 0", "M12 7v5l3 2") }
 }

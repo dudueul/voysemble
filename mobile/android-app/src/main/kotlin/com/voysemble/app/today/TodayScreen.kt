@@ -56,13 +56,25 @@ import com.voysemble.core.today.TodayEvent
 import com.voysemble.core.today.TodaySnapshot
 
 @Composable
-fun TodayRoute(vm: TodayViewModel) {
+fun TodayRoute(vm: TodayViewModel, onOpenHeadcount: () -> Unit = {}, onOpenWindow: () -> Unit = {}) {
     val state by vm.state.collectAsStateWithLifecycle()
-    TodayScreen(state = state, onAcknowledge = vm::acknowledge, onSelectTab = vm::selectTab)
+    TodayScreen(
+        state = state,
+        onAcknowledge = vm::acknowledge,
+        onSelectTab = vm::selectTab,
+        onOpenHeadcount = onOpenHeadcount,
+        onOpenWindow = onOpenWindow,
+    )
 }
 
 @Composable
-fun TodayScreen(state: TodayUiState, onAcknowledge: (String) -> Unit, onSelectTab: (MainTab) -> Unit) {
+fun TodayScreen(
+    state: TodayUiState,
+    onAcknowledge: (String) -> Unit,
+    onSelectTab: (MainTab) -> Unit,
+    onOpenHeadcount: () -> Unit = {},
+    onOpenWindow: () -> Unit = {},
+) {
     val snap = state.snapshot
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -75,9 +87,9 @@ fun TodayScreen(state: TodayUiState, onAcknowledge: (String) -> Unit, onSelectTa
         ) {
             item { Header(snap) }
             if (snap.offline) item { OfflineBanner(snap) }
-            snap.upNext?.let { next -> item { UpNextCard(next, snap.timeZoneLabel) } }
+            snap.upNext?.let { next -> item { UpNextCard(next, snap.timeZoneLabel, onOpenWindow) } }
             snap.announcement?.let { a -> item { AnnouncementCard(a, onAcknowledge) } }
-            item { HeadcountCard(snap.headcount, snap.checkedIn, snap.expected) }
+            item { HeadcountCard(snap.headcount, snap.checkedIn, snap.expected, onOpenHeadcount) }
             item { SectionTitle("Later today") }
             items(snap.later, key = { it.id }) { e -> EventRow(e) }
             item { Spacer(Modifier.height(8.dp)) }
@@ -144,7 +156,7 @@ private fun OfflineBanner(snap: TodaySnapshot) {
 }
 
 @Composable
-private fun UpNextCard(e: TodayEvent, tz: String) {
+private fun UpNextCard(e: TodayEvent, tz: String, onOpenWindow: () -> Unit) {
     val c = LocalVoysembleColors.current
     Surface(
         shape = MaterialTheme.shapes.medium,
@@ -169,7 +181,7 @@ private fun UpNextCard(e: TodayEvent, tz: String) {
             e.note?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = c.onAction.copy(alpha = 0.85f)) }
             Spacer(Modifier.height(4.dp))
             Button(
-                onClick = {},
+                onClick = onOpenWindow,
                 colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.16f), contentColor = c.onAction),
                 shape = MaterialTheme.shapes.small,
             ) {
@@ -219,7 +231,7 @@ private fun AnnouncementCard(a: TodayAnnouncement, onAcknowledge: (String) -> Un
 }
 
 @Composable
-private fun HeadcountCard(groups: List<HeadcountGroup>, checkedIn: Int, expected: Int) {
+private fun HeadcountCard(groups: List<HeadcountGroup>, checkedIn: Int, expected: Int, onOpenHeadcount: () -> Unit) {
     val c = LocalVoysembleColors.current
     Card {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -227,6 +239,8 @@ private fun HeadcountCard(groups: List<HeadcountGroup>, checkedIn: Int, expected
             Spacer(Modifier.weight(1f))
             Text("$checkedIn / $expected checked in", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
         }
+        Spacer(Modifier.height(6.dp))
+        OutlinedButton(onClick = onOpenHeadcount, shape = MaterialTheme.shapes.small) { Text("Open head count") }
         Spacer(Modifier.height(10.dp))
         groups.forEach { g ->
             val short = g.checkedIn < g.expected
@@ -308,7 +322,7 @@ private fun Card(content: @Composable androidx.compose.foundation.layout.ColumnS
 }
 
 @Composable
-private fun BottomTabs(selected: MainTab, onSelect: (MainTab) -> Unit) {
+internal fun BottomTabs(selected: MainTab, onSelect: (MainTab) -> Unit) {
     val c = LocalVoysembleColors.current
     NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
         TABS.forEach { (tab, label, icon) ->

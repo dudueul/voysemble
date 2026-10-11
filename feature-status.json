@@ -63,6 +63,10 @@
     "web.reports": "simulated",
     "web.billing": "simulated",
     "web.settings": "simulated",
-    "web.responsive-layout": "working"
+    "web.responsive-layout": "working",
+    "mobile.headcount": "simulated",
+    "mobile.bulletin": "simulated",
+    "mobile.meeting-window": "simulated",
+    "mobile.navigation": "simulated"
   }
 }

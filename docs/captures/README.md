@@ -23,3 +23,10 @@ Mobile captures (390x844 iOS, 412x915 Android) arrive with the P1 mobile slices.
 `travel`, `media`, `preparation`, `reports`, `billing`, `settings` (fixtures, "Sample data" chip).
 `web/tablet-1024/` and `web/phone-390/`: `command-center`, `itinerary`, `people`, `safety`,
 `reports`, `setup`; `phone-390/nav-drawer.png` shows the open drawer.
+
+## Slice 009 (2026-10-11): Android head count, bulletin, meeting window
+
+`android/headcount-open.png`, `headcount-closed-dark.png`, `bulletin-light.png`,
+`bulletin-offline-queued.png`, `window-open.png`, `window-sharing-dark.png`. Recorded by the CI
+`mobile` job (Robolectric + Roborazzi, 412x915) into the `android-captures` artifact; copy them
+here from the run page (the authoring sandbox cannot reach GitHub's artifact storage).
