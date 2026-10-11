@@ -6,7 +6,7 @@ Standing rule: document everywhere. See docs/engineering/documentation-rules.md.
 
 Status legend: `open` (being grilled), `decided`, `deferred`.
 
-Scenario interviews (2026-10-11) produced D12-D26; ADR-0009 holds the full rule set and visibility matrix.
+Scenario interviews (2026-10-11) produced D12-D29; ADR-0009 holds the full rule set and visibility matrix.
 
 | # | Topic | Status | Decision | Why |
 |---|---|---|---|---|
@@ -35,6 +35,9 @@ Scenario interviews (2026-10-11) produced D12-D26; ADR-0009 holds the full rule 
 | D24 | Offline itinerary edits | decided | Mobile itinerary is read-only published revision. Leaders file change proposals (queued offline). Organizer accepts/rejects in editor. Single writer per trip: organizer web. Announcements can still be queued offline by leaders. ADR-0009. | No merge conflicts; matches D19 single publisher. |
 | D25 | Missing travelers at head count | decided | Missing list pinned top with name, room, last ack, last window status. One-tap call, push "come to Bus A now", mark "with other group" or "excused". Unresolved at close: head count closes with named missing, dashboard tile amber, incident card auto-created. No auto-locate (D15). ADR-0009. | Leader has five minutes; actions must be one tap. |
 | D26 | First-run onboarding | decided | Create org (name, KO/EN) -> create trip from template (sample 13-day or blank) -> import roster CSV -> generate invite codes, export PDF/CSV. Dashboard shows checklist until done; sample trip offered so console never looks empty. ADR-0009. | Ten minutes to something useful. |
+| D27 | Care notes and documents | decided | Care note (allergy, medication, short text) = PII tier; decrypted for leaders of that traveler's group, shown on head count and person card behind an eye icon; each reveal audited. Passport/consent scans = document tier, organizer web only, reveal needs reauth, watermarked view, never on mobile. Third parties (driver, hotel) get time-limited sealed link or print. Guardian enters/edits care note during invite flow. ADR-0009. | Allergy must be one tap at lunch; scans must not live on ten phones. |
+| D28 | Lost or stolen device | decided | Organizer "Revoke devices" on person card (reauth). All sessions killed; next sync from the device gets 401 plus wipe directive. Local cache encrypted with device-keystore key; cached PII 24h TTL, cleared on background lock; chat cache 7 days. Re-enrol by invite code on new phone, groups restored. ADR-0009. | Volunteers use personal phones; no MDM. |
+| D29 | Notification rules | decided | Guardians: daily digest at org-set local hour plus immediate only for incident status and share-with-guardians announcements. Travelers: required-ack announcements and head-count calls are priority (high-importance channel, bypass mute); rest normal and mutable. Leaders: all immediate. Per-trip quiet hours (default 23:00-06:30) except priority. ADR-0009. | Fourteen pushes on day one makes guardians uninstall; muting must not hide the bus call. |
 | D09 | Source headers | decided | Every source file starts with `Copyright 2026- At Day. All rights reserved.` CI header lint. See docs/engineering/source-headers.md. | Founder requirement. |
 
 ## Inputs

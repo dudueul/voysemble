@@ -36,6 +36,10 @@
     "itinerary.disruption-ai": "deferred",
     "retention.crypto-shred": "deferred",
     "chat.fixed-channels": "deferred",
-    "billing.fee-ledger": "deferred"
+    "billing.fee-ledger": "deferred",
+    "roster.care-notes": "deferred",
+    "documents.sealed-links": "deferred",
+    "devices.revoke-wipe": "deferred",
+    "notifications.lanes": "deferred"
   }
 }

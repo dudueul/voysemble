@@ -8,7 +8,7 @@ Decisions D01-D11 fixed the platform shape (storage, crypto, auth, AI boundary, 
 did not say how the product behaves for a leader on a bus at 06:50, a guardian in another
 timezone at 21:30, or an organizer re-planning a typhoon day at 05:40. Fourteen scenario
 interviews with the founder (2026-10-11) settled those behaviours. This ADR records them as one
-coherent rule set so every slice and every screen can cite it. Log rows: D12-D26.
+coherent rule set so every slice and every screen can cite it. Log rows: D12-D29.
 
 Running example used throughout: 13-day Korea/Japan concert tour, 36 travelers, 2 buses,
 leaders Kim and Park, organizer at a desk in Seoul, guardians in Busan and abroad.
@@ -49,6 +49,8 @@ leaders Kim and Park, organizer at a desk in Seoul, guardians in Busan and abroa
 | Chat: guardian->organizer 1:1 | own | none | none | own |
 | Person timeline | all | none | none | none |
 | Fee ledger | all | none | own balance | own traveler's balance and due date |
+| Care note (allergy, medication) | all | own groups, audited reveal | own | own traveler, editable |
+| Passport / consent scans | web only, reauth, watermarked | never | never | upload only |
 
 Rules behind the table:
 
@@ -153,6 +155,51 @@ Rules behind the table:
 - Guardians see their traveler's balance and due date on mobile. No card entry on mobile.
 - Later phase: optional per-traveler Stripe Checkout link generated on the web, still web-only.
 
+## Care notes and documents (D27)
+
+- Care note: short structured PII (`allergies`, `medications`, `freeText` max 500 chars) on the
+  traveler participation. Tier 2 ciphertext (ADR-0001). Decrypted for leaders of the traveler's
+  group and the organizer. Shown behind an eye icon on the head-count row and person card; each
+  reveal is an audit event (`care_note.reveal`, actor, traveler, time).
+- Guardians enter and edit the care note during invite redemption and later from the guardian
+  view. Edits notify the organizer.
+- Documents (passport scan, consent form): tier 3 ciphertext in R2. Organizer web only. Viewing
+  requires reauth within 10 minutes; the rendered view carries a visible watermark (org, actor,
+  time). Never synced to mobile; mobile shows "document on file: yes/no".
+- Third parties (bus driver, hotel): organizer generates a sealed, time-limited (default 24 h),
+  single-document link with its own audit trail, or prints. No account for third parties.
+
+## Lost or stolen device (D28)
+
+- Organizer action "Revoke devices" on the person card, behind reauth. Server invalidates all
+  sessions and refresh tokens for the account in that org and records a `wipe` directive.
+- The next request from a revoked session returns 401 with `X-Voysemble-Wipe: 1`; the app clears
+  its local database, keystore-wrapped cache key, and push token, then returns to the invite
+  screen.
+- Local cache rules regardless of revocation: SQLite encrypted with a key held in the OS
+  keystore (Android Keystore, iOS Keychain with device-only accessibility); decrypted care
+  notes expire after 24 h and are purged when the app locks in background; chat cache keeps
+  7 days; documents are never cached.
+- Re-enrolment: the person redeems their invite code again on a new phone and logs in; group
+  assignments and trip roles are restored from the participation row.
+
+## Notification rules (D29)
+
+| Role | Immediate | Digest | Priority lane (bypasses mute and quiet hours) |
+|---|---|---|---|
+| Guardian | incident status, `share_with_guardians` announcements | one push per day at org-set local hour: approved photos, itinerary summary, ledger reminders | incident status |
+| Traveler | all announcements, head-count calls, chat mentions | none | `requires_ack` announcements, head-count calls |
+| Leader | everything in own groups | none | head-count calls, incidents, proposals decided |
+| Organizer (mobile) | incidents, proposals, unacked deadline | daily summary | incidents |
+
+- Per-trip quiet hours, default 23:00-06:30 in the trip's timezone. Only the priority lane
+  crosses them.
+- Android: separate notification channels per lane (`priority` at IMPORTANCE_HIGH, `normal`
+  at IMPORTANCE_DEFAULT, `digest` at IMPORTANCE_LOW). iOS: time-sensitive interruption level
+  for the priority lane, passive for digest.
+- Every push carries only an opaque event id; the app fetches the body on open, so PII never
+  transits the push provider in clear.
+
 ## Consequences
 
 - OrgDO schema needs: `participation`, `invite`, `announcement`, `ack`, `headcount`,
@@ -163,6 +210,7 @@ Rules behind the table:
   uploads, and a visible `syncState` on every outbox item (D14).
 - The organizer web needs: roster import, invite export, person timeline, incident card,
   proposal inbox, disruption flow, guardian album review, fee ledger.
+- API needs: device revocation, sealed document links, notification lane routing.
 - Mobile needs: today screen with announcements and acks, head count with missing list,
   meeting window join, photo upload with EXIF strip, proposal composer, guardian status view.
 - `feature-status.json` carries one `deferred` key per behaviour above so nothing here is
@@ -177,3 +225,6 @@ Rules behind the table:
 - Auto-locate missing travelers: contradicts opt-in windows.
 - Stripe Connect: money-transmitter scope for a single operator.
 - Keep-everything retention: PIPA liability.
+- Passport scans on leader phones: ten devices to lose.
+- Device management (MDM) for volunteers: not acceptable on personal phones.
+- Immediate push for everything: guardians uninstall, travelers mute the bus call.
