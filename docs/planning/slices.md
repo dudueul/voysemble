@@ -492,7 +492,7 @@ amber dashboard tile on real sessions, person timeline.
 
 ## Slice 014: command center on the API
 
-Status: built 2026-10-11, CI pending (run id recorded below once green).
+Status: done 2026-10-11. Commit `487c525`. **CI verified**: run 38139210064 green (web incl. E2E, mobile, ios), 2026-10-11 12:34 UTC.
 Spec: D25 (amber tile), D16 (ack rate), ADR-0009. Details: `docs/engineering/command-center-live.md`.
 
 | Gate | Command | Result |
@@ -517,7 +517,7 @@ Not done: movements on the API, trip switching, account display names.
 
 ## Slice 015: announcement translation through the AI port
 
-Status: built 2026-10-11, CI pending (run id recorded below once green).
+Status: done 2026-10-11. Commit `0c2cfcd`. **CI verified**: run 38139703983 green (web incl. E2E, mobile, ios), 2026-10-11 12:43 UTC.
 Spec: D03, D16, ADR-0006, ADR-0009 (translation rule). Details: `docs/engineering/translation.md`.
 
 | Gate | Command | Result |
