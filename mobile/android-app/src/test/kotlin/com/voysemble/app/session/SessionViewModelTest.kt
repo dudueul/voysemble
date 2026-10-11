@@ -51,9 +51,9 @@ class SessionViewModelTest {
                 else -> """{"participations":[]}""" to HttpStatusCode.OK
             }
         }
-        vm.requestLink("m@example.com")
+        vm.requestLink("m@example.com").join()
         assertIs<SessionState.AwaitingLink>(vm.state.value.session)
-        vm.verify("https://h/auth/verify#token=${"b".repeat(43)}")
+        vm.verify("https://h/auth/verify#token=${"b".repeat(43)}").join()
         assertIs<SessionState.NeedsInvite>(vm.state.value.session)
         assertNull(vm.state.value.error)
     }
@@ -66,12 +66,12 @@ class SessionViewModelTest {
                 else -> """{"error":{"code":"NOT_FOUND","message":"x","correlationId":"c2"}}""" to HttpStatusCode.NotFound
             }
         }
-        vm.verify("b".repeat(43))
+        vm.verify("b".repeat(43)).join()
         assertEquals("This link does not work any more. Request a new one.", vm.state.value.error)
         assertEquals(SessionState.SignedOut, vm.state.value.session)
-        vm.verify("garbage")
+        vm.verify("garbage").join()
         assertEquals("Paste the whole link from the email.", vm.state.value.error)
-        vm.redeem("ZZZZ-ZZZZ")
+        vm.redeem("ZZZZ-ZZZZ").join()
         assertEquals("That code is not valid or has expired.", vm.state.value.error)
         vm.enterSampleMode()
         assertEquals(true, vm.state.value.sampleMode)

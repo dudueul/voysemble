@@ -10,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import com.voysemble.core.api.ApiResult
 import com.voysemble.core.session.SessionManager
 import com.voysemble.core.session.SessionState
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -30,7 +31,8 @@ class SessionViewModel(private val manager: SessionManager) : ViewModel() {
     fun enterSampleMode() = _state.update { it.copy(sampleMode = true, error = null) }
     fun leaveSampleMode() = _state.update { it.copy(sampleMode = false) }
 
-    fun requestLink(email: String, locale: String = "ko") = run {
+    /** Each action returns its Job so callers (tests, screens) can await completion. */
+    fun requestLink(email: String, locale: String = "ko"): Job = run {
         when (val r = manager.requestLink(email, locale)) {
             is ApiResult.Ok -> Unit
             is ApiResult.Failed -> fail("${r.error.message} (ref ${r.error.correlationId})")
@@ -38,7 +40,7 @@ class SessionViewModel(private val manager: SessionManager) : ViewModel() {
         }
     }
 
-    fun verify(linkOrToken: String) = run {
+    fun verify(linkOrToken: String): Job = run {
         when (val r = manager.verify(linkOrToken)) {
             is ApiResult.Ok -> Unit
             is ApiResult.Failed -> fail(if (r.status == 401) "This link does not work any more. Request a new one." else "${r.error.message} (ref ${r.error.correlationId})")
@@ -46,7 +48,7 @@ class SessionViewModel(private val manager: SessionManager) : ViewModel() {
         }
     }
 
-    fun redeem(code: String) = run {
+    fun redeem(code: String): Job = run {
         when (val r = manager.redeem(code)) {
             is ApiResult.Ok -> Unit
             is ApiResult.Failed -> fail(
@@ -60,13 +62,13 @@ class SessionViewModel(private val manager: SessionManager) : ViewModel() {
         }
     }
 
-    fun signOut() = run { manager.signOut() }
+    fun signOut(): Job = run { manager.signOut() }
 
     private fun fail(message: String) = _state.update { it.copy(error = message) }
 
-    private fun run(block: suspend () -> Unit) {
+    private fun run(block: suspend () -> Unit): Job {
         _state.update { it.copy(busy = true, error = null) }
-        viewModelScope.launch {
+        return viewModelScope.launch {
             try {
                 block()
             } finally {
