@@ -1,6 +1,7 @@
 # mobile/
 
-Kotlin Multiplatform workspace (ADR-0003).
+Kotlin Multiplatform workspace (ADR-0003). Build, test, and CI guideline:
+`docs/engineering/mobile-build-and-test.md`.
 
 | Module | What | Builds where |
 |---|---|---|
@@ -42,14 +43,13 @@ Kotlin 2.4.20 (SKIE 0.10.15 ceiling), Gradle 9.6.0, AGP 9.3.1 (max supported by 
 Ktor 3.6.0, kotlinx.serialization 1.11.0, coroutines 1.11.0, datetime 0.8.0, SKIE 0.10.15.
 `compileSdk` 37 (required by Compose BOM 2026.09), `targetSdk` 36, `minSdk` 26, JDK 21 toolchain.
 
-Known-unverified as of 2026-10-10 (no Google Maven in the authoring sandbox): Android target
-script (`core/android-target.gradle.kts`), `android-app` build file. First build on a host with
-the SDK must confirm; fix forward and record in `docs/planning/slices.md`.
+Android and iOS are verified in CI on every push (`mobile` and `ios` jobs); run ids per slice are
+in `docs/planning/slices.md`.
 
 ## iOS in CI
 
 `.github/workflows/ci.yml` job `ios` runs on `macos-15`: `brew install xcodegen`, `xcodegen
 generate`, a warm `./gradlew :core:linkDebugFrameworkIosSimulatorArm64 -Pvoysemble.android=false`,
-then `xcodebuild test` on an iPhone 16 simulator. The Xcode pre-build script reads
+then `xcodebuild test` on an available iPhone simulator picked by UDID. The Xcode pre-build script reads
 `VOYSEMBLE_ANDROID=false` so Gradle skips the Android included build on that host. The log is
 uploaded as the `ios-build-log` artifact.

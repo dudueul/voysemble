@@ -24,3 +24,5 @@ pnpm check                 # lint, typecheck, test, script tests, header lint (C
 pnpm --filter @voysemble/api-worker dev
 pnpm --filter @voysemble/design-tokens build
 ```
+
+Mobile toolchain and test tiers: `docs/engineering/mobile-build-and-test.md`.
