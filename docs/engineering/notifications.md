@@ -10,9 +10,9 @@ opens.
 
 | Role | Priority (at once, through quiet hours) | Normal (at once; held while quiet hours are on) | Digest (at the guardian digest hour) | Nothing |
 |---|---|---|---|---|
-| Traveler | required-ack announcement, head-count call | other announcements, itinerary revisions, packing reminders | | incidents, proposals |
-| Leader | head-count call, incident status, decided proposal | announcements, itinerary revisions, their own packing reminder | | |
-| Guardian | incident status (their traveler) | announcements shared with guardians, packing reminders for their traveler | itinerary revisions shared with guardians | anything not shared, head counts, proposals |
+| Traveler | required-ack announcement, head-count call | other announcements, itinerary revisions, packing and document reminders | | incidents, proposals |
+| Leader | head-count call, incident status, decided proposal | announcements, itinerary revisions, their own packing reminder | | document reminders |
+| Guardian | incident status (their traveler) | announcements shared with guardians, packing and document reminders for their traveler | itinerary revisions shared with guardians | anything not shared, head counts, proposals |
 
 `laneFor(role, kind, flags)` gives the lane or null. `deliverAt(lane, now, timeZone, quietHours,
 digestAt)`: priority is `now`; normal is `now` unless the wall-clock in the trip's zone is inside
@@ -32,6 +32,7 @@ zone is the trip's.
 | A leader confirms or an organizer resolves an incident | `incident_status` | the guardians of the people on it, the leaders of their groups | "With the group: Minji Park", "Resolved: …" |
 | An organizer decides a proposal | `proposal_decided` | the leader who proposed | "Proposal accepted: Breakfast" |
 | The morning three days and one day before the start, from 09:00 (the cron, slice 056; `packing.md`) | `packing_reminder` | travelers and leaders with packing left, the guardians of those travelers; one body each, once per morning (`notifyRows`) | "Packing: 3 days to go" |
+| The organizer presses "Remind" on a document requirement (slice 060; `documents.md`) | `document_reminder` | the travelers still missing it, the guardians of those travelers; once a day (`notifyRows`) | "Documents: Passport copy still needed" |
 
 A second sync of an open head count calls nobody again. `notifyTrip` never throws into the
 route: a failure to notify is logged and the thing that happened stands.

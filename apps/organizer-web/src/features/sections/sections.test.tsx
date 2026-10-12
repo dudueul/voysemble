@@ -1779,6 +1779,43 @@ describe('Preparation on the API (slice 045)', () => {
     expect(screen.queryByTestId('scan-viewer')).toBeNull();
     localStorage.clear();
   });
+  it('nudges the travelers still missing a document and their guardians (slice 060)', async () => {
+    let reminds = 0;
+    stubApi({
+      'GET /v1/orgs': () => ({ organizations: [ORG] }),
+      [`GET /v1/orgs/${ORG.id}/trips`]: () => ({ trips: [TRIP] }),
+      'GET /v1/me': () => ({
+        accountId: 'a',
+        email: 'nate@example.com',
+        locale: 'en',
+        memberships: [],
+      }),
+      [`GET ${base}/documents`]: () => ({ requirements: [REQ], travelers: 3, missingRequired: 2 }),
+      [`GET ${base}/packing`]: () => ({ items: [], travelers: [], ready: 0 }),
+      [`POST ${base}/documents/${REQ.id}/remind`]: () => {
+        reminds += 1;
+        return reminds === 1
+          ? { missing: 2, reminded: 3, skipped: 0 }
+          : { missing: 2, reminded: 0, skipped: 3 };
+      },
+    });
+    renderWithQuery(<PreparationPage />);
+    await screen.findByText('Live');
+    const button = await screen.findByRole('button', { name: 'Remind about Passport copy' });
+    expect(button.textContent).toBe('Remind 2');
+    fireEvent.click(button);
+    await waitFor(() =>
+      expect(screen.getByTestId('remind-status').textContent).toBe(
+        'Reminded 3 people (travelers and their guardians).',
+      ),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Remind about Passport copy' }));
+    await waitFor(() =>
+      expect(screen.getByTestId('remind-status').textContent).toBe(
+        'Everyone missing it was already reminded today.',
+      ),
+    );
+  });
 });
 
 describe('Travel on the API (slice 046)', () => {

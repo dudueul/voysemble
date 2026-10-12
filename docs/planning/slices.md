@@ -1620,3 +1620,25 @@ Built:
 - Docs: `travel.md` phones section and facts, D41 amendment, mobile README, captures README, ledger, feature flag `mobile.rooming` working.
 
 Not done: the room on the head count roster row (the sample head count already carries room numbers; the live one does not); rooms on the Today tab's hotel line.
+
+## Slice 060: document reminders from the Preparation page
+
+Status: done 2026-10-12. Commit: see git log (`feat(documents): one nudge a day to the travelers still missing a document and their guardians (slice 060)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D27 (documents; amended), D29 (lanes), D13 (guardians hear about their traveler). Details: `docs/engineering/documents.md` (the remind route and the console), `notifications.md` (tables).
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 40 files, 107 tests (adds `document-reminders.test.ts`: 2) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 19 files, 117 tests (the Preparation block gains the nudge) |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e -- preparation.spec.ts` | 2 passed (the nudge and the second one's answer; `preparation-live.png` regenerated) |
+| Core JVM tests | `./gradlew :core:jvmTest` (CI `mobile` job) | `InboxModelTest` pins the new kind; `L10nTest` the new key |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+Built:
+- Contracts: `NotificationKind` gains `document_reminder`, `refType` gains `document`; `DocumentRemindResponse`.
+- Worker: `laneFor` (travelers and the guardians of the named travelers normal; leaders nothing); `lib/notify.ts` `notifyTripRows` (the settings read once, the organization object's `notifyRows`, the counts or null); `POST .../documents/{id}/remind` (`documentReminderTitle`, `documentReminderBody` in both languages; the reference carries the trip-zone date so a person hears it once a day).
+- Console: `documents.remind`; the requirement row's "Remind N" while N are missing and the status line; strings EN/KO; the log's kind label. Phones: `InboxKind.DOCUMENT_REMINDER` with its label in both languages.
+- Tests: worker (2), console unit (1), browser (the nudge twice).
+- Docs: `documents.md` route row, console paragraph and facts, `notifications.md` tables, D27 amendment, ledger, feature flag `documents.reminders` working.
+
+Not done: a reminder schedule (the mornings before the due date, like the packing reminders); the nudge from the person card; the guardian's own view of what is missing on the phone (the inbox row names it).

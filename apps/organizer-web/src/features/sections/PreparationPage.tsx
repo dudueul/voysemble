@@ -74,6 +74,13 @@ function LivePreparation({ org, trip }: { org: Organization; trip: Trip }) {
     },
     onError: (e) => setNote(errorText(e, s.addFailed)),
   });
+  // Slice 060 (D27, D29): one nudge per day to everyone still missing a document.
+  const [remindNote, setRemindNote] = useState<string | null>(null);
+  const remind = useMutation({
+    mutationFn: (id: string) => documentsApi.remind(org.id, trip.id, id),
+    onSuccess: (r) => setRemindNote(s.reminded(r.reminded, r.skipped)),
+    onError: (e) => setRemindNote(errorText(e, s.remindFailed)),
+  });
   const remove = useMutation({
     mutationFn: (id: string) => documentsApi.remove(org.id, trip.id, id),
     onSuccess: (_r, id) => {
@@ -145,6 +152,17 @@ function LivePreparation({ org, trip }: { org: Organization; trip: Trip }) {
                       <td>
                         <div className="missing__actions">
                           {complete ? <span className="chip chip--done">{s.complete}</span> : null}
+                          {d.counts.missing > 0 ? (
+                            <button
+                              type="button"
+                              className="btn btn--ghost btn--sm"
+                              onClick={() => remind.mutate(d.id)}
+                              disabled={remind.isPending}
+                              aria-label={s.remindOf(d.name)}
+                            >
+                              {s.remind(d.counts.missing)}
+                            </button>
+                          ) : null}
                           <button
                             type="button"
                             className="btn btn--ghost btn--sm"
@@ -170,6 +188,9 @@ function LivePreparation({ org, trip }: { org: Organization; trip: Trip }) {
               </tbody>
             </table>
           )}
+          <p className="field__hint" role="status" data-testid="remind-status">
+            {remindNote ?? ''}
+          </p>
           <form className="form" onSubmit={submit} aria-label={s.addForm} noValidate>
             <div className="field__row">
               <label className="field">

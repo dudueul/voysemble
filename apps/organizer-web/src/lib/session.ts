@@ -27,6 +27,7 @@ import type {
   DeletePhotoResponse,
   DocumentItem,
   DocumentItemList,
+  DocumentRemindResponse,
   DocumentRequirement,
   DocumentRequirementList,
   DocumentState,
@@ -260,6 +261,12 @@ export const documentItemsQuery = (orgId: string, tripId: string, requirementId:
   });
 
 export const documents = {
+  /** Slice 060: nudge every traveler still missing the document and their guardians, once a day. */
+  remind: (orgId: string, tripId: string, requirementId: string) =>
+    api<DocumentRemindResponse>(
+      `/v1/orgs/${orgId}/trips/${tripId}/documents/${requirementId}/remind`,
+      { method: 'POST' },
+    ),
   create: (orgId: string, tripId: string, body: CreateDocumentRequirementRequest) =>
     api<DocumentRequirement>(`/v1/orgs/${orgId}/trips/${tripId}/documents`, {
       method: 'POST',

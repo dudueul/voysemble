@@ -23,6 +23,7 @@ export const NotificationKind = z
     'incident_status',
     'proposal_decided',
     'packing_reminder',
+    'document_reminder',
   ])
   .openapi('NotificationKind');
 export type NotificationKind = z.infer<typeof NotificationKind>;
@@ -36,7 +37,7 @@ export const Notification = z
     title: z.string(),
     body: z.string(),
     /** What to open: an announcement, a head count, an incident, a proposal, the packing list. */
-    refType: z.enum(['announcement', 'headcount', 'incident', 'proposal', 'packing']),
+    refType: z.enum(['announcement', 'headcount', 'incident', 'proposal', 'packing', 'document']),
     refId: z.string(),
     createdAt: Timestamp,
     /** When the lane delivers it; the normal lane waits for quiet hours to end, the digest for its hour. */
@@ -58,7 +59,7 @@ export const NotificationEvent = z
     createdAt: Timestamp,
     kind: NotificationKind,
     title: z.string(),
-    refType: z.enum(['announcement', 'headcount', 'incident', 'proposal', 'packing']),
+    refType: z.enum(['announcement', 'headcount', 'incident', 'proposal', 'packing', 'document']),
     refId: z.string(),
     lanes: z.object({
       priority: z.number().int(),

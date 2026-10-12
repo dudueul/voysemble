@@ -133,3 +133,19 @@ export const DocumentSummary = z
   })
   .openapi('DocumentSummary');
 export type DocumentSummary = z.infer<typeof DocumentSummary>;
+
+/**
+ * `POST .../documents/{id}/remind` (slice 060): every traveler still missing the document, and
+ * the guardians bound to them, hear it once a day in the normal lane (D29).
+ */
+export const DocumentRemindResponse = z
+  .object({
+    /** Travelers whose item is missing. */
+    missing: z.number().int(),
+    /** Notifications written by this call (travelers and guardians). */
+    reminded: z.number().int(),
+    /** People already reminded today, or without a lane. */
+    skipped: z.number().int(),
+  })
+  .openapi('DocumentRemindResponse');
+export type DocumentRemindResponse = z.infer<typeof DocumentRemindResponse>;

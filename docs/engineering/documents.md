@@ -42,6 +42,7 @@ never signs in (`verifyMagicLink` refuses the purpose); another account's link i
 | `POST .../items/{participationId}/scan` | multipart `file`: PDF (`%PDF-`), JPEG or PNG from the magic bytes, at most 12 MiB; images lose their metadata (`lib/image-strip.ts`); sealed and stored; the row becomes collected. 503 without `MEDIA_KEY`. |
 | `POST .../items/{participationId}/scan/reveal` | `requireRecentReauth`; the bytes unsealed with `Cache-Control: no-store`, `Content-Disposition: inline`; a `document_reveal` fact lands on the timeline. A POST, not a GET: Chromium replays an idempotent GET on a stale keep-alive socket, which doubled the audit line in the browser suite. |
 | `DELETE .../items/{participationId}/scan` | the object shredded; the state stays. |
+| `POST .../documents/{id}/remind` (slice 060) | Every traveler whose item is `missing`, and the guardians bound to them, get a normal-lane `document_reminder` ("Documents: Passport copy still needed"; the body names the traveler, the document and the due date) through `notifyRows`, once a day per person (the reference carries the trip-zone date); leaders are not addressed. Answers `{ missing, reminded, skipped }`. |
 
 Leaders, travelers, guardians and strangers are 403 on all of them; the report
 (`TripReport.documents`, slice 034) carries completion over the required requirements.
@@ -49,8 +50,10 @@ Leaders, travelers, guardians and strangers are 403 on all of them; the report
 ## Console (Preparation page)
 
 Live once the organization has a trip. The documents card lists the requirements with a meter
-(collected + waived over travelers), the due date, "Open" / "Close" and "Remove requirement", and
-the add form (document, due date, required). An opened requirement shows the travelers table:
+(collected + waived over travelers), the due date, "Remind N" while N travelers are missing it
+(slice 060: one nudge a day to those travelers and their guardians; the status line says how many
+were reminded or that everyone was reminded today), "Open" / "Close" and "Remove requirement",
+and the add form (document, due date, required). An opened requirement shows the travelers table:
 state select (Missing, Collected, Waived), the scan facts with "Upload scan" (hidden file input,
 `data-testid="scan-input"`) or "Reveal (audited)" and "Remove scan", and the reveal count. The
 reveal fetches the bytes itself; a `403 REAUTH_REQUIRED` stores the return path, sends the
@@ -83,9 +86,16 @@ page's documents tile reads the report. Evidence:
   confirmation needed → the emailed link → back → reveal → the image shows under the watermark
   with the organizer's address; the reveal count reads 1; the Reports tile reads the completion.
 
+- Reminders (`document-reminders.test.ts`, slice 060): a reminder reaches the two travelers
+  missing the passport copy and Hana's guardian, not the collected traveler, her guardian or the
+  leader; the body names the traveler, the document and the due date; a second call the same day
+  writes nothing and says so; the log reads one event with three normal-lane rows; nothing
+  missing reminds nobody; a leader is 403; an unknown requirement 404; the words in both
+  languages. Browser: the nudge from the Preparation page and the second one's answer.
+
 ## Not done
 
-Per-traveler reminders to guardians ("Remind 3"); a document viewer that scales PDFs; the
+A document viewer that scales PDFs; the
 owner-held key for tier 3 (ADR-0001 seam); the shred of a removed row's objects before the
 trip's own. The sealed third-party links of D27 exist: the driver's since slice 049 and the
 hotel's since slice 058 (`travel.md`).

@@ -589,6 +589,7 @@ export const en = {
       incident_status: 'incident status',
       proposal_decided: 'proposal decided',
       packing_reminder: 'packing reminder',
+      document_reminder: 'document reminder',
     },
     pushNote:
       'Phones read their inbox from the API; push delivery through the stores is not set up yet, so a notification shows when the app opens.',
@@ -673,6 +674,14 @@ export const en = {
     collected: (a: number, b: number) => `${a} of ${b} collected`,
     complete: 'Complete',
     remind: (n: number) => `Remind ${n}`,
+    remindOf: (name: string) => `Remind about ${name}`,
+    reminded: (reminded: number, skipped: number) =>
+      reminded === 0
+        ? skipped
+          ? 'Everyone missing it was already reminded today.'
+          : 'Nobody is missing it.'
+        : `Reminded ${reminded} ${reminded === 1 ? 'person' : 'people'} (travelers and their guardians)${skipped ? ` · ${skipped} already reminded today` : ''}.`,
+    remindFailed: 'Could not send the reminder.',
     scanRule:
       'Scans open only on this console after re-authentication and are watermarked. They never sync to phones.',
     packing: 'Packing checklist (shared with travelers)',

@@ -16,7 +16,7 @@ export type NotifyInput = {
   kind: NotificationKind;
   title: string;
   body: string;
-  refType: 'announcement' | 'headcount' | 'incident' | 'proposal' | 'packing';
+  refType: 'announcement' | 'headcount' | 'incident' | 'proposal' | 'packing' | 'document';
   refId: string;
   flags?: LaneFlags;
   audience: {
@@ -60,5 +60,53 @@ export async function notifyTrip(
     });
   } catch (e) {
     console.error('notify failed', input.kind, input.refId, e instanceof Error ? e.message : e);
+  }
+}
+
+/**
+ * One event with a body per recipient, addressed by participation and written once per
+ * reference (slice 060; the organization object's `notifyRows`). Returns the counts, or null when
+ * the write failed: the caller says so instead of pretending the reminder went.
+ */
+export async function notifyTripRows(
+  env: Env,
+  org: DurableObjectStub<OrgDurableObject>,
+  orgId: string,
+  trip: { id: string; timezone: string },
+  input: {
+    kind: NotificationKind;
+    title: string;
+    refType: NotifyInput['refType'];
+    refId: string;
+    rows: { participationId: string; body: string }[];
+  },
+): Promise<{ written: number; skipped: number } | null> {
+  try {
+    const settings = await db(env.DB)
+      .select({
+        quietFrom: organizations.quietFrom,
+        quietTo: organizations.quietTo,
+        digestAt: organizations.digestAt,
+      })
+      .from(organizations)
+      .where(eq(organizations.id, orgId))
+      .get();
+    const r = await org.notifyRows({
+      tripId: trip.id,
+      ...input,
+      now: nowIso(),
+      timeZone: trip.timezone,
+      quietHours: { from: settings?.quietFrom ?? '23:00', to: settings?.quietTo ?? '06:30' },
+      digestAt: settings?.digestAt ?? '19:00',
+    });
+    return 'notFound' in r ? null : r;
+  } catch (e) {
+    console.error(
+      'notify rows failed',
+      input.kind,
+      input.refId,
+      e instanceof Error ? e.message : e,
+    );
+    return null;
   }
 }

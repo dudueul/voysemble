@@ -580,6 +580,7 @@ export const ko: Strings = {
       incident_status: '사고 상태',
       proposal_decided: '제안 결정',
       packing_reminder: '준비물 알림',
+      document_reminder: '서류 알림',
     },
     pushNote:
       '휴대폰은 API에서 받은편지함을 읽습니다. 스토어 푸시 전달은 아직 설정되지 않아 앱을 열 때 알림이 표시됩니다.',
@@ -664,6 +665,14 @@ export const ko: Strings = {
     collected: (a: number, b: number) => `${b}명 중 ${a}명 제출`,
     complete: '완료',
     remind: (n: number) => `${n}명에게 알리기`,
+    remindOf: (name: string) => `${name} 알림 보내기`,
+    reminded: (reminded: number, skipped: number) =>
+      reminded === 0
+        ? skipped
+          ? '미제출자 모두에게 오늘 이미 알렸습니다.'
+          : '미제출자가 없습니다.'
+        : `${reminded}명(여행자와 보호자)에게 알렸습니다${skipped ? ` · ${skipped}명은 오늘 이미 알림` : ''}.`,
+    remindFailed: '알림을 보내지 못했습니다.',
     scanRule:
       '스캔본은 재인증 후 이 콘솔에서만 열리며 워터마크가 찍힙니다. 휴대폰으로는 절대 동기화되지 않습니다.',
     packing: '준비물 체크리스트 (참가자와 공유)',

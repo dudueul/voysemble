@@ -13,6 +13,7 @@ import {
   DOCUMENT_MAX_BYTES,
   DocumentItem,
   DocumentItemList,
+  DocumentRemindResponse,
   DocumentRequirement,
   DocumentRequirementList,
   type DocumentScanType,
@@ -20,13 +21,17 @@ import {
   UpdateDocumentRequirementRequest,
   UploadDocumentForm,
 } from '@voysemble/contracts';
+import { eq } from 'drizzle-orm';
 import { HTTPException } from 'hono/http-exception';
 import { z } from 'zod';
 import { requireAuth, requireOrgRole, requireRecentReauth } from '../auth/middleware';
+import { db } from '../db/client';
+import { organizations } from '../db/schema';
 import type { AppEnv, AuthContext } from '../env';
 import { sniffImageType, stripMetadata } from '../lib/image-strip';
 import { mediaKeyFrom, sealBytes, unsealBytes } from '../lib/media-crypto';
-import { nowIso } from '../lib/time';
+import { notifyTripRows } from '../lib/notify';
+import { localClock, nowIso } from '../lib/time';
 import { orgObject } from '../org/client';
 import type { OrgDurableObject } from '../org/OrgDurableObject';
 import { ERROR_RESPONSES, SESSION_SECURITY } from './openapi-common';
@@ -141,6 +146,49 @@ const itemsRoute = createRoute({
     500: ERROR_RESPONSES[500],
   },
 });
+
+/** Slice 060 (D27, D29): the organizer nudges everyone still missing a document, once a day. */
+const remindRoute = createRoute({
+  method: 'post',
+  path: '/v1/orgs/{orgId}/trips/{tripId}/documents/{requirementId}/remind',
+  tags: ['documents'],
+  summary:
+    'Remind every traveler still missing the document, and their guardians, in the normal lane (once a day)',
+  security: SESSION_SECURITY,
+  request: { params: ReqParams },
+  responses: {
+    200: {
+      description: 'How many were missing, reminded and skipped.',
+      content: { 'application/json': { schema: DocumentRemindResponse } },
+    },
+    401: ERROR_RESPONSES[401],
+    403: ERROR_RESPONSES[403],
+    404: ERROR_RESPONSES[404],
+    500: ERROR_RESPONSES[500],
+  },
+});
+
+/** "Documents: Passport copy still needed" / "서류: 여권 사본이 아직 필요합니다". */
+export function documentReminderTitle(locale: 'ko' | 'en', name: string): string {
+  return locale === 'ko'
+    ? `서류: ${name}이(가) 아직 필요합니다`
+    : `Documents: ${name} still needed`;
+}
+
+/** The body names the traveler and the due date; a guardian reads whose it is. */
+export function documentReminderBody(
+  locale: 'ko' | 'en',
+  traveler: string,
+  name: string,
+  dueOn: string | null,
+): string {
+  if (locale === 'ko') {
+    const due = dueOn ? ` 기한은 ${dueOn}입니다.` : '';
+    return `${traveler}: ${name}이(가) 아직 제출되지 않았습니다.${due} 주최자나 인솔자에게 전달해 주세요.`;
+  }
+  const due = dueOn ? `, due ${dueOn}` : '';
+  return `${traveler}: ${name} not handed in yet${due}. Give it to the organizer or a group leader.`;
+}
 
 const setStateRoute = createRoute({
   method: 'put',
@@ -316,6 +364,51 @@ export function mountDocumentRoutes(app: OpenAPIHono<AppEnv>): void {
     const r = await org.documentItems(tripId, requirementId);
     if ('notFound' in r) throw notFound();
     return c.json(r, 200);
+  });
+
+  app.openapi(remindRoute, async (c) => {
+    const auth = requireAuth(c);
+    const { orgId, tripId, requirementId } = c.req.valid('param');
+    const { org } = await organizerFor(c.env, auth, orgId, tripId);
+    const list = await org.documentItems(tripId, requirementId);
+    if ('notFound' in list) throw notFound();
+    const trip = await org.getTrip(tripId);
+    if (!trip) throw notFound();
+    const organization = await db(c.env.DB)
+      .select({ defaultLocale: organizations.defaultLocale })
+      .from(organizations)
+      .where(eq(organizations.id, orgId))
+      .get();
+    const locale = organization?.defaultLocale === 'en' ? 'en' : 'ko';
+    const missing = list.items.filter((i) => i.state === 'missing');
+    if (missing.length === 0) return c.json({ missing: 0, reminded: 0, skipped: 0 }, 200);
+    const roster = await org.listRoster(tripId);
+    const rows: { participationId: string; body: string }[] = [];
+    for (const item of missing) {
+      const body = documentReminderBody(
+        locale,
+        item.displayName,
+        list.requirement.name,
+        list.requirement.dueOn,
+      );
+      rows.push({ participationId: item.participationId, body });
+      for (const g of roster.filter(
+        (p) => p.role === 'guardian' && p.guardianOf === item.participationId,
+      )) {
+        rows.push({ participationId: g.id, body });
+      }
+    }
+    // Once a day per person: the reference carries the trip-zone date.
+    const today = localClock(nowIso(), trip.timezone).date;
+    const r = await notifyTripRows(c.env, org, orgId, trip, {
+      kind: 'document_reminder',
+      title: documentReminderTitle(locale, list.requirement.name),
+      refType: 'document',
+      refId: `document:${requirementId}:${today}`,
+      rows,
+    });
+    if (!r) throw new HTTPException(500, { message: 'The reminder could not be written.' });
+    return c.json({ missing: missing.length, reminded: r.written, skipped: r.skipped }, 200);
   });
 
   app.openapi(setStateRoute, async (c) => {

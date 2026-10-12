@@ -14,7 +14,8 @@ export type NotificationKind =
   | 'headcount_call'
   | 'incident_status'
   | 'proposal_decided'
-  | 'packing_reminder';
+  | 'packing_reminder'
+  | 'document_reminder';
 export type AudienceRole = 'traveler' | 'leader' | 'guardian';
 
 export type LaneFlags = { requiresAck?: boolean; sharedWithGuardians?: boolean };
@@ -35,8 +36,8 @@ export function laneFor(
   switch (role) {
     case 'guardian':
       if (kind === 'incident_status') return 'priority';
-      // Slice 056: the reminder is addressed to the guardians of the travelers it names.
-      if (kind === 'packing_reminder') return 'normal';
+      // Slices 056 and 060: a reminder is addressed to the guardians of the travelers it names.
+      if (kind === 'packing_reminder' || kind === 'document_reminder') return 'normal';
       if (!flags.sharedWithGuardians) return null;
       if (kind === 'announcement') return 'normal';
       if (kind === 'itinerary_revision') return 'digest';
@@ -44,9 +45,17 @@ export function laneFor(
     case 'traveler':
       if (kind === 'headcount_call') return 'priority';
       if (kind === 'announcement') return flags.requiresAck ? 'priority' : 'normal';
-      if (kind === 'itinerary_revision' || kind === 'packing_reminder') return 'normal';
+      if (
+        kind === 'itinerary_revision' ||
+        kind === 'packing_reminder' ||
+        kind === 'document_reminder'
+      ) {
+        return 'normal';
+      }
       return null;
     case 'leader':
+      // A document is the traveler's and the guardian's business, not the group leader's.
+      if (kind === 'document_reminder') return null;
       if (kind === 'headcount_call' || kind === 'incident_status' || kind === 'proposal_decided') {
         return 'priority';
       }

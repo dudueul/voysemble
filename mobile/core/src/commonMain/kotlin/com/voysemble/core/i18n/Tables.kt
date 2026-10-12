@@ -392,6 +392,7 @@ internal val EN: Map<Txt, String> = mapOf(
     ROOMING_OFFLINE to "Offline. Showing the last list.",
     ROOMING_PERSON_SPOKEN to "{0}, room {1}",
     ROOMING_PERSON_UNASSIGNED_SPOKEN to "{0}, no room yet",
+    INBOX_KIND_DOCUMENT to "Documents",
 )
 
 internal val KO: Map<Txt, String> = mapOf(
@@ -777,4 +778,5 @@ internal val KO: Map<Txt, String> = mapOf(
     ROOMING_OFFLINE to "오프라인입니다. 마지막 목록을 보여 줍니다.",
     ROOMING_PERSON_SPOKEN to "{0}, {1}호",
     ROOMING_PERSON_UNASSIGNED_SPOKEN to "{0}, 아직 객실 없음",
+    INBOX_KIND_DOCUMENT to "서류",
 )

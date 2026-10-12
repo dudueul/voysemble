@@ -65,6 +65,9 @@ class InboxModelTest {
         val reminder = inboxItemOf(dto.notifications[0].copy(kind = "packing_reminder", title = "Packing: 3 days to go"), clock)
         assertEquals(InboxKind.PACKING_REMINDER, reminder.kind)
         assertEquals("Priority · Packing · 05:52", reminder.meta())
+        // Slice 060: the document reminder too.
+        assertEquals(InboxKind.DOCUMENT_REMINDER, inboxItemOf(dto.notifications[0].copy(kind = "document_reminder"), clock).kind)
+        assertEquals("Documents", kindLabel(InboxKind.DOCUMENT_REMINDER))
     }
 
     @Test

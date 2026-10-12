@@ -18,7 +18,7 @@ import com.voysemble.core.i18n.trf
 /** The three lanes of D29; the server decided which one, the phone only names it. */
 public enum class Lane { PRIORITY, NORMAL, DIGEST }
 
-public enum class InboxKind { ANNOUNCEMENT, ITINERARY_REVISION, HEADCOUNT_CALL, INCIDENT_STATUS, PROPOSAL_DECIDED, PACKING_REMINDER }
+public enum class InboxKind { ANNOUNCEMENT, ITINERARY_REVISION, HEADCOUNT_CALL, INCIDENT_STATUS, PROPOSAL_DECIDED, PACKING_REMINDER, DOCUMENT_REMINDER }
 
 public data class InboxItem(
     val id: String,
@@ -55,6 +55,7 @@ public fun kindOf(wire: String): InboxKind = when (wire) {
     "incident_status" -> InboxKind.INCIDENT_STATUS
     "proposal_decided" -> InboxKind.PROPOSAL_DECIDED
     "packing_reminder" -> InboxKind.PACKING_REMINDER
+    "document_reminder" -> InboxKind.DOCUMENT_REMINDER
     else -> InboxKind.ANNOUNCEMENT
 }
 
@@ -105,6 +106,7 @@ public fun kindLabel(kind: InboxKind): String = when (kind) {
     InboxKind.INCIDENT_STATUS -> tr(Txt.INBOX_KIND_INCIDENT)
     InboxKind.PROPOSAL_DECIDED -> tr(Txt.INBOX_KIND_PROPOSAL)
     InboxKind.PACKING_REMINDER -> tr(Txt.INBOX_KIND_PACKING)
+    InboxKind.DOCUMENT_REMINDER -> tr(Txt.INBOX_KIND_DOCUMENT)
 }
 
 /** "Priority · Head count · 06:52": the row's meta line. */

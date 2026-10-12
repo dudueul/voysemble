@@ -181,6 +181,12 @@ test('preparation: requirements, states, a sealed scan, the confirmation, the au
     '1 required documents still missing across 3 travelers',
   );
 
+  // Slice 060: one nudge to the traveler still missing it (and any guardian of hers).
+  await page.getByRole('button', { name: 'Remind about Passport copy' }).click();
+  await expect(page.getByTestId('remind-status')).toContainText('Reminded');
+  await page.getByRole('button', { name: 'Remind about Passport copy' }).click();
+  await expect(page.getByTestId('remind-status')).toContainText('already reminded today');
+
   // Reveal: the first try asks for a confirmation and emails the link.
   await page.getByRole('button', { name: 'Reveal the scan of Juho Kim' }).click();
   await expect(page.getByTestId('items-status')).toContainText('confirm it is you');
