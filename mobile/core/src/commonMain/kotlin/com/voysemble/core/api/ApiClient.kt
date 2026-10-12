@@ -123,6 +123,15 @@ public class ApiClient(
             }
         }
 
+    /** GET .../guardian/status: the guardian's view of their traveler (D13, slice 025). */
+    public suspend fun guardianStatus(orgId: String, tripId: String, correlationId: String? = null): ApiResult<GuardianStatusDto> =
+        call(correlationId) {
+            http.get {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "orgs", orgId, "trips", tripId, "guardian", "status") }
+                common(correlationId)
+            }
+        }
+
     /** POST .../incidents/{id}/confirm: the leader's answer (D17). */
     public suspend fun confirmIncident(
         orgId: String,

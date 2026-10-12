@@ -68,3 +68,9 @@ Roborazzi tests. Both land here through the `captures` job.
 
 `web/desktop-1440/people-live.png`, `web/laptop-1280/people-live.png`: the live roster after invite
 codes were issued (five "Invited" rows, guardian bindings, group chips). Produced by `e2e/people.spec.ts`.
+
+## Slice 025 (2026-10-12): guardian status on Today
+
+`android/today-guardian.png` (Roborazzi) and `ios/today-guardian.png` (CaptureTests): the guardian's
+card ("Counted present · Bus A · 06:52 · by Kim Daeun") in place of the head count card and the leader
+links. Both land here through the CI `captures` job.

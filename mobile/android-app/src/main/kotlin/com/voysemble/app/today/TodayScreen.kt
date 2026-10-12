@@ -46,6 +46,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.voysemble.core.today.GuardianCard
+import com.voysemble.core.today.GuardianTone
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -113,7 +115,13 @@ fun TodayScreen(
             if (snap.offline) item { OfflineBanner(snap) }
             snap.upNext?.let { next -> item { UpNextCard(next, snap.timeZoneLabel, onOpenWindow, onPropose = { onPropose(next.id) }, proposal = state.proposal?.takeIf { it.eventId == next.id }, onDismissProposal = onDismissProposal) } }
             snap.announcement?.let { a -> item { AnnouncementCard(a, onAcknowledge) } }
-            item { HeadcountCard(snap.headcount, snap.checkedIn, snap.expected, onOpenHeadcount, onOpenIncidents) }
+            val guardian = state.guardian
+            if (guardian != null) {
+                // D13: the guardian's card replaces the head count card and the leader links.
+                item { GuardianStatusCard(guardian) }
+            } else {
+                item { HeadcountCard(snap.headcount, snap.checkedIn, snap.expected, onOpenHeadcount, onOpenIncidents) }
+            }
             item { SectionTitle("Later today") }
             items(snap.later, key = { it.id }) { e -> EventRow(e) }
             item { Spacer(Modifier.height(8.dp)) }
@@ -308,6 +316,32 @@ private fun AnnouncementCard(a: TodayAnnouncement, onAcknowledge: (String) -> Un
                 }
             }
             Text("${a.acknowledgedCount}/${a.totalCount} acknowledged", style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
+        }
+    }
+}
+
+/** D13: status, never coordinates. Tone picks the colour; the words come from core. */
+@Composable
+internal fun GuardianStatusCard(card: GuardianCard) {
+    val c = LocalVoysembleColors.current
+    val tone = when (card.tone) {
+        GuardianTone.GOOD -> c.action
+        GuardianTone.ATTENTION -> c.warning
+        GuardianTone.CALM -> c.textMuted
+    }
+    Card {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("YOUR TRAVELER", style = MaterialTheme.typography.labelSmall, color = c.textMuted)
+            Spacer(Modifier.weight(1f))
+            Text(listOfNotNull(card.travelerName, card.groupName).joinToString(" · "), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(card.headline, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = tone)
+        Spacer(Modifier.height(4.dp))
+        Text(card.detail, style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
+        card.message?.let { m ->
+            Spacer(Modifier.height(8.dp))
+            Text(m, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.fillMaxWidth().background(c.action.copy(alpha = 0.1f), RoundedCornerShape(10.dp)).padding(10.dp))
         }
     }
 }

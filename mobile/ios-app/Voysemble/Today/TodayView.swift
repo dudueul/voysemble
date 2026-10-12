@@ -43,16 +43,21 @@ struct TodayView: View {
                     if s.offline { offlineBanner }
                     if let next = s.upNext { UpNextCard(event: next, timeZone: s.timeZoneLabel) }
                     if let a = s.announcement { AnnouncementCard(announcement: a) { model.acknowledge($0) } }
-                    HeadcountCard(groups: s.headcount, checkedIn: Int(s.checkedIn), expected: Int(s.expected))
-                    // Slice 009: leader and traveler screens reachable from Today, as on Android.
-                    HStack {
-                        NavigationLink("Open head count") { HeadcountView(model: headcount) }
-                        Spacer()
-                        NavigationLink("Meeting window") { MeetingWindowView(model: MeetingWindowModel()) }
-                        Spacer()
-                        NavigationLink("Incidents") { IncidentsView(model: incidents) }
+                    if let g = model.guardian {
+                        // D13: the guardian's card replaces the head count card and the leader links.
+                        GuardianStatusCard(card: g)
+                    } else {
+                        HeadcountCard(groups: s.headcount, checkedIn: Int(s.checkedIn), expected: Int(s.expected))
+                        // Slice 009: leader and traveler screens reachable from Today, as on Android.
+                        HStack {
+                            NavigationLink("Open head count") { HeadcountView(model: headcount) }
+                            Spacer()
+                            NavigationLink("Meeting window") { MeetingWindowView(model: MeetingWindowModel()) }
+                            Spacer()
+                            NavigationLink("Incidents") { IncidentsView(model: incidents) }
+                        }
+                        .font(.subheadline.weight(.semibold))
                     }
-                    .font(.subheadline.weight(.semibold))
                     Text("Later today").font(.headline).padding(.top, 4)
                     ForEach(s.later, id: \.id) { EventRow(event: $0) }
                 }
@@ -176,6 +181,36 @@ private struct AnnouncementCard: View {
                 Text("\(announcement.acknowledgedCount)/\(announcement.totalCount) acknowledged").font(.subheadline).foregroundStyle(.secondary)
             }
             .padding(.top, 10)
+        }
+    }
+}
+
+/// D13: status, never coordinates. Tone picks the colour; the words come from core.
+private struct GuardianStatusCard: View {
+    let card: GuardianCard
+    var body: some View {
+        let tone: UInt32 = {
+            switch card.tone {
+            case .good: return Tokens.Color.Light.action
+            case .attention: return Tokens.Color.Light.warning
+            case .calm: return Tokens.Color.Light.textMuted
+            }
+        }()
+        Card {
+            HStack {
+                Text("YOUR TRAVELER").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                Spacer()
+                Text([card.travelerName, card.groupName].compactMap { $0 }.joined(separator: " · ")).font(.subheadline.weight(.semibold))
+            }
+            Text(card.headline).font(.headline).foregroundStyle(Color(argb: tone)).padding(.top, 6)
+            Text(card.detail).font(.subheadline).foregroundStyle(.secondary).padding(.top, 2)
+            if let message = card.message {
+                Text(message).font(.subheadline)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: 10).fill(Color(argb: Tokens.Color.Light.action).opacity(0.1)))
+                    .padding(.top, 8)
+            }
         }
     }
 }

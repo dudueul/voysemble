@@ -810,3 +810,30 @@ Deviations found while building: two Android rules (Today card selection, in-fli
 in view models and were moved into core so iOS does not re-implement them.
 
 Not done: proposing from iOS, the meeting window on the API, live captures on the simulator, Apple sign-in.
+
+## Slice 025: guardian status on Today
+
+Status: done 2026-10-12. Commit: see git log (`feat(guardian): status, never coordinates ...`). CI: pending at commit time; the run id is recorded in a follow-up docs commit once verified.
+Spec: D13 (guardians see status, not coordinates), D25 (missing at close), D17 (the guardian message), D15 (no location). Details: `docs/engineering/guardian.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 16 files, 51 tests (adds guardian.test.ts: 2) |
+| Core JVM tests | `./gradlew :core:jvmTest -Pvoysemble.android=false` | 49 tests (adds GuardianModelTest: 3) |
+| Android + iOS | CI `mobile` and `ios` jobs | TodayViewModelTest guardian case; TodayScreenshotTest `today_guardian`; CaptureTests `today-guardian` |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+Facts established by tests: see the engineering doc.
+
+Built:
+- Contracts `GuardianStatus`, `TravelerCountStatus`; `OrgDurableObject.guardianStatus` (latest covering head count
+  with the traveler's mark, latest incident naming them with the guardian message, published revision); route
+  `GET .../guardian/status` for the guardian participation only.
+- Core `api/Guardian.kt` DTOs, `ApiClient.guardianStatus`, `today/GuardianModel.kt` (`guardianCardOf`, EN and
+  KO), fixture `guardianStatus()` / `guardianCard()`.
+- Android: `TodayUiState.guardian`, the fetch for guardian trips, `GuardianStatusCard`; iOS: `TodayModel.guardian`,
+  `GuardianStatusCard`; captures on both.
+- Docs: `guardian.md`, captures README, mobile README, feature flags (`guardian.status-view`,
+  `mobile.today.guardian` working).
+
+Not done: guardian Bulletin filtering on the phone UI, the approved album, the fee balance, the daily digest.

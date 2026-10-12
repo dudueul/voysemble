@@ -17,9 +17,11 @@ import { DurableObject } from 'cloudflare:workers';
 import type {
   AckStatus,
   Announcement,
+  GuardianStatus,
   HeadcountMark,
   HeadcountSession,
   Incident,
+  IncidentStatus,
   Itinerary,
   ItineraryEvent,
   ItineraryEventInput,
@@ -27,6 +29,7 @@ import type {
   Participation,
   RevisionChange,
   RevisionSummary,
+  TravelerCountStatus,
   Trip,
   TripRole,
 } from '@voysemble/contracts';
@@ -1532,6 +1535,103 @@ export class OrgDurableObject extends DurableObject<Env> {
       )
       .toArray()
       .map((r) => this.headcountFromRow(r));
+  }
+
+  /* ---------- Guardian status (slice 025, D13) ---------- */
+
+  /**
+   * What a guardian may know about their traveler: the mark on the latest head count that covered
+   * the traveler's group (or the whole trip), the latest incident naming the traveler with its
+   * guardian message, and the published revision. Null when the participation is not a guardian
+   * bound to a traveler. Never coordinates, never other travelers' names.
+   */
+  async guardianStatus(
+    tripId: string,
+    guardianParticipationId: string,
+  ): Promise<GuardianStatus | null> {
+    this.requireOrg();
+    const guardian = await this.getParticipation(guardianParticipationId);
+    if (
+      !guardian ||
+      guardian.tripId !== tripId ||
+      guardian.role !== 'guardian' ||
+      !guardian.guardianOf
+    ) {
+      return null;
+    }
+    const traveler = await this.getParticipation(guardian.guardianOf);
+    if (!traveler) return null;
+    const sql = this.ctx.storage.sql;
+    const h = sql
+      .exec<{
+        id: string;
+        group_name: string | null;
+        opened_by_name: string;
+        opened_at_device: string;
+        closed_at_device: string | null;
+        received_at: string;
+        mark: string | null;
+      }>(
+        `SELECT h.id, h.group_name, h.opened_by_name, h.opened_at_device, h.closed_at_device, h.received_at, m.mark
+         FROM headcounts h LEFT JOIN headcount_marks m ON m.headcount_id = h.id AND m.participation_id = ?
+         WHERE h.trip_id = ? AND (h.group_name IS NULL OR h.group_name = ?)
+         ORDER BY h.received_at DESC LIMIT 1`,
+        traveler.id,
+        tripId,
+        traveler.groupName ?? '',
+      )
+      .toArray()[0];
+    const MARKS: Record<string, TravelerCountStatus> = {
+      present: 'present',
+      missing: 'missing',
+      with_other_group: 'with_other_group',
+      excused: 'excused',
+    };
+    // No mark yet: an open count has not reached the traveler; a closed one counted them missing.
+    const status: TravelerCountStatus = !h
+      ? 'not_counted'
+      : (h.mark && MARKS[h.mark]) || (h.closed_at_device ? 'missing' : 'not_counted');
+    const i = sql
+      .exec<IncidentRow>(
+        `SELECT i.* FROM incidents i JOIN incident_people p ON p.incident_id = i.id
+         WHERE i.trip_id = ? AND p.participation_id = ? ORDER BY i.opened_at DESC LIMIT 1`,
+        tripId,
+        traveler.id,
+      )
+      .toArray()[0];
+    return {
+      traveler: {
+        participationId: traveler.id,
+        displayName: traveler.displayName,
+        groupName: traveler.groupName,
+      },
+      count: {
+        status,
+        headcountId: h?.id ?? null,
+        groupLabel: h ? h.group_name : null,
+        closed: Boolean(h?.closed_at_device),
+        atDevice: h ? (h.closed_at_device ?? h.opened_at_device) : null,
+        byName: h?.opened_by_name ?? null,
+        receivedAt: h?.received_at ?? null,
+      },
+      incident: i
+        ? {
+            id: i.id,
+            status: i.status as IncidentStatus,
+            openedAt: i.opened_at,
+            message:
+              i.guardian_message_en && i.guardian_message_ko && i.guardian_message_sent_at
+                ? {
+                    bodyEn: i.guardian_message_en,
+                    bodyKo: i.guardian_message_ko,
+                    sentAt: i.guardian_message_sent_at,
+                    sentByName: i.guardian_message_by_name ?? 'Organizer',
+                  }
+                : null,
+          }
+        : null,
+      itineraryRevision: this.latestRevision(tripId)?.revision ?? 0,
+    };
   }
 
   /* ---------- Itinerary (slice 017) ---------- */

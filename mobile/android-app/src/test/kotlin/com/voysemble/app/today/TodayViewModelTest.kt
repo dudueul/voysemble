@@ -162,4 +162,39 @@ class TodayViewModelTest {
         sample.propose("ev_2", null, "Why").join()
         assertTrue(sample.state.value.proposal?.sent == true)
     }
+
+    @Test
+    fun live_guardian_gets_the_traveler_card_instead_of_head_counts() = runTest {
+        val guardianJson = """{"traveler":{"participationId":"p1","displayName":"Minji Park","groupName":"Bus A"},
+          "count":{"status":"present","headcountId":"hc1","groupLabel":"Bus A","closed":false,"atDevice":"06:52","byName":"Kim","receivedAt":"2026-12-31T05:52:00.000Z"},
+          "incident":null,"itineraryRevision":1}"""
+        val paths = mutableListOf<String>()
+        val engine = MockEngine { req ->
+            paths += req.url.encodedPath
+            when {
+                req.url.encodedPath.endsWith("/guardian/status") -> respond(guardianJson, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+                req.url.encodedPath.endsWith("/announcements") -> respond(announcementsJson, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+                else -> respond(itineraryJson, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+            }
+        }
+        val vm = TodayViewModel(
+            api = ApiClient(ApiClientConfig("h", "t") { "tok" }, engine),
+            trip = trip.copy(participationId = "p-sora", role = "guardian"),
+            deviceDate = { "2026-12-31" },
+            deviceClock = { "08:00" },
+            locale = "en",
+        )
+        vm.ready.join()
+        val s = vm.state.value
+        assertEquals("Counted present", s.guardian?.headline)
+        assertEquals("Bus A · 06:52 · by Kim", s.guardian?.detail)
+        assertEquals("Minji Park", s.guardian?.travelerName)
+        assertTrue(paths.any { it.endsWith("/guardian/status") })
+        // A leader never asks for it.
+        val leader = TodayViewModel(api = ApiClient(ApiClientConfig("h", "t") { "tok" }, engine), trip = trip, deviceDate = { "2026-12-31" }, deviceClock = { "08:00" })
+        paths.clear()
+        leader.ready.join()
+        assertNull(leader.state.value.guardian)
+        assertTrue(paths.none { it.endsWith("/guardian/status") })
+    }
 }

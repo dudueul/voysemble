@@ -26,7 +26,7 @@
     "mobile.today": "working",
     "onboarding.roster-import": "working",
     "onboarding.invite-codes": "working",
-    "guardian.status-view": "deferred",
+    "guardian.status-view": "working",
     "headcount.missing-list": "working",
     "location.meeting-windows": "deferred",
     "incident.person-timeline": "deferred",
@@ -102,6 +102,7 @@
     "web.public-site": "working",
     "web.public-site.legal-drafts": "working",
     "roster.invite-status": "working",
-    "mobile.bulletin.ios-live": "working"
+    "mobile.bulletin.ios-live": "working",
+    "mobile.today.guardian": "working"
   }
 }

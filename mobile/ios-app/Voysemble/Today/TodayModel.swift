@@ -16,6 +16,8 @@ final class TodayModel: ObservableObject {
     @Published var tab: MainTab = .today
     @Published private(set) var syncing = false
     @Published private(set) var error: String?
+    /// D13: a guardian sees their traveler's status instead of the head count card and leader links.
+    @Published private(set) var guardian: GuardianCard?
 
     let api: ApiClient?
     let trip: ActiveTrip?
@@ -30,9 +32,11 @@ final class TodayModel: ObservableObject {
         trip: ActiveTrip? = nil,
         deviceDate: @escaping (String) -> String = { zone in Clocks.date(in: zone) },
         deviceClock: @escaping (String) -> String = { zone in Clocks.time(in: zone) },
+        guardian: GuardianCard? = nil,
     ) {
         self.api = api
         self.trip = trip
+        self.guardian = guardian
         self.deviceDate = deviceDate
         self.deviceClock = deviceClock
         if let trip, api != nil {
@@ -73,6 +77,14 @@ final class TodayModel: ObservableObject {
                     itinerary: itinerary, date: deviceDate(zone), now: deviceClock(zone),
                     minutesSinceSync: KotlinInt(int: 0), offline: false,
                 ).withAnnouncement(announcement: latest?.toTodayAnnouncement(clock: Clocks.localTime))
+                // D13: guardians get their traveler's status (never coordinates) on the same screen.
+                if trip.role == "guardian" {
+                    let g = try? await api.guardianStatus(orgId: trip.organizationId, tripId: trip.tripId, correlationId: nil)
+                    if let status = (g as? ApiResultOk<GuardianStatusDto>)?.value {
+                        let locale = Locale.current.language.languageCode?.identifier ?? "en"
+                        guardian = GuardianModelKt.guardianCardOf(status: status, locale: locale, clock: { iso in Clocks.localTime(iso) })
+                    }
+                }
             } else if let failed = r as? ApiResultFailed {
                 error = "Could not load the itinerary (\(failed.error.code))."
             } else {

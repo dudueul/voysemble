@@ -13,10 +13,12 @@ import com.voysemble.core.api.CreateProposalRequestDto
 import com.voysemble.core.api.ProposalPatchDto
 import com.voysemble.core.fixtures.KoreaConcertTourFixture
 import com.voysemble.core.session.ActiveTrip
+import com.voysemble.core.today.GuardianCard
 import com.voysemble.core.today.TodaySnapshot
 import com.voysemble.core.today.acknowledgeAnnouncement
 import com.voysemble.core.today.confirmAcknowledgment
 import com.voysemble.core.today.emptyTodaySnapshot
+import com.voysemble.core.today.guardianCardOf
 import com.voysemble.core.today.latestRequiredAck
 import com.voysemble.core.today.toTodayAnnouncement
 import com.voysemble.core.today.todaySnapshotOf
@@ -43,6 +45,8 @@ data class TodayUiState(
     val syncing: Boolean = false,
     val error: String? = null,
     val proposal: ProposalState? = null,
+    /** D13: a guardian sees their traveler's status instead of the head count card and leader links. */
+    val guardian: GuardianCard? = null,
 )
 
 class TodayViewModel(
@@ -52,6 +56,8 @@ class TodayViewModel(
     /** Device date (YYYY-MM-DD) and clock (HH:mm) in the trip's zone; injected for tests. */
     private val deviceDate: (zone: String) -> String = { zone -> LocalDate.now(zoneOf(zone)).toString() },
     private val deviceClock: (zone: String) -> String = { zone -> LocalTime.now(zoneOf(zone)).format(HH_MM) },
+    /** Reader's language for the guardian card ("ko" or "en"). */
+    private val locale: String = java.util.Locale.getDefault().language,
 ) : ViewModel() {
     private val _state = MutableStateFlow(
         TodayUiState(
@@ -126,10 +132,20 @@ class TodayViewModel(
                         is ApiResult.Ok -> latestRequiredAck(list.value.announcements)
                         else -> null
                     }
+                    // D13: guardians get their traveler's status (never coordinates) on the same screen.
+                    val guardian = if (t.role == "guardian") {
+                        when (val g = a.guardianStatus(t.organizationId, t.tripId)) {
+                            is ApiResult.Ok -> guardianCardOf(g.value, locale, ::localTime)
+                            else -> null
+                        }
+                    } else {
+                        null
+                    }
                     _state.update {
                         it.copy(
                             snapshot = todaySnapshotOf(r.value, deviceDate(zone), deviceClock(zone), minutesSinceSync = 0)
                                 .withAnnouncement(latest?.toTodayAnnouncement(::localTime)),
+                            guardian = guardian ?: it.guardian,
                             syncing = false,
                         )
                     }

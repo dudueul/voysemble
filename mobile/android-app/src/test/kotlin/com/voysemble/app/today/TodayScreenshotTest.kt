@@ -7,6 +7,8 @@
 package com.voysemble.app.today
 
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
@@ -48,6 +50,23 @@ class TodayScreenshotTest {
             }
         }
         compose.onRoot().captureRoboImage("$OUT/today-dark.png")
+    }
+
+    @Test
+    fun today_guardian() {
+        compose.setContent {
+            VoysembleTheme(darkTheme = false) {
+                TodayScreen(
+                    state = TodayUiState(KoreaConcertTourFixture.today(), live = true, guardian = KoreaConcertTourFixture.guardianCard()),
+                    onAcknowledge = {},
+                    onSelectTab = {},
+                )
+            }
+        }
+        compose.onNodeWithText("Counted present").assertExists()
+        compose.onNodeWithText("Bus A · 06:52 · by Kim Daeun").assertExists()
+        compose.onAllNodesWithText("Open head count").assertCountEquals(0)
+        compose.onRoot().captureRoboImage("$OUT/today-guardian.png")
     }
 
     @Test

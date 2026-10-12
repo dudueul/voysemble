@@ -7,6 +7,9 @@ package com.voysemble.core.fixtures
 
 import com.voysemble.core.announcements.AnnouncementFeed
 import com.voysemble.core.announcements.AnnouncementItem
+import com.voysemble.core.api.GuardianCountDto
+import com.voysemble.core.api.GuardianStatusDto
+import com.voysemble.core.api.GuardianTravelerDto
 import com.voysemble.core.headcount.HeadcountMark
 import com.voysemble.core.headcount.HeadcountMember
 import com.voysemble.core.headcount.HeadcountSession
@@ -19,6 +22,8 @@ import com.voysemble.core.incidents.IncidentStatus
 import com.voysemble.core.today.AckState
 import com.voysemble.core.today.EventKind
 import com.voysemble.core.today.EventStatus
+import com.voysemble.core.today.GuardianCard
+import com.voysemble.core.today.guardianCardOf
 import com.voysemble.core.today.HeadcountGroup
 import com.voysemble.core.today.TodayAnnouncement
 import com.voysemble.core.today.TodayEvent
@@ -186,6 +191,16 @@ public object KoreaConcertTourFixture {
         outbox = emptyList(),
         offline = false,
     )
+
+    /** Guardian Sora's view of Minji (D13): counted present on Bus A at 06:52 by Kim Daeun, no incident. */
+    public fun guardianStatus(): GuardianStatusDto = GuardianStatusDto(
+        traveler = GuardianTravelerDto("t1", "Minji Park", "Bus A"),
+        count = GuardianCountDto("present", "hc_busA_20261231_0650", "Bus A", closed = false, atDevice = "06:52", byName = "Kim Daeun", receivedAt = "2026-12-31T05:52:30.000Z"),
+        incident = null,
+        itineraryRevision = 7,
+    )
+
+    public fun guardianCard(locale: String = "en"): GuardianCard = guardianCardOf(guardianStatus(), locale)
 
     /** Colosseum regroup window 10:45-11:20, 200 m, as seen by traveler Minji (t1), not yet opted in. */
     public fun meetingWindow(): MeetingWindow = MeetingWindow(

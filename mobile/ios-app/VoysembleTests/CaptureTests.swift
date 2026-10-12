@@ -24,6 +24,11 @@ final class CaptureTests: XCTestCase {
         try capture(TodayView(model: TodayModel()), name: "today-dark", scheme: .dark)
     }
 
+    func testTodayGuardian() throws {
+        // D13: the guardian's card in place of the head count and leader links.
+        try capture(TodayView(model: TodayModel(guardian: KoreaConcertTourFixture.shared.guardianCard(locale: "en"))), name: "today-guardian")
+    }
+
     func testHeadcountOpenAndClosed() throws {
         try capture(NavigationStack { HeadcountView(model: HeadcountModel()) }, name: "headcount-open")
         let closed = HeadcountModel(deviceClock: { "06:58" })
