@@ -85,6 +85,9 @@ fun TodayRoute(
     onOpenInbox: () -> Unit = {},
     /** Slice 053: the bell's badge in the header; 0 shows the bell alone. */
     inboxUnread: Int = 0,
+    /** Slice 067: the trip switch under the header, live only. */
+    tripSwitch: TripSwitch = TripSwitch(),
+    currentTripId: String = "",
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     // D24: the shared dialog (ProposeChange.kt); change or remove the up-next event.
@@ -110,6 +113,8 @@ fun TodayRoute(
         packingSummary = packingSummary,
         onOpenInbox = onOpenInbox,
         inboxUnread = inboxUnread,
+        tripSwitch = tripSwitch,
+        currentTripId = currentTripId,
         onPropose = { id -> state.snapshot.events.firstOrNull { it.id == id }?.let { proposing = ProposalTarget.forEvent(it) } },
         onEditCare = { vm.editCare() },
         onCancelCare = vm::cancelCare,
@@ -135,6 +140,8 @@ fun TodayScreen(
     packingSummary: String? = null,
     onOpenInbox: () -> Unit = {},
     inboxUnread: Int = 0,
+    tripSwitch: TripSwitch = TripSwitch(),
+    currentTripId: String = "",
 ) {
     val snap = state.snapshot
     Scaffold(
@@ -146,7 +153,7 @@ fun TodayScreen(
             contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            item { Header(snap, live = state.live, syncing = state.syncing, unread = inboxUnread, onOpenInbox = onOpenInbox) }
+            item { Header(snap, live = state.live, syncing = state.syncing, unread = inboxUnread, onOpenInbox = onOpenInbox, tripSwitch = tripSwitch, currentTripId = currentTripId) }
             if (snap.offline) item { OfflineBanner(snap) }
             snap.upNext?.let { next -> item { UpNextCard(next, snap.timeZoneLabel, onOpenWindow, canPropose = state.canPropose, onPropose = { onPropose(next.id) }, proposal = state.proposal?.takeIf { it.eventId == next.id }, onDismissProposal = onDismissProposal) } }
             snap.announcement?.let { a -> item { AnnouncementCard(a, onAcknowledge) } }
@@ -169,7 +176,15 @@ fun TodayScreen(
 }
 
 @Composable
-private fun Header(snap: TodaySnapshot, live: Boolean = false, syncing: Boolean = false, unread: Int = 0, onOpenInbox: () -> Unit = {}) {
+private fun Header(
+    snap: TodaySnapshot,
+    live: Boolean = false,
+    syncing: Boolean = false,
+    unread: Int = 0,
+    onOpenInbox: () -> Unit = {},
+    tripSwitch: TripSwitch = TripSwitch(),
+    currentTripId: String = "",
+) {
     val c = LocalVoysembleColors.current
     Column {
         Text(
@@ -198,6 +213,15 @@ private fun Header(snap: TodaySnapshot, live: Boolean = false, syncing: Boolean 
                 style = MaterialTheme.typography.bodyMedium,
                 color = c.textMuted,
             )
+        }
+        // Slice 067 (D42): the account's trips in a sheet; picking one rebinds every screen.
+        if (tripSwitch.enabled) {
+            var switching by remember { mutableStateOf(false) }
+            TextButton(
+                onClick = { tripSwitch.onLoad(); switching = true },
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+            ) { Text(tr(Txt.TRIP_SWITCH)) }
+            if (switching) TripSwitchSheet(tripSwitch, currentTripId) { switching = false }
         }
     }
 }

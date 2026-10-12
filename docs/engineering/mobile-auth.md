@@ -10,8 +10,10 @@ API from a phone: Bulletin with the ack outbox (D16).
 2. The user pastes the emailed link (or the bare token). `extractMagicToken` accepts
    `…/auth/verify#token=…` or a 32–128 char token and nothing else.
 3. `POST /v1/auth/magic-link/verify` with `client: native` returns the session token once.
-   `SessionManager` stores it in the platform `SecureStore` and adopts the first participation
-   from `GET /v1/me/participations` when the account already belongs to a trip.
+   `SessionManager` stores it in the platform `SecureStore` and, when the account already
+   belongs to trips, adopts the one that matters today from `GET /v1/me/participations` (slice
+   067, D42: on today, else the next to start, else the one that ended last; the route carries
+   each trip's days and zone since this slice).
 4. No participation → `InviteScreen` / `InviteView`: `POST /v1/invites/redeem`; the role comes
    with the code. The active trip is stored (org, trip, participation, role).
 5. Bulletin tab: `syncBulletin` replays the ack outbox, lists announcements with the bearer
@@ -35,6 +37,22 @@ API from a phone: Bulletin with the ack outbox (D16).
 | Android | `session/KeystoreSecureStore.kt` | AES-256-GCM key in AndroidKeyStore, ciphertext in SharedPreferences, unreadable values treated as signed out. |
 | Android | `session/AppGraph.kt`, `SessionViewModel.kt`, `auth/*Screen.kt`, `AppNavigation.kt` | Root route from `SessionState`; sample mode. |
 | iOS | `Session/KeychainSecureStore.swift`, `Session/SessionModel.swift`, `Auth/SignInView.swift` | Keychain, device-only accessibility; SKIE async calls. |
+
+## Switching trips (slice 067, D42)
+
+`session/TripChoice.kt`: `TripChoice` (the `ActiveTrip`, the trip's days and zone, who the
+person is on it), `tripChoiceOf`, `defaultChoice(choices, today)` (the rule above),
+`dateLine` ("2026-12-26 → 2027-01-07"), `roleLine` ("Leader · Bus A" / "인솔자 · Bus A"),
+`switchSpoken`. `SessionManager.tripChoices()` lists them and `switchTo(choice)` writes the
+chosen trip to the store, so `current()` is `Ready` with it at once; `today` is a property the
+tests pin (`todayIsoDate()` per platform otherwise). Android: the Today header carries "Switch
+trip" when signed in on a trip; it opens a `ModalBottomSheet` with `TripChoiceList` (the
+current trip marked, the rows "Switch to …" to a screen reader); `SessionViewModel` loads the
+choices and `switchTrip` updates the session state, and because every view model is keyed by
+the trip id (`viewModel(key = "today-<tripId>")`), the whole app rebinds. iOS: the same button
+and sheet (`TripSwitchSheet`, `TripChoiceList`); `SessionModel.switchTrip` updates the session
+and `RootView` keys `TodayView` by the trip id. Sample mode has no switch. Evidence:
+`android/today-trip-switch.png`, `ios/today-trip-switch.png`.
 
 ## Tests
 

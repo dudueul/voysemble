@@ -399,6 +399,15 @@ internal val EN: Map<Txt, String> = mapOf(
     INBOX_KIND_DOCUMENT to "Documents",
     INBOX_OPEN_ROW to "Open",
     INBOX_OPEN_ROW_SPOKEN to "Open {0}",
+    TRIP_SWITCH to "Switch trip",
+    TRIP_SWITCH_TITLE to "Your trips",
+    TRIP_SWITCH_SPOKEN to "Switch to {0}",
+    TRIP_CURRENT to "Current",
+    TRIP_ONLY_ONE to "You are on one trip.",
+    TRIP_SWITCH_FAILED to "Could not load your trips ({0}).",
+    TRIP_ROLE_TRAVELER to "Traveler",
+    TRIP_ROLE_LEADER to "Leader",
+    TRIP_ROLE_GUARDIAN to "Guardian",
 )
 
 internal val KO: Map<Txt, String> = mapOf(
@@ -791,4 +800,13 @@ internal val KO: Map<Txt, String> = mapOf(
     INBOX_KIND_DOCUMENT to "서류",
     INBOX_OPEN_ROW to "열기",
     INBOX_OPEN_ROW_SPOKEN to "{0} 열기",
+    TRIP_SWITCH to "여행 바꾸기",
+    TRIP_SWITCH_TITLE to "내 여행",
+    TRIP_SWITCH_SPOKEN to "{0}(으)로 바꾸기",
+    TRIP_CURRENT to "현재",
+    TRIP_ONLY_ONE to "참여 중인 여행이 하나입니다.",
+    TRIP_SWITCH_FAILED to "여행 목록을 불러오지 못했습니다 ({0}).",
+    TRIP_ROLE_TRAVELER to "여행자",
+    TRIP_ROLE_LEADER to "인솔자",
+    TRIP_ROLE_GUARDIAN to "보호자",
 )

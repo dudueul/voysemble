@@ -24,6 +24,21 @@ final class CaptureTests: XCTestCase {
         try capture(TodayView(model: TodayModel()), name: "today-dark", scheme: .dark)
     }
 
+    func testTripSwitch() throws {
+        // Slice 067 (D42): the account's trips as the sheet lists them, the current one marked.
+        let kim = ActiveTrip(organizationId: "org1", organizationName: "Seoul Arts High", tripId: "trip1", tripName: "Korea Concert Tour", participationId: "p1", role: "leader")
+        let winter = TripChoice(trip: kim, startsOn: "2026-12-26", endsOn: "2027-01-07", timezone: "Asia/Seoul", displayName: "Kim Daeun", groupName: "Bus A")
+        let spring = TripChoice(
+            trip: ActiveTrip(organizationId: "org1", organizationName: "Seoul Arts High", tripId: "trip2", tripName: "Spring Choir Exchange", participationId: "p2", role: "leader"),
+            startsOn: "2027-03-20", endsOn: "2027-03-27", timezone: "Europe/Rome", displayName: "Kim Daeun", groupName: nil)
+        try capture(
+            NavigationStack {
+                TripChoiceList(choices: [winter, spring], error: nil, currentTripId: "trip1", onPick: { _ in })
+                    .navigationTitle(tr(.tripSwitchTitle))
+            },
+            name: "today-trip-switch")
+    }
+
     func testTodayGuardian() throws {
         // D13: the guardian's card in place of the head count and leader links.
         try capture(TodayView(model: TodayModel(guardian: KoreaConcertTourFixture.shared.guardianCard(locale: "en"))), name: "today-guardian")

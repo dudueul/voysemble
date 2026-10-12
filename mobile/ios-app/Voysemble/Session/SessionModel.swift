@@ -13,6 +13,9 @@ final class SessionModel: ObservableObject {
     @Published private(set) var error: String?
     /// D28: the organizer revoked this phone; the sign-in screen says so until the next attempt.
     @Published private(set) var revokedNotice = false
+    /// Slice 067: the account's trips for the Today header's switch; nil until asked.
+    @Published private(set) var tripChoices: [TripChoice]?
+    @Published private(set) var tripChoicesError: String?
 
     let api: ApiClient
     private let manager: SessionManager
@@ -58,6 +61,29 @@ final class SessionModel: ObservableObject {
 
     func redeem(_ code: String) async {
         await run { try await self.manager.redeem(code: code) }
+    }
+
+    /// Slice 067: every trip this account is on, for the switch.
+    func loadTripChoices() async {
+        do {
+            let r = try await manager.tripChoices()
+            if let ok = (r as? ApiResultOk<TripChoices>)?.value {
+                tripChoices = ok.choices
+                tripChoicesError = nil
+            } else if let failed = r as? ApiResultFailed {
+                tripChoicesError = tr1(.tripSwitchFailed, failed.error.code)
+            } else {
+                tripChoicesError = tr(.authUnreachable)
+            }
+        } catch {
+            tripChoicesError = tr(.authUnreachable)
+        }
+    }
+
+    /// Make another trip the active one; the root re-keys on the trip and every screen rebinds.
+    func switchTrip(_ choice: TripChoice) {
+        manager.switchTo(choice: choice)
+        session = manager.current()
     }
 
     func signOut() async {

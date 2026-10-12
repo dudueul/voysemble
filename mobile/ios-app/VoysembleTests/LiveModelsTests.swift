@@ -157,6 +157,22 @@ final class LiveModelsTests: XCTestCase {
         XCTAssertTrue(model.revokedNotice)
     }
 
+    func testTripChoiceRule() {
+        // Slice 067 (D42 on the phone): on today, else the next to start, else the one that ended last.
+        let winter = TripChoice(trip: trip, startsOn: "2026-12-26", endsOn: "2027-01-07", timezone: "Asia/Seoul", displayName: "Kim", groupName: "Bus A")
+        let spring = TripChoice(
+            trip: ActiveTrip(organizationId: "org1", organizationName: "Seoul Arts High", tripId: "trip2", tripName: "Spring Choir Exchange", participationId: "p2", role: "leader"),
+            startsOn: "2027-03-20", endsOn: "2027-03-27", timezone: "Europe/Rome", displayName: "Kim", groupName: nil)
+        XCTAssertEqual(TripChoiceKt.defaultChoice(choices: [winter, spring], today: "2026-12-30")?.trip.tripId, "trip1")
+        XCTAssertEqual(TripChoiceKt.defaultChoice(choices: [winter, spring], today: "2027-02-01")?.trip.tripId, "trip2")
+        XCTAssertEqual(TripChoiceKt.defaultChoice(choices: [winter, spring], today: "2027-05-01")?.trip.tripId, "trip2")
+        XCTAssertNil(TripChoiceKt.defaultChoice(choices: [], today: "2027-05-01"))
+        XCTAssertEqual(winter.dateLine(), "2026-12-26 → 2027-01-07")
+        XCTAssertEqual(winter.roleLine(), "Leader · Bus A")
+        XCTAssertEqual(spring.roleLine(), "Leader")
+        XCTAssertEqual(spring.switchSpoken(), "Switch to Spring Choir Exchange")
+    }
+
     func testChatsSampleModeAndUnreachable() async {
         // Slice 033 (D22): sample mode lists the fixture, opens Minji's thread and shows a send as
         // pending without the network; live and unreachable says so and keeps a send as failed.

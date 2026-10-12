@@ -29,6 +29,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import com.voysemble.core.session.ActiveTrip
+import com.voysemble.core.session.TripChoice
 
 private const val OUT = "../../docs/captures/android"
 
@@ -50,6 +52,20 @@ class TodayScreenshotTest {
         compose.onNodeWithText("Acknowledge").assertExists()
         compose.onNodeWithContentDescription("Inbox, 2 unread").assertExists()
         compose.onRoot().captureRoboImage("$OUT/today-light.png")
+    }
+
+    @Test
+    fun today_trip_switch() {
+        // Slice 067 (D42): the account's trips as the sheet lists them, the current one marked.
+        val kim = ActiveTrip("org1", "Seoul Arts High", "trip1", "Korea Concert Tour", "p1", "leader")
+        val winter = TripChoice(kim, "2026-12-26", "2027-01-07", "Asia/Seoul", "Kim Daeun", "Bus A")
+        val spring = TripChoice(ActiveTrip("org1", "Seoul Arts High", "trip2", "Spring Choir Exchange", "p2", "leader"), "2027-03-20", "2027-03-27", "Europe/Rome", "Kim Daeun", null)
+        compose.setContent { VoysembleTheme(darkTheme = false) { TripChoiceList(listOf(winter, spring), null, "trip1") {} } }
+        compose.onNodeWithText("Spring Choir Exchange").assertExists()
+        compose.onNodeWithText("Seoul Arts High · Leader · Bus A").assertExists()
+        compose.onNodeWithContentDescription("Switch to Spring Choir Exchange").assertExists()
+        compose.onNodeWithContentDescription("Korea Concert Tour · Current").assertExists()
+        compose.onRoot().captureRoboImage("$OUT/today-trip-switch.png")
     }
 
     @Test

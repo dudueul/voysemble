@@ -26,8 +26,12 @@ struct TodayView: View {
     @State private var proposing: ProposalTarget?
     // Slice 061: the Today tab's pushed screens as a path, so the inbox can lead to one of them.
     @State private var todayPath: [TodayPush] = []
+    // Slice 067: the session, for the trip switch in the header (nil in sample mode and captures).
+    private let session: SessionModel?
+    @State private var switching = false
 
-    init(model: TodayModel) {
+    init(model: TodayModel, session: SessionModel? = nil) {
+        self.session = session
         _model = StateObject(wrappedValue: model)
         _bulletin = StateObject(wrappedValue: BulletinModel(api: model.api, trip: model.trip))
         _headcount = StateObject(wrappedValue: HeadcountModel(api: model.api, trip: model.trip))
@@ -154,6 +158,14 @@ struct TodayView: View {
             }
             if let error = model.error {
                 Text(error).font(.caption).foregroundStyle(Color(argb: Tokens.Color.Light.danger))
+            }
+            // Slice 067 (D42): the account's trips in a sheet; picking one rebinds every screen.
+            if let session, model.live {
+                Button(tr(.tripSwitch)) { switching = true }
+                    .font(.subheadline.weight(.semibold))
+                    .sheet(isPresented: $switching) {
+                        TripSwitchSheet(session: session, currentTripId: model.trip?.tripId ?? "")
+                    }
             }
             HStack(spacing: 6) {
                 Text("\(s.dateLabel) · \(s.timeZoneLabel)")

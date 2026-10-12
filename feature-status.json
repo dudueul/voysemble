@@ -52,6 +52,7 @@
     "chat.moderation": "working",
     "billing.fee-export": "working",
     "people.fee-column": "working",
+    "mobile.trip-switch": "working",
     "travel.bookings": "working",
     "packing.checklist": "working",
     "packing.reminders": "working",

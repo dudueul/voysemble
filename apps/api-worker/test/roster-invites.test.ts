@@ -229,6 +229,9 @@ describe('GET /v1/me/participations', () => {
         tripId: string;
         tripName: string;
         organizationName: string;
+        startsOn: string;
+        endsOn: string;
+        timezone: string;
         participation: { role: string };
       }[];
     }>(await api(traveler).get('/v1/me/participations'));
@@ -238,6 +241,10 @@ describe('GET /v1/me/participations', () => {
     expect(here[0]?.tripName).toBe('Korea Concert Tour');
     expect(here[0]?.organizationName).toBe('Seoul Arts High');
     expect(here[0]?.participation.role).toBe('traveler');
+    // Slice 067: the days and the zone ride along for the phone's trip switch.
+    expect(here[0]?.startsOn).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(here[0]?.endsOn).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(here[0]?.timezone).toBeTypeOf('string');
     const none = await json<{ participations: unknown[] }>(
       await api(nate).get('/v1/me/participations'),
     );

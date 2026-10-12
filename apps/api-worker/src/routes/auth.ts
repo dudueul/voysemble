@@ -198,6 +198,9 @@ export function mountAuthRoutes(app: OpenAPIHono<AppEnv>): void {
           organizationName: org.name,
           tripId: row.trip.id,
           tripName: row.trip.name,
+          startsOn: row.trip.startsOn,
+          endsOn: row.trip.endsOn,
+          timezone: row.trip.timezone,
           participation: row.participation,
         });
       }

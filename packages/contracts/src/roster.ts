@@ -157,6 +157,10 @@ export const MyParticipation = z
     organizationName: z.string(),
     tripId: Id,
     tripName: z.string(),
+    /** Slice 067: the trip's days and zone, so a phone can pick the trip that matters today. */
+    startsOn: z.string(),
+    endsOn: z.string(),
+    timezone: z.string(),
     participation: Participation,
   })
   .openapi('MyParticipation');

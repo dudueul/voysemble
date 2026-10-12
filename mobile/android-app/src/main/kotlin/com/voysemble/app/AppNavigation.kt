@@ -66,6 +66,7 @@ import com.voysemble.core.session.SessionState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
+import com.voysemble.app.today.TripSwitch
 
 enum class Screen { MAIN, HEADCOUNT, WINDOW, INCIDENTS, PACKING, INBOX, ROOMING }
 
@@ -95,7 +96,18 @@ fun AppRoot() {
         if (s.session !is SessionState.Ready) sessionVm.verify(link)
     }
     when (val session = s.session) {
-        is SessionState.Ready -> AppScreens(trip = session.trip, onSignOut = sessionVm::signOut)
+        is SessionState.Ready -> AppScreens(
+            trip = session.trip,
+            onSignOut = sessionVm::signOut,
+            // Slice 067: the Today header's trip switch reads and writes the session.
+            tripSwitch = TripSwitch(
+                enabled = true,
+                choices = s.choices,
+                error = s.choicesError,
+                onLoad = { sessionVm.loadTripChoices() },
+                onSwitch = { sessionVm.switchTrip(it) },
+            ),
+        )
         is SessionState.NeedsInvite -> InviteScreen(state = s, onRedeem = sessionVm::redeem, onSignOut = sessionVm::signOut)
         else -> if (s.sampleMode) {
             BackHandler { sessionVm.leaveSampleMode() }
@@ -114,7 +126,7 @@ fun AppRoot() {
 
 /** The signed-in (or sample) app: tabs plus pushed screens. `trip == null` means sample mode. */
 @Composable
-fun AppScreens(trip: ActiveTrip?, onSignOut: () -> Unit) {
+fun AppScreens(trip: ActiveTrip?, onSignOut: () -> Unit, tripSwitch: TripSwitch = TripSwitch()) {
     val nav: NavViewModel = viewModel()
     val screen by nav.screen.collectAsStateWithLifecycle()
     val today: TodayViewModel = viewModel(key = "today-${trip?.tripId ?: "sample"}") {
@@ -203,6 +215,8 @@ fun AppScreens(trip: ActiveTrip?, onSignOut: () -> Unit) {
                 packingSummary = if (packingState.live && packingState.syncing && packingState.list.items.isEmpty()) null else packingState.list.summary(),
                 onOpenInbox = { nav.open(Screen.INBOX) },
                 inboxUnread = inboxState.inbox.unreadCount(),
+                tripSwitch = if (trip != null) tripSwitch else TripSwitch(),
+                currentTripId = trip?.tripId ?: "",
             )
             MainTab.PLAN -> TabHost(today) {
                 // Slice 035: the published plan by day; leaders propose from any event (D24).

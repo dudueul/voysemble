@@ -1,6 +1,7 @@
 // Copyright 2026- At Day. All rights reserved.
 // Facts: the view model mirrors core SessionState after each call; failures become safe messages
-// with the support reference; sample mode is a UI-only flag.
+// with the support reference; sample mode is a UI-only flag. Slice 067: with several trips the
+// one that matters today is adopted; the switch lists them and rebinds the session.
 
 package com.voysemble.app.session
 
@@ -32,14 +33,38 @@ class SessionViewModelTest {
     @Before fun up() = Dispatchers.setMain(UnconfinedTestDispatcher())
     @After fun down() = Dispatchers.resetMain()
 
-    private fun vm(handler: (path: String) -> Pair<String, HttpStatusCode>): SessionViewModel {
+    private fun vm(today: String = "2026-10-12", handler: (path: String) -> Pair<String, HttpStatusCode>): SessionViewModel {
         val store = InMemorySecureStore()
         val engine = MockEngine { req ->
             val (body, status) = handler(req.url.encodedPath)
             respond(body, status, headersOf(HttpHeaders.ContentType, "application/json"))
         }
         val api = ApiClient(ApiClientConfig("h", "t") { store.get(SessionManager.KEY_TOKEN) }, engine)
-        return SessionViewModel(SessionManager(api, store))
+        return SessionViewModel(SessionManager(api, store).apply { this.today = { today } })
+    }
+
+    @Test
+    fun switching_trips_rebinds_the_session() = runTest {
+        val winter = """{"organizationId":"org1","organizationName":"Seoul Arts High","tripId":"trip-winter","tripName":"Korea Concert Tour","startsOn":"2026-12-26","endsOn":"2027-01-07","timezone":"Asia/Seoul","participation":{"id":"p1","tripId":"trip-winter","role":"leader","displayName":"Kim","groupName":"Bus A","guardianOf":null,"accountId":"a","createdAt":"x"}}"""
+        val spring = """{"organizationId":"org1","organizationName":"Seoul Arts High","tripId":"trip-spring","tripName":"Spring Choir Exchange","startsOn":"2027-03-20","endsOn":"2027-03-27","timezone":"Europe/Rome","participation":{"id":"p2","tripId":"trip-spring","role":"leader","displayName":"Kim","groupName":null,"guardianOf":null,"accountId":"a","createdAt":"x"}}"""
+        val vm = vm { path ->
+            when (path) {
+                "/v1/auth/magic-link/verify" -> """{"accountId":"a","email":"kim@example.com","isNewAccount":false,"expiresAt":"x","sessionToken":"s"}""" to HttpStatusCode.OK
+                "/v1/me/participations" -> """{"participations":[$winter,$spring]}""" to HttpStatusCode.OK
+                else -> """{"error":{"code":"NOT_FOUND","message":"x","correlationId":"c"}}""" to HttpStatusCode.NotFound
+            }
+        }
+        vm.verify("a".repeat(43)).join()
+        // Both trips are ahead of 2026-10-12: the one that starts first is adopted (D42 on the phone).
+        assertEquals("trip-winter", assertIs<SessionState.Ready>(vm.state.value.session).trip.tripId)
+        assertNull(vm.state.value.choices)
+        vm.loadTripChoices().join()
+        assertEquals(listOf("trip-winter", "trip-spring"), vm.state.value.choices?.map { it.trip.tripId })
+        vm.switchTrip(vm.state.value.choices!![1])
+        val ready = assertIs<SessionState.Ready>(vm.state.value.session)
+        assertEquals("trip-spring", ready.trip.tripId)
+        assertEquals("Spring Choir Exchange", ready.trip.tripName)
+        assertEquals("p2", ready.trip.participationId)
     }
 
     @Test

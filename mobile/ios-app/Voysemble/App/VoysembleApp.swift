@@ -32,7 +32,9 @@ struct RootView: View {
     var body: some View {
         if let ready = session.session as? SessionStateReady {
             // Live app: every screen reads the API for the active trip (slice 024).
-            TodayView(model: TodayModel(api: session.api, trip: ready.trip))
+            // Slice 067: keyed by the trip so a switch rebuilds every screen for the new one.
+            TodayView(model: TodayModel(api: session.api, trip: ready.trip), session: session)
+                .id(ready.trip.tripId)
         } else if session.sampleMode {
             TodayView(model: TodayModel())
         } else if session.session is SessionStateNeedsInvite {

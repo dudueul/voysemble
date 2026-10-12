@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.voysemble.core.session.TripChoice
 
 data class SessionUiState(
     val session: SessionState,
@@ -27,6 +28,9 @@ data class SessionUiState(
     val error: String? = null,
     /** D28: the organizer revoked this phone; the sign-in screen says so until the next attempt. */
     val revokedNotice: Boolean = false,
+    /** Slice 067: the account's trips for the switch; null until asked, the error when it failed. */
+    val choices: List<TripChoice>? = null,
+    val choicesError: String? = null,
 )
 
 class SessionViewModel(private val manager: SessionManager) : ViewModel() {
@@ -73,6 +77,21 @@ class SessionViewModel(private val manager: SessionManager) : ViewModel() {
     }
 
     fun signOut(): Job = run { manager.signOut() }
+
+    /** Slice 067: every trip this account is on, for the Today header's switch. */
+    fun loadTripChoices(): Job = viewModelScope.launch {
+        when (val r = manager.tripChoices()) {
+            is ApiResult.Ok -> _state.update { it.copy(choices = r.value.choices, choicesError = null) }
+            is ApiResult.Failed -> _state.update { it.copy(choicesError = trf(Txt.TRIP_SWITCH_FAILED, r.error.code)) }
+            is ApiResult.Unreachable -> _state.update { it.copy(choicesError = tr(Txt.AUTH_UNREACHABLE)) }
+        }
+    }
+
+    /** Make another trip the active one; the session carries it and every screen rebinds. */
+    fun switchTrip(choice: TripChoice) {
+        manager.switchTo(choice)
+        _state.update { it.copy(session = manager.current()) }
+    }
 
     private fun fail(message: String) = _state.update { it.copy(error = message) }
 

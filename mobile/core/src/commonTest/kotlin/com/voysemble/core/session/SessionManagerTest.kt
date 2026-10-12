@@ -1,7 +1,9 @@
 // Copyright 2026- At Day. All rights reserved.
 // Facts: token extraction accepts a pasted link or a bare token and nothing else; request link
 // moves to AwaitingLink; verify stores the native token and adopts an existing participation;
-// redeem stores the active trip; sign-out clears everything and calls logout.
+// redeem stores the active trip; sign-out clears everything and calls logout. Slice 067: with
+// several trips, verify adopts the one on today, else the next to start, else the one that ended
+// last; the switch lists them and makes another the active one.
 
 package com.voysemble.core.session
 
@@ -76,6 +78,41 @@ class SessionManagerTest {
         sm.signOut()
         assertEquals(SessionState.SignedOut, sm.current())
         assertEquals(true, seen.last().startsWith("POST /v1/auth/logout"))
+    }
+
+    @Test
+    fun several_trips_adopt_by_the_day_and_switch() = runTest {
+        val winter = """{"organizationId":"org1","organizationName":"Seoul Arts High","tripId":"trip-winter","tripName":"Korea Concert Tour","startsOn":"2026-12-26","endsOn":"2027-01-07","timezone":"Asia/Seoul","participation":{"id":"p1","tripId":"trip-winter","role":"leader","displayName":"Kim","groupName":"Bus A","guardianOf":null,"accountId":"acc1","createdAt":"x"}}"""
+        val spring = """{"organizationId":"org1","organizationName":"Seoul Arts High","tripId":"trip-spring","tripName":"Spring Choir Exchange","startsOn":"2027-03-20","endsOn":"2027-03-27","timezone":"Europe/Rome","participation":{"id":"p2","tripId":"trip-spring","role":"leader","displayName":"Kim","groupName":null,"guardianOf":null,"accountId":"acc1","createdAt":"x"}}"""
+        val engine = MockEngine { req ->
+            when (req.url.encodedPath) {
+                "/v1/auth/magic-link/verify" -> json("""{"accountId":"acc1","email":"kim@example.com","isNewAccount":false,"expiresAt":"x","sessionToken":"sess-1"}""")
+                "/v1/me/participations" -> json("""{"participations":[$winter,$spring]}""")
+                else -> json("""{"error":{"code":"NOT_FOUND","message":"x","correlationId":"c"}}""", HttpStatusCode.NotFound)
+            }
+        }
+        val store = InMemorySecureStore()
+        val sm = SessionManager(ApiClient(ApiClientConfig("h", "t") { store.get(SessionManager.KEY_TOKEN) }, engine), store)
+        sm.today = { "2027-02-01" }
+        assertIs<ApiResult.Ok<SessionState>>(sm.verify(token))
+        // Winter is over, spring is ahead: spring is adopted.
+        assertEquals("trip-spring", assertIs<SessionState.Ready>(sm.current()).trip.tripId)
+        val choices = assertIs<ApiResult.Ok<TripChoices>>(sm.tripChoices()).value.choices
+        assertEquals(listOf("trip-winter", "trip-spring"), choices.map { it.trip.tripId })
+        assertEquals("2026-12-26 → 2027-01-07", choices[0].dateLine())
+        assertEquals("Leader · Bus A", choices[0].roleLine())
+        assertEquals("Leader", choices[1].roleLine())
+        assertEquals("Switch to Korea Concert Tour", choices[0].switchSpoken())
+        sm.switchTo(choices[0])
+        val ready = assertIs<SessionState.Ready>(sm.current())
+        assertEquals("trip-winter", ready.trip.tripId)
+        assertEquals("Korea Concert Tour", ready.trip.tripName)
+        assertEquals("p1", ready.trip.participationId)
+        // The rule on its own: on today wins, then the next to start, then the one that ended last.
+        assertEquals("trip-winter", defaultChoice(choices, "2026-12-30")?.trip?.tripId)
+        assertEquals("trip-winter", defaultChoice(choices, "2026-10-12")?.trip?.tripId)
+        assertEquals("trip-spring", defaultChoice(choices, "2027-05-01")?.trip?.tripId)
+        assertEquals(null, defaultChoice(emptyList(), "2027-05-01"))
     }
 
     @Test

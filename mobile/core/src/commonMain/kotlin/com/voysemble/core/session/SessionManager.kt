@@ -10,6 +10,7 @@ package com.voysemble.core.session
 import com.voysemble.core.api.ApiClient
 import com.voysemble.core.api.ApiResult
 import com.voysemble.core.api.MyParticipationDto
+import com.voysemble.core.todayIsoDate
 
 /** What the app should show. */
 public sealed interface SessionState {
@@ -47,6 +48,9 @@ public class SessionManager(
     private val api: ApiClient,
     private val store: SecureStore,
 ) {
+    /** Today in the device's zone, for which trip to adopt at sign-in (slice 067); tests pin it. */
+    public var today: () -> String = { todayIsoDate() }
+
     public fun current(): SessionState {
         val token = store.get(KEY_TOKEN)
         val email = store.get(KEY_EMAIL)
@@ -92,9 +96,10 @@ public class SessionManager(
                 store.put(KEY_ACCOUNT, r.value.accountId)
                 store.put(KEY_EMAIL, r.value.email)
                 store.put(KEY_AWAITING, null)
-                // Returning users may already be on a trip: adopt the first participation.
+                // Returning users may already be on a trip: adopt the one on today, else the next
+                // to start, else the one that ended last (slice 067, D42); the switch changes it.
                 when (val p = api.myParticipations()) {
-                    is ApiResult.Ok -> p.value.participations.firstOrNull()?.let { setActive(it) }
+                    is ApiResult.Ok -> defaultChoice(p.value.participations.map(::tripChoiceOf), today())?.let { setActive(it.trip) }
                     else -> Unit
                 }
                 ApiResult.Ok(current(), r.correlationId)
@@ -126,6 +131,18 @@ public class SessionManager(
             is ApiResult.Failed -> r
             is ApiResult.Unreachable -> r
         }
+
+    /** Every trip this account is on (slice 067), for the switch on the Today header. */
+    public suspend fun tripChoices(): ApiResult<TripChoices> = when (val r = api.myParticipations()) {
+        is ApiResult.Ok -> ApiResult.Ok(TripChoices(r.value.participations.map(::tripChoiceOf)), r.correlationId)
+        is ApiResult.Failed -> r
+        is ApiResult.Unreachable -> r
+    }
+
+    /** Make another of this account's trips the active one; `current()` carries it at once. */
+    public fun switchTo(choice: TripChoice) {
+        setActive(choice.trip)
+    }
 
     public suspend fun signOut() {
         if (store.get(KEY_TOKEN) != null) api.logout()

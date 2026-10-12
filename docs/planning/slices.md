@@ -1729,7 +1729,7 @@ Not done: leader moderation; the read from the Communication page or the person 
 
 ## Slice 065: chat moderation on every surface
 
-Status: done 2026-10-12. Commit: see git log (`feat(chat): remove a message, your own or your group's as its leader; a tombstone stays (slice 065)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: 18263dc (`feat(chat): remove a message, your own or your group's as its leader; a tombstone stays (slice 065)`). CI: run 38294459304 green (web, mobile, ios); captures recorded by CI in 763f1eb.
 Spec: D22 ("per-group (leader-moderated)"), D31. Details: `docs/engineering/chat.md` (Moderation section, route row, facts).
 
 | Gate | Command | Result |
@@ -1772,3 +1772,27 @@ Built:
 - Docs: `fees.md` route row, console paragraph, facts and not-done; D23 amendment; ledger; feature flags `billing.fee-export`, `people.fee-column` working.
 
 Not done: the export in the organizer's language (English column names, for spreadsheets); the fee on the person card; a per-group subtotal in the file.
+
+## Slice 067: the trip switch on both phones
+
+Status: done 2026-10-12. Commit: see git log (`feat(mobile): switch trips from the Today header; sign-in adopts the trip that matters today (slice 067)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D42 (the active trip; amended for the phones), D12 (participations), D31. Details: `docs/engineering/mobile-auth.md` (Switching trips).
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | `roster-invites.test.ts` pins the days and the zone on `GET /v1/me/participations` (13 tests in the two touched files locally) |
+| Core JVM tests | `./gradlew :core:jvmTest` (CI `mobile` job) | `SessionManagerTest` +1 (adopt by the day, the lines, the switch, the rule); `L10nTest` the nine new keys |
+| Android tests + captures | `./gradlew :android-app:testDebugUnitTest` / `recordRoborazziDebug` (CI `mobile` job) | `SessionViewModelTest` +1 (adopt, load, switch); `TodayScreenshotTest.today_trip_switch` (`today-trip-switch.png`) |
+| iOS tests + captures | `xcodebuild test` (CI `ios` job) | `LiveModelsTests.testTripChoiceRule`; `CaptureTests.testTripSwitch` (`today-trip-switch.png`) |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+Gradle and Xcode do not run in this workspace; the CI `mobile` and `ios` jobs verify the Kotlin and Swift, desk-checked here. `todayIsoDate()` is a new expect/actual (JVM and Android through `java.time`, iOS through `NSDateFormatter`).
+
+Built:
+- Contracts and worker: `MyParticipation.startsOn`, `endsOn`, `timezone`; the route fills them.
+- Core: `TripChoice`, `TripChoices`, `tripChoiceOf`, `defaultChoice`, `dateLine`, `roleLine`, `switchSpoken`; `SessionManager.today`, `tripChoices()`, `switchTo()`; sign-in adopts by the rule; `MyParticipationDto` carries the days; strings `TRIP_*` in both languages.
+- Android: `SessionViewModel.loadTripChoices`, `switchTrip`, `SessionUiState.choices`; `today/TripSwitch.kt` (`TripSwitch`, `TripChoiceList`, `TripSwitchSheet`); the Today header's "Switch trip"; `AppRoot` wires it.
+- iOS: `SessionModel.tripChoices`, `loadTripChoices`, `switchTrip`; `Today/TripSwitchView.swift`; the Today header's button and sheet; `RootView` keys the app by the trip.
+- Docs: `mobile-auth.md` section and flow step, D42 amendment, captures README, ledger 065 and 066 (CI records), feature flag `mobile.trip-switch` working.
+
+Not done: the organization name as a section when an account spans organizations; the switch on the Bulletin tab's header; remembering the choice across sign-ins (the store keeps the last active trip already).

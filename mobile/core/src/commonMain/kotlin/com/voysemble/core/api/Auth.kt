@@ -58,6 +58,10 @@ public data class MyParticipationDto(
     val tripId: String,
     val tripName: String,
     val participation: ParticipationDto,
+    /** Slice 067: the trip's days and zone (absent from an older server). */
+    val startsOn: String? = null,
+    val endsOn: String? = null,
+    val timezone: String? = null,
 )
 
 @Serializable
