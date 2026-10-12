@@ -65,11 +65,79 @@ describe('buildPeople', () => {
     });
   });
 
+  it('attaches the fee column to travelers when a ledger is given (slice 066)', () => {
+    const entry = (
+      id: string,
+      role: string,
+      displayName: string,
+      groupName: string,
+      guardianOf: string | null,
+    ) => ({
+      id,
+      role,
+      displayName,
+      groupName,
+      guardianOf,
+      invite: 'none',
+      lastAckAt: null,
+      tripId: 't',
+      accountId: null,
+      createdAt: 'x',
+    });
+    const entries = [
+      entry('p1', 'traveler', 'Minji Park', 'Bus A', null),
+      entry('p2', 'guardian', 'Sora Park', 'Bus A', 'p1'),
+      entry('p3', 'traveler', 'Juho Kim', 'Bus B', null),
+    ] as never[];
+    const ledger = {
+      currency: 'KRW',
+      withoutFee: 1,
+      totals: {
+        expectedMinor: 450000,
+        collectedMinor: 200000,
+        refundedMinor: 0,
+        paid: 0,
+        partial: 1,
+        unpaid: 0,
+        refunded: 0,
+      },
+      rows: [
+        {
+          participationId: 'p1',
+          displayName: 'Minji Park',
+          groupName: 'Bus A',
+          currency: 'KRW',
+          amountDueMinor: 450000,
+          paidMinor: 200000,
+          refundedMinor: 0,
+          dueOn: null,
+          note: null,
+          status: 'partial',
+          updatedAt: 'x',
+          updatedByName: 'Owner',
+        },
+      ],
+    } as never;
+    const without = buildPeople(entries);
+    expect(without.fees).toBe(false);
+    expect(without.rows[0]?.fee).toBeUndefined();
+    const withFees = buildPeople(entries, ledger);
+    expect(withFees.fees).toBe(true);
+    expect(withFees.rows[0]?.fee).toEqual({
+      status: 'partial',
+      currency: 'KRW',
+      balanceMinor: 250000,
+    });
+    expect(withFees.rows[1]?.fee).toBeUndefined();
+    expect(withFees.rows[2]?.fee).toBeNull();
+  });
+
   it('is empty and honest for an empty roster', () => {
     expect(buildPeople([])).toEqual({
       rows: [],
       groups: [],
       totals: { travelers: 0, guardians: 0, leaders: 0, joined: 0, notJoined: 0 },
+      fees: false,
     });
   });
 });

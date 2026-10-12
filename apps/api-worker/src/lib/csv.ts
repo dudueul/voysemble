@@ -97,3 +97,8 @@ export function parseCsv(text: string): CsvParseResult {
   }
   return { header, rows, rejected };
 }
+
+/** One CSV line (RFC 4180): a field with a comma, a quote or a line break is quoted, quotes doubled. */
+export function csvLine(fields: string[]): string {
+  return fields.map((f) => (/[",\r\n]/.test(f) ? `"${f.replaceAll('"', '""')}"` : f)).join(',');
+}

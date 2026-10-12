@@ -25,6 +25,7 @@ when something net was paid; `unpaid` otherwise.
 | `GET .../fees` | `FeeLedger`: rows in roster order, `withoutFee` (travelers with no row), totals (expected, collected = Σ max(0, paid − refunded), refunded, counts per status), the ledger currency (first row's, KRW before any). |
 | `POST .../fees/apply` | `{ amountDueMinor, currency = KRW, dueOn = null, onlyWithoutFee = true }`: a row for every traveler. With `onlyWithoutFee` the rows that exist are untouched; without it every amount and due date is overwritten. Paid amounts always stay. |
 | `PATCH .../fees/{participationId}` | `{ amountDueMinor?, paidMinor?, refundedMinor?, dueOn?, note? }`: absent fields stay; a traveler without a row gets one (amount due 0). 404 for an unknown id or a non-traveler. |
+| `GET .../fees/export.csv` (slice 066) | The ledger as a file: `text/csv; charset=utf-8` with a byte-order mark (a Korean spreadsheet opens it as UTF-8), `Content-Disposition: attachment; filename="fees-<trip-slug>-<date>.csv"` (the date in the trip's zone), `no-store`. One row per traveler in roster order, those without a fee row included with empty amounts and status `no_fee`: `name, group, currency, amount_due, paid, refunded, balance, status, due_on, note`; amounts in the currency's major units (`450000`, `120.50`); balance = max(0, due − paid + refunded); RFC 4180 quoting (`"Lee, Hana"`). `feeLedgerCsv` and `fileSlug` are pure. |
 | `POST .../fees/import` | `{ csv }` with columns `name`, `paid`, optional `note`. `paid` is a decimal in the ledger currency and means the total paid so far (idempotent). Names match roster names ignoring case and spacing; unmatched names and bad rows are returned, never guessed. 400 without the two columns. |
 
 Travelers, guardians and leaders get 403 on every fee route. The guardian reads their traveler's
@@ -40,6 +41,12 @@ the "Set the fee" form (amount in major units with separators allowed, currency,
 ("Paid by {name}", "Save payment for {name}") and the derived status chip. The import card takes
 the bank CSV and reports "n rows applied · unmatched: … · k skipped". Money renders through
 `Intl.NumberFormat` from minor units (`formatMoney`); typed amounts parse through `parseMoney`.
+
+The Billing page's ledger card carries "Export CSV" (slice 066), a plain link to the route with
+the session cookie, so the browser saves the file. The People page's roster table gains a "Fee"
+column once the ledger has loaded (`buildPeople(entries, ledger)` attaches `fee` to travelers:
+the status chip and "₩250,000 due" while something is owed; "No fee" for a traveler without a
+row; "—" for guardians and leaders); the sample roster has no column.
 
 ## Phones
 
@@ -70,8 +77,18 @@ captures show it.
   `billing-live.png`.
 - Core: `formatMinor` for KRW, USD, EUR, JPY; the fee line for unpaid (EN and KO), paid and
   refunded; the card carries the balance only when a fee exists.
+- Export (slice 066), worker: with Minji paid (a note), Juho partial and Hana without a row, the
+  file carries the content type, the attachment name with the trip slug and the day, `no-store`,
+  the byte-order mark, the header, the three lines in roster order (Hana quoted) and a closing
+  line break; a guardian and a traveler are 403; dollars print with cents and a quoted note is
+  doubled; the slug of a Korean name falls back to "trip". Console unit: the People page shows
+  "Paid", "—" and "No fee" from a stubbed ledger; the Billing page's export link has the route's
+  href; `buildPeople` attaches the fee to travelers only when a ledger is given. Browser: the
+  download's name and its first lines on the Billing page; the Fee column with three "No fee" on
+  the People page.
 
 ## Not done
 
-Stripe for the organizer's license (D23, web only), per-traveler Stripe Checkout links, CSV
-export of the ledger, a fee column on the People page.
+Stripe for the organizer's license (D23, web only), per-traveler Stripe Checkout links; the
+export in the organizer's language (the headers are English column names for a spreadsheet);
+the fee on the person card.

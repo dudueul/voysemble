@@ -58,6 +58,11 @@ test('people: live roster, invite status, groups, filters', async ({ page }, inf
   await expect(page.getByText('Code not issued')).toHaveCount(5);
   await expect(page.getByText('guardian of Minji Park')).toBeVisible();
   await expect(page.getByText('Showing 5 of 5 people.')).toBeVisible();
+  // Slice 066: the fee column reads the ledger; nobody has a fee yet.
+  await expect(
+    page.getByTestId('people-table').locator('thead').getByText('Fee', { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText('No fee')).toHaveCount(3);
 
   // Issue codes from the API (the checklist's button does the same), reload: everyone is invited.
   expect((await call(page, 'POST', `${base}/invites`)).status).toBe(201);

@@ -3,7 +3,10 @@
 // row per traveler and keeps paid amounts on a second apply; a row update derives paid / partial /
 // refunded; a bank CSV import sets paid totals by roster name (case and spacing ignored),
 // reports unmatched names and bad rows, and is idempotent; a guardian sees their traveler's
-// balance; travelers, guardians and leaders cannot touch the ledger; the status rule.
+// balance; travelers, guardians and leaders cannot touch the ledger; the status rule. Slice 066:
+// the CSV export lists every traveler in roster order with major-unit amounts and a balance,
+// those without a fee as no_fee, quoted where a name needs it, with a byte-order mark and an
+// attachment name; only staff may fetch it.
 
 import {
   type FeeImportResponse,
@@ -15,7 +18,7 @@ import {
   type RosterImportResponse,
 } from '@voysemble/contracts';
 import { describe, expect, it } from 'vitest';
-import { toMinor } from '../src/routes/fees';
+import { feeLedgerCsv, fileSlug, toMinor } from '../src/routes/fees';
 import { api, createOrg, createTrip, json, SAMPLE_CSV, signIn } from './helpers';
 
 async function setupTrip() {
@@ -171,6 +174,96 @@ describe('fee ledger (slice 027)', () => {
     expect((await api(sora).get(`${base}/fees`)).status).toBe(403);
     expect((await api(sora).post(`${base}/fees/apply`, { amountDueMinor: 1 })).status).toBe(403);
     expect((await api(minji).patch(`${base}/fees/${minjiId}`, { paidMinor: 0 })).status).toBe(403);
+  });
+
+  it('exports the ledger as a CSV, every traveler in roster order (slice 066)', async () => {
+    const { nate, sora, minji, base, byName } = await setupTrip();
+    expect(
+      (
+        await api(nate).patch(`${base}/fees/${byName('Minji Park')}`, {
+          amountDueMinor: 450000,
+          paidMinor: 450000,
+          dueOn: '2026-11-30',
+          note: 'bank 10/12',
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await api(nate).patch(`${base}/fees/${byName('Juho Kim')}`, {
+          amountDueMinor: 450000,
+          paidMinor: 200000,
+        })
+      ).status,
+    ).toBe(200);
+    const res = await api(nate).get(`${base}/fees/export.csv`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('text/csv; charset=utf-8');
+    expect(res.headers.get('content-disposition')).toMatch(
+      /^attachment; filename="fees-korea-concert-tour-\d{4}-\d{2}-\d{2}\.csv"$/,
+    );
+    expect(res.headers.get('cache-control')).toBe('no-store');
+    // `Response.text()` strips a byte-order mark, so the bytes say whether it was sent.
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    expect([...bytes.slice(0, 3)]).toEqual([0xef, 0xbb, 0xbf]);
+    const lines = new TextDecoder().decode(bytes).split('\r\n');
+    expect(lines[0]).toBe(
+      'name,group,currency,amount_due,paid,refunded,balance,status,due_on,note',
+    );
+    const roster = await json<{ participations: { displayName: string; role: string }[] }>(
+      await api(nate).get(`${base}/roster`),
+    );
+    const travelers = roster.participations.filter((p) => p.role === 'traveler');
+    const byLine: Record<string, string> = {
+      'Minji Park': 'Minji Park,Bus A,KRW,450000,450000,0,0,paid,2026-11-30,bank 10/12',
+      'Juho Kim': 'Juho Kim,Bus A,KRW,450000,200000,0,250000,partial,,',
+      'Lee, Hana': '"Lee, Hana",Bus B,KRW,,,,,no_fee,,',
+    };
+    expect(lines.slice(1, 4)).toEqual(travelers.map((p) => byLine[p.displayName]));
+    expect(lines[4]).toBe('');
+    expect((await api(sora).get(`${base}/fees/export.csv`)).status).toBe(403);
+    expect((await api(minji).get(`${base}/fees/export.csv`)).status).toBe(403);
+    // The pure pieces: dollars with cents, a quoted note, the slug.
+    const usd = feeLedgerCsv(
+      {
+        currency: 'USD',
+        withoutFee: 0,
+        totals: {
+          expectedMinor: 0,
+          collectedMinor: 0,
+          refundedMinor: 0,
+          paid: 0,
+          partial: 0,
+          unpaid: 0,
+          refunded: 0,
+        },
+        rows: [
+          {
+            participationId: 'p1',
+            displayName: 'Ana',
+            groupName: null,
+            currency: 'USD',
+            amountDueMinor: 12050,
+            paidMinor: 5000,
+            refundedMinor: 0,
+            dueOn: null,
+            note: 'said "later"',
+            status: 'partial',
+            updatedAt: '2026-10-12T00:00:00.000Z',
+            updatedByName: 'Owner',
+          },
+        ],
+      },
+      [
+        { id: 'p1', role: 'traveler', displayName: 'Ana', groupName: null } as never,
+        { id: 'g1', role: 'guardian', displayName: 'Guardian', groupName: null } as never,
+      ],
+    );
+    expect(usd.slice(1).split('\r\n')[1]).toBe(
+      'Ana,,USD,120.50,50.00,0.00,70.50,partial,,"said ""later"""',
+    );
+    expect(fileSlug('Korea Concert Tour 2026')).toBe('korea-concert-tour-2026');
+    expect(fileSlug('서울 투어')).toBe('trip');
   });
 
   it('feeStatusOf and toMinor are the one rule', () => {

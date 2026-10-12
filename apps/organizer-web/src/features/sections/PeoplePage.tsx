@@ -12,6 +12,7 @@ import { Icons } from '../../app/shell/icons';
 import { FROZEN_NOW } from '../../fixtures/korea-concert-tour';
 import { people, peopleTotals } from '../../fixtures/sections';
 import { ApiError } from '../../lib/api-client';
+import { feesQuery, formatMoney } from '../../lib/fees-api';
 import { relativeTo } from '../../lib/format';
 import {
   buildPeople,
@@ -40,6 +41,7 @@ const EMPTY: PeopleModel = {
   rows: [],
   groups: [],
   totals: { travelers: 0, guardians: 0, leaders: 0, joined: 0, notJoined: 0 },
+  fees: false,
 };
 
 /** The fixture mapped onto the live row shape so one table renders both modes. */
@@ -58,6 +60,7 @@ function fixtureModel(): PeopleModel {
       lastAckAt: p.lastAckAt ?? null,
     })),
     groups: ['Bus A', 'Bus B'],
+    fees: false,
     totals: { ...peopleTotals, notJoined: total - peopleTotals.joined },
   };
 }
@@ -697,6 +700,7 @@ function PeopleTable({
                   <th>{s.colGroup}</th>
                   <th>{s.colStatus}</th>
                   <th>{s.colLastAck}</th>
+                  {model.fees ? <th>{s.colFee}</th> : null}
                   <th>{s.colNotes}</th>
                 </tr>
               </thead>
@@ -735,6 +739,11 @@ function PeopleTable({
                       <span className={`chip chip--${p.status}`}>{s.status[p.status]}</span>
                     </td>
                     <td className="muted">{p.lastAckAt ? relativeTo(now, p.lastAckAt) : '—'}</td>
+                    {model.fees ? (
+                      <td data-testid={`fee-${p.id}`}>
+                        <FeeCell fee={p.fee} />
+                      </td>
+                    ) : null}
                     <td>
                       <CareCell orgId={orgId ?? ''} tripId={tripId ?? ''} p={p} live={live} />
                     </td>
@@ -756,6 +765,20 @@ function PeopleTable({
   );
 }
 
+/** Slice 066: a traveler's fee status and what is still owed; "No fee" without a row; "—" for others. */
+function FeeCell({ fee }: { fee: PersonRow['fee'] }) {
+  if (fee === undefined) return <span className="muted">—</span>;
+  if (fee === null) return <span className="muted">{s.feeNone}</span>;
+  return (
+    <span className="fee-cell">
+      <span className={`chip chip--fee-${fee.status}`}>{strings.billing.status[fee.status]}</span>
+      {fee.balanceMinor > 0 ? (
+        <span className="muted small">{s.feeDue(formatMoney(fee.balanceMinor, fee.currency))}</span>
+      ) : null}
+    </span>
+  );
+}
+
 export function PeoplePage() {
   const [selected, setSelected] = useState<string | null>(null);
   const orgs = useQuery(orgsQuery);
@@ -764,6 +787,11 @@ export function PeoplePage() {
   const trip = useActiveTrip(org?.id ?? '', trips.data);
   const roster = useQuery({
     ...rosterQuery(org?.id ?? '', trip?.id ?? ''),
+    enabled: Boolean(org && trip),
+  });
+  // Slice 066 (D23): the fee column reads the ledger; the page renders without it until it lands.
+  const ledger = useQuery({
+    ...feesQuery(org?.id ?? '', trip?.id ?? ''),
     enabled: Boolean(org && trip),
   });
   // Invites are issued from the setup checklist (D26); the button is the same door in both modes.
@@ -809,7 +837,7 @@ export function PeoplePage() {
       />
     );
   }
-  const model = buildPeople(roster.data);
+  const model = buildPeople(roster.data, ledger.data);
   const selectedId = selected && model.rows.some((r) => r.id === selected) ? selected : null;
   return (
     <PeopleTable

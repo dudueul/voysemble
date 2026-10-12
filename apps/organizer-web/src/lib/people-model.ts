@@ -4,7 +4,7 @@
 // the page renders. Join status comes from the server's invite status (D12); the care-note
 // column stays empty until D27 lands (never invented on the client).
 
-import type { RosterEntry, TripRole } from '@voysemble/contracts';
+import type { Currency, FeeLedger, FeeStatus, RosterEntry, TripRole } from '@voysemble/contracts';
 
 export type JoinStatus = 'joined' | 'invited' | 'expired' | 'pending';
 
@@ -19,6 +19,18 @@ export interface PersonRow {
   /** A sealed care note is on file (D27, slice 030); the content needs an audited reveal. */
   hasCareNote: boolean;
   lastAckAt: string | null;
+  /**
+   * Slice 066 (D23): the traveler's fee from the ledger when the page has it; null for a traveler
+   * without a fee row; absent for guardians and leaders, and when no ledger was given.
+   */
+  fee?: PersonFee | null;
+}
+
+export interface PersonFee {
+  status: FeeStatus;
+  currency: Currency;
+  /** What is still owed: max(0, due − paid + refunded). */
+  balanceMinor: number;
 }
 
 export interface PeopleTotals {
@@ -34,6 +46,8 @@ export interface PeopleModel {
   /** Distinct group names in roster order, for the filter chips. */
   groups: string[];
   totals: PeopleTotals;
+  /** True when the rows carry the fee column (a ledger was given; slice 066). */
+  fees: boolean;
 }
 
 const STATUS: Record<RosterEntry['invite'], JoinStatus> = {
@@ -48,8 +62,18 @@ export function joinStatusOf(invite: RosterEntry['invite']): JoinStatus {
   return STATUS[invite];
 }
 
-export function buildPeople(entries: RosterEntry[]): PeopleModel {
+export function buildPeople(entries: RosterEntry[], ledger?: FeeLedger): PeopleModel {
   const names = new Map(entries.map((e) => [e.id, e.displayName]));
+  const feeRows = new Map((ledger?.rows ?? []).map((r) => [r.participationId, r]));
+  const feeOf = (e: RosterEntry): PersonFee | null => {
+    const r = feeRows.get(e.id);
+    if (!r) return null;
+    return {
+      status: r.status,
+      currency: r.currency,
+      balanceMinor: Math.max(0, r.amountDueMinor - r.paidMinor + r.refundedMinor),
+    };
+  };
   const rows: PersonRow[] = entries.map((e) => ({
     id: e.id,
     name: e.displayName,
@@ -59,6 +83,7 @@ export function buildPeople(entries: RosterEntry[]): PeopleModel {
     guardianOfName: e.guardianOf ? (names.get(e.guardianOf) ?? null) : null,
     hasCareNote: e.hasCareNote ?? false,
     lastAckAt: e.lastAckAt,
+    ...(ledger && e.role === 'traveler' ? { fee: feeOf(e) } : {}),
   }));
   const groups: string[] = [];
   for (const e of entries)
@@ -75,5 +100,6 @@ export function buildPeople(entries: RosterEntry[]): PeopleModel {
       joined,
       notJoined: entries.length - joined,
     },
+    fees: ledger !== undefined,
   };
 }

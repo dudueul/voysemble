@@ -194,9 +194,43 @@ describe('sample sections', () => {
           }),
         ],
       }),
+      // Slice 066: the fee column from the ledger; Juho has no row yet.
+      [`GET ${base}/fees`]: () => ({
+        currency: 'KRW',
+        withoutFee: 1,
+        totals: {
+          expectedMinor: 450000,
+          collectedMinor: 450000,
+          refundedMinor: 0,
+          paid: 1,
+          partial: 0,
+          unpaid: 0,
+          refunded: 0,
+        },
+        rows: [
+          {
+            participationId: 'p1',
+            displayName: 'Minji Park',
+            groupName: 'Bus A',
+            currency: 'KRW',
+            amountDueMinor: 450000,
+            paidMinor: 450000,
+            refundedMinor: 0,
+            dueOn: '2026-11-30',
+            note: null,
+            status: 'paid',
+            updatedAt: '2026-10-12T00:00:00.000Z',
+            updatedByName: 'Owner',
+          },
+        ],
+      }),
     });
     renderWithQuery(<PeoplePage />);
     await waitFor(() => expect(screen.getByTestId('person-p1')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('fee-p1')).toBeTruthy());
+    expect(text(screen.getByTestId('fee-p1'))).toBe('Paid');
+    expect(text(screen.getByTestId('fee-p2'))).toBe('—');
+    expect(text(screen.getByTestId('fee-p3'))).toBe('No fee');
     expect(screen.getByText('Live')).toBeTruthy();
     expect(screen.queryByText('Sample data')).toBeNull();
     expect(text(screen.getByTestId('people-joined'))).toBe('1');
@@ -650,6 +684,12 @@ describe('sample sections', () => {
       }),
     );
     renderWithQuery(<BillingPage />);
+    // Slice 066: the ledger's export link.
+    await waitFor(() =>
+      expect(screen.getByRole('link', { name: 'Export CSV' }).getAttribute('href')).toBe(
+        `${base}/fees/export.csv`,
+      ),
+    );
     await waitFor(() => expect(screen.getByTestId('fee-p1')).toBeTruthy());
     expect(screen.getByText('Live')).toBeTruthy();
     expect(text(screen.getByTestId('ledger-collected'))).toBe('₩0 of ₩450,000 collected');

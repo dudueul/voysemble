@@ -163,6 +163,10 @@ export const en = {
     colStatus: 'Status',
     colLastAck: 'Last ack',
     colNotes: 'Care note',
+    // Slice 066 (D23): the fee column.
+    colFee: 'Fee',
+    feeNone: 'No fee',
+    feeDue: (amount: string) => `${amount} due`,
     status: {
       joined: 'Joined',
       invited: 'Invited',
@@ -820,6 +824,7 @@ export const en = {
       'Your Voysemble plan, and the traveler fee ledger you keep. No card data is stored here.',
     ledger: 'Traveler fee ledger',
     importBank: 'Import bank CSV',
+    exportCsv: 'Export CSV',
     collected: (a: string, b: string) => `${a} of ${b} collected`,
     counts: (p: number, pa: number, u: number, r: number) =>
       `${p} paid · ${pa} partial · ${u} unpaid · ${r} refunded`,

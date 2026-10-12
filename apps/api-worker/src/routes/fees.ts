@@ -2,23 +2,27 @@
 //
 // Traveler fee ledger routes (D23, slice 027). Owner or organizer only: the ledger is the
 // organizer's record of money collected outside Voysemble. Guardians read their own balance
-// through the guardian status route; nobody pays through the API.
+// through the guardian status route; nobody pays through the API. Slice 066: the ledger as a CSV
+// file for the organizer's own spreadsheet, every traveler in roster order.
 
 import { createRoute, type OpenAPIHono } from '@hono/zod-openapi';
 import {
   ApplyFeeRequest,
+  type Currency,
   FeeImportRequest,
   FeeImportResponse,
   FeeLedger,
   FeeRow,
   minorUnitsOf,
+  type Participation,
   UpdateFeeRequest,
 } from '@voysemble/contracts';
 import { HTTPException } from 'hono/http-exception';
 import { z } from 'zod';
 import { requireAuth, requireOrgRole } from '../auth/middleware';
 import type { AppEnv } from '../env';
-import { CsvError, parseCsv } from '../lib/csv';
+import { CsvError, csvLine, parseCsv } from '../lib/csv';
+import { localClock, nowIso } from '../lib/time';
 import { orgObject } from '../org/client';
 import { ERROR_RESPONSES, SESSION_SECURITY } from './openapi-common';
 import { TripParams } from './trips';
@@ -116,6 +120,95 @@ export function toMinor(value: string, exponent: number): number | null {
   return Math.round(Number(cleaned) * 10 ** exponent);
 }
 
+const exportRoute = createRoute({
+  method: 'get',
+  path: '/v1/orgs/{orgId}/trips/{tripId}/fees/export.csv',
+  tags: ['fees'],
+  summary: 'The ledger as a CSV file (owner, organizer)',
+  description:
+    "Slice 066 (D23). One row per traveler in roster order, travelers without a fee row included (status `no_fee`): name, group, currency, amount_due, paid, refunded, balance, status, due_on, note. Amounts in the currency's major units. UTF-8 with a byte-order mark so a Korean spreadsheet opens it; sent as an attachment named by the trip and the day in its zone; never cached.",
+  security: SESSION_SECURITY,
+  request: { params: TripParams },
+  responses: {
+    200: { description: 'The CSV file.', content: { 'text/csv': { schema: z.string() } } },
+    401: ERROR_RESPONSES[401],
+    403: ERROR_RESPONSES[403],
+    404: ERROR_RESPONSES[404],
+    500: ERROR_RESPONSES[500],
+  },
+});
+
+/** Minor units as major-unit text: 450000 KRW → "450000", 12050 USD → "120.50". */
+function majorText(minor: number, currency: Currency): string {
+  const exp = minorUnitsOf(currency);
+  return exp === 0 ? String(minor) : (minor / 10 ** exp).toFixed(exp);
+}
+
+/** The export's text: a header, then every traveler of the roster in its order (slice 066). */
+export function feeLedgerCsv(ledger: FeeLedger, roster: Participation[]): string {
+  const byId = new Map(ledger.rows.map((r) => [r.participationId, r]));
+  const lines = [
+    csvLine([
+      'name',
+      'group',
+      'currency',
+      'amount_due',
+      'paid',
+      'refunded',
+      'balance',
+      'status',
+      'due_on',
+      'note',
+    ]),
+  ];
+  for (const p of roster.filter((p) => p.role === 'traveler')) {
+    const r = byId.get(p.id);
+    if (!r) {
+      lines.push(
+        csvLine([
+          p.displayName,
+          p.groupName ?? '',
+          ledger.currency,
+          '',
+          '',
+          '',
+          '',
+          'no_fee',
+          '',
+          '',
+        ]),
+      );
+      continue;
+    }
+    const balance = Math.max(0, r.amountDueMinor - r.paidMinor + r.refundedMinor);
+    lines.push(
+      csvLine([
+        r.displayName,
+        r.groupName ?? '',
+        r.currency,
+        majorText(r.amountDueMinor, r.currency),
+        majorText(r.paidMinor, r.currency),
+        majorText(r.refundedMinor, r.currency),
+        majorText(balance, r.currency),
+        r.status,
+        r.dueOn ?? '',
+        r.note ?? '',
+      ]),
+    );
+  }
+  return `\uFEFF${lines.join('\r\n')}\r\n`;
+}
+
+/** "Korea Concert Tour 2026" → "korea-concert-tour-2026"; "trip" when nothing survives. */
+export function fileSlug(name: string): string {
+  return (
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'trip'
+  );
+}
+
 export function mountFeeRoutes(app: OpenAPIHono<AppEnv>): void {
   const staff = async (
     c: Parameters<Parameters<typeof app.openapi>[1]>[0],
@@ -133,6 +226,20 @@ export function mountFeeRoutes(app: OpenAPIHono<AppEnv>): void {
     const { orgId, tripId } = c.req.valid('param');
     const { org } = await staff(c, orgId, tripId);
     return c.json(await org.listFees(tripId), 200);
+  });
+
+  app.openapi(exportRoute, async (c) => {
+    const { orgId, tripId } = c.req.valid('param');
+    const { org } = await staff(c, orgId, tripId);
+    const trip = await org.getTrip(tripId);
+    if (!trip) throw new HTTPException(404, { message: 'Trip not found.' });
+    const csv = feeLedgerCsv(await org.listFees(tripId), await org.listRoster(tripId));
+    const date = localClock(nowIso(), trip.timezone).date;
+    return c.body(csv, 200, {
+      'content-type': 'text/csv; charset=utf-8',
+      'content-disposition': `attachment; filename="fees-${fileSlug(trip.name)}-${date}.csv"`,
+      'cache-control': 'no-store',
+    });
   });
 
   app.openapi(applyRoute, async (c) => {

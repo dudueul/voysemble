@@ -2701,3 +2701,11 @@ fieldset.filters {
 .bubble__removed {
   opacity: 0.75;
 }
+
+/* Slice 066: the People page's fee column. */
+.fee-cell {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}

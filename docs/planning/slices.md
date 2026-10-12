@@ -1709,7 +1709,7 @@ Not done: a display name on accounts; a trip switch on the phones; archiving a c
 
 ## Slice 064: chat in the reader's language; the organizer's audited read on an open incident
 
-Status: done 2026-10-12. Commit: see git log (`feat(chat): cards in the reader's language; the organizer reads a named traveler's channels on an open incident, audited (slice 064)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: d0500e6 (`feat(chat): cards in the reader's language; the organizer reads a named traveler's channels on an open incident, audited (slice 064)`). CI: run 38293151640 green (web, mobile, ios); captures recorded by CI in fef1c4b.
 Spec: D22 (chat; the audit clause done), D17 (incidents), D13 (what a guardian never sees: unchanged), D31. Details: `docs/engineering/chat.md` (the slice 064 section and facts), `incidents.md` (console).
 
 | Gate | Command | Result |
@@ -1753,3 +1753,22 @@ Built:
 - Docs: `chat.md` Moderation section, route row, storage row, facts and not-done; D22 amendment; captures README; ledger; feature flag `chat.moderation` working.
 
 Not done: a reason shown to the sender; an organizer's removal inside a group channel (D22 keeps those to leaders); undo.
+
+## Slice 066: the fee ledger as a CSV file; the fee column on People
+
+Status: done 2026-10-12. Commit: see git log (`feat(fees): export the ledger as a CSV file; the People page shows each traveler's fee (slice 066)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D23 (the ledger; amended), D21, D31. Details: `docs/engineering/fees.md` (the route row, the console paragraph, facts).
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 40 files, 111 tests (`fees.test.ts` +1: the export's headers, bytes, lines, access; the pure pieces) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 22 files, 133 tests (`people-model.test.ts` +1; the People and Billing live cases gain the column and the link) |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e -- billing.spec.ts people.spec.ts` | 2 passed on desktop-1440 (the download's name and lines; the Fee column; `billing-live.png` and `people-live.png` regenerated) |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+Built:
+- Worker: `lib/csv.ts` `csvLine`; `routes/fees.ts` `feeLedgerCsv`, `fileSlug`, `GET .../fees/export.csv` (attachment, byte-order mark, `no-store`, every traveler in roster order, `no_fee` rows); `fees.test.ts` +1.
+- Console: `buildPeople(entries, ledger)` attaches `PersonFee` to travelers and sets `PeopleModel.fees`; the People page reads the ledger and shows the Fee column (`FeeCell`: the status chip, "₩250,000 due", "No fee", "—"); the Billing page's "Export CSV" link; strings EN/KO; CSS; `people-model.test.ts` +1, the People and Billing unit cases, `billing.spec.ts` (the download's name and lines) and `people.spec.ts` (the column).
+- Docs: `fees.md` route row, console paragraph, facts and not-done; D23 amendment; ledger; feature flags `billing.fee-export`, `people.fee-column` working.
+
+Not done: the export in the organizer's language (English column names, for spreadsheets); the fee on the person card; a per-group subtotal in the file.

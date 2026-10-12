@@ -165,6 +165,9 @@ export const ko: Strings = {
     colStatus: '상태',
     colLastAck: '마지막 확인',
     colNotes: '건강 메모',
+    colFee: '참가비',
+    feeNone: '요금 없음',
+    feeDue: (amount: string) => `${amount} 미납`,
     status: {
       joined: '참여함',
       invited: '초대됨',
@@ -803,6 +806,7 @@ export const ko: Strings = {
       'Voysemble 요금제와, 직접 관리하는 참가자 요금 장부입니다. 카드 정보는 여기에 저장되지 않습니다.',
     ledger: '참가자 요금 장부',
     importBank: '은행 CSV 가져오기',
+    exportCsv: 'CSV 내보내기',
     collected: (a: string, b: string) => `${b} 중 ${a} 수납`,
     counts: (p: number, pa: number, u: number, r: number) =>
       `완납 ${p} · 일부 ${pa} · 미납 ${u} · 환불 ${r}`,

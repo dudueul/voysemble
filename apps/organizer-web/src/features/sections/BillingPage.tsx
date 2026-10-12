@@ -343,7 +343,20 @@ export function BillingPage() {
         actions={<span className="chip chip--active">{strings.dashboard.live}</span>}
       >
         <div className="grid">
-          <Card title={s.ledger} id="bill-ledger">
+          <Card
+            title={s.ledger}
+            id="bill-ledger"
+            action={
+              // Slice 066 (D23): the ledger as a file; a plain link, the session cookie travels.
+              <a
+                className="btn btn--ghost btn--sm"
+                href={`/v1/orgs/${org.id}/trips/${trip.id}/fees/export.csv`}
+                download
+              >
+                {s.exportCsv}
+              </a>
+            }
+          >
             {ledgerQuery.isPending ? (
               <p className="state__body" role="status">
                 {s.loading}

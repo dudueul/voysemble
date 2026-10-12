@@ -2,6 +2,7 @@
 // Browser facts + captures for the live fee ledger (slice 027, D23): set a fee for every traveler,
 // record a payment, import a bank CSV, totals and statuses from the API.
 
+import { readFile } from 'node:fs/promises';
 import { expect, type Page, test } from '@playwright/test';
 import { OUT, signInWithOrg } from './helpers';
 
@@ -75,4 +76,16 @@ test('billing: live ledger, set fee, payment, bank CSV', async ({ page }, info) 
     '1 paid · 1 partial · 1 unpaid · 0 refunded',
   );
   await page.screenshot({ path: `${OUT}/${info.project.name}/billing-live.png`, fullPage: true });
+
+  // Slice 066: the ledger as a CSV file, every traveler in roster order, Minji paid, a balance.
+  const downloading = page.waitForEvent('download');
+  await page.getByRole('link', { name: 'Export CSV' }).click();
+  const file = await downloading;
+  expect(file.suggestedFilename()).toMatch(/^fees-korea-concert-tour-2026-\d{4}-\d{2}-\d{2}\.csv$/);
+  const csv = await readFile(await file.path(), 'utf8');
+  expect(
+    csv.startsWith('\uFEFFname,group,currency,amount_due,paid,refunded,balance,status,due_on,note'),
+  ).toBe(true);
+  expect(csv).toContain('Minji Park,Bus A,KRW,450000,450000,0,0,paid,2026-11-30,');
+  expect(csv).toContain('Juho Kim,Bus A,KRW,450000,200000,0,250000,partial,2026-11-30,');
 });
