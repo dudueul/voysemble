@@ -1,7 +1,8 @@
 // Copyright 2026- At Day. All rights reserved.
 // Code-based TanStack Router tree.
 // Public: /sign-in, /auth/verify, /auth/reauth (slice 045), /invitations/accept (slice 042),
-// /driver/$orgId (slice 049, the driver's bus sheet). Everything else sits under a
+// /driver/$orgId (slice 049, the driver's bus sheet), /hotel/$orgId (slice 058, the hotel's
+// sheet). Everything else sits under a
 // pathless layout whose beforeLoad
 // requires a session (GET /v1/me) and redirects to /sign-in otherwise. `/` = command center on
 // fixtures; /setup = first-run checklist on the real API; other sections are honest placeholders.
@@ -14,6 +15,7 @@ import { SignInPage } from '../features/auth/SignInPage';
 import { VerifyPage } from '../features/auth/VerifyPage';
 import { CommandCenterPage } from '../features/command-center/CommandCenterPage';
 import { DriverSheetPage } from '../features/driver/DriverSheetPage';
+import { HotelSheetPage } from '../features/hotel/HotelSheetPage';
 import { ItineraryPage } from '../features/itinerary/ItineraryPage';
 import { RevisionHistoryPage } from '../features/itinerary/RevisionHistoryPage';
 import { NotificationsPage } from '../features/notifications/NotificationsPage';
@@ -63,6 +65,13 @@ const driverRoute = createRoute({
 });
 
 /** The emailed organizer invitation lands here (slice 042); signed out, it shows the sign-in form. */
+/** The hotel's sealed link lands here (slice 058): no session, the token in the fragment. */
+const hotelRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/hotel/$orgId',
+  component: HotelSheetPage,
+});
+
 const acceptInvitationRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/invitations/accept',
@@ -177,6 +186,7 @@ export const router = createRouter({
     reauthRoute,
     acceptInvitationRoute,
     driverRoute,
+    hotelRoute,
     appRoute.addChildren([
       indexRoute,
       setupRoute,

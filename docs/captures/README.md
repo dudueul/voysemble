@@ -286,3 +286,11 @@ its rationale and steps and the apply button. Produced by
 page after two publishes of the sample trip: revision 2 with its change line ("Day 1 · Group
 check-in · 09:00 → 08:30"), revision 1 as the first publish with its snapshot unfolded. Produced
 by `apps/organizer-web/e2e/itinerary.spec.ts`. No phone change.
+
+## Slice 058 (2026-10-12): rooming lists and the hotel's sealed link
+
+`web/desktop-1440/travel-rooming.png`, `web/laptop-1280/travel-rooming.png`: the Travel page with
+the hotel's rooming list unfolded, Minji and Juho in room 204, the summary line. `web/<project>/
+hotel-sheet.png`: the hotel's sheet opened through the sealed link in a second browser context,
+the stay, room 204 with its two names, the unassigned, the leader by name. Produced by
+`apps/organizer-web/e2e/travel.spec.ts`. No phone change.

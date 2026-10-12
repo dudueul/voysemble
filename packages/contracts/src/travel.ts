@@ -208,3 +208,88 @@ export const DriverSheet = z
   })
   .openapi('DriverSheet');
 export type DriverSheet = z.infer<typeof DriverSheet>;
+
+/* ---------- Rooming lists and the hotel's sealed link (D27, D41; slice 058) ---------- */
+
+/** One person of the roster (leaders and travelers) and the room they are in, if any. */
+export const RoomAssignment = z
+  .object({
+    participationId: Id,
+    displayName: z.string(),
+    role: z.enum(['leader', 'traveler']),
+    groupName: z.string().nullable(),
+    room: z.string().nullable(),
+  })
+  .openapi('RoomAssignment');
+export type RoomAssignment = z.infer<typeof RoomAssignment>;
+
+/** A hotel's rooming list: who sleeps where, and how much of the block is used. */
+export const RoomingList = z
+  .object({
+    hotel: z.object({
+      id: Id,
+      name: z.string(),
+      city: z.string(),
+      checkIn: CalendarDate,
+      checkOut: CalendarDate,
+      rooms: z.number().int(),
+    }),
+    /** Leaders first, then travelers by group and name. */
+    people: z.array(RoomAssignment),
+    /** Distinct rooms with someone in them. */
+    roomsUsed: z.number().int(),
+    assigned: z.number().int(),
+  })
+  .openapi('RoomingList');
+export type RoomingList = z.infer<typeof RoomingList>;
+
+/** Put one person in a room (a short label: "204", "3F-12"); null takes them out. */
+export const AssignRoomRequest = z
+  .object({ participationId: Id, room: z.string().trim().min(1).max(20).nullable() })
+  .openapi('AssignRoomRequest');
+export type AssignRoomRequest = z.infer<typeof AssignRoomRequest>;
+
+/** The hotel's link has the driver's shape: a hash kept, a URL shown once, opens counted. */
+export const HotelLink = DriverLink.openapi('HotelLink');
+export type HotelLink = z.infer<typeof HotelLink>;
+export const HotelLinkList = z.object({ links: z.array(HotelLink) }).openapi('HotelLinkList');
+export type HotelLinkList = z.infer<typeof HotelLinkList>;
+export const CreateHotelLinkResponse = z
+  .object({ link: HotelLink, url: z.string() })
+  .openapi('CreateHotelLinkResponse');
+export type CreateHotelLinkResponse = z.infer<typeof CreateHotelLinkResponse>;
+export const OpenHotelSheetRequest = OpenDriverSheetRequest.openapi('OpenHotelSheetRequest');
+export type OpenHotelSheetRequest = z.infer<typeof OpenHotelSheetRequest>;
+
+export const HotelSheetRoom = z
+  .object({ room: z.string(), names: z.array(z.string()) })
+  .openapi('HotelSheetRoom');
+export type HotelSheetRoom = z.infer<typeof HotelSheetRoom>;
+
+/**
+ * What the hotel desk sees: the stay, the rooming list by room and the leaders' names. Never a
+ * contact, a guardian, a care note or a document (D13, D27).
+ */
+export const HotelSheet = z
+  .object({
+    organizationName: z.string(),
+    tripName: z.string(),
+    hotel: z.object({
+      name: z.string(),
+      city: z.string(),
+      checkIn: CalendarDate,
+      checkOut: CalendarDate,
+      nights: z.number().int(),
+      rooms: z.number().int(),
+      confirmation: z.string(),
+    }),
+    /** Sorted by room label. */
+    rooms: z.array(HotelSheetRoom),
+    /** People on the roster without a room yet, by name. */
+    unassigned: z.array(z.string()),
+    leaders: z.array(z.string()),
+    people: z.number().int(),
+    expiresAt: Timestamp,
+  })
+  .openapi('HotelSheet');
+export type HotelSheet = z.infer<typeof HotelSheet>;

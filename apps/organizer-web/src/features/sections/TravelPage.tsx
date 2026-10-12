@@ -14,6 +14,7 @@ import type {
   FlightStatus,
   Hotel,
   Organization,
+  RoomAssignment,
   Trip,
 } from '@voysemble/contracts';
 import { type FormEvent, useState } from 'react';
@@ -22,8 +23,10 @@ import { buses, flights, hotels } from '../../fixtures/sections';
 import { errorText } from '../../lib/errors';
 import {
   driverLinksQuery,
+  hotelLinksQuery,
   orgsQuery,
   pickActiveOrg,
+  roomingQuery,
   travel as travelApi,
   travelQuery,
   tripsQuery,
@@ -145,6 +148,8 @@ function LiveTravel({ org, trip }: { org: Organization; trip: Trip }) {
                   {data.hotels.map((h) => (
                     <HotelRow
                       key={h.id}
+                      org={org}
+                      trip={trip}
                       hotel={h}
                       busy={act.isPending}
                       onRemove={() => remove(h.id)}
@@ -240,14 +245,20 @@ function FlightRow({
 }
 
 function HotelRow({
+  org,
+  trip,
   hotel: h,
   busy,
   onRemove,
 }: {
+  org: Organization;
+  trip: Trip;
   hotel: Hotel;
   busy: boolean;
   onRemove: () => void;
 }) {
+  // Slice 058 (D41): the rooming list unfolds under the row; the hotel's link sits beside it.
+  const [roomingOpen, setRoomingOpen] = useState(false);
   return (
     <li className="hotel" data-testid={`booking-${h.id}`}>
       <span className="flight__icon" aria-hidden="true">
@@ -263,7 +274,121 @@ function HotelRow({
           {h.confirmation ? ` · ${h.confirmation}` : ''}
         </span>
       </div>
-      <RemoveButton name={h.name} busy={busy} onClick={onRemove} />
+      <div className="missing__actions">
+        <button
+          type="button"
+          className="btn btn--ghost btn--sm"
+          aria-label={s.roomingOf(h.name)}
+          aria-expanded={roomingOpen}
+          onClick={() => setRoomingOpen((v) => !v)}
+        >
+          {roomingOpen ? s.roomingHide : s.rooming}
+        </button>
+        <RemoveButton name={h.name} busy={busy} onClick={onRemove} />
+      </div>
+      {/* The list and the links span the row's columns (CSS .rooming, .driver-links). */}
+      {roomingOpen ? <Rooming org={org} trip={trip} hotel={h} /> : null}
+      <SealedLinks org={org} trip={trip} bookingId={h.id} kind="hotel" label={h.name} />
+    </li>
+  );
+}
+
+/** The rooming list of one hotel: a room field per leader and traveler, saved as it is confirmed. */
+function Rooming({ org, trip, hotel }: { org: Organization; trip: Trip; hotel: Hotel }) {
+  const qc = useQueryClient();
+  const query = roomingQuery(org.id, trip.id, hotel.id);
+  const list = useQuery(query);
+  const [note, setNote] = useState<string | null>(null);
+  const save = useMutation({
+    mutationFn: (input: { participationId: string; room: string | null; name: string }) =>
+      travelApi.assignRoom(org.id, trip.id, hotel.id, {
+        participationId: input.participationId,
+        room: input.room,
+      }),
+    onSuccess: (next, input) => {
+      qc.setQueryData(query.queryKey, next);
+      setNote(s.roomSaved(input.name, input.room));
+    },
+    onError: (e) => setNote(errorText(e, s.roomFailed)),
+  });
+  if (list.isPending) {
+    return (
+      <p className="muted small" role="status">
+        {strings.settings.loading}
+      </p>
+    );
+  }
+  if (list.isError) {
+    return (
+      <p className="muted small" role="status">
+        {errorText(list.error, s.roomingFailed)}
+      </p>
+    );
+  }
+  const d = list.data;
+  return (
+    <div className="stack rooming" data-testid={`rooming-${hotel.id}`}>
+      <strong className="small">
+        {s.roomingSummary(d.assigned, d.people.length, d.roomsUsed, d.hotel.rooms)}
+      </strong>
+      <p className="muted small">{s.roomingHint}</p>
+      <ul className="list list--plain small">
+        {d.people.map((p) => (
+          <RoomField
+            key={p.participationId}
+            person={p}
+            busy={save.isPending}
+            onSave={(room) =>
+              save.mutate({ participationId: p.participationId, room, name: p.displayName })
+            }
+          />
+        ))}
+      </ul>
+      <span className="field__hint" role="status">
+        {note ?? ''}
+      </span>
+    </div>
+  );
+}
+
+function RoomField({
+  person: p,
+  busy,
+  onSave,
+}: {
+  person: RoomAssignment;
+  busy: boolean;
+  onSave: (room: string | null) => void;
+}) {
+  const [value, setValue] = useState(p.room ?? '');
+  const commit = () => {
+    const room = value.trim() === '' ? null : value.trim();
+    if (room === (p.room ?? null)) return;
+    onSave(room);
+  };
+  return (
+    <li className="field__row field__row--tight rooming__row">
+      <span>
+        {p.role === 'leader' ? <strong>{p.displayName}</strong> : p.displayName}
+        {p.groupName ? <span className="muted small"> · {p.groupName}</span> : null}
+      </span>
+      <input
+        className="field__input"
+        style={{ maxWidth: 120 }}
+        value={value}
+        placeholder={s.roomUnassigned}
+        aria-label={s.roomOf(p.displayName)}
+        disabled={busy}
+        maxLength={20}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            commit();
+          }
+        }}
+      />
     </li>
   );
 }
@@ -303,22 +428,60 @@ function BusRow({
         <span className="small">{s.seats(b.assigned, b.seats)}</span>
       </div>
       <RemoveButton name={b.label} busy={busy} onClick={onRemove} />
-      <DriverLinks org={org} trip={trip} bus={b} />
+      <SealedLinks org={org} trip={trip} bookingId={b.id} kind="driver" label={b.label} />
     </li>
   );
 }
 
 /** The driver's sealed links of one bus (D39): mint (the URL shows once), list with opens, revoke. */
-function DriverLinks({ org, trip, bus }: { org: Organization; trip: Trip; bus: BusCharter }) {
+/**
+ * The sealed links of a booking (the driver's since slice 049, the hotel's since slice 058): mint
+ * one (the URL shows once), list them with their opens, revoke one. The same shape for both; the
+ * words and the test ids differ by kind.
+ */
+function SealedLinks({
+  org,
+  trip,
+  bookingId,
+  kind,
+  label,
+}: {
+  org: Organization;
+  trip: Trip;
+  bookingId: string;
+  kind: 'driver' | 'hotel';
+  /** The bus label or the hotel name, for the spoken names. */
+  label: string;
+}) {
   const qc = useQueryClient();
-  const links = useQuery(driverLinksQuery(org.id, trip.id, bus.id));
+  const query =
+    kind === 'driver'
+      ? driverLinksQuery(org.id, trip.id, bookingId)
+      : hotelLinksQuery(org.id, trip.id, bookingId);
+  const words =
+    kind === 'driver'
+      ? {
+          button: s.driverLink,
+          buttonOf: s.driverLinkOf(label),
+          minted: s.driverLinkMinted,
+          none: s.driverLinksNone,
+        }
+      : {
+          button: s.hotelLink,
+          buttonOf: s.hotelLinkOf(label),
+          minted: s.hotelLinkMinted,
+          none: s.hotelLinksNone,
+        };
+  const links = useQuery(query);
   const [minted, setMinted] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [note, setNote] = useState<string | null>(null);
-  const refresh = () =>
-    qc.invalidateQueries({ queryKey: driverLinksQuery(org.id, trip.id, bus.id).queryKey });
+  const refresh = () => qc.invalidateQueries({ queryKey: query.queryKey });
   const mint = useMutation({
-    mutationFn: () => travelApi.createDriverLink(org.id, trip.id, bus.id),
+    mutationFn: () =>
+      kind === 'driver'
+        ? travelApi.createDriverLink(org.id, trip.id, bookingId)
+        : travelApi.createHotelLink(org.id, trip.id, bookingId),
     onSuccess: (r) => {
       setMinted(r.url);
       setCopied(false);
@@ -328,7 +491,10 @@ function DriverLinks({ org, trip, bus }: { org: Organization; trip: Trip; bus: B
     onError: (e) => setNote(errorText(e, s.driverLinkFailed)),
   });
   const revoke = useMutation({
-    mutationFn: (linkId: string) => travelApi.revokeDriverLink(org.id, trip.id, bus.id, linkId),
+    mutationFn: (linkId: string) =>
+      kind === 'driver'
+        ? travelApi.revokeDriverLink(org.id, trip.id, bookingId, linkId)
+        : travelApi.revokeHotelLink(org.id, trip.id, bookingId, linkId),
     onSuccess: () => {
       setNote(null);
       void refresh();
@@ -346,16 +512,16 @@ function DriverLinks({ org, trip, bus }: { org: Organization; trip: Trip; bus: B
   };
   const rows = links.data?.links ?? [];
   return (
-    <div className="stack driver-links" data-testid={`driver-links-${bus.id}`}>
+    <div className="stack driver-links" data-testid={`${kind}-links-${bookingId}`}>
       <div className="missing__actions">
         <button
           type="button"
           className="btn btn--ghost btn--sm"
           disabled={mint.isPending}
           onClick={() => mint.mutate()}
-          aria-label={s.driverLinkOf(bus.label)}
+          aria-label={words.buttonOf}
         >
-          {mint.isPending ? s.driverLinkMinting : s.driverLink}
+          {mint.isPending ? s.driverLinkMinting : words.button}
         </button>
         <span className="field__hint" role="status">
           {note ?? ''}
@@ -363,13 +529,13 @@ function DriverLinks({ org, trip, bus }: { org: Organization; trip: Trip; bus: B
       </div>
       {minted ? (
         <div className="stack" style={{ gap: 4 }}>
-          <span className="small">{s.driverLinkMinted}</span>
+          <span className="small">{words.minted}</span>
           <input
             className="field__input"
             readOnly
             value={minted}
-            aria-label={s.driverLinkOf(bus.label)}
-            data-testid="driver-link-url"
+            aria-label={words.buttonOf}
+            data-testid={`${kind}-link-url`}
             onFocus={(e) => e.currentTarget.select()}
           />
           <div className="missing__actions">
@@ -384,9 +550,9 @@ function DriverLinks({ org, trip, bus }: { org: Organization; trip: Trip; bus: B
       ) : null}
       {links.data ? (
         rows.length === 0 ? (
-          <span className="muted small">{s.driverLinksNone}</span>
+          <span className="muted small">{words.none}</span>
         ) : (
-          <ul className="list list--plain small" data-testid="driver-links">
+          <ul className="list list--plain small" data-testid={`${kind}-links`}>
             {rows.map((l) => {
               const mintedOn = l.createdAt.slice(0, 10);
               return (

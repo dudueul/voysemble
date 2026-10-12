@@ -1808,11 +1808,17 @@ fieldset.filters {
   align-items: center;
 }
 
-/* the driver's links sit under the bus row, across its columns (slice 049) */
-.driver-links {
+/* the driver's links sit under the bus row, across its columns (slice 049); the hotel's rooming
+   list and links do the same under the hotel row (slice 058) */
+.driver-links,
+.rooming {
   grid-column: 1 / -1;
   gap: 6px;
   padding-top: 4px;
+}
+
+.rooming__row {
+  justify-content: space-between;
 }
 
 /* media */

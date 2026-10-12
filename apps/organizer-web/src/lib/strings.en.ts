@@ -528,6 +528,43 @@ export const en = {
     driverLinkRevoke: 'Revoke',
     driverLinkRevokeOf: (minted: string) => `Revoke the link minted ${minted}`,
     driverLinkFailed: 'Could not mint the link.',
+    rooming: 'Rooming list',
+    roomingOf: (hotel: string) => `Rooming list for ${hotel}`,
+    roomingHide: 'Hide the rooming list',
+    roomingSummary: (assigned: number, people: number, used: number, rooms: number) =>
+      `${assigned} of ${people} placed · ${used} of ${rooms} rooms used`,
+    roomingHint:
+      'Type a room label for each person (204, 3F-12). Leaders first. Guardians never see rooms; the hotel sheet lists them by room.',
+    roomLabel: 'Room',
+    roomOf: (name: string) => `Room of ${name}`,
+    roomUnassigned: 'No room yet',
+    roomSaved: (name: string, room: string | null) =>
+      room ? `${name} is in room ${room}.` : `${name} has no room now.`,
+    roomFailed: 'Could not save the room.',
+    roomingFailed: 'Could not load the rooming list.',
+    hotelLink: 'Hotel link',
+    hotelLinkOf: (hotel: string) => `Hotel link for ${hotel}`,
+    hotelLinkMinted:
+      'Copy this link now: it is shown once. The hotel sees the stay, the rooms with their names and the leaders by name.',
+    hotelLinksNone: 'No hotel link yet. Mint one to hand the desk the rooming list.',
+  },
+  hotel: {
+    title: 'Hotel sheet',
+    loading: 'Opening the sheet…',
+    failedTitle: 'This link does not work',
+    invalid: 'This link no longer works. Ask the organizer for a new one.',
+    missing: 'The link is incomplete. Open it exactly as it was sent.',
+    stay: (nights: number, rooms: number) =>
+      `${nights} night${nights === 1 ? '' : 's'} · ${rooms} rooms booked`,
+    confirmation: (code: string) => `Confirmation ${code}`,
+    rooms: (n: number) => (n === 1 ? '1 room assigned' : `${n} rooms assigned`),
+    people: (n: number) => (n === 1 ? '1 guest' : `${n} guests`),
+    room: (label: string) => `Room ${label}`,
+    unassigned: 'Not yet assigned to a room',
+    leaders: 'Group leaders (ask for them at the desk)',
+    namesOnly: 'Names and rooms only. For anything else, ask a group leader.',
+    expires: (date: string) => `This link works until ${date}.`,
+    print: 'Print',
   },
   notifications: {
     title: 'Notifications',

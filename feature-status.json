@@ -46,6 +46,8 @@
     "packing.checklist": "working",
     "packing.reminders": "working",
     "travel.driver-links": "working",
+    "travel.rooming": "working",
+    "travel.hotel-links": "working",
     "documents.scans": "working",
     "auth.reauth": "working",
     "devices.revoke-wipe": "working",

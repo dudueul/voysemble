@@ -94,6 +94,29 @@ gate, posts the token once per open, lists the names (leaders first, travelers n
 columns) and prints cleanly (the brand and the button hide under `@media print`). Evidence:
 `web/<project>/driver-sheet.png`; the console side in `travel-live.png`.
 
+## Rooming lists and the hotel's sealed link (slice 058, D41)
+
+A hotel row on the Travel page unfolds its rooming list ("Rooming list for Hotel de la Ville"):
+every leader and traveler of the roster (leaders first, then by group and name) with a room
+field; a label typed and confirmed (Enter or leaving the field) is saved at once through
+`PUT .../travel/{bookingId}/rooming` (`AssignRoomRequest { participationId, room | null }`), the
+summary follows ("2 of 3 placed · 1 of 21 rooms used"), a cleared field takes the person out.
+`GET .../rooming` is for owners, organizers and leaders (`RoomingList`); travelers and guardians
+cannot read it, a guardian cannot be assigned (400), a bus has no list (404). Storage:
+`room_assignments(booking_id, participation_id, trip_id, room, updated_at)` (schema 22); a removed
+roster row and a deleted hotel take their rows. Guardians never see rooms (D13).
+
+The hotel's sealed link is the driver's sibling: "Hotel link" on the hotel row mints it
+(`hotel_links`, the same shape as `driver_links`; `POST/GET .../hotel-links`, `DELETE
+.../hotel-links/{linkId}`; the same expiry rule), and the public route `POST /v1/hotel/{orgId}`
+(rate limited per address, sixty per quarter hour, `no-store`) answers `HotelSheet`: the stay
+(name, city, dates, nights, rooms booked, confirmation), the rooms by label with the names in
+them, who has no room yet, the group leaders by name, the count of guests. Nothing else (D13,
+D27): no contact, no guardian, no care note, no document. The sheet page (`/hotel/$orgId`,
+`features/hotel/HotelSheetPage.tsx`) sits outside the session gate, posts the token once per open,
+lists the rooms and prints. Evidence: `web/<project>/travel-rooming.png`,
+`web/<project>/hotel-sheet.png`.
+
 ## Facts established by tests
 
 - Worker: an empty plan carries the roster's groups and traveler count; a flight, a hotel (5
@@ -120,6 +143,17 @@ columns) and prints cleanly (the brand and the button hide under `@media print`)
 - Console unit (slice 049): the bus row mints the link (the URL shows once), lists it with its
   opens and revokes it; the sheet page posts the token once and shows the names by group, and
   says so for a dead or an incomplete link.
+- Worker (slice 058): the rooming list starts with everyone unassigned, leaders first; rooms are
+  assigned, moved and cleared with the counts following; a guardian is 400, an unknown person 404,
+  a blank room 400; a leader reads, a traveler cannot read or write; the hotel link is for a
+  hotel only, its sheet opens with no session (the stay, the rooms with their names sorted, the
+  unassigned, the leaders, no email anywhere), the open counts, an unknown token is 404, a revoked
+  one too; a removed person loses their room; a deleted hotel takes its rooms and links.
+- Console unit (slice 058): the hotel row unfolds the rooming list, a room saves on Enter with
+  the summary following, the hotel link mints with the URL shown once; the hotel sheet page
+  posts the token once and lists the rooms, the unassigned and the leaders, and says so for a
+  dead or an incomplete link. Browser: two rooms through the list, the hotel sheet in a second
+  context with the names by room and no driver contact, the open counted; the captures.
 - Browser (slice 049): mint on Bus A, open the URL in a session-less context (the sheet shows
   Minji and Juho, not Hana nor the driver contact; capture), the console reads "1 opens" after a
   reload, revoke, and the sheet says the link no longer works.

@@ -86,5 +86,6 @@ page's documents tile reads the report. Evidence:
 ## Not done
 
 Per-traveler reminders to guardians ("Remind 3"); a document viewer that scales PDFs; the
-owner-held key for tier 3 (ADR-0001 seam); the hotel's sealed link (the driver's exists since slice 049, `travel.md`); sealed third-party links
-(D27: driver, hotel) and the shred of a removed row's objects before the trip's own.
+owner-held key for tier 3 (ADR-0001 seam); the shred of a removed row's objects before the
+trip's own. The sealed third-party links of D27 exist: the driver's since slice 049 and the
+hotel's since slice 058 (`travel.md`).

@@ -45,6 +45,7 @@ import type {
   HeadcountMark,
   HeadcountSession,
   HotelInput,
+  HotelSheet,
   Incident,
   IncidentStatus,
   Itinerary,
@@ -74,6 +75,8 @@ import type {
   RevealCareNoteResponse,
   RevisionChange,
   RevisionSummary,
+  RoomAssignment,
+  RoomingList,
   TimelineEntry,
   TravelerCountStatus,
   TravelPlan,
@@ -571,6 +574,34 @@ const MIGRATIONS: { version: number; sql: string }[] = [
       CREATE INDEX IF NOT EXISTS notifications_digest_idx ON notifications(lane, deliver_at);
     `,
   },
+  {
+    // Rooming lists and the hotel's sealed link (D27, D41; slice 058): who sleeps in which room of
+    // a hotel booking, and the hotel's link with the driver's shape.
+    version: 22,
+    sql: `
+      CREATE TABLE IF NOT EXISTS room_assignments (
+        booking_id TEXT NOT NULL REFERENCES travel_bookings(id),
+        participation_id TEXT NOT NULL REFERENCES participations(id),
+        trip_id TEXT NOT NULL REFERENCES trips(id),
+        room TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (booking_id, participation_id)
+      );
+      CREATE INDEX IF NOT EXISTS room_assignments_participation_idx ON room_assignments(participation_id);
+      CREATE TABLE IF NOT EXISTS hotel_links (
+        id TEXT PRIMARY KEY,
+        trip_id TEXT NOT NULL REFERENCES trips(id),
+        booking_id TEXT NOT NULL REFERENCES travel_bookings(id),
+        token_hash TEXT NOT NULL UNIQUE,
+        created_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        revoked_at TEXT,
+        opens INTEGER NOT NULL DEFAULT 0,
+        last_opened_at TEXT
+      );
+      CREATE INDEX IF NOT EXISTS hotel_links_booking_idx ON hotel_links(booking_id, created_at);
+    `,
+  },
 ];
 
 type ChatMessageRow = {
@@ -717,6 +748,14 @@ type DriverLinkRow = {
   revoked_at: string | null;
   opens: number;
   last_opened_at: string | null;
+};
+
+type RoomAssignmentRow = {
+  booking_id: string;
+  participation_id: string;
+  trip_id: string;
+  room: string;
+  updated_at: string;
 };
 
 type PackingItemRow = {
@@ -1343,6 +1382,7 @@ export class OrgDurableObject extends DurableObject<Env> {
         sql.exec('DELETE FROM care_notes WHERE participation_id = ?', r.id);
         sql.exec('DELETE FROM participation_events WHERE participation_id = ?', r.id);
         sql.exec('DELETE FROM document_items WHERE participation_id = ?', r.id);
+        sql.exec('DELETE FROM room_assignments WHERE participation_id = ?', r.id);
         sql.exec('DELETE FROM packing_ticks WHERE participation_id = ?', r.id);
         sql.exec('DELETE FROM notifications WHERE participation_id = ?', r.id);
         sql.exec('DELETE FROM chat_reads WHERE reader_key = ?', r.id);
@@ -3848,8 +3888,10 @@ export class OrgDurableObject extends DurableObject<Env> {
     this.requireOrg();
     if (!this.bookingRow(tripId, id)) return { notFound: true };
     this.ctx.storage.transactionSync(() => {
-      // A bus's driver links die with it (slice 049).
+      // A bus's driver links die with it (slice 049); a hotel's rooming list and links too (slice 058).
       this.ctx.storage.sql.exec('DELETE FROM driver_links WHERE booking_id = ?', id);
+      this.ctx.storage.sql.exec('DELETE FROM hotel_links WHERE booking_id = ?', id);
+      this.ctx.storage.sql.exec('DELETE FROM room_assignments WHERE booking_id = ?', id);
       this.ctx.storage.sql.exec('DELETE FROM travel_bookings WHERE id = ?', id);
     });
     return { deleted: true };
@@ -3994,6 +4036,236 @@ export class OrgDurableObject extends DurableObject<Env> {
       groups,
       leaders: groups.reduce((n, g) => n + g.leaders.length, 0),
       travelers: groups.reduce((n, g) => n + g.travelers.length, 0),
+      expiresAt: link.expires_at,
+    };
+  }
+
+  // ---- Rooming lists and the hotel's sealed link (D27, D41; slice 058) ----
+
+  private hotelOf(row: TravelBookingRow): RoomingList['hotel'] | null {
+    if (row.kind !== 'hotel') return null;
+    const d = JSON.parse(row.data) as {
+      name: string;
+      city: string;
+      checkIn: string;
+      checkOut: string;
+      rooms: number;
+      confirmation?: string;
+    };
+    return {
+      id: row.id,
+      name: d.name,
+      city: d.city,
+      checkIn: d.checkIn,
+      checkOut: d.checkOut,
+      rooms: d.rooms,
+    };
+  }
+
+  /** Who sleeps where in one hotel: leaders first, then travelers by group and name. */
+  async rooming(tripId: string, bookingId: string): Promise<RoomingList | { notFound: true }> {
+    this.requireOrg();
+    const row = this.bookingRow(tripId, bookingId);
+    const hotel = row ? this.hotelOf(row) : null;
+    if (!hotel) return { notFound: true };
+    const rooms = new Map(
+      this.ctx.storage.sql
+        .exec<RoomAssignmentRow>('SELECT * FROM room_assignments WHERE booking_id = ?', bookingId)
+        .toArray()
+        .map((r) => [r.participation_id, r.room] as const),
+    );
+    const roster = await this.listRoster(tripId);
+    const people: RoomAssignment[] = roster
+      .filter((p) => p.role === 'leader' || p.role === 'traveler')
+      .sort(
+        (a, b) =>
+          (a.role === 'leader' ? 0 : 1) - (b.role === 'leader' ? 0 : 1) ||
+          (a.groupName ?? '').localeCompare(b.groupName ?? '') ||
+          a.displayName.localeCompare(b.displayName),
+      )
+      .map((p) => ({
+        participationId: p.id,
+        displayName: p.displayName,
+        role: p.role as 'leader' | 'traveler',
+        groupName: p.groupName,
+        room: rooms.get(p.id) ?? null,
+      }));
+    return {
+      hotel,
+      people,
+      roomsUsed: new Set(people.map((p) => p.room).filter((r) => r !== null)).size,
+      assigned: people.filter((p) => p.room !== null).length,
+    };
+  }
+
+  /** Puts a leader or traveler of the trip in a room of the hotel; null takes them out. */
+  async assignRoom(
+    tripId: string,
+    bookingId: string,
+    participationId: string,
+    room: string | null,
+    now: string,
+  ): Promise<RoomingList | { notFound: true } | { notAPerson: true }> {
+    this.requireOrg();
+    const row = this.bookingRow(tripId, bookingId);
+    if (row?.kind !== 'hotel') return { notFound: true };
+    const p = await this.getParticipation(participationId);
+    if (!p || p.tripId !== tripId) return { notFound: true };
+    if (p.role !== 'leader' && p.role !== 'traveler') return { notAPerson: true };
+    const sql = this.ctx.storage.sql;
+    if (room === null) {
+      sql.exec(
+        'DELETE FROM room_assignments WHERE booking_id = ? AND participation_id = ?',
+        bookingId,
+        participationId,
+      );
+    } else {
+      sql.exec(
+        `INSERT INTO room_assignments (booking_id, participation_id, trip_id, room, updated_at) VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(booking_id, participation_id) DO UPDATE SET room = excluded.room, updated_at = excluded.updated_at`,
+        bookingId,
+        participationId,
+        tripId,
+        room,
+        now,
+      );
+    }
+    const list = await this.rooming(tripId, bookingId);
+    return list;
+  }
+
+  /** A link to one hotel's sheet; only the token's hash is kept. The booking must be a hotel of the trip. */
+  async createHotelLink(
+    tripId: string,
+    bookingId: string,
+    tokenHash: string,
+    now: string,
+    expiresAt: string,
+  ): Promise<DriverLink | { notFound: true }> {
+    this.requireOrg();
+    const booking = this.bookingRow(tripId, bookingId);
+    if (booking?.kind !== 'hotel') return { notFound: true };
+    const row: DriverLinkRow = {
+      id: crypto.randomUUID(),
+      trip_id: tripId,
+      booking_id: bookingId,
+      token_hash: tokenHash,
+      created_at: now,
+      expires_at: expiresAt,
+      revoked_at: null,
+      opens: 0,
+      last_opened_at: null,
+    };
+    this.ctx.storage.sql.exec(
+      'INSERT INTO hotel_links (id, trip_id, booking_id, token_hash, created_at, expires_at, revoked_at, opens, last_opened_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      row.id,
+      row.trip_id,
+      row.booking_id,
+      row.token_hash,
+      row.created_at,
+      row.expires_at,
+      row.revoked_at,
+      row.opens,
+      row.last_opened_at,
+    );
+    return this.driverLinkOf(row);
+  }
+
+  async listHotelLinks(
+    tripId: string,
+    bookingId: string,
+  ): Promise<DriverLink[] | { notFound: true }> {
+    this.requireOrg();
+    if (this.bookingRow(tripId, bookingId)?.kind !== 'hotel') return { notFound: true };
+    return this.ctx.storage.sql
+      .exec<DriverLinkRow>(
+        'SELECT * FROM hotel_links WHERE booking_id = ? ORDER BY created_at DESC, id',
+        bookingId,
+      )
+      .toArray()
+      .map((r) => this.driverLinkOf(r));
+  }
+
+  async revokeHotelLink(
+    tripId: string,
+    linkId: string,
+    now: string,
+  ): Promise<DriverLink | { notFound: true }> {
+    this.requireOrg();
+    const row =
+      this.ctx.storage.sql
+        .exec<DriverLinkRow>(
+          'SELECT * FROM hotel_links WHERE id = ? AND trip_id = ?',
+          linkId,
+          tripId,
+        )
+        .toArray()[0] ?? null;
+    if (!row) return { notFound: true };
+    const next: DriverLinkRow = { ...row, revoked_at: row.revoked_at ?? now };
+    this.ctx.storage.sql.exec(
+      'UPDATE hotel_links SET revoked_at = ? WHERE id = ?',
+      next.revoked_at,
+      linkId,
+    );
+    return this.driverLinkOf(next);
+  }
+
+  /**
+   * The sheet behind a hotel token: unknown, expired and revoked are one answer. Each open is
+   * counted. The stay, the rooming list by room, the unassigned by name, the leaders by name.
+   */
+  async openHotelSheet(
+    tokenHash: string,
+    now: string,
+  ): Promise<Omit<HotelSheet, 'organizationName'> | { notFound: true }> {
+    this.requireOrg();
+    const sql = this.ctx.storage.sql;
+    const link =
+      sql
+        .exec<DriverLinkRow>('SELECT * FROM hotel_links WHERE token_hash = ?', tokenHash)
+        .toArray()[0] ?? null;
+    if (!link || link.revoked_at || link.expires_at <= now) return { notFound: true };
+    const booking = this.bookingRow(link.trip_id, link.booking_id);
+    const trip = await this.getTrip(link.trip_id);
+    if (booking?.kind !== 'hotel' || !trip) return { notFound: true };
+    sql.exec(
+      'UPDATE hotel_links SET opens = opens + 1, last_opened_at = ? WHERE id = ?',
+      now,
+      link.id,
+    );
+    const d = JSON.parse(booking.data) as {
+      name: string;
+      city: string;
+      checkIn: string;
+      checkOut: string;
+      rooms: number;
+      confirmation?: string;
+    };
+    const list = await this.rooming(link.trip_id, link.booking_id);
+    if ('notFound' in list) return { notFound: true };
+    const byRoom = new Map<string, string[]>();
+    for (const p of list.people) {
+      if (p.room === null) continue;
+      byRoom.set(p.room, [...(byRoom.get(p.room) ?? []), p.displayName]);
+    }
+    const rooms = [...byRoom.entries()]
+      .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
+      .map(([room, names]) => ({ room, names: names.sort((a, b) => a.localeCompare(b)) }));
+    return {
+      tripName: trip.name,
+      hotel: {
+        name: d.name,
+        city: d.city,
+        checkIn: d.checkIn,
+        checkOut: d.checkOut,
+        nights: nightsBetween(d.checkIn, d.checkOut),
+        rooms: d.rooms,
+        confirmation: d.confirmation ?? '',
+      },
+      rooms,
+      unassigned: list.people.filter((p) => p.room === null).map((p) => p.displayName),
+      leaders: list.people.filter((p) => p.role === 'leader').map((p) => p.displayName),
+      people: list.people.length,
       expiresAt: link.expires_at,
     };
   }

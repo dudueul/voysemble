@@ -1508,7 +1508,7 @@ Not done: the production email transport (the named environments do not bind one
 
 ## Slice 055: AI drafts for a disruption
 
-Status: done 2026-10-12. Commit: see git log (`feat(journey): AI drafts for a disruption through the AI port (slice 055)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: see git log (`feat(journey): AI drafts for a disruption through the AI port (slice 055)`, `1632228`). CI: run 38283440492 green (web incl. `disruption-drafts.test.ts` and `journey-graph.spec.ts`, mobile, ios), 2026-10-12 17:30 UTC; captures commit `a9f03c0` carries `journey-graph-drafts.png` for both desktop projects.
 Spec: D19 (disruption replanning; amended), D03/D16 (AI labelled, never the writer), ADR-0006 (the AI port), D31 (captures). Details: `docs/engineering/journey-graph.md` (Drafts from the AI port), `translation.md` (the port).
 
 | Gate | Command | Result |
@@ -1575,3 +1575,26 @@ Built:
 Lesson: biome's formatter did not settle on an inline function type with an object return (it reformatted it two ways in a row); a named type for the loader ends the loop.
 
 Not done: a side-by-side view of two snapshots; restoring a past revision into the draft; the history on the phones (the Bulletin carries the revision announcements).
+
+## Slice 058: rooming lists and the hotel's sealed link
+
+Status: done 2026-10-12. Commit: see git log (`feat(travel): rooming lists and the hotel's sealed link (slice 058)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D41 (new), D27 (sealed third-party links; amended), D39 (the driver's link, the shape), D13 (guardians never see rooms), D31. Details: `docs/engineering/travel.md` (Rooming lists and the hotel's sealed link), `rate-limits.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 39 files, 105 tests (adds `rooming.test.ts`: 1) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 19 files, 116 tests (adds `HotelSheetPage.test.tsx`: 2; the Travel case grows the rooming and the hotel link) |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e -- travel.spec.ts` | 2 passed; captures `travel-rooming.png`, `hotel-sheet.png` |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+Built:
+- Contracts: `RoomAssignment`, `RoomingList`, `AssignRoomRequest`, `HotelLink`, `HotelLinkList`, `CreateHotelLinkResponse`, `OpenHotelSheetRequest`, `HotelSheetRoom`, `HotelSheet`.
+- Worker: OrgDurableObject schema 22 (`room_assignments`, `hotel_links`) with `rooming`, `assignRoom`, `createHotelLink`, `listHotelLinks`, `revokeHotelLink`, `openHotelSheet`; a deleted hotel takes its rooms and links, a removed person their room; `routes/travel.ts` (`GET`/`PUT .../rooming`, the hotel link mint, list and revoke, `POST /v1/hotel/{orgId}` with the `hotelIp` limit and `no-store`).
+- Console: `roomingQuery`, `hotelLinksQuery`, `travelApi.assignRoom`/`createHotelLink`/`revokeHotelLink`, `hotel.open`; the hotel row's rooming fold (`Rooming`, `RoomField`: a label saved on Enter or blur, the summary line) and its link block; `DriverLinks` became `SealedLinks` for both kinds; `features/hotel/HotelSheetPage.tsx` on `/hotel/$orgId`; strings EN/KO (`travel.rooming*`, `travel.hotelLink*`, `hotel.*`).
+- Tests: worker (1), console unit (2 + the Travel case), browser (the list, two rooms, the sheet in a second context, the count after a reload; the captures).
+- Docs: `travel.md` section and facts, `documents.md` not-done, D41 and the D27 amendment, `rate-limits.md` row, captures README, ledger, feature flags `travel.rooming` and `travel.hotel-links` working.
+
+Lessons: two links minted the same day share a spoken name ("Revoke the link minted 2026-10-12"), so a test scopes the click to the list it means; the links list is a cached query, so the count of opens made from another browser context reads fresh after a reload (as the driver flow already did).
+
+Not done: rooms on the leader's phone (the Plan tab's hotel night could name the rooms); a rooming list typed as pairs ("204: Minji, Juho") in one go; room types and capacities; the hotel's own contact person.

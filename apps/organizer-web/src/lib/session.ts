@@ -11,6 +11,7 @@ import type {
   AlbumPhotoRequest,
   Announcement,
   AnnouncementList,
+  AssignRoomRequest,
   Booking,
   CareNote,
   CareNoteStatus,
@@ -21,6 +22,7 @@ import type {
   CreateBookingRequest,
   CreateDocumentRequirementRequest,
   CreateDriverLinkResponse,
+  CreateHotelLinkResponse,
   CreatePackingItemRequest,
   DeletePhotoResponse,
   DocumentItem,
@@ -32,6 +34,9 @@ import type {
   DriverLinkList,
   DriverSheet,
   HeadcountList,
+  HotelLink,
+  HotelLinkList,
+  HotelSheet,
   Incident,
   IncidentList,
   IssueInvitesResponse,
@@ -57,6 +62,7 @@ import type {
   RevealCareNoteResponse,
   RevokeDevicesResponse,
   RevokeInviteResponse,
+  RoomingList,
   RosterImportResponse,
   RosterResponse,
   SessionResponse,
@@ -364,6 +370,42 @@ export const travel = {
       `/v1/orgs/${orgId}/trips/${tripId}/travel/${bookingId}/driver-links/${linkId}`,
       { method: 'DELETE' },
     ),
+  /** Slice 058: a room for one person (null takes them out); the list comes back. */
+  assignRoom: (orgId: string, tripId: string, bookingId: string, body: AssignRoomRequest) =>
+    api<RoomingList>(`/v1/orgs/${orgId}/trips/${tripId}/travel/${bookingId}/rooming`, {
+      method: 'PUT',
+      body,
+    }),
+  createHotelLink: (orgId: string, tripId: string, bookingId: string) =>
+    api<CreateHotelLinkResponse>(
+      `/v1/orgs/${orgId}/trips/${tripId}/travel/${bookingId}/hotel-links`,
+      { method: 'POST' },
+    ),
+  revokeHotelLink: (orgId: string, tripId: string, bookingId: string, linkId: string) =>
+    api<HotelLink>(`/v1/orgs/${orgId}/trips/${tripId}/travel/${bookingId}/hotel-links/${linkId}`, {
+      method: 'DELETE',
+    }),
+};
+
+/** A hotel's rooming list (slice 058): who sleeps where. */
+export const roomingQuery = (orgId: string, tripId: string, bookingId: string) =>
+  queryOptions({
+    queryKey: ['orgs', orgId, 'trips', tripId, 'travel', bookingId, 'rooming'],
+    queryFn: () =>
+      api<RoomingList>(`/v1/orgs/${orgId}/trips/${tripId}/travel/${bookingId}/rooming`),
+  });
+
+export const hotelLinksQuery = (orgId: string, tripId: string, bookingId: string) =>
+  queryOptions({
+    queryKey: ['orgs', orgId, 'trips', tripId, 'travel', bookingId, 'hotel-links'],
+    queryFn: () =>
+      api<HotelLinkList>(`/v1/orgs/${orgId}/trips/${tripId}/travel/${bookingId}/hotel-links`),
+  });
+
+/** The public hotel sheet (no session): the token from the link's fragment, posted once per open. */
+export const hotel = {
+  open: (orgId: string, token: string) =>
+    api<HotelSheet>(`/v1/hotel/${orgId}`, { method: 'POST', body: { token } }),
 };
 
 export const driverLinksQuery = (orgId: string, tripId: string, bookingId: string) =>

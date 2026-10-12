@@ -9,13 +9,20 @@
 
 import { createRoute, type OpenAPIHono } from '@hono/zod-openapi';
 import {
+  AssignRoomRequest,
   Booking,
   CreateBookingRequest,
   CreateDriverLinkResponse,
+  CreateHotelLinkResponse,
   DriverLink,
   DriverLinkList,
   DriverSheet,
+  HotelLink,
+  HotelLinkList,
+  HotelSheet,
   OpenDriverSheetRequest,
+  OpenHotelSheetRequest,
+  RoomingList,
   TravelPlan,
   UpdateBookingRequest,
 } from '@voysemble/contracts';
@@ -114,6 +121,125 @@ const openSheetRoute = createRoute({
   },
   responses: {
     200: { description: 'The sheet.', content: { 'application/json': { schema: DriverSheet } } },
+    400: ERROR_RESPONSES[400],
+    404: ERROR_RESPONSES[404],
+    429: ERROR_RESPONSES[429],
+    500: ERROR_RESPONSES[500],
+  },
+});
+
+/* ---------- Rooming lists and the hotel's sealed link (D27, D41; slice 058) ---------- */
+
+const roomingRoute = createRoute({
+  method: 'get',
+  path: '/v1/orgs/{orgId}/trips/{tripId}/travel/{bookingId}/rooming',
+  tags: ['travel'],
+  summary: "A hotel's rooming list: who sleeps where (owner, organizer, leader)",
+  security: SESSION_SECURITY,
+  request: { params: BookingParams },
+  responses: {
+    200: { description: 'The list.', content: { 'application/json': { schema: RoomingList } } },
+    401: ERROR_RESPONSES[401],
+    403: ERROR_RESPONSES[403],
+    404: ERROR_RESPONSES[404],
+    500: ERROR_RESPONSES[500],
+  },
+});
+
+const assignRoomRoute = createRoute({
+  method: 'put',
+  path: '/v1/orgs/{orgId}/trips/{tripId}/travel/{bookingId}/rooming',
+  tags: ['travel'],
+  summary: 'Put one leader or traveler in a room of the hotel, or take them out (owner, organizer)',
+  security: SESSION_SECURITY,
+  request: {
+    params: BookingParams,
+    body: { content: { 'application/json': { schema: AssignRoomRequest } } },
+  },
+  responses: {
+    200: {
+      description: 'The list as it is now.',
+      content: { 'application/json': { schema: RoomingList } },
+    },
+    400: ERROR_RESPONSES[400],
+    401: ERROR_RESPONSES[401],
+    403: ERROR_RESPONSES[403],
+    404: ERROR_RESPONSES[404],
+    500: ERROR_RESPONSES[500],
+  },
+});
+
+const createHotelLinkRoute = createRoute({
+  method: 'post',
+  path: '/v1/orgs/{orgId}/trips/{tripId}/travel/{bookingId}/hotel-links',
+  tags: ['travel'],
+  summary: "Mint the hotel's sealed link to a stay (owner, organizer); the URL is returned once",
+  description:
+    'The link opens the hotel sheet (the stay, the rooming list by room, the leaders by name) without an account until it expires (thirty days, or two days after the trip ends) or is revoked. Only the token hash is stored.',
+  security: SESSION_SECURITY,
+  request: { params: BookingParams },
+  responses: {
+    201: {
+      description: 'The link and its URL (token in the fragment).',
+      content: { 'application/json': { schema: CreateHotelLinkResponse } },
+    },
+    401: ERROR_RESPONSES[401],
+    403: ERROR_RESPONSES[403],
+    404: ERROR_RESPONSES[404],
+    500: ERROR_RESPONSES[500],
+  },
+});
+
+const listHotelLinksRoute = createRoute({
+  method: 'get',
+  path: '/v1/orgs/{orgId}/trips/{tripId}/travel/{bookingId}/hotel-links',
+  tags: ['travel'],
+  summary: 'The links minted for a hotel with their opens (owner, organizer)',
+  security: SESSION_SECURITY,
+  request: { params: BookingParams },
+  responses: {
+    200: {
+      description: 'Newest first.',
+      content: { 'application/json': { schema: HotelLinkList } },
+    },
+    401: ERROR_RESPONSES[401],
+    403: ERROR_RESPONSES[403],
+    404: ERROR_RESPONSES[404],
+    500: ERROR_RESPONSES[500],
+  },
+});
+
+const revokeHotelLinkRoute = createRoute({
+  method: 'delete',
+  path: '/v1/orgs/{orgId}/trips/{tripId}/travel/{bookingId}/hotel-links/{linkId}',
+  tags: ['travel'],
+  summary: 'Revoke a hotel link; the row and its opens stay (owner, organizer)',
+  security: SESSION_SECURITY,
+  request: { params: LinkParams },
+  responses: {
+    200: { description: 'Revoked.', content: { 'application/json': { schema: HotelLink } } },
+    401: ERROR_RESPONSES[401],
+    403: ERROR_RESPONSES[403],
+    404: ERROR_RESPONSES[404],
+    500: ERROR_RESPONSES[500],
+  },
+});
+
+const HotelParams = z.object({ orgId: z.uuid() });
+
+const openHotelSheetRoute = createRoute({
+  method: 'post',
+  path: '/v1/hotel/{orgId}',
+  tags: ['travel'],
+  summary: "Open a hotel sheet with the hotel's link (no account); each open is counted",
+  description:
+    'The token comes from the URL fragment. Unknown, expired and revoked tokens are one 404: nothing to learn. Rate limited per address.',
+  request: {
+    params: HotelParams,
+    body: { content: { 'application/json': { schema: OpenHotelSheetRequest } } },
+  },
+  responses: {
+    200: { description: 'The sheet.', content: { 'application/json': { schema: HotelSheet } } },
     400: ERROR_RESPONSES[400],
     404: ERROR_RESPONSES[404],
     429: ERROR_RESPONSES[429],
@@ -302,6 +428,90 @@ export function mountTravelRoutes(app: OpenAPIHono<AppEnv>): void {
     const r = await org.revokeDriverLink(tripId, linkId, nowIso());
     if ('notFound' in r) throw new HTTPException(404, { message: 'Link not found.' });
     return c.json(r, 200);
+  });
+
+  app.openapi(roomingRoute, async (c) => {
+    const auth = requireAuth(c);
+    const { orgId, tripId, bookingId } = c.req.valid('param');
+    await requireOrgRole(c.env, auth, orgId, 'leader');
+    const org = await orgObject(c.env, orgId);
+    const r = await org.rooming(tripId, bookingId);
+    if ('notFound' in r) throw new HTTPException(404, { message: 'Hotel not found.' });
+    return c.json(r, 200);
+  });
+
+  app.openapi(assignRoomRoute, async (c) => {
+    const auth = requireAuth(c);
+    const { orgId, tripId, bookingId } = c.req.valid('param');
+    const body = c.req.valid('json');
+    await requireOrgRole(c.env, auth, orgId, 'organizer');
+    const org = await orgObject(c.env, orgId);
+    const r = await org.assignRoom(tripId, bookingId, body.participationId, body.room, nowIso());
+    if ('notFound' in r) throw new HTTPException(404, { message: 'Hotel or person not found.' });
+    if ('notAPerson' in r) {
+      throw new HTTPException(400, { message: 'Only leaders and travelers sleep at the hotel.' });
+    }
+    return c.json(r, 200);
+  });
+
+  app.openapi(createHotelLinkRoute, async (c) => {
+    const auth = requireAuth(c);
+    const { orgId, tripId, bookingId } = c.req.valid('param');
+    await requireOrgRole(c.env, auth, orgId, 'organizer');
+    const org = await orgObject(c.env, orgId);
+    const trip = await org.getTrip(tripId);
+    if (!trip) throw new HTTPException(404, { message: 'Trip not found.' });
+    const token = randomToken();
+    const now = nowIso();
+    const r = await org.createHotelLink(
+      tripId,
+      bookingId,
+      hashToken(token),
+      now,
+      driverLinkExpiry(now, trip.endsOn),
+    );
+    if ('notFound' in r) throw new HTTPException(404, { message: 'Hotel not found.' });
+    const url = `${new URL(c.req.url).origin}/hotel/${orgId}#token=${token}`;
+    return c.json({ link: r, url }, 201);
+  });
+
+  app.openapi(listHotelLinksRoute, async (c) => {
+    const auth = requireAuth(c);
+    const { orgId, tripId, bookingId } = c.req.valid('param');
+    await requireOrgRole(c.env, auth, orgId, 'organizer');
+    const org = await orgObject(c.env, orgId);
+    const r = await org.listHotelLinks(tripId, bookingId);
+    if ('notFound' in r) throw new HTTPException(404, { message: 'Hotel not found.' });
+    return c.json({ links: r }, 200);
+  });
+
+  app.openapi(revokeHotelLinkRoute, async (c) => {
+    const auth = requireAuth(c);
+    const { orgId, tripId, linkId } = c.req.valid('param');
+    await requireOrgRole(c.env, auth, orgId, 'organizer');
+    const org = await orgObject(c.env, orgId);
+    const r = await org.revokeHotelLink(tripId, linkId, nowIso());
+    if ('notFound' in r) throw new HTTPException(404, { message: 'Link not found.' });
+    return c.json(r, 200);
+  });
+
+  app.openapi(openHotelSheetRoute, async (c) => {
+    await enforceLimits(c, [{ scope: 'hotelIp', subject: clientIp(c) }]);
+    const { orgId } = c.req.valid('param');
+    const { token } = c.req.valid('json');
+    const organization = await db(c.env.DB)
+      .select({ name: organizations.name, status: organizations.status })
+      .from(organizations)
+      .where(eq(organizations.id, orgId))
+      .get();
+    if (organization?.status !== 'active') {
+      throw new HTTPException(404, { message: NOT_VALID_LINK });
+    }
+    const org = await orgObject(c.env, orgId);
+    const r = await org.openHotelSheet(hashToken(token), nowIso());
+    if ('notFound' in r) throw new HTTPException(404, { message: NOT_VALID_LINK });
+    c.header('Cache-Control', 'no-store');
+    return c.json({ ...r, organizationName: organization.name }, 200);
   });
 
   app.openapi(openSheetRoute, async (c) => {

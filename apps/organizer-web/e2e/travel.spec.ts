@@ -2,7 +2,8 @@
 // Browser facts for slice 046 (D37): the organizer adds a flight, marks it delayed, adds a hotel
 // (the row reads the nights), adds a bus riding group Bus A (its seats follow the roster: two of
 // twenty-four), then removes the hotel. Capture travel-live.png with the three bookings in place.
-// Slice 049 (D39): mints the driver's link for the bus, opens it with no session (the sheet lists
+// Slice 058 (D41): the hotel's rooming list and sealed link (captures travel-rooming.png and
+// hotel-sheet.png). Slice 049 (D39): mints the driver's link for the bus, opens it with no session (the sheet lists
 // the bus's names only; capture driver-sheet.png), sees the open counted, revokes it, and the
 // sheet says the link no longer works.
 
@@ -142,6 +143,41 @@ test('travel: a flight with its status, a hotel with its nights, a bus with its 
   await driver.reload();
   await expect(driver.getByRole('alert')).toContainText('This link no longer works');
   await driverCtx.close();
+
+  // Slice 058 (D41): the rooming list, two rooms, the hotel's link opened with no session.
+  await page.getByRole('button', { name: 'Rooming list for Hotel de la Ville' }).click();
+  const rooming = page.getByTestId(/^rooming-/);
+  await expect(rooming).toContainText('0 of 3 placed · 0 of 21 rooms used');
+  await rooming.getByLabel('Room of Minji Park').fill('204');
+  await rooming.getByLabel('Room of Minji Park').press('Enter');
+  await expect(rooming).toContainText('Minji Park is in room 204.');
+  await rooming.getByLabel('Room of Juho Kim').fill('204');
+  await rooming.getByLabel('Room of Juho Kim').blur();
+  await expect(rooming).toContainText('2 of 3 placed · 1 of 21 rooms used');
+  await page.mouse.move(0, 0);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({
+    path: `${OUT}/${info.project.name}/travel-rooming.png`,
+    fullPage: true,
+  });
+  await page.getByRole('button', { name: 'Hotel link for Hotel de la Ville' }).click();
+  const hotelUrl = await page.getByTestId('hotel-link-url').inputValue();
+  expect(hotelUrl).toMatch(/\/hotel\/[0-9a-f-]{36}#token=[A-Za-z0-9_-]{40,}$/);
+  const hotelCtx = await page.context().browser()?.newContext();
+  if (!hotelCtx) throw new Error('no browser for the hotel context');
+  const desk = await hotelCtx.newPage();
+  await desk.goto(hotelUrl);
+  await expect(desk.getByTestId('hotel-name')).toHaveText('Hotel de la Ville · Rome');
+  await expect(desk.getByTestId('hotel-room-204')).toContainText('Juho Kim');
+  await expect(desk.getByTestId('hotel-room-204')).toContainText('Minji Park');
+  await expect(desk.getByTestId('hotel-unassigned')).toContainText('Lee Hana');
+  await expect(desk.getByText('+39 333 000 0000')).toHaveCount(0);
+  await desk.screenshot({ path: `${OUT}/${info.project.name}/hotel-sheet.png`, fullPage: true });
+  await hotelCtx.close();
+  // The count is read fresh (the list is a cached query until the page reloads).
+  await page.reload();
+  await expect(page.getByText('Live', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('hotel-links')).toContainText('1 opens');
 
   // Remove the hotel; the card goes back to its empty line.
   await page.getByRole('button', { name: 'Remove Hotel de la Ville' }).click();

@@ -1826,6 +1826,43 @@ describe('Travel on the API (slice 046)', () => {
     let buses: Record<string, unknown>[] = [BUS];
     let flight: Record<string, unknown> = FLIGHT;
     let linkMinted = false;
+    let hotelLinkMinted = false;
+    const HOTEL_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+    let roomingList = {
+      hotel: {
+        id: HOTEL_ID,
+        name: 'Hotel de la Ville',
+        city: 'Rome',
+        checkIn: '2026-12-28',
+        checkOut: '2027-01-02',
+        rooms: 21,
+      },
+      people: [
+        {
+          participationId: 'p-kim',
+          displayName: 'Kim',
+          role: 'leader',
+          groupName: 'Bus A',
+          room: null as string | null,
+        },
+        {
+          participationId: 'p-juho',
+          displayName: 'Juho Kim',
+          role: 'traveler',
+          groupName: 'Bus A',
+          room: null as string | null,
+        },
+        {
+          participationId: 'p-minji',
+          displayName: 'Minji Park',
+          role: 'traveler',
+          groupName: 'Bus A',
+          room: null as string | null,
+        },
+      ],
+      roomsUsed: 0,
+      assigned: 0,
+    };
     const calls: string[] = [];
     vi.stubGlobal(
       'fetch',
@@ -1862,6 +1899,39 @@ describe('Travel on the API (slice 046)', () => {
         if (key === `DELETE ${base}/travel/${BUS.id}`) {
           buses = [];
           return Response.json({ deleted: true, bookingId: BUS.id });
+        }
+        // Slice 058: the hotel's rooming list and link.
+        if (key === `GET ${base}/travel/${HOTEL_ID}/rooming`) return Response.json(roomingList);
+        if (key === `PUT ${base}/travel/${HOTEL_ID}/rooming`) {
+          const body = JSON.parse(String(init?.body)) as {
+            participationId: string;
+            room: string | null;
+          };
+          roomingList = {
+            ...roomingList,
+            people: roomingList.people.map((p) =>
+              p.participationId === body.participationId ? { ...p, room: body.room } : p,
+            ),
+          };
+          roomingList.assigned = roomingList.people.filter((p) => p.room !== null).length;
+          roomingList.roomsUsed = new Set(
+            roomingList.people.map((p) => p.room).filter(Boolean),
+          ).size;
+          return Response.json(roomingList);
+        }
+        if (key === `GET ${base}/travel/${HOTEL_ID}/hotel-links`)
+          return Response.json({
+            links: hotelLinkMinted ? [{ ...LINK, bookingId: HOTEL_ID }] : [],
+          });
+        if (key === `POST ${base}/travel/${HOTEL_ID}/hotel-links`) {
+          hotelLinkMinted = true;
+          return Response.json(
+            {
+              link: { ...LINK, bookingId: HOTEL_ID },
+              url: `https://app.example/hotel/${ORG.id}#token=${'h'.repeat(43)}`,
+            },
+            { status: 201 },
+          );
         }
         if (key === `GET ${base}/travel/${BUS.id}/driver-links`)
           return Response.json({ links: linkMinted ? [LINK] : [] });
@@ -1921,6 +1991,36 @@ describe('Travel on the API (slice 046)', () => {
       screen.getByTestId('booking-bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb').textContent,
     ).toContain('5 nights');
 
+    // Slice 058: the rooming list opens under the hotel; a room saves on Enter and the summary
+    // follows; the hotel's link mints with the URL shown once.
+    fireEvent.click(screen.getByRole('button', { name: 'Rooming list for Hotel de la Ville' }));
+    const roomingBox = await screen.findByTestId(`rooming-${HOTEL_ID}`);
+    await waitFor(() =>
+      expect(roomingBox.textContent).toContain('0 of 3 placed · 0 of 21 rooms used'),
+    );
+    const minjiRoom = within(roomingBox).getByLabelText('Room of Minji Park');
+    fireEvent.change(minjiRoom, { target: { value: '204' } });
+    fireEvent.keyDown(minjiRoom, { key: 'Enter' });
+    await waitFor(() => expect(roomingBox.textContent).toContain('Minji Park is in room 204.'));
+    await waitFor(() =>
+      expect(roomingBox.textContent).toContain('1 of 3 placed · 1 of 21 rooms used'),
+    );
+    const roomPut = vi
+      .mocked(fetch)
+      .mock.calls.find(([url, init]) => init?.method === 'PUT' && String(url).endsWith('/rooming'));
+    expect(JSON.parse(String(roomPut?.[1]?.body))).toEqual({
+      participationId: 'p-minji',
+      room: '204',
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Hotel link for Hotel de la Ville' }));
+    const hotelUrl = (await screen.findByTestId('hotel-link-url')) as HTMLInputElement;
+    expect(hotelUrl.value).toBe(`https://app.example/hotel/${ORG.id}#token=${'h'.repeat(43)}`);
+    await waitFor(() =>
+      expect(screen.getByTestId('hotel-links').textContent).toContain(
+        'Minted 2026-10-12 · expires 2026-11-11 · 0 opens',
+      ),
+    );
+
     // The flight is delayed: a PATCH with the kind and the status.
     fireEvent.change(screen.getByLabelText('Status of DEMO 901'), {
       target: { value: 'delayed' },
@@ -1941,7 +2041,12 @@ describe('Travel on the API (slice 046)', () => {
         'Minted 2026-10-12 · expires 2026-11-11 · 0 opens',
       ),
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Revoke the link minted 2026-10-12' }));
+    // The hotel's link was minted the same day (slice 058): scope the revoke to the bus's list.
+    fireEvent.click(
+      within(screen.getByTestId('driver-links')).getByRole('button', {
+        name: 'Revoke the link minted 2026-10-12',
+      }),
+    );
     await waitFor(() =>
       expect(calls).toContain(`DELETE ${base}/travel/${BUS.id}/driver-links/${LINK.id}`),
     );

@@ -519,6 +519,43 @@ export const ko: Strings = {
     driverLinkRevoke: '취소',
     driverLinkRevokeOf: (minted: string) => `${minted}에 만든 링크 취소`,
     driverLinkFailed: '링크를 만들지 못했습니다.',
+    rooming: '객실 배정표',
+    roomingOf: (hotel: string) => `${hotel} 객실 배정표`,
+    roomingHide: '객실 배정표 숨기기',
+    roomingSummary: (assigned: number, people: number, used: number, rooms: number) =>
+      `${people}명 중 ${assigned}명 배정 · ${rooms}실 중 ${used}실 사용`,
+    roomingHint:
+      '각 사람의 객실 번호를 입력하세요(204, 3F-12). 인솔자가 먼저입니다. 보호자에게는 객실이 보이지 않으며, 호텔 시트는 객실별로 이름을 보여 줍니다.',
+    roomLabel: '객실',
+    roomOf: (name: string) => `${name}의 객실`,
+    roomUnassigned: '아직 객실 없음',
+    roomSaved: (name: string, room: string | null) =>
+      room ? `${name}: ${room}호에 배정했습니다.` : `${name}: 객실 배정을 해제했습니다.`,
+    roomFailed: '객실을 저장하지 못했습니다.',
+    roomingFailed: '객실 배정표를 불러오지 못했습니다.',
+    hotelLink: '호텔 링크',
+    hotelLinkOf: (hotel: string) => `${hotel} 호텔 링크`,
+    hotelLinkMinted:
+      '지금 이 링크를 복사하세요. 한 번만 표시됩니다. 호텔은 숙박 정보, 객실별 이름, 인솔자 이름을 봅니다.',
+    hotelLinksNone:
+      '아직 호텔 링크가 없습니다. 발급하면 프런트에 객실 배정표를 전달할 수 있습니다.',
+  },
+  hotel: {
+    title: '호텔 시트',
+    loading: '시트를 여는 중…',
+    failedTitle: '이 링크는 사용할 수 없습니다',
+    invalid: '이 링크는 더 이상 작동하지 않습니다. 주최자에게 새 링크를 요청하세요.',
+    missing: '링크가 불완전합니다. 받은 그대로 여세요.',
+    stay: (nights: number, rooms: number) => `${nights}박 · 객실 ${rooms}실 예약`,
+    confirmation: (code: string) => `예약 확인 ${code}`,
+    rooms: (n: number) => `배정된 객실 ${n}실`,
+    people: (n: number) => `투숙객 ${n}명`,
+    room: (label: string) => `${label}호`,
+    unassigned: '아직 객실 미배정',
+    leaders: '인솔자 (프런트에서 찾으실 분)',
+    namesOnly: '이름과 객실만 있습니다. 그 밖의 일은 인솔자에게 문의하세요.',
+    expires: (date: string) => `이 링크는 ${date}까지 사용할 수 있습니다.`,
+    print: '인쇄',
   },
   notifications: {
     title: '알림',
