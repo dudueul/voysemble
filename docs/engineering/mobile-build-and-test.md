@@ -83,6 +83,10 @@ the facts the file proves. Android unit tests use `org.junit.Test` (JUnit bridge
   (D31). The commit never triggers CI. Pull with rebase before pushing from a workstation or the
   authoring sandbox, since the branch may have moved by one captures commit.
 
+Never write the literal skip marker (`[skip ci]`, `[ci skip]`) in a human commit message, not
+even to describe the captures commit: GitHub skips the run for any push whose head commit message
+contains it, which is how slice 022 went unverified until the next push.
+
 Artifacts live on GitHub's blob storage (`*.blob.core.windows.net`), which the authoring sandbox
 cannot reach; the `captures` job is what brings the PNGs into the repo.
 

@@ -692,7 +692,7 @@ unacknowledged revisions (notification lanes), disruption drafts.
 
 ## Slice 021: public marketing site
 
-Status: done 2026-10-12. Commit: see git log (`feat(public-web): marketing landing ...`). CI: pending at commit time; the run id is recorded in a follow-up docs commit once verified.
+Status: done 2026-10-12. Commit `ebe61f9`. **CI verified**: run 38195621132 green (web incl. the public site unit tests and its E2E across four viewports, mobile, ios), 2026-10-12 02:28 UTC. First push green.
 Spec: D30 (content policy, from the 2026-10-12 interview), ADR-0008 (public site surface and hosts), D11 (KO/EN). Details: `docs/engineering/public-web.md`.
 
 Interview outcomes: separate static app built before the live People page; EN at `/`, KO at `/ko/`; full
@@ -729,7 +729,7 @@ Not done: store badges, a waitlist form, help center, reviewed legal wording, th
 
 ## Slice 022: device capture pipeline (D31)
 
-Status: done 2026-10-12. Commit: see git log (`ci(captures): ...`). CI: pending at commit time; the run id and the first captures commit are recorded in a follow-up docs commit once verified.
+Status: done 2026-10-12. Commit `6dd6b67`. CI: GitHub skipped the push's own run because the commit message quoted the literal `[skip ci]` marker of the captures commit (lesson recorded in `docs/engineering/mobile-build-and-test.md`); the changes are verified by the next push's run (slice 023, see that entry).
 Spec: D31 (founder request 2026-10-12: record designed views per device proactively, native apps included). Details: `docs/engineering/mobile-build-and-test.md` (§4, §5, §6), `docs/engineering/documentation-rules.md` (rule 11), `docs/captures/README.md`.
 
 | Gate | Command | Result |
