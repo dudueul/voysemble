@@ -370,6 +370,13 @@ export const en = {
     },
     confirmedBy: (by: string, role: string, when: string) => `Confirmed by ${role} ${by} ${when}`,
     awaitingConfirmation: 'Waiting for a leader to confirm from the phone.',
+    // Slice 064 (D22): the audited read of a channel while the card is open.
+    readChannel: (name: string) => `Read ${name}'s channel (audited)`,
+    auditedNote: (incident: string) => `Recorded on each traveler's timeline · ${incident}`,
+    refreshThread: 'Refresh',
+    closeThread: 'Close',
+    noChannelMessages: 'No messages in this channel yet.',
+    readFailed: 'Could not read the channel.',
     sendGuardianMessage: 'Send guardian message',
     guardianMessageSent: (when: string) => `Guardian message sent ${when}`,
     guardianMessageFailed: 'Could not send the guardian message.',

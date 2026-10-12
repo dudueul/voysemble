@@ -22,6 +22,7 @@ export const TimelineKind = z
     'devices_revoked',
     'photo_tag',
     'document_reveal',
+    'chat_audited_read',
   ])
   .openapi('TimelineKind');
 export type TimelineKind = z.infer<typeof TimelineKind>;

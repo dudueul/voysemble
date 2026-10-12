@@ -2679,3 +2679,20 @@ fieldset.filters {
     display: none;
   }
 }
+
+/* Slice 064: the audited channel reads on an open incident card. */
+.incident__reads {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.audited-thread {
+  display: grid;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--vy-border);
+  border-radius: 12px;
+  background: var(--vy-bg);
+}

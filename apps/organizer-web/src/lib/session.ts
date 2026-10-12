@@ -445,6 +445,26 @@ export const chatsQuery = (orgId: string, tripId: string) =>
     refetchInterval: 15_000,
   });
 
+/**
+ * Slice 064 (D22): the organizer's read of a group or traveler channel on an open incident. Every
+ * fetch is a fact on the travelers' timelines, so this query never refetches on its own: once on
+ * mount, again only when the organizer presses Refresh, and nothing is kept once it closes.
+ */
+export const auditedChatReadQuery = (orgId: string, tripId: string, channelId: string) =>
+  queryOptions({
+    queryKey: ['orgs', orgId, 'trips', tripId, 'chats', channelId, 'audited'],
+    queryFn: async () =>
+      api<ChatMessageList>(
+        `/v1/orgs/${orgId}/trips/${tripId}/chats/${encodeURIComponent(channelId)}/messages`,
+      ),
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: 0,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: 'always',
+    retry: false,
+  });
+
 export const chatMessagesQuery = (orgId: string, tripId: string, channelId: string) =>
   queryOptions({
     queryKey: ['orgs', orgId, 'trips', tripId, 'chats', channelId],

@@ -42,6 +42,10 @@ page subtitle leads with the open count. Without a trip the card shows the fixtu
 "Sample data" chip and a pointer to setup; the meeting-window map and the missing list stay
 fixtures with their own chips until their slices.
 
+Slice 064 (D22): an open card also offers "Read <group>'s channel (audited)" and "Read
+<traveler>'s channel (audited)" for the named travelers; the read-only thread says the read is
+recorded on each traveler's timeline. `chat.md` has the rule.
+
 ## Mobile
 
 `SyncHeadcountResponseDto.incidentId` and `HeadcountPushResult.incidentId` carry the card id to

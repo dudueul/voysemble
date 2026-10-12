@@ -95,6 +95,14 @@ test('head count closed with a missing traveler opens an incident the organizer 
     { status: 'with_group', note: 'Found in the lobby.' },
   );
   expect(confirm.ok, `confirm: ${confirm.status} ${confirm.text}`).toBeTruthy();
+  // Slice 064: Kim writes in Bus A's channel; the organizer will read it on the incident.
+  const said = await call(
+    kim,
+    'POST',
+    `/v1/orgs/${organizationId}/trips/${tripId}/chats/${encodeURIComponent('group:Bus A')}/messages`,
+    { body: 'Juho is back with us, found in the lobby.' },
+  );
+  expect(said.ok, `chat: ${said.status} ${said.text}`).toBeTruthy();
   await ctx.close();
 
   // Slice 014: the command center is live for this trip.
@@ -140,6 +148,19 @@ test('head count closed with a missing traveler opens an incident the organizer 
   );
   await page.mouse.move(0, 0);
   await page.screenshot({ path: `${OUT}/${info.project.name}/safety-live.png`, fullPage: true });
+
+  // Slice 064 (D22): the organizer reads Bus A's channel on the open card, audited.
+  await card.getByRole('button', { name: "Read Bus A's channel (audited)" }).click();
+  const thread = page.getByTestId('audited-thread');
+  await expect(thread).toContainText('Juho is back with us, found in the lobby.');
+  await expect(thread).toContainText("Recorded on each traveler's timeline");
+  await page.mouse.move(0, 0);
+  await page.screenshot({
+    path: `${OUT}/${info.project.name}/safety-audited-read.png`,
+    fullPage: true,
+  });
+  await thread.getByRole('button', { name: 'Close' }).click();
+  await expect(page.getByTestId('audited-thread')).toHaveCount(0);
 
   await card.getByLabel('What happened (optional)').fill('Juho was in the lobby.');
   await card.getByRole('button', { name: 'Resolve' }).click();

@@ -1706,3 +1706,23 @@ Built:
 - Docs: `command-center-live.md` section, rules and facts, D42, captures README, ledger, feature flags `console.trip-switching`, `console.alert-links`, `console.offline-state` working.
 
 Not done: a display name on accounts; a trip switch on the phones; archiving a completed trip out of the switch; the alerts' second actions as flows.
+
+## Slice 064: chat in the reader's language; the organizer's audited read on an open incident
+
+Status: done 2026-10-12. Commit: see git log (`feat(chat): cards in the reader's language; the organizer reads a named traveler's channels on an open incident, audited (slice 064)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D22 (chat; the audit clause done), D17 (incidents), D13 (what a guardian never sees: unchanged), D31. Details: `docs/engineering/chat.md` (the slice 064 section and facts), `incidents.md` (console).
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 40 files, 109 tests (`chat.test.ts` +1: the words and the audited read end to end) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 22 files, 132 tests (the Safety live-incidents case gains the read) |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e -- headcounts.spec.ts chat.spec.ts` | 2 passed on desktop-1440 (`safety-audited-read.png` recorded) |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+Built:
+- Worker: `lib/chat-words.ts` (both languages); `ChatViewer.locale` from the account; `chatAccess(mode)` with the incident path (read only, group or traveler channel, an open incident naming a traveler in it); `chatMessages` writes `chat_audited_read` on every traveler in the channel and answers `audited`; the person timeline reads the fact with the incident as reference. Contracts: `ChatAuditedRead`, `ChatMessageList.audited`, `TimelineKind.chat_audited_read`.
+- Console: the open incident card's `ChannelReads` (one button per group and per named traveler) and the read-only `AuditedThread` on `auditedChatReadQuery` (no polling: each fetch is a fact); strings EN/KO; CSS.
+- Phones: nothing to change; the cards' words arrive in the account language.
+- Docs: `chat.md` section, route rows, facts and not-done; `incidents.md`; D22 amendment; captures README; ledger; feature flags `chat.reader-language`, `chat.audited-read` working.
+
+Not done: leader moderation; the read from the Communication page or the person card; telling the travelers a read happened; sockets.

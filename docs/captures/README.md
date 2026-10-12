@@ -242,7 +242,8 @@ chips, the tight-connections and proposals cards. `web/<project>/command-center-
 the command center with the same events in its next 48 hours. Produced by
 `apps/organizer-web/e2e/journey-graph.spec.ts`. No phone change.
 
-`web/<project>/command-center-trips.png` (slice 063): the Today page with three trips, the one
+`web/<project>/safety-audited-read.png` (slice 064): the open incident card with Bus A's channel read
+under its note. `web/<project>/command-center-trips.png` (slice 063): the Today page with three trips, the one
 just created from the Trips panel active in the top bar's select. `command-center-offline-first.png`:
 the offline state of a first load without a connection to the organizations, with Retry.
 

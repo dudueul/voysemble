@@ -47,6 +47,8 @@
     "console.trip-switching": "working",
     "console.alert-links": "working",
     "console.offline-state": "working",
+    "chat.reader-language": "working",
+    "chat.audited-read": "working",
     "travel.bookings": "working",
     "packing.checklist": "working",
     "packing.reminders": "working",

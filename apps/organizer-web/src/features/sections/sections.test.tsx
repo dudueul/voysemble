@@ -1063,6 +1063,29 @@ describe('sample sections', () => {
         messaged = true;
         return INC;
       },
+      // Slice 064: the audited read of Bus A's channel.
+      [`GET /v1/orgs/${ORG.id}/trips/${TRIP.id}/chats/group%3ABus%20A/messages`]: () => ({
+        channel: {
+          id: 'group:Bus A',
+          kind: 'group',
+          title: 'Bus A',
+          subtitle: '2 travelers · 1 leader',
+          unread: 0,
+          lastMessage: null,
+        },
+        messages: [
+          {
+            id: '88888888-8888-4888-8888-888888888888',
+            channelId: 'group:Bus A',
+            senderName: 'Kim',
+            senderRole: 'leader',
+            body: 'Juho went to find the toilets.',
+            sentAt: '2026-12-30T21:50:00.000Z',
+            mine: false,
+          },
+        ],
+        audited: { incidentId: INC.id, incidentTitle: INC.title },
+      }),
       [`POST /v1/orgs/${ORG.id}/trips/${TRIP.id}/incidents/${INC.id}/resolve`]: () => {
         posted.push(1);
         resolved = true;
@@ -1073,6 +1096,19 @@ describe('sample sections', () => {
     const card = await screen.findByTestId(`incident-${INC.id}`);
     await screen.findByTestId('no-window');
     expect(text(card)).toContain('Juho Kim');
+    // Slice 064: the group's and the traveler's channels can be read, audited; Close folds it.
+    expect(
+      within(card)
+        .getAllByRole('button', { name: /channel \(audited\)/ })
+        .map((b) => b.textContent),
+    ).toEqual(["Read Bus A's channel (audited)", "Read Juho Kim's channel (audited)"]);
+    fireEvent.click(within(card).getByRole('button', { name: "Read Bus A's channel (audited)" }));
+    await screen.findByText('Juho went to find the toilets.');
+    expect(text(screen.getByTestId('audited-thread'))).toContain(
+      "Recorded on each traveler's timeline · Head count closed with 1 missing (Bus A, 06:58)",
+    );
+    fireEvent.click(within(card).getByRole('button', { name: 'Close' }));
+    expect(screen.queryByTestId('audited-thread')).toBeNull();
     expect(text(card)).toContain('Open');
     expect(text(screen.getByRole('heading', { level: 1 }).parentElement)).toContain(
       '1 open incident',

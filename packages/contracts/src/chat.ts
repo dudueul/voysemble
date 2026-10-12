@@ -53,11 +53,23 @@ export const ChatChannelList = z
   .openapi('ChatChannelList');
 export type ChatChannelList = z.infer<typeof ChatChannelList>;
 
+/** Slice 064: why an organizer could read a group or traveler channel they are not in. */
+export const ChatAuditedRead = z
+  .object({ incidentId: z.uuid(), incidentTitle: z.string() })
+  .openapi('ChatAuditedRead');
+export type ChatAuditedRead = z.infer<typeof ChatAuditedRead>;
+
 export const ChatMessageList = z
   .object({
     channel: ChatChannel,
     /** Oldest first, the latest 200. */
     messages: z.array(ChatMessage),
+    /**
+     * Present when the organizer read a group or traveler channel on the strength of an open
+     * incident naming one of its travelers (D22, slice 064): the read is a fact on every
+     * traveler's timeline in that channel.
+     */
+    audited: ChatAuditedRead.optional(),
   })
   .openapi('ChatMessageList');
 export type ChatMessageList = z.infer<typeof ChatMessageList>;

@@ -98,6 +98,7 @@ import {
 } from '@voysemble/contracts';
 import type { Bindings } from '../env';
 import { careKeyFrom, seal, unseal } from '../lib/care-crypto';
+import { chatWords } from '../lib/chat-words';
 import {
   type AudienceRole,
   deliverAt,
@@ -623,6 +624,8 @@ export type ChatViewer = {
   organizer: boolean;
   name: string;
   role: ChatSenderRole;
+  /** The reader's account language: the channel cards' words follow it (slice 064). */
+  locale: 'ko' | 'en';
 };
 
 type CareNoteRow = {
@@ -2843,14 +2846,15 @@ export class OrgDurableObject extends DurableObject<Env> {
     const leadersOf = (g: string | null) =>
       roster.filter((p) => p.role === 'leader' && (p.groupName === null || p.groupName === g));
     const names = (ps: Participation[]) => ps.map((p) => p.displayName).join(', ');
+    const w = chatWords(viewer.locale);
     const out: ChatChannel[] = [];
     const tripCard = () =>
       this.chatChannelCard(
         tripId,
         channelIdFor('trip'),
         'trip',
-        'Everyone on the trip',
-        `${travelers(null).length} travelers · ${roster.filter((p) => p.role === 'leader').length} leaders · the organizer`,
+        w.tripTitle,
+        w.tripSubtitle(travelers(null).length, roster.filter((p) => p.role === 'leader').length),
         viewer,
       );
     const groupCard = (g: string) =>
@@ -2859,7 +2863,7 @@ export class OrgDurableObject extends DurableObject<Env> {
         channelIdFor('group', g),
         'group',
         g,
-        `${travelers(g).length} travelers · ${leadersOf(g).length} ${leadersOf(g).length === 1 ? 'leader' : 'leaders'}`,
+        w.groupSubtitle(travelers(g).length, leadersOf(g).length),
         viewer,
       );
     const travelerCard = (t: Participation, mine: boolean) =>
@@ -2867,10 +2871,10 @@ export class OrgDurableObject extends DurableObject<Env> {
         tripId,
         channelIdFor('traveler', t.id),
         'traveler',
-        mine ? 'Your leaders' : t.displayName,
+        mine ? w.yourLeaders : t.displayName,
         mine
-          ? `with ${names(leadersOf(t.groupName)) || 'your leaders'}`
-          : `with ${t.displayName} · ${t.groupName ?? 'no group'}`,
+          ? w.withLeaders(names(leadersOf(t.groupName)))
+          : w.travelerSubtitle(t.displayName, t.groupName),
         viewer,
       );
     const guardianCard = (g: Participation, mine: boolean) => {
@@ -2879,8 +2883,8 @@ export class OrgDurableObject extends DurableObject<Env> {
         tripId,
         channelIdFor('guardian', g.id),
         'guardian',
-        mine ? 'The organizer' : g.displayName,
-        mine ? 'with the trip organizer' : `guardian of ${traveler?.displayName ?? 'a traveler'}`,
+        mine ? w.theOrganizer : g.displayName,
+        mine ? w.withOrganizer : w.guardianOf(traveler?.displayName ?? null),
         viewer,
       );
     };
@@ -2909,23 +2913,62 @@ export class OrgDurableObject extends DurableObject<Env> {
     return out;
   }
 
-  /** May this viewer read and write the channel; the channel's card when so. */
+  /**
+   * May this viewer read (or write) the channel; the channel's card when so. Slice 064 (D22): an
+   * organizer without a participation may read, never write, a group or traveler channel while
+   * an open incident names a traveler who is in it; such a read comes back with the incident so
+   * the caller records it.
+   */
   private async chatAccess(
     tripId: string,
     channelId: string,
     viewer: ChatViewer,
-  ): Promise<{ ok: true; card: ChatChannel } | { forbidden: true } | { notFound: true }> {
+    mode: 'read' | 'write' = 'read',
+  ): Promise<
+    | { ok: true; card: ChatChannel; audited: Incident | null; travelerIds: string[] }
+    | { forbidden: true }
+    | { notFound: true }
+  > {
     const parsed = parseChannelId(channelId);
     if (!parsed) return { notFound: true };
     const roster = await this.listRoster(tripId);
     const who = channelMembersOf(parsed, roster);
     if (!who.exists) return { notFound: true };
     const me = viewer.participation;
+    const travelerIds = roster
+      .filter((p) => p.role === 'traveler' && who.members.has(p.id))
+      .map((p) => p.id);
     const allowed = (me && who.members.has(me.id)) || (viewer.organizer && !me && who.organizers);
-    if (!allowed) return { forbidden: true };
-    const card = (await this.chatChannels(tripId, viewer)).find((c) => c.id === channelId);
-    if (!card) return { forbidden: true };
-    return { ok: true, card };
+    if (allowed) {
+      const card = (await this.chatChannels(tripId, viewer)).find((c) => c.id === channelId);
+      if (!card) return { forbidden: true };
+      return { ok: true, card, audited: null, travelerIds };
+    }
+    const onIncident =
+      mode === 'read' &&
+      viewer.organizer &&
+      !me &&
+      (parsed.kind === 'group' || parsed.kind === 'traveler');
+    if (!onIncident) return { forbidden: true };
+    const incident = (await this.listIncidents(tripId)).find(
+      (i) => i.status === 'open' && i.people.some((p) => travelerIds.includes(p.participationId)),
+    );
+    if (!incident) return { forbidden: true };
+    const w = chatWords(viewer.locale);
+    const travelers = roster.filter((p) => p.role === 'traveler' && who.members.has(p.id));
+    const leaders = roster.filter((p) => p.role === 'leader' && who.members.has(p.id));
+    const subject = parsed.kind === 'traveler' ? roster.find((p) => p.id === parsed.key) : null;
+    const card = await this.chatChannelCard(
+      tripId,
+      channelId,
+      parsed.kind,
+      parsed.kind === 'group' ? parsed.key : (subject?.displayName ?? parsed.key),
+      parsed.kind === 'group'
+        ? w.groupSubtitle(travelers.length, leaders.length)
+        : w.travelerSubtitle(subject?.displayName ?? '', subject?.groupName ?? null),
+      viewer,
+    );
+    return { ok: true, card, audited: incident, travelerIds };
   }
 
   /** The latest 200 messages, oldest first; opening a channel marks it read for this viewer. */
@@ -2947,6 +2990,33 @@ export class OrgDurableObject extends DurableObject<Env> {
       )
       .toArray()
       .reverse();
+    if (access.audited) {
+      // Slice 064 (D22): the organizer is not a member; the read is a fact on every traveler's
+      // timeline in the channel, naming the channel and the incident that allowed it.
+      const detail = JSON.stringify({
+        channel: channelId,
+        title: access.card.title,
+        incidentId: access.audited.id,
+        incidentTitle: access.audited.title,
+      });
+      for (const participationId of access.travelerIds) {
+        sql.exec(
+          'INSERT INTO participation_events (id, participation_id, trip_id, kind, by_name, detail, at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          crypto.randomUUID(),
+          participationId,
+          tripId,
+          'chat_audited_read',
+          viewer.name,
+          detail,
+          now,
+        );
+      }
+      return {
+        channel: { ...access.card, unread: 0 },
+        messages: rows.map((r) => this.chatMessageOf(r, viewer)),
+        audited: { incidentId: access.audited.id, incidentTitle: access.audited.title },
+      };
+    }
     sql.exec(
       `INSERT INTO chat_reads (trip_id, channel, reader_key, last_read_at) VALUES (?, ?, ?, ?)
        ON CONFLICT(trip_id, channel, reader_key) DO UPDATE SET last_read_at = excluded.last_read_at`,
@@ -2969,7 +3039,7 @@ export class OrgDurableObject extends DurableObject<Env> {
     now: string,
   ): Promise<ChatMessage | { forbidden: true } | { notFound: true }> {
     this.requireOrg();
-    const access = await this.chatAccess(tripId, channelId, viewer);
+    const access = await this.chatAccess(tripId, channelId, viewer, 'write');
     if (!('ok' in access)) return access;
     const row: ChatMessageRow = {
       id: crypto.randomUUID(),
@@ -4904,6 +4974,21 @@ export class OrgDurableObject extends DurableObject<Env> {
           title: `Document scan revealed by ${r.by_name}`,
           detail: name || null,
           ref: null,
+        });
+      } else if (r.kind === 'chat_audited_read') {
+        // Slice 064 (D22): the organizer read a channel this person is in, on an open incident.
+        let d: { title?: string; incidentId?: string; incidentTitle?: string } = {};
+        try {
+          d = JSON.parse(r.detail ?? '{}') as typeof d;
+        } catch {
+          /* keep the empty detail */
+        }
+        entries.push({
+          kind: 'chat_audited_read',
+          at: r.at,
+          title: `Channel "${d.title ?? ''}" read by ${r.by_name} (audited)`,
+          detail: d.incidentTitle ? `During the incident: ${d.incidentTitle}` : null,
+          ref: d.incidentId ? { type: 'incident', id: d.incidentId } : null,
         });
       }
     }

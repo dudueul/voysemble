@@ -3,7 +3,10 @@
 // Chat channels (D22, slice 033). The viewer is a participation on the trip (phones) or an
 // owner/organizer account without one (console). Channels are derived from the roster; the
 // Durable Object checks membership on every read and write (the D22 matrix in
-// `channelMembersOf`). Opening a channel marks it read; the phones poll the list.
+// `channelMembersOf`). Opening a channel marks it read; the phones poll the list. Slice 064: the
+// cards' words follow the caller's account language, and an organizer may read (never write) a
+// group or traveler channel while an open incident names one of its travelers; that read is a
+// fact on every traveler's timeline in the channel.
 
 import { createRoute, type OpenAPIHono } from '@hono/zod-openapi';
 import {
@@ -47,6 +50,8 @@ const messagesRoute = createRoute({
   path: '/v1/orgs/{orgId}/trips/{tripId}/chats/{channelId}/messages',
   tags: ['chat'],
   summary: 'The latest 200 messages of a channel (oldest first); marks the channel read',
+  description:
+    "Members read their channels. An owner or organizer may also read a group or traveler channel while an open incident names a traveler in it (D22): the answer carries `audited` and the read lands on every traveler's timeline in the channel. Writing there stays 403.",
   security: SESSION_SECURITY,
   request: { params: ChannelParams },
   responses: {
@@ -99,6 +104,7 @@ async function viewerFor(
     organizer,
     name: me?.displayName ?? (access.role === 'owner' ? 'Owner' : 'Organizer'),
     role: me ? (me.role as ChatViewer['role']) : access.role === 'owner' ? 'owner' : 'organizer',
+    locale: auth.locale,
   };
   return { org, viewer };
 }

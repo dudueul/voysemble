@@ -6,9 +6,16 @@
 // on the schematic map with deterministic spots, a close button, and a form that opens one with
 // the meeting point. The map is a schematic SVG (no tiles, no person's coordinates). The missing
 // list stays a fixture with its own "Sample data" chip. Guardians never see this page's content.
+// Slice 064 (D22): an open card offers the organizer a read of the group's and each named
+// traveler's channel; every read is a fact on the travelers' timelines and the thread says so.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { type Incident, latestMissingOf, type MeetingWindow } from '@voysemble/contracts';
+import {
+  channelIdFor,
+  type Incident,
+  latestMissingOf,
+  type MeetingWindow,
+} from '@voysemble/contracts';
 import { type FormEvent, useState } from 'react';
 import { Icons } from '../../app/shell/icons';
 import { FROZEN_NOW } from '../../fixtures/korea-concert-tour';
@@ -21,6 +28,7 @@ import {
 import { ApiError } from '../../lib/api-client';
 import { formatTime, relativeTo } from '../../lib/format';
 import {
+  auditedChatReadQuery,
   headcountsQuery,
   incidents as incidentsApi,
   incidentsQuery,
@@ -144,11 +152,118 @@ function LiveIncident({ orgId, tripId, i }: { orgId: string; tripId: string; i: 
             {i.resolutionNote ? ` · ${i.resolutionNote}` : ''}
           </span>
         )}
+        {open ? <ChannelReads orgId={orgId} tripId={tripId} i={i} /> : null}
       </div>
       <span className={`chip chip--${open ? 'delayed' : 'done'}`}>
         {open ? s.incidentStatus.open : s.incidentStatus.resolved}
       </span>
     </li>
+  );
+}
+
+/**
+ * Slice 064 (D22): the channels an open incident lets the organizer read, one button each (the
+ * group of every named traveler, and each traveler's own channel), and the thread that opens.
+ */
+function ChannelReads({ orgId, tripId, i }: { orgId: string; tripId: string; i: Incident }) {
+  const [openChannel, setOpenChannel] = useState<{ id: string; name: string } | null>(null);
+  const groups = [...new Set(i.people.map((p) => p.groupName).filter((g): g is string => !!g))];
+  const channels = [
+    ...groups.map((g) => ({ id: channelIdFor('group', g), name: g })),
+    ...i.people.map((p) => ({
+      id: channelIdFor('traveler', p.participationId),
+      name: p.displayName,
+    })),
+  ];
+  return (
+    <>
+      <span className="small incident__reads" data-testid={`reads-${i.id}`}>
+        {channels.map((ch) => (
+          <button
+            key={ch.id}
+            type="button"
+            className="btn btn--ghost btn--sm"
+            aria-pressed={openChannel?.id === ch.id}
+            onClick={() => setOpenChannel(openChannel?.id === ch.id ? null : ch)}
+          >
+            {s.readChannel(ch.name)}
+          </button>
+        ))}
+      </span>
+      {openChannel ? (
+        <AuditedThread
+          orgId={orgId}
+          tripId={tripId}
+          channel={openChannel}
+          onClose={() => setOpenChannel(null)}
+        />
+      ) : null}
+    </>
+  );
+}
+
+/** A read-only thread; the note names the incident the read rides on. Refresh is another read. */
+function AuditedThread({
+  orgId,
+  tripId,
+  channel,
+  onClose,
+}: {
+  orgId: string;
+  tripId: string;
+  channel: { id: string; name: string };
+  onClose: () => void;
+}) {
+  const q = useQuery(auditedChatReadQuery(orgId, tripId, channel.id));
+  const now = new Date().toISOString();
+  return (
+    <section className="audited-thread" data-testid="audited-thread" aria-label={channel.name}>
+      {q.isPending ? (
+        <p className="state__body" role="status">
+          {strings.states.loading}
+        </p>
+      ) : q.isError ? (
+        <p className="field__error" role="alert">
+          {q.error instanceof ApiError ? q.error.message : s.readFailed}
+        </p>
+      ) : (
+        <>
+          <p className="muted small">
+            {q.data.audited ? s.auditedNote(q.data.audited.incidentTitle) : q.data.channel.subtitle}
+          </p>
+          {q.data.messages.length === 0 ? (
+            <p className="state__body" role="status">
+              {s.noChannelMessages}
+            </p>
+          ) : (
+            <div className="chat-thread" data-testid="audited-messages">
+              {q.data.messages.map((m) => (
+                <div key={m.id} className="bubble">
+                  <span className="bubble__meta">
+                    {m.senderName} · {m.senderRole}
+                  </span>
+                  <span>{m.body}</span>
+                  <span className="bubble__meta">{relativeTo(now, m.sentAt)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+      <span className="small">
+        <button
+          type="button"
+          className="btn btn--ghost btn--sm"
+          disabled={q.isFetching}
+          onClick={() => void q.refetch()}
+        >
+          {s.refreshThread}
+        </button>{' '}
+        <button type="button" className="btn btn--ghost btn--sm" onClick={onClose}>
+          {s.closeThread}
+        </button>
+      </span>
+    </section>
   );
 }
 
