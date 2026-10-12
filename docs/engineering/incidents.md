@@ -92,6 +92,13 @@ leader or call the number on your card."; a refusal names the code. Android `Hel
 Evidence: `android/today-help.png`, `android/today-help-form.png`, `ios/today-help.png`,
 `ios/today-help-form.png`.
 
+Slice 079: every card on the Incidents screen carries a chip saying where it came from, so a
+leader reads a traveler's own request at a glance: "Asked for help" (amber), "Head count", "By
+hand", in the reader's language (`IncidentKind` on the core card, mapped from the wire kind by
+`incidentKindOf`, worded by `labelOfKind`; an unknown wire kind reads as by hand). The fixture's
+`helpIncident()` stands in for the capture. Evidence: `android/incidents-help.png`,
+`ios/incidents-help.png`.
+
 
 `SyncHeadcountResponseDto.incidentId` and `HeadcountPushResult.incidentId` carry the card id to
 the device; the Android close bar already reads "Closed with N missing · incident opened".
@@ -190,6 +197,10 @@ otherwise), reachable from Today next to "Open head count". iOS `IncidentsView` 
   by Kim · Minji Park", Kim's words, the Safety link); Minji's request mails "<trip>: Minji Park
   asked for help" with her words; a second request while hers is open is 409; once resolved she
   asks again (201).
+- Slice 079, core: the kinds ride on the cards (head count, by hand), the help kind maps, an
+  unknown wire kind reads as by hand. Android: the live list carries the kinds; the screen shows
+  the three chips with a help card leading. iOS: the sample's kinds, the help label, the fixture
+  card's kind.
 
 ## Not done
 

@@ -14,6 +14,9 @@ public enum class ConfirmationStatus { WITH_GROUP, NOT_WITH_GROUP, UNKNOWN }
 
 public enum class IncidentStatus { OPEN, RESOLVED }
 
+/** Slice 079: where a card came from (`kind` on the wire): a head count, a hand (the organizer's or a leader's), or the traveler's own request. */
+public enum class IncidentKind { HEADCOUNT, MANUAL, HELP }
+
 public data class IncidentConfirmation(
     val status: ConfirmationStatus,
     val note: String?,
@@ -36,6 +39,8 @@ public data class IncidentCard(
     val guardianMessage: String?,
     /** A confirmation the device recorded but the server has not acknowledged yet. */
     val pending: IncidentConfirmation? = null,
+    /** Slice 079: the card's origin; a leader reads "Asked for help" at a glance. */
+    val kind: IncidentKind = IncidentKind.MANUAL,
 ) {
     public val latest: IncidentConfirmation? get() = pending ?: confirmations.firstOrNull()
     public val isOpen: Boolean get() = status == IncidentStatus.OPEN
@@ -58,4 +63,18 @@ public fun labelOf(status: ConfirmationStatus): String = when (status) {
     ConfirmationStatus.WITH_GROUP -> tr(Txt.CONF_WITH_GROUP)
     ConfirmationStatus.NOT_WITH_GROUP -> tr(Txt.CONF_NOT_WITH_GROUP)
     ConfirmationStatus.UNKNOWN -> tr(Txt.CONF_UNKNOWN)
+}
+
+/** Slice 079: the kind as the card's chip reads it, in the reader's language. */
+public fun labelOfKind(kind: IncidentKind): String = when (kind) {
+    IncidentKind.HEADCOUNT -> tr(Txt.INC_KIND_HEADCOUNT)
+    IncidentKind.MANUAL -> tr(Txt.INC_KIND_MANUAL)
+    IncidentKind.HELP -> tr(Txt.INC_KIND_HELP)
+}
+
+/** The wire kind to the device's: `headcount_missing`, `manual`, `help` (anything unknown reads as by hand). */
+public fun incidentKindOf(wire: String): IncidentKind = when (wire) {
+    "headcount_missing" -> IncidentKind.HEADCOUNT
+    "help" -> IncidentKind.HELP
+    else -> IncidentKind.MANUAL
 }

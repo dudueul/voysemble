@@ -190,6 +190,10 @@ struct IncidentsView: View {
             HStack {
                 Text(card.title).font(.headline)
                 Spacer()
+                // Slice 079: where the card came from; a traveler's own request stands out.
+                Text(IncidentsModelKt.labelOfKind(kind: card.kind))
+                    .font(.caption.bold())
+                    .foregroundStyle(card.kind == IncidentKind.help ? .orange : .secondary)
                 Text(card.isOpen ? tr(.incOpen) : tr(.incResolved)).font(.caption.bold()).foregroundStyle(card.isOpen ? .red : .green)
             }
             Text(tr3(.incMeta, card.people.joined(separator: ", "), card.openedAt, card.openedBy)).font(.caption).foregroundStyle(.secondary)

@@ -242,7 +242,9 @@ chips, the tight-connections and proposals cards. `web/<project>/command-center-
 the command center with the same events in its next 48 hours. Produced by
 `apps/organizer-web/e2e/journey-graph.spec.ts`. No phone change.
 
-`android/today-room.png` (the Today screen scrolled to the card), `ios/today-room.png` (the card with the room
+`android/incidents-help.png`, `ios/incidents-help.png` (slice 079): the Incidents screen with a traveler's own request
+leading the list, each card's chip saying where it came from (Asked for help, Head count, By hand); `incidents-open`,
+`incidents-light` and `incidents-pending-dark` gain the chips. `android/today-room.png` (the Today screen scrolled to the card), `ios/today-room.png` (the card with the room
 and the roommate, and a stay before the organizer placed her) (slice 075): "Your room tonight"; the sample Today
 captures on both platforms gain the card. `android/today-help.png` (the Today screen scrolled to the card, a request on its way), `android/today-help-form.png`,
 `ios/today-help.png` (the card with a request on its way and the card before any request), `ios/today-help-form.png`

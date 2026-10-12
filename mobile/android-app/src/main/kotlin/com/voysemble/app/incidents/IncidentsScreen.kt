@@ -6,6 +6,8 @@
 
 package com.voysemble.app.incidents
 
+import com.voysemble.core.incidents.labelOfKind
+import com.voysemble.core.incidents.IncidentKind
 import com.voysemble.core.i18n.Txt
 import com.voysemble.core.i18n.tr
 import com.voysemble.core.i18n.trf
@@ -120,6 +122,8 @@ private fun IncidentRow(card: IncidentCard, onConfirm: (String, ConfirmationStat
     VyCard {
         Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(card.title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            // Slice 079: where the card came from; a traveler's own request stands out.
+            LabelChip(labelOfKind(card.kind), if (card.kind == IncidentKind.HELP) c.warning else c.textMuted)
             LabelChip(if (card.isOpen) tr(Txt.INC_OPEN) else tr(Txt.INC_RESOLVED), if (card.isOpen) c.danger else c.success)
         }
         Text(trf(Txt.INC_META, card.people.joinToString(", "), card.openedAt, card.openedBy), style = MaterialTheme.typography.bodyMedium, color = c.textMuted)

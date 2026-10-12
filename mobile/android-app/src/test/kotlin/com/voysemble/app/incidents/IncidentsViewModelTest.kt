@@ -7,6 +7,7 @@
 
 package com.voysemble.app.incidents
 
+import com.voysemble.core.incidents.IncidentKind
 import com.voysemble.core.api.ApiClient
 import com.voysemble.core.api.ApiClientConfig
 import com.voysemble.core.incidents.ConfirmationStatus
@@ -115,6 +116,8 @@ class IncidentsViewModelTest {
         vm.openIncident("  Juho feels sick ", listOf("p2")).join()
         assertEquals(listOf("""{"title":"Juho feels sick","participationIds":["p2"]}"""), posts)
         assertEquals(listOf("i2", "i1"), vm.state.value.feed.cards.map { it.id })
+        // Slice 079: the kinds ride along.
+        assertEquals(listOf(IncidentKind.MANUAL, IncidentKind.HEADCOUNT), vm.state.value.feed.cards.map { it.kind })
         assertNull(vm.state.value.openError)
         // Sample mode: the fixture's travelers and a local card on top.
         val sample = IncidentsViewModel(deviceClock = { "07:12" })

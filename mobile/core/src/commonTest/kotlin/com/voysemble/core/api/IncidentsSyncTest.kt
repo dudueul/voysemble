@@ -5,6 +5,8 @@
 
 package com.voysemble.core.api
 
+import com.voysemble.core.incidents.incidentKindOf
+import com.voysemble.core.incidents.IncidentKind
 import com.voysemble.core.incidents.ConfirmationStatus
 import com.voysemble.core.incidents.IncidentFeed
 import com.voysemble.core.incidents.IncidentStatus
@@ -65,6 +67,10 @@ class IncidentsSyncTest {
         assertEquals(false, merged.offline)
         assertEquals(IncidentStatus.RESOLVED, merged.cards[1].status)
         assertNull(merged.cards[1].guardianMessage)
+        // Slice 079: the kind rides along; an unknown wire kind reads as by hand.
+        assertEquals(listOf(IncidentKind.HEADCOUNT, IncidentKind.MANUAL), merged.cards.map { it.kind })
+        assertEquals(IncidentKind.HELP, incidentKindOf("help"))
+        assertEquals(IncidentKind.MANUAL, incidentKindOf("something-new"))
 
         val settled = merged.confirmed("i1")
         assertNull(settled.cards[0].pending)

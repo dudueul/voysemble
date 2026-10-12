@@ -5,6 +5,7 @@
 
 package com.voysemble.core.fixtures
 
+import com.voysemble.core.incidents.IncidentKind
 import com.voysemble.core.today.MyRoomCard
 import com.voysemble.core.api.CareNoteDto
 import com.voysemble.core.chat.ChatChannel
@@ -185,6 +186,7 @@ public object KoreaConcertTourFixture {
                 openedBy = "Lee Minho",
                 confirmations = emptyList(),
                 guardianMessage = null,
+                kind = IncidentKind.HEADCOUNT,
             ),
             IncidentCard(
                 id = "inc_phone_lost",
@@ -198,6 +200,19 @@ public object KoreaConcertTourFixture {
             ),
         ),
         offline = false,
+    )
+
+    /** Slice 079: a traveler's own request as a leader sees it on the Incidents screen (kind help, open, unanswered). */
+    public fun helpIncident(): IncidentCard = IncidentCard(
+        id = "inc_help_minji",
+        title = "I feel sick",
+        status = IncidentStatus.OPEN,
+        people = listOf("Minji Park"),
+        openedAt = "07:05",
+        openedBy = "Minji Park",
+        confirmations = emptyList(),
+        guardianMessage = null,
+        kind = IncidentKind.HELP,
     )
 
     /** Bulletin: three announcements, the first requiring an ack and carrying a KO machine translation. */

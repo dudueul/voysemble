@@ -117,6 +117,10 @@ final class LiveModelsTests: XCTestCase {
         await model.refresh()
         XCTAssertTrue(model.feed.offline)
         XCTAssertNil(model.error)
+        // Slice 079: the sample cards carry their kinds and the chips read them.
+        XCTAssertEqual(IncidentsModel().feed.cards.map { $0.kind }, [IncidentKind.headcount, IncidentKind.manual])
+        XCTAssertEqual(IncidentsModelKt.labelOfKind(kind: .help), "Asked for help")
+        XCTAssertEqual(KoreaConcertTourFixture.shared.helpIncident().kind, IncidentKind.help)
         // Slice 073: a leader may open a card; unreachable says offline; sample mode keeps a local card.
         XCTAssertTrue(model.canOpen)
         await model.loadTravelers()

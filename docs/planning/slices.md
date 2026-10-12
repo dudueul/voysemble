@@ -2018,3 +2018,25 @@ Built:
 - Docs: `notifications.md` events row, section, facts and not-done; `incidents.md` behaviour; `headcounts.md` not-done; ledger 075 (CI record) and 078; feature flag `headcounts.organizer-email`.
 
 Not done: a per-organizer switch for the incident emails; an email when the card is resolved (the console shows it).
+
+## Slice 079: where a card came from, on the phones
+
+Status: done 2026-10-12. Commit: see git log (`feat(mobile): each incident card says where it came from; a traveler's own request stands out (slice 079)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D17, D31. Details: `docs/engineering/incidents.md` (Mobile, facts).
+
+| Gate | Command | Result |
+|---|---|---|
+| Core JVM tests | `./gradlew :core:jvmTest` (CI `mobile` job) | `IncidentsSyncTest` (the kinds, the mapping); `L10nTest` the three new keys |
+| Android tests + captures | `./gradlew :android-app:testDebugUnitTest` / `recordRoborazziDebug` (CI `mobile` job) | `IncidentsViewModelTest` (the kinds on the live list); `IncidentsScreenshotTest.incidents_help_card` (`incidents-help.png`); the incident captures gain the chips |
+| iOS tests + captures | `xcodebuild test` (CI `ios` job) | `LiveModelsTests` (the kinds, the label); `CaptureTests.testIncidents` captures `incidents-help` |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean (no web change) |
+
+Gradle and Xcode do not run in this workspace; the CI `mobile` and `ios` jobs verify the Kotlin and Swift, desk-checked here.
+
+Built:
+- Core: `IncidentKind`, `IncidentCard.kind`, `incidentKindOf`, `labelOfKind`; `toCard` maps the kind; the fixture's head count card carries its kind and `helpIncident()` stands in for the capture; three `INC_KIND_*` strings in both languages; `IncidentsSyncTest`.
+- Android: the kind chip on every card (amber for a help card); the screenshot test and the live-list assertion.
+- iOS: the kind label on every card; the capture and the assertions.
+- Docs: `incidents.md` Mobile and facts; captures README; ledger 079; feature flag `mobile.incidents.kind`.
+
+Not done: filtering the Incidents screen by kind; the kind on the console's incident card beyond the help chip (the title says it).

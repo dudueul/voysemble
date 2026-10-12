@@ -7,6 +7,7 @@
 
 package com.voysemble.core.api
 
+import com.voysemble.core.incidents.incidentKindOf
 import com.voysemble.core.incidents.ConfirmationStatus
 import com.voysemble.core.incidents.IncidentCard
 import com.voysemble.core.incidents.IncidentConfirmation
@@ -99,6 +100,7 @@ public fun IncidentDto.toCard(clock: (iso: String) -> String, locale: String = "
     openedBy = openedByName,
     confirmations = confirmations.map { IncidentConfirmation(confirmationStatusOf(it.status), it.note, it.confirmedByName, clock(it.confirmedAt)) },
     guardianMessage = guardianMessage?.let { if (locale == "ko") it.bodyKo else it.bodyEn },
+    kind = incidentKindOf(kind),
 )
 
 /**

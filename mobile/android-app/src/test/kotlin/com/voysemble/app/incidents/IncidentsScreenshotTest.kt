@@ -3,6 +3,7 @@
 
 package com.voysemble.app.incidents
 
+import com.voysemble.core.incidents.IncidentFeed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.assertCountEquals
@@ -38,6 +39,22 @@ class IncidentsScreenshotTest {
         compose.onNodeWithText("Not confirmed yet").assertExists()
         compose.onNodeWithText("Guardian message sent").assertExists()
         compose.onRoot().captureRoboImage("$OUT/incidents-open.png")
+    }
+
+    @Test
+    fun incidents_help_card() {
+        // Slice 079: a traveler's own request leads the list with its "Asked for help" chip; the others say where they came from.
+        val feed = IncidentFeed(listOf(KoreaConcertTourFixture.helpIncident()) + KoreaConcertTourFixture.incidents().cards, offline = false)
+        compose.setContent {
+            VoysembleTheme(darkTheme = false) {
+                IncidentsScreen(state = IncidentsUiState(feed, live = false), onConfirm = { _, _ -> }, onBack = {})
+            }
+        }
+        compose.onNodeWithText("Asked for help").assertExists()
+        compose.onNodeWithText("Head count").assertExists()
+        compose.onNodeWithText("By hand").assertExists()
+        compose.onNodeWithText("I feel sick").assertExists()
+        compose.onRoot().captureRoboImage("$OUT/incidents-help.png")
     }
 
     @Test

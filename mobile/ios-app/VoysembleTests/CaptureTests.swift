@@ -99,6 +99,9 @@ final class CaptureTests: XCTestCase {
 
     func testIncidents() throws {
         try capture(NavigationStack { IncidentsView(model: IncidentsModel()) }, name: "incidents-light")
+        // Slice 079: a traveler's own request leads the list with its "Asked for help" chip.
+        let withHelp = IncidentFeed(cards: [KoreaConcertTourFixture.shared.helpIncident()] + KoreaConcertTourFixture.shared.incidents().cards, offline: false)
+        try capture(NavigationStack { IncidentsView(model: IncidentsModel(feed: withHelp)) }, name: "incidents-help")
         // Slice 073: the form a leader fills to open a card by hand, with Bus A's travelers.
         try capture(
             NavigationStack {
