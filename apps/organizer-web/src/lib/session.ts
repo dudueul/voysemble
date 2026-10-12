@@ -481,6 +481,12 @@ export const chat = {
       `/v1/orgs/${orgId}/trips/${tripId}/chats/${encodeURIComponent(channelId)}/messages`,
       { method: 'POST', body: { body } },
     ),
+  /** Slice 065 (D22): remove a message in one of the organizer's channels; the tombstone comes back. */
+  remove: (orgId: string, tripId: string, channelId: string, messageId: string) =>
+    api<ChatMessage>(
+      `/v1/orgs/${orgId}/trips/${tripId}/chats/${encodeURIComponent(channelId)}/messages/${messageId}`,
+      { method: 'DELETE' },
+    ),
 };
 
 export const announcementsQuery = (orgId: string, tripId: string) =>

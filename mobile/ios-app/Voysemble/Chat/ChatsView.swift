@@ -133,6 +133,29 @@ final class ChatsModel: ObservableObject {
         open = open?.remove(localId: localId)
         await send(text)
     }
+
+    /// Slice 065: remove a message (own, or any in a group or traveler channel as its leader); the
+    /// server keeps a tombstone and the bubble names who removed it. Sample mode removes locally.
+    func remove(_ id: String) async {
+        guard let thread = open, let target = thread.messages.first(where: { $0.id == id }) else { return }
+        guard let api, let trip else {
+            open = thread.markRemoved(id: id, byName: target.mine ? target.senderName : senderName)
+            return
+        }
+        do {
+            let r = try await api.removeChatMessage(orgId: trip.organizationId, tripId: trip.tripId, channelId: thread.channel.id, messageId: id, correlationId: nil)
+            if let dto = (r as? ApiResultOk<ChatMessageDto>)?.value {
+                open = open?.markRemoved(id: id, byName: dto.removed?.byName ?? senderName)
+                error = nil
+            } else if let failed = r as? ApiResultFailed {
+                error = tr1(.chatRemoveFailed, failed.error.code)
+            } else {
+                error = tr(.chatOffline)
+            }
+        } catch {
+            self.error = tr(.chatOffline)
+        }
+    }
 }
 
 struct ChatsView: View {
@@ -234,11 +257,18 @@ private struct ThreadView: View {
     }
 
     private func bubble(_ m: ChatMessage) -> some View {
-        HStack {
+        // Slice 065: the long-press menu offers Remove when the reader may (core `canRemove`).
+        let removable = m.removedBy == nil && !m.pending && !m.failed
+            && ChatModelKt.canRemove(channelKind: thread.channel.kind, viewerRole: model.trip?.role ?? "traveler", mine: m.mine)
+        return HStack {
             if m.mine { Spacer(minLength: 40) }
             VStack(alignment: .leading, spacing: 2) {
                 if !m.mine { Text(m.senderName).font(.caption2).foregroundStyle(.secondary) }
-                Text(m.body).font(.body)
+                if let removedBy = m.removedBy {
+                    Text(tr1(.chatRemovedBy, removedBy)).font(.body.italic()).opacity(0.8)
+                } else {
+                    Text(m.body).font(.body)
+                }
                 Text(m.failed ? tr(.chatNotSent) : (m.pending ? tr(.chatSending) : m.sentAt))
                     .font(.caption2).foregroundStyle(m.failed ? .red : (m.mine ? .white.opacity(0.8) : .secondary))
             }
@@ -246,6 +276,14 @@ private struct ThreadView: View {
             .background(RoundedRectangle(cornerRadius: 14).fill(m.mine ? Color(argb: Tokens.Color.Light.action) : Color.secondary.opacity(0.12)))
             .foregroundStyle(m.mine ? .white : .primary)
             .onTapGesture { if m.failed { Task { await model.retry(m.id) } } }
+            .contextMenu {
+                if removable {
+                    Button(role: .destructive) { Task { await model.remove(m.id) } } label: {
+                        Label(tr(.chatRemove), systemImage: "trash")
+                    }
+                }
+            }
+            .accessibilityLabel(removable ? tr1(.chatRemoveSpoken, m.senderName) : (m.removedBy.map { tr1(.chatRemovedBy, $0) } ?? m.body))
             if !m.mine { Spacer(minLength: 40) }
         }
     }

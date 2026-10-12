@@ -23,6 +23,8 @@ public data class ChatMessage(
     val pending: Boolean = false,
     /** The send failed; the person can retry. */
     val failed: Boolean = false,
+    /** Slice 065: who removed the message; the body is empty then and the bubble says so. */
+    val removedBy: String? = null,
 )
 
 public data class ChatChannel(
@@ -43,7 +45,7 @@ public data class ChatThread(
 )
 
 public fun ChatMessageDto.toChatMessage(clock: (iso: String) -> String): ChatMessage =
-    ChatMessage(id, channelId, senderName, senderRole, body, clock(sentAt), mine)
+    ChatMessage(id, channelId, senderName, senderRole, body, clock(sentAt), mine, removedBy = removed?.byName)
 
 public fun ChatChannelDto.toChatChannel(clock: (iso: String) -> String): ChatChannel =
     ChatChannel(id, kind, title, subtitle, unread, lastMessage?.body, lastMessage?.let { clock(it.sentAt) })
@@ -73,3 +75,19 @@ public fun List<ChatChannel>.unreadTotal(): Int = sumOf { it.unread }
 public fun ChatThread.retryText(localId: String): String? = messages.firstOrNull { it.id == localId && it.failed }?.body
 
 public fun ChatThread.remove(localId: String): ChatThread = copy(messages = messages.filterNot { it.id == localId })
+
+/**
+ * Who may remove a message (D22, slice 065), the same rule as `canRemoveChatMessage` in the
+ * contracts: the sender their own; a leader any message in a group or traveler channel they are
+ * in; an owner or organizer any in the trip and guardian channels.
+ */
+public fun canRemove(channelKind: String, viewerRole: String, mine: Boolean): Boolean = when {
+    mine -> true
+    viewerRole == "leader" -> channelKind == "group" || channelKind == "traveler"
+    viewerRole == "owner" || viewerRole == "organizer" -> channelKind == "trip" || channelKind == "guardian"
+    else -> false
+}
+
+/** The server kept a tombstone: the text goes, the bubble names who removed it. */
+public fun ChatThread.markRemoved(id: String, byName: String): ChatThread =
+    copy(messages = messages.map { if (it.id == id) it.copy(body = "", removedBy = byName) else it })

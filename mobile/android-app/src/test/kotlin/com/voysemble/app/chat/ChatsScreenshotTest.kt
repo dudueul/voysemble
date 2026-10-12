@@ -18,6 +18,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onFirst
 
 private const val OUT = "../../docs/captures/android"
 
@@ -46,6 +48,9 @@ class ChatsScreenshotTest {
         compose.onNodeWithContentDescription("Message").performTextInput("On my way!")
         compose.onNodeWithText("Send").performClick()
         compose.onNodeWithText("Sending…").assertExists()
+        // Slice 065: Minji removes her own first message; the bubble says so.
+        compose.onAllNodesWithContentDescription("Remove message from Minji Park").onFirst().performClick()
+        compose.onNodeWithText("Removed by Minji Park").assertExists()
         compose.onRoot().captureRoboImage("$OUT/chats-thread-dark.png")
     }
 }

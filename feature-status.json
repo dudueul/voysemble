@@ -49,6 +49,7 @@
     "console.offline-state": "working",
     "chat.reader-language": "working",
     "chat.audited-read": "working",
+    "chat.moderation": "working",
     "travel.bookings": "working",
     "packing.checklist": "working",
     "packing.reminders": "working",

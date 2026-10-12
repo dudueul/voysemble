@@ -20,6 +20,12 @@ export const ChatSenderRole = z
   .openapi('ChatSenderRole');
 export type ChatSenderRole = z.infer<typeof ChatSenderRole>;
 
+/** Slice 065: a removed message stays as a tombstone naming who removed it and when. */
+export const ChatMessageRemoval = z
+  .object({ byName: z.string(), at: Timestamp })
+  .openapi('ChatMessageRemoval');
+export type ChatMessageRemoval = z.infer<typeof ChatMessageRemoval>;
+
 export const ChatMessage = z
   .object({
     id: z.uuid(),
@@ -30,9 +36,27 @@ export const ChatMessage = z
     sentAt: Timestamp,
     /** Sent by the caller (so a phone can draw it on the right). */
     mine: z.boolean(),
+    /** Slice 065: present when the message was removed; the body is empty then. */
+    removed: ChatMessageRemoval.optional(),
   })
   .openapi('ChatMessage');
 export type ChatMessage = z.infer<typeof ChatMessage>;
+
+/**
+ * Who may remove a message (D22, slice 065): the sender their own; a leader any message in a
+ * group or traveler channel they are in; an owner or organizer any in the trip and guardian
+ * channels. The phones carry the same rule in Kotlin (`canRemove` in `chat/ChatModel.kt`).
+ */
+export function canRemoveChatMessage(
+  kind: ChatChannelKind,
+  role: ChatSenderRole,
+  mine: boolean,
+): boolean {
+  if (mine) return true;
+  if (role === 'leader') return kind === 'group' || kind === 'traveler';
+  if (role === 'owner' || role === 'organizer') return kind === 'trip' || kind === 'guardian';
+  return false;
+}
 
 export const ChatChannel = z
   .object({

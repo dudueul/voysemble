@@ -17,7 +17,13 @@ public data class ChatMessageDto(
     val body: String,
     val sentAt: String,
     val mine: Boolean,
+    /** Slice 065: present when the message was removed; the body is empty then. */
+    val removed: ChatRemovalDto? = null,
 )
+
+/** Who removed a message and when (slice 065). */
+@Serializable
+public data class ChatRemovalDto(val byName: String, val at: String)
 
 @Serializable
 public data class ChatChannelDto(

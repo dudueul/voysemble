@@ -802,6 +802,16 @@ describe('sample sections', () => {
         messages.push(m);
         return m;
       },
+      // Slice 065: the organizer removes Sora's message; the tombstone replaces it.
+      [`DELETE ${base}/chats/${encodeURIComponent('guardian:p2')}/messages/${first.id}`]: () => {
+        const gone = {
+          ...first,
+          body: '',
+          removed: { byName: 'Owner', at: '2026-12-31T06:50:00.000Z' },
+        };
+        messages.splice(0, 1, gone);
+        return gone;
+      },
     });
     renderWithQuery(<CommunicationPage />);
     const open = await screen.findByRole('button', { name: 'Open Sora Park' });
@@ -818,6 +828,11 @@ describe('sample sections', () => {
     await waitFor(() =>
       expect(text(screen.getByTestId('chat-messages'))).toContain('Ten minutes.'),
     );
+    fireEvent.click(within(thread).getByRole('button', { name: 'Remove message from Sora Park' }));
+    await waitFor(() =>
+      expect(text(screen.getByTestId('chat-messages'))).toContain('Message removed by Owner'),
+    );
+    expect(text(screen.getByTestId('chat-messages'))).not.toContain('Will the bus be late?');
     fireEvent.click(screen.getByRole('button', { name: /All channels/ }));
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Open Sora Park' })).toBeTruthy(),

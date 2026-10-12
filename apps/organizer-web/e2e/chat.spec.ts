@@ -85,7 +85,7 @@ test('chat: a guardian writes, the organizer answers from Communication', async 
   await page.getByRole('button', { name: 'Open Sora Park' }).click();
   await expect(page.getByTestId('chat-messages')).toContainText('Will the bus be late tomorrow?');
   const thread = page.getByTestId('chat-thread');
-  await thread.getByLabel('Message').fill('No, 07:15 at the lobby as planned.');
+  await thread.getByLabel('Message', { exact: true }).fill('No, 07:15 at the lobby as planned.');
   await thread.getByRole('button', { name: 'Send' }).click();
   await expect(page.getByTestId('chat-messages')).toContainText(
     'No, 07:15 at the lobby as planned.',
@@ -93,6 +93,18 @@ test('chat: a guardian writes, the organizer answers from Communication', async 
   await page.mouse.move(0, 0);
   await page.screenshot({
     path: `${OUT}/${info.project.name}/communication-chat.png`,
+    fullPage: true,
+  });
+
+  // Slice 065 (D22): the organizer removes Sora's message; the tombstone stays for both sides.
+  await thread.getByRole('button', { name: 'Remove message from Sora Park' }).click();
+  await expect(page.getByTestId('chat-messages')).toContainText('Message removed by Owner');
+  await expect(page.getByTestId('chat-messages')).not.toContainText(
+    'Will the bus be late tomorrow?',
+  );
+  await page.mouse.move(0, 0);
+  await page.screenshot({
+    path: `${OUT}/${info.project.name}/communication-chat-removed.png`,
     fullPage: true,
   });
 
@@ -112,6 +124,11 @@ test('chat: a guardian writes, the organizer answers from Communication', async 
       }
     ).channels[0]?.unread,
   ).toBe(0);
+  // Slice 065: Sora's phone reads the tombstone in place of her message.
+  const soraThread = JSON.parse(
+    (await call(sora, 'GET', `${base}/chats/${encodeURIComponent(channelId)}/messages`)).text,
+  ) as { messages: { body: string; removed?: { byName: string } }[] };
+  expect(soraThread.messages[0]).toMatchObject({ body: '', removed: { byName: 'Owner' } });
   await ctx.close();
   await page.getByRole('button', { name: /All channels/ }).click();
   await expect(page.getByTestId(`unread-${channelId}`)).toHaveCount(0);

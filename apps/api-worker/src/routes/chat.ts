@@ -6,7 +6,8 @@
 // `channelMembersOf`). Opening a channel marks it read; the phones poll the list. Slice 064: the
 // cards' words follow the caller's account language, and an organizer may read (never write) a
 // group or traveler channel while an open incident names one of its travelers; that read is a
-// fact on every traveler's timeline in the channel.
+// fact on every traveler's timeline in the channel. Slice 065: a message can be removed by its
+// sender, by a leader in their group's channels, by the organizer in theirs; a tombstone stays.
 
 import { createRoute, type OpenAPIHono } from '@hono/zod-openapi';
 import {
@@ -26,6 +27,7 @@ import { ERROR_RESPONSES, SESSION_SECURITY } from './openapi-common';
 import { TripParams } from './trips';
 
 const ChannelParams = TripParams.extend({ channelId: z.string().min(1).max(120) });
+const MessageParams = ChannelParams.extend({ messageId: z.uuid() });
 
 const listRoute = createRoute({
   method: 'get',
@@ -86,6 +88,28 @@ const sendRoute = createRoute({
   },
 });
 
+const removeRoute = createRoute({
+  method: 'delete',
+  path: '/v1/orgs/{orgId}/trips/{tripId}/chats/{channelId}/messages/{messageId}',
+  tags: ['chat'],
+  summary:
+    'Remove a message: your own, any in your group as its leader, any in your channels as the organizer',
+  description:
+    'D22 moderation (slice 065). The sender removes their own message; a leader any message in a group or traveler channel they are in; an owner or organizer any message in the trip and guardian channels. The message stays as a tombstone (who removed it, when) with its text gone; everyone in the channel sees it. Removing it again answers the same tombstone.',
+  security: SESSION_SECURITY,
+  request: { params: MessageParams },
+  responses: {
+    200: {
+      description: 'The tombstone.',
+      content: { 'application/json': { schema: ChatMessage } },
+    },
+    401: ERROR_RESPONSES[401],
+    403: ERROR_RESPONSES[403],
+    404: ERROR_RESPONSES[404],
+    500: ERROR_RESPONSES[500],
+  },
+});
+
 async function viewerFor(
   env: Env,
   auth: AuthContext,
@@ -139,5 +163,17 @@ export function mountChatRoutes(app: OpenAPIHono<AppEnv>): void {
     const r = await org.sendChatMessage(tripId, channelId, viewer, body, nowIso());
     if ('forbidden' in r || 'notFound' in r) fail(r);
     return c.json(r, 201);
+  });
+
+  app.openapi(removeRoute, async (c) => {
+    const auth = requireAuth(c);
+    const { orgId, tripId, channelId, messageId } = c.req.valid('param');
+    const { org, viewer } = await viewerFor(c.env, auth, orgId, tripId);
+    const r = await org.removeChatMessage(tripId, channelId, messageId, viewer, nowIso());
+    if ('notFound' in r) throw new HTTPException(404, { message: 'Message not found.' });
+    if ('forbidden' in r) {
+      throw new HTTPException(403, { message: 'You cannot remove this message.' });
+    }
+    return c.json(r, 200);
   });
 }

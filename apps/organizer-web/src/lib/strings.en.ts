@@ -299,6 +299,11 @@ export const en = {
     messageLabel: 'Message',
     send: 'Send',
     sendFailed: 'Could not send the message.',
+    // Slice 065 (D22): moderation in the organizer's channels.
+    removeMessage: 'Remove',
+    removeMessageOf: (name: string) => `Remove message from ${name}`,
+    removedBy: (name: string) => `Message removed by ${name}`,
+    removeFailed: 'Could not remove the message.',
     unreadBadge: (n: number) => `${n} new`,
   },
   safety: {

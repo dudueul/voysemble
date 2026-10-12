@@ -87,6 +87,7 @@ import type {
   WindowMemberState,
 } from '@voysemble/contracts';
 import {
+  canRemoveChatMessage,
   careNoteIsEmpty,
   channelIdFor,
   channelMembersOf,
@@ -603,6 +604,14 @@ const MIGRATIONS: { version: number; sql: string }[] = [
       CREATE INDEX IF NOT EXISTS hotel_links_booking_idx ON hotel_links(booking_id, created_at);
     `,
   },
+  {
+    // Chat moderation (D22; slice 065): a removed message stays as a tombstone, its text gone.
+    version: 23,
+    sql: `
+      ALTER TABLE chat_messages ADD COLUMN removed_at TEXT;
+      ALTER TABLE chat_messages ADD COLUMN removed_by_name TEXT;
+    `,
+  },
 ];
 
 type ChatMessageRow = {
@@ -614,6 +623,9 @@ type ChatMessageRow = {
   sender_role: string;
   body: string;
   sent_at: string;
+  /** Slice 065: set when removed; the body is blank from then on. */
+  removed_at: string | null;
+  removed_by_name: string | null;
 };
 
 /** Who is asking for chat: a participation (phones) or an organizer account (console). */
@@ -2786,9 +2798,10 @@ export class OrgDurableObject extends DurableObject<Env> {
       channelId: r.channel,
       senderName: r.sender_name,
       senderRole: r.sender_role as ChatSenderRole,
-      body: r.body,
+      body: r.removed_at ? '' : r.body,
       sentAt: r.sent_at,
       mine: r.sender_key === viewer.readerKey,
+      ...(r.removed_at ? { removed: { byName: r.removed_by_name ?? '', at: r.removed_at } } : {}),
     };
   }
 
@@ -2911,6 +2924,49 @@ export class OrgDurableObject extends DurableObject<Env> {
       out.push(travelerCard(me, true));
     }
     return out;
+  }
+
+  /**
+   * Slice 065 (D22): remove a message. The sender may remove their own; a leader any message in
+   * a group or traveler channel they are in; an owner or organizer any in the trip and guardian
+   * channels (`canRemoveChatMessage`). The row stays as a tombstone (who, when) with its text
+   * gone, so the thread keeps its shape and the removal is visible to everyone in it. Removing a
+   * removed message answers the same tombstone.
+   */
+  async removeChatMessage(
+    tripId: string,
+    channelId: string,
+    messageId: string,
+    viewer: ChatViewer,
+    now: string,
+  ): Promise<ChatMessage | { forbidden: true } | { notFound: true }> {
+    this.requireOrg();
+    const access = await this.chatAccess(tripId, channelId, viewer, 'write');
+    if (!('ok' in access)) return access;
+    const sql = this.ctx.storage.sql;
+    const row = sql
+      .exec<ChatMessageRow>(
+        'SELECT * FROM chat_messages WHERE id = ? AND trip_id = ? AND channel = ?',
+        messageId,
+        tripId,
+        channelId,
+      )
+      .toArray()[0];
+    if (!row) return { notFound: true };
+    if (!canRemoveChatMessage(access.card.kind, viewer.role, row.sender_key === viewer.readerKey)) {
+      return { forbidden: true };
+    }
+    if (row.removed_at) return this.chatMessageOf(row, viewer);
+    sql.exec(
+      "UPDATE chat_messages SET body = '', removed_at = ?, removed_by_name = ? WHERE id = ?",
+      now,
+      viewer.name,
+      messageId,
+    );
+    return this.chatMessageOf(
+      { ...row, body: '', removed_at: now, removed_by_name: viewer.name },
+      viewer,
+    );
   }
 
   /**
@@ -3050,6 +3106,8 @@ export class OrgDurableObject extends DurableObject<Env> {
       sender_role: viewer.role,
       body: body.trim(),
       sent_at: now,
+      removed_at: null,
+      removed_by_name: null,
     };
     const sql = this.ctx.storage.sql;
     sql.exec(

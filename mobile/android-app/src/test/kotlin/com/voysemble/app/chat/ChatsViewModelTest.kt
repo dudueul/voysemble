@@ -2,7 +2,8 @@
 // Facts (D22, slice 033): sample mode lists the fixture channels and opens Minji's thread without
 // the network; live mode lists on start, opening a channel fetches its messages and zeroes its
 // badge, a send shows at once as pending and becomes the server's copy, an unreachable send
-// stays as failed and retry sends it again; 403 on a channel is explained.
+// stays as failed and retry sends it again; 403 on a channel is explained. Slice 065: removing a
+// message asks the server and shows its tombstone; sample mode removes locally.
 
 package com.voysemble.app.chat
 
@@ -100,6 +101,46 @@ class ChatsViewModelTest {
         vm.retry("local-1").join()
         assertEquals(2, posts.size)
         assertEquals(listOf("s1", "s2", "s2"), vm.state.value.open?.messages?.map { it.id })
+    }
+
+    @Test
+    fun removing_a_message_leaves_a_tombstone() = runTest {
+        val deletes = mutableListOf<String>()
+        val engine = MockEngine { req ->
+            val path = req.url.encodedPath
+            when {
+                path.endsWith("/chats") -> respond(listJson, HttpStatusCode.OK, json)
+                req.method == HttpMethod.Delete -> {
+                    deletes += path
+                    respond(
+                        """{"id":"s1","channelId":"traveler:p-minji","senderName":"Kim","senderRole":"leader","body":"","sentAt":"2026-12-31T06:41:00.000Z","mine":false,"removed":{"byName":"Kim","at":"2026-12-31T06:50:00.000Z"}}""",
+                        HttpStatusCode.OK, json,
+                    )
+                }
+                else -> respond(
+                    """{"channel":${leadersChannel.replace("\"unread\":1", "\"unread\":0")},"messages":[{"id":"s1","channelId":"traveler:p-minji","senderName":"Kim","senderRole":"leader","body":"Lobby at 07:15.","sentAt":"2026-12-31T06:41:00.000Z","mine":false}]}""",
+                    HttpStatusCode.OK, json,
+                )
+            }
+        }
+        val kim = ActiveTrip("org_1", "Seoul Arts High", "trip_1", "Korea Concert Tour", "p-kim", "leader")
+        val vm = ChatsViewModel(ApiClient(ApiClientConfig("h", "t") { "tok" }, engine), kim, tickMs = Long.MAX_VALUE, senderName = "Kim")
+        vm.ready.join()
+        assertEquals("leader", vm.role)
+        vm.open("traveler:p-minji").join()
+        assertEquals("Lobby at 07:15.", vm.state.value.open?.messages?.first()?.body)
+        vm.remove("s1").join()
+        assertTrue(deletes.single().endsWith("/messages/s1"), deletes.toString())
+        val m = vm.state.value.open?.messages?.first()
+        assertEquals("", m?.body)
+        assertEquals("Kim", m?.removedBy)
+        assertNull(vm.state.value.error)
+        // Sample mode: the person's own message, locally, named by its sender.
+        val sample = ChatsViewModel()
+        sample.open("traveler:t1")
+        sample.remove("m1")
+        assertEquals("Minji Park", sample.state.value.open?.messages?.first()?.removedBy)
+        assertEquals("", sample.state.value.open?.messages?.first()?.body)
     }
 
     @Test

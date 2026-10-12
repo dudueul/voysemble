@@ -237,6 +237,15 @@ public class ApiClient(
             }
         }
 
+    /** DELETE .../chats/{channelId}/messages/{messageId}: own, or any as the channel's moderator (slice 065); the tombstone. */
+    public suspend fun removeChatMessage(orgId: String, tripId: String, channelId: String, messageId: String, correlationId: String? = null): ApiResult<ChatMessageDto> =
+        call(correlationId) {
+            http.delete {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "orgs", orgId, "trips", tripId, "chats", channelId, "messages", messageId) }
+                common(correlationId)
+            }
+        }
+
     /** GET .../guardian/status: the guardian's view of their traveler (D13, slice 025). */
     public suspend fun guardianStatus(orgId: String, tripId: String, correlationId: String? = null): ApiResult<GuardianStatusDto> =
         call(correlationId) {

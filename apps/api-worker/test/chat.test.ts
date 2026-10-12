@@ -303,3 +303,63 @@ describe("chat in the reader's language and the audited read on an incident (sli
     expect((await api(t.nate).get(juhoCh)).status).toBe(403);
   });
 });
+
+describe('moderation (slice 065)', () => {
+  it('own messages, a leader in their group, the organizer in their channels; tombstones for everyone', async () => {
+    const t = await setupTrip();
+    const soraId = t.id('Sora Park');
+    const busA = `${t.base}/chats/${encodeURIComponent('group:Bus A')}/messages`;
+    const trip = `${t.base}/chats/trip/messages`;
+    const guardian = `${t.base}/chats/guardian:${soraId}/messages`;
+    const post = async (c: Parameters<typeof api>[0], path: string, body: string) =>
+      json<ChatMessage>(await api(c).post(path, { body }));
+    const m1 = await post(t.minji, busA, 'Who has the charger?');
+    const m2 = await post(t.juho, busA, 'Not me');
+    const m3 = await post(t.kim, busA, 'Check the bus pocket.');
+    const m4 = await post(t.minji, trip, 'Hello everyone');
+    const m5 = await post(t.sora, guardian, 'Will the bus be late?');
+    const m6 = await post(t.nate, guardian, 'No, on time.');
+
+    // Bus A: Minji removes her own; Kim (its leader) removes Juho's; Juho and Minji cannot remove
+    // Kim's; the owner is not in the channel.
+    const gone = await json<ChatMessage>(await api(t.minji).delete(`${busA}/${m1.id}`));
+    expect(gone).toMatchObject({ id: m1.id, body: '', removed: { byName: 'Minji Park' } });
+    expect((await api(t.kim).delete(`${busA}/${m2.id}`)).status).toBe(200);
+    expect((await api(t.juho).delete(`${busA}/${m3.id}`)).status).toBe(403);
+    expect((await api(t.minji).delete(`${busA}/${m3.id}`)).status).toBe(403);
+    expect((await api(t.nate).delete(`${busA}/${m3.id}`)).status).toBe(403);
+    // The trip channel: a leader is a member, not its moderator; the owner is.
+    expect((await api(t.kim).delete(`${trip}/${m4.id}`)).status).toBe(403);
+    expect((await api(t.nate).delete(`${trip}/${m4.id}`)).status).toBe(200);
+    // The guardian channel: the owner removes Sora's; Sora cannot remove the owner's; Kim is out.
+    expect((await api(t.nate).delete(`${guardian}/${m5.id}`)).status).toBe(200);
+    expect((await api(t.sora).delete(`${guardian}/${m6.id}`)).status).toBe(403);
+    expect((await api(t.kim).delete(`${guardian}/${m6.id}`)).status).toBe(403);
+    // Unknown, another channel's, and again: 404, 404, the same tombstone.
+    expect((await api(t.nate).delete(`${trip}/${crypto.randomUUID()}`)).status).toBe(404);
+    expect((await api(t.nate).delete(`${trip}/${m5.id}`)).status).toBe(404);
+    const again = await json<ChatMessage>(await api(t.minji).delete(`${busA}/${m1.id}`));
+    expect(again.removed?.byName).toBe('Minji Park');
+    expect(again.removed?.at).toBe(gone.removed?.at);
+
+    // Everyone reads the tombstones; the text is gone; the preview is the latest message still.
+    const read = await json<ChatMessageList>(await api(t.juho).get(busA));
+    expect(read.messages.map((m) => [m.body, m.removed?.byName ?? null])).toEqual([
+      ['', 'Minji Park'],
+      ['', 'Kim'],
+      ['Check the bus pocket.', null],
+    ]);
+    const soraRead = await json<ChatMessageList>(await api(t.sora).get(guardian));
+    expect(soraRead.messages.map((m) => [m.body, m.removed?.byName ?? null])).toEqual([
+      ['', 'Owner'],
+      ['No, on time.', null],
+    ]);
+    const list = await json<ChatChannelList>(await api(t.sora).get(`${t.base}/chats`));
+    expect(list.channels[0]?.lastMessage).toMatchObject({ body: 'No, on time.' });
+    expect(
+      (await json<ChatChannelList>(await api(t.juho).get(`${t.base}/chats`))).channels.find(
+        (c) => c.id === 'group:Bus A',
+      )?.lastMessage,
+    ).toMatchObject({ body: 'Check the bus pocket.' });
+  });
+});

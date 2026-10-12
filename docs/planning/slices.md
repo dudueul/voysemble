@@ -1686,7 +1686,7 @@ Not done: reminder mornings the organizer chooses; a reminder for the organizer 
 
 ## Slice 063: trip switching, alert links and the offline state on the console
 
-Status: done 2026-10-12. Commit: see git log (`feat(console): the organizer's trip is a choice; alerts link where they lead; offline is said (slice 063)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: 46b9bf3 (`feat(console): the organizer's trip is a choice; alerts link where they lead; offline is said (slice 063)`). CI: run 38291881501 green (web, mobile, ios); captures recorded by CI in da63f03.
 Spec: D42 (new: the active trip), D21 (one console for owners and organizers), D29 (alerts), D31. Details: `docs/engineering/command-center-live.md` (the slice 063 section, rules, facts).
 
 | Gate | Command | Result |
@@ -1726,3 +1726,30 @@ Built:
 - Docs: `chat.md` section, route rows, facts and not-done; `incidents.md`; D22 amendment; captures README; ledger; feature flags `chat.reader-language`, `chat.audited-read` working.
 
 Not done: leader moderation; the read from the Communication page or the person card; telling the travelers a read happened; sockets.
+
+## Slice 065: chat moderation on every surface
+
+Status: done 2026-10-12. Commit: see git log (`feat(chat): remove a message, your own or your group's as its leader; a tombstone stays (slice 065)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D22 ("per-group (leader-moderated)"), D31. Details: `docs/engineering/chat.md` (Moderation section, route row, facts).
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 40 files, 110 tests (`chat.test.ts` +1: the rule on every channel kind and the tombstones) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 22 files, 132 tests (the Communication chat case gains the removal) |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e -- chat.spec.ts` | 1 passed on desktop-1440 (`communication-chat-removed.png` recorded; the composer locator became exact because "Remove message from …" also contains "Message") |
+| Core JVM tests | `./gradlew :core:jvmTest` (CI `mobile` job) | `ChatModelTest` +1 (the rule, the wire tombstone, `markRemoved`); `L10nTest` the four new keys |
+| Android tests + captures | `./gradlew :android-app:testDebugUnitTest` / `recordRoborazziDebug` (CI `mobile` job) | `ChatsViewModelTest` +1 (DELETE and the tombstone; sample mode); `ChatsScreenshotTest.chats_thread_with_pending_dark` removes Minji's first message (`chats-thread-dark.png` updated) |
+| iOS tests + captures | `xcodebuild test` (CI `ios` job) | `LiveModelsTests.testChatsSampleModeAndUnreachable` removes and pins the rule |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+Gradle and Xcode do not run in this workspace; the CI `mobile` and `ios` jobs verify the Kotlin and Swift, desk-checked here.
+
+Built:
+- Contracts: `ChatMessageRemoval`, `ChatMessage.removed`, `canRemoveChatMessage(kind, role, mine)`.
+- Worker: schema 23 (`removed_at`, `removed_by_name`); `removeChatMessage` (membership, the rule, the tombstone; again answers the same); `chatMessageOf` blanks a removed body; `DELETE .../chats/{channelId}/messages/{messageId}`; `chat.test.ts` +1.
+- Core: `ChatRemovalDto`, `ChatMessage.removedBy`, `canRemove`, `ChatThread.markRemoved`, `ApiClient.removeChatMessage`, strings `CHAT_REMOVE`, `CHAT_REMOVE_SPOKEN`, `CHAT_REMOVED_BY`, `CHAT_REMOVE_FAILED` in both languages.
+- Android: `ChatsViewModel.remove` and `role`; `ThreadScreen(viewerRole, onRemove)`; the bubble's "Remove" and its tombstone text. iOS: `ChatsModel.remove`; the bubble's long-press menu and tombstone text.
+- Console: `chat.remove`; the thread's "Remove" per message and the tombstone; strings EN/KO; CSS; the Communication unit case and `chat.spec.ts` (capture `communication-chat-removed.png`).
+- Docs: `chat.md` Moderation section, route row, storage row, facts and not-done; D22 amendment; captures README; ledger; feature flag `chat.moderation` working.
+
+Not done: a reason shown to the sender; an organizer's removal inside a group channel (D22 keeps those to leaders); undo.

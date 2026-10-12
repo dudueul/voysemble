@@ -169,6 +169,13 @@ final class LiveModelsTests: XCTestCase {
         await sample.send("On my way")
         XCTAssertEqual(sample.open?.messages.count, 5)
         XCTAssertEqual(sample.open?.messages.last?.pending, true)
+        // Slice 065: Minji removes her own first message locally; the rule by role and kind.
+        await sample.remove("m1")
+        XCTAssertEqual(sample.open?.messages.first?.removedBy, "Minji Park")
+        XCTAssertEqual(sample.open?.messages.first?.body, "")
+        XCTAssertTrue(ChatModelKt.canRemove(channelKind: "group", viewerRole: "leader", mine: false))
+        XCTAssertFalse(ChatModelKt.canRemove(channelKind: "trip", viewerRole: "leader", mine: false))
+        XCTAssertTrue(ChatModelKt.canRemove(channelKind: "trip", viewerRole: "organizer", mine: false))
         sample.close()
         XCTAssertNil(sample.open)
         let live = ChatsModel(api: unreachableClient(), trip: trip)

@@ -5,7 +5,7 @@
 // a thread with a composer; the fixture shows without a trip with its "Sample data" chip.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Announcement, ChatChannel } from '@voysemble/contracts';
+import { type Announcement, type ChatChannel, canRemoveChatMessage } from '@voysemble/contracts';
 import { type FormEvent, useState } from 'react';
 import { Icons } from '../../app/shell/icons';
 import { FROZEN_NOW } from '../../fixtures/korea-concert-tour';
@@ -229,6 +229,16 @@ function ChatThread({
     e.preventDefault();
     if (draft.trim()) send.mutate(draft.trim());
   };
+  // Slice 065: the organizer removes any message in their channels; a tombstone stays.
+  const remove = useMutation({
+    mutationFn: (messageId: string) => chatApi.remove(orgId, tripId, channel.id, messageId),
+    onSuccess: () => {
+      void qc.invalidateQueries({
+        queryKey: chatMessagesQuery(orgId, tripId, channel.id).queryKey,
+      });
+      void qc.invalidateQueries({ queryKey: chatsQuery(orgId, tripId).queryKey });
+    },
+  });
   const now = new Date().toISOString();
   return (
     <div data-testid="chat-thread">
@@ -259,12 +269,37 @@ function ChatThread({
                   {m.senderName} · {m.senderRole}
                 </span>
               )}
-              <span>{m.body}</span>
-              <span className="bubble__meta">{relativeTo(now, m.sentAt)}</span>
+              {m.removed ? (
+                <em className="bubble__removed">{s.removedBy(m.removed.byName)}</em>
+              ) : (
+                <span>{m.body}</span>
+              )}
+              <span className="bubble__meta">
+                {relativeTo(now, m.sentAt)}
+                {!m.removed && canRemoveChatMessage(channel.kind, 'organizer', m.mine) ? (
+                  <>
+                    {' · '}
+                    <button
+                      type="button"
+                      className="linkbtn"
+                      aria-label={s.removeMessageOf(m.senderName)}
+                      disabled={remove.isPending}
+                      onClick={() => remove.mutate(m.id)}
+                    >
+                      {s.removeMessage}
+                    </button>
+                  </>
+                ) : null}
+              </span>
             </div>
           ))}
         </div>
       )}
+      {remove.isError ? (
+        <p className="field__error" role="alert">
+          {remove.error instanceof ApiError ? remove.error.message : s.removeFailed}
+        </p>
+      ) : null}
       <form className="chat-compose" onSubmit={submit} aria-label={s.send}>
         <input
           className="field__input"

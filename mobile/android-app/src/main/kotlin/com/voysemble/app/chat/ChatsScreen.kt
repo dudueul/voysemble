@@ -2,7 +2,8 @@
 //
 // Chats tab (D22, slice 033): the fixed channels with unread badges, and one thread with a
 // composer. Bubbles: mine on the right in the action colour; others on the left with the name.
-// Pending shows "Sending…", failed shows "Not sent · tap to retry".
+// Pending shows "Sending…", failed shows "Not sent · tap to retry". Slice 065: "Remove" under a
+// message the reader may remove; a removed one reads "Removed by Kim" in place of its text.
 
 package com.voysemble.app.chat
 
@@ -56,6 +57,8 @@ import com.voysemble.core.chat.ChatChannel
 import com.voysemble.core.chat.ChatMessage
 import com.voysemble.core.chat.ChatThread
 import com.voysemble.core.chat.unreadTotal
+import com.voysemble.core.chat.canRemove
+import androidx.compose.ui.text.font.FontStyle
 
 @Composable
 fun ChatsRoute(vm: ChatsViewModel) {
@@ -64,7 +67,7 @@ fun ChatsRoute(vm: ChatsViewModel) {
     if (open == null) {
         ChannelList(state, onOpen = { vm.open(it) })
     } else {
-        ThreadScreen(open, live = state.live, syncing = state.syncing, error = state.error, onBack = vm::close, onSend = { vm.send(it) }, onRetry = { vm.retry(it) })
+        ThreadScreen(open, live = state.live, syncing = state.syncing, error = state.error, viewerRole = vm.role, onBack = vm::close, onSend = { vm.send(it) }, onRetry = { vm.retry(it) }, onRemove = { vm.remove(it) })
     }
 }
 
@@ -131,6 +134,9 @@ fun ThreadScreen(
     onBack: () -> Unit,
     onSend: (String) -> Unit,
     onRetry: (String) -> Unit,
+    /** The reader's role on the trip; with the channel kind it decides who may remove what. */
+    viewerRole: String = "traveler",
+    onRemove: (String) -> Unit = {},
 ) {
     val c = LocalVoysembleColors.current
     var draft by remember { mutableStateOf("") }
@@ -149,7 +155,7 @@ fun ThreadScreen(
             if (thread.messages.isEmpty()) {
                 item { Text(tr(Txt.CHAT_NO_MESSAGES), style = MaterialTheme.typography.bodyMedium, color = c.textMuted) }
             }
-            items(thread.messages, key = { it.id }) { m -> Bubble(m, onRetry) }
+            items(thread.messages, key = { it.id }) { m -> Bubble(m, canRemove = canRemove(thread.channel.kind, viewerRole, m.mine), onRetry = onRetry, onRemove = onRemove) }
         }
         Row(
             modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).padding(12.dp),
@@ -174,8 +180,9 @@ fun ThreadScreen(
 }
 
 @Composable
-private fun Bubble(m: ChatMessage, onRetry: (String) -> Unit) {
+private fun Bubble(m: ChatMessage, canRemove: Boolean, onRetry: (String) -> Unit, onRemove: (String) -> Unit) {
     val c = LocalVoysembleColors.current
+    val removedBy = m.removedBy
     Row(Modifier.fillMaxWidth(), horizontalArrangement = if (m.mine) Arrangement.End else Arrangement.Start) {
         Column(
             Modifier
@@ -185,7 +192,11 @@ private fun Bubble(m: ChatMessage, onRetry: (String) -> Unit) {
                 .padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
             if (!m.mine) Text(m.senderName, style = MaterialTheme.typography.labelSmall, color = c.textMuted)
-            Text(m.body, style = MaterialTheme.typography.bodyLarge, color = if (m.mine) c.onAction else MaterialTheme.colorScheme.onSurface)
+            if (removedBy != null) {
+                Text(trf(Txt.CHAT_REMOVED_BY, removedBy), style = MaterialTheme.typography.bodyMedium, fontStyle = FontStyle.Italic, color = if (m.mine) c.onAction.copy(alpha = 0.8f) else c.textMuted)
+            } else {
+                Text(m.body, style = MaterialTheme.typography.bodyLarge, color = if (m.mine) c.onAction else MaterialTheme.colorScheme.onSurface)
+            }
             Spacer(Modifier.height(2.dp))
             Text(
                 when {
@@ -196,6 +207,17 @@ private fun Bubble(m: ChatMessage, onRetry: (String) -> Unit) {
                 style = MaterialTheme.typography.labelSmall,
                 color = if (m.failed) c.danger else if (m.mine) c.onAction.copy(alpha = 0.8f) else c.textMuted,
             )
+            if (canRemove && removedBy == null && !m.pending && !m.failed) {
+                Text(
+                    tr(Txt.CHAT_REMOVE),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (m.mine) c.onAction else c.danger,
+                    modifier = Modifier
+                        .padding(top = 4.dp)
+                        .clickable { onRemove(m.id) }
+                        .semantics { contentDescription = trf(Txt.CHAT_REMOVE_SPOKEN, m.senderName) },
+                )
+            }
         }
     }
     Spacer(Modifier.width(0.dp))

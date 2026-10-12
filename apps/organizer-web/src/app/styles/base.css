@@ -2696,3 +2696,8 @@ fieldset.filters {
   border-radius: 12px;
   background: var(--vy-bg);
 }
+
+/* Slice 065: a removed message keeps its bubble, the text gone. */
+.bubble__removed {
+  opacity: 0.75;
+}

@@ -2,12 +2,14 @@
 // Facts (D22, slice 033): wire channels and messages map with local times; a typed message shows
 // at once as pending, is replaced by the server's copy on confirm, or marked failed with its
 // text kept for retry; a remote merge keeps local pending and failed messages at the end; the
-// unread total sums the channels; the fixture thread is Minji's.
+// unread total sums the channels; the fixture thread is Minji's. Slice 065: who may remove a
+// message, by channel kind and role; a tombstone keeps its place with the text gone.
 
 package com.voysemble.core.chat
 
 import com.voysemble.core.api.ChatChannelDto
 import com.voysemble.core.api.ChatMessageDto
+import com.voysemble.core.api.ChatRemovalDto
 import com.voysemble.core.fixtures.KoreaConcertTourFixture
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -52,6 +54,27 @@ class ChatModelTest {
         val merged = thread.mergeRemote(wireChannel.toChatChannel(clock), listOf(wireMsg.toChatMessage(clock)))
         assertEquals(listOf("s1", "local-1"), merged.messages.map { it.id })
         assertTrue(!merged.offline)
+    }
+
+    @Test
+    fun removal_rule_and_tombstone() {
+        assertTrue(canRemove("group", "traveler", mine = true))
+        assertTrue(canRemove("group", "leader", mine = false))
+        assertTrue(canRemove("traveler", "leader", mine = false))
+        assertTrue(!canRemove("trip", "leader", mine = false))
+        assertTrue(canRemove("trip", "organizer", mine = false))
+        assertTrue(canRemove("guardian", "owner", mine = false))
+        assertTrue(!canRemove("group", "organizer", mine = false))
+        assertTrue(!canRemove("group", "traveler", mine = false))
+        assertTrue(!canRemove("guardian", "guardian", mine = false))
+        val removedWire = ChatMessageDto("s3", "traveler:p1", "Kim", "leader", "", "2026-12-31T06:41:00.000Z", mine = false, removed = ChatRemovalDto("Kim", "2026-12-31T06:50:00.000Z"))
+        assertEquals("Kim", removedWire.toChatMessage(clock).removedBy)
+        assertNull(wireMsg.toChatMessage(clock).removedBy)
+        val thread = ChatThread(wireChannel.toChatChannel(clock), listOf(wireMsg.toChatMessage(clock)))
+        val gone = thread.markRemoved("s1", "Kim")
+        assertEquals("", gone.messages[0].body)
+        assertEquals("Kim", gone.messages[0].removedBy)
+        assertEquals(listOf("s1"), gone.messages.map { it.id })
     }
 
     @Test

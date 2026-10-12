@@ -26,7 +26,7 @@ on the server so both phones and the console show the same words.
 
 | Table | Columns | Notes |
 |---|---|---|
-| `chat_messages` | id, trip_id, channel, sender_key, sender_name, sender_role, body, sent_at | `sender_key` is the participation id, or `acct:<accountId>` for an organizer. Latest 200 per read. Tier 1 content, shredded with the trip (D20). |
+| `chat_messages` | id, trip_id, channel, sender_key, sender_name, sender_role, body, sent_at, removed_at, removed_by_name (schema 23) | `sender_key` is the participation id, or `acct:<accountId>` for an organizer. Latest 200 per read. Tier 1 content, shredded with the trip (D20). A removed message keeps its row with the body blanked and who removed it, when (slice 065). |
 | `chat_reads` | trip_id, channel, reader_key, last_read_at | One row per reader and channel; unread = messages by others after it. Opening a channel and sending both move it. |
 
 ## Routes (`routes/chat.ts`)
@@ -36,6 +36,7 @@ on the server so both phones and the console show the same words.
 | `GET .../chats` | `ChatChannelList`: the caller's channels with `unread` and `lastMessage`. 403 for an account with neither a participation nor an organizer role. |
 | `GET .../chats/{channelId}/messages` | `ChatMessageList`: the channel's card (unread 0) and the latest 200 messages oldest first; marks the channel read. 403 outside the matrix, 404 for an unknown channel. Slice 064: an owner or organizer also reads a group or traveler channel while an open incident names a traveler in it; the answer carries `audited { incidentId, incidentTitle }`, nothing is marked read, and the read is a fact on every traveler's timeline in the channel. |
 | `POST .../chats/{channelId}/messages` | `{ body }` (1..1000, trimmed). 201 with the stored message (`mine: true`). The audited read never writes: the organizer stays 403 here. |
+| `DELETE .../chats/{channelId}/messages/{messageId}` (slice 065) | Remove a message: the sender their own; a leader any message in a group or traveler channel they are in; an owner or organizer any in the trip and guardian channels (`canRemoveChatMessage`). 200 with the tombstone (`body` empty, `removed { byName, at }`); 403 outside the rule or the channel; 404 for a message that is not in the channel. Removing it again answers the same tombstone. |
 
 No sockets yet: the phones poll every 15 seconds while the tab is on screen, the console every
 15 seconds while the page is open. Messages carry the sender's name and role, never an account id.
@@ -66,6 +67,26 @@ A's channel (audited)"); the thread that opens is read-only, says "Recorded on e
 timeline · <incident>", and refetches only on Refresh (`auditedChatReadQuery`: no polling, no
 focus refetch, nothing kept after Close), because every fetch is a fact. Evidence:
 `web/<project>/safety-audited-read.png`.
+
+## Moderation (slice 065, D22)
+
+One rule on every surface, `canRemoveChatMessage(kind, role, mine)` in the contracts and
+`canRemove(channelKind, viewerRole, mine)` in the KMP core: the sender removes their own
+message; a leader any message in a group or traveler channel they are in (the group is
+"leader-moderated"); an owner or organizer any message in the trip and guardian channels
+(their own channels; never a group's or a traveler's, which the audited read opens for reading
+only). The organization object checks membership first (`chatAccess` in write mode, so the
+incident path never counts), then the rule, then blanks the body and stamps `removed_at` and
+`removed_by_name`; the message stays in its place for everyone as a tombstone ("Removed by
+Kim"), the latest message of a channel is still the latest, unread counts do not move.
+
+Phones: "Remove" under a message the reader may remove (Android: a small red label; iOS: the
+long-press menu), the bubble then reads "Removed by Kim" / "Kim 님이 삭제함" in italics; the
+view models ask the server and apply its tombstone, sample mode removes locally. Console: the
+organizer's threads carry "Remove" beside the time of every message (their channels are theirs
+to moderate); the thread shows "Message removed by Owner". Evidence:
+`web/<project>/communication-chat-removed.png`, `android/chats-thread-dark.png` (Minji's own
+first message removed).
 
 ## Console (Communication page)
 
@@ -115,9 +136,21 @@ with her leaders. Evidence: `android/chats-list.png`, `android/chats-thread-dark
   message under the note, Close folds it. Browser (`headcounts.spec.ts`): Kim writes from "the
   phone", the organizer reads it on the card (capture), closes.
 
+- Slice 065: in Bus A, Minji removes her own message, Kim (its leader) removes Juho's, Juho and
+  Minji cannot remove Kim's, the owner is not in the channel; in the trip channel Kim cannot
+  remove Minji's and the owner can; in Sora's channel the owner removes hers, she cannot remove
+  his, Kim is out; an unknown id and another channel's id are 404; removing again answers the
+  same tombstone; everyone reads the tombstones with the text gone and the previews intact.
+  Core: the rule by kind and role; a removed wire message maps; a tombstone keeps its place.
+  Android: a leader's removal sends DELETE and shows the server's tombstone; sample mode removes
+  locally (the screenshot shows "Removed by Minji Park"). iOS: the sample removal and the rule.
+  Console unit: "Remove message from Sora Park" turns the bubble into "Message removed by
+  Owner". Browser: the same from the Communication page (capture), and Sora's phone reads the
+  tombstone.
+
 ## Not done
 
-Sockets and push for new messages (D29); leader moderation (delete a message in their group);
-the audited read on the Communication page (it lives on the incident card) and from the person
-card; a note to the travelers that a read happened (the timeline is the organizer's view); the
-per-trip live object (D06) stays a design until sockets are needed.
+Sockets and push for new messages (D29); a removal reason shown to the sender; the audited read
+on the Communication page (it lives on the incident card) and from the person card; a note to
+the travelers that a read happened (the timeline is the organizer's view); the per-trip live
+object (D06) stays a design until sockets are needed.

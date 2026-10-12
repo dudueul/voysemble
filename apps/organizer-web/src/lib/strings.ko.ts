@@ -297,6 +297,10 @@ export const ko: Strings = {
     messageLabel: '메시지',
     send: '보내기',
     sendFailed: '메시지를 보내지 못했습니다.',
+    removeMessage: '삭제',
+    removeMessageOf: (name: string) => `${name}의 메시지 삭제`,
+    removedBy: (name: string) => `${name} 님이 메시지를 삭제했습니다`,
+    removeFailed: '메시지를 삭제하지 못했습니다.',
     unreadBadge: (n: number) => `새 메시지 ${n}`,
   },
   safety: {
