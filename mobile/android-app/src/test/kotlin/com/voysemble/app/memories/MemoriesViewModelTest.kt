@@ -96,9 +96,11 @@ class MemoriesViewModelTest {
         assertEquals(listOf("n1", "p1"), vm.state.value.feed.pool().map { it.id })
         assertTrue(vm.state.value.feed.pool().first().mine)
 
+        // A cleared photo keeps its place in the list (upsert replaces in place): it was first on
+        // the server's list, the upload went in front of it, so the pool reads n1, f1, p1.
         vm.review("f1", "clear").join()
         assertEquals(0, vm.state.value.feed.queue().size)
-        assertEquals(listOf("f1", "n1", "p1"), vm.state.value.feed.pool().map { it.id })
+        assertEquals(listOf("n1", "f1", "p1"), vm.state.value.feed.pool().map { it.id })
 
         vm.delete("n1").join()
         assertEquals(listOf("f1", "p1"), vm.state.value.feed.pool().map { it.id })

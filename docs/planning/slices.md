@@ -1257,7 +1257,7 @@ Not done: the phones (slice 044); downloads and the wrap-up export; the per-orga
 
 ## Slice 044: the Memories tab on both phones
 
-Status: done 2026-10-12. Commit `c6f5e02` (`feat(mobile): the Memories tab on both phones (slice 044)`) and the fix `fix(android): the memories imports lost their names to a regex` (see git log). CI: run 38260106599 red on `mobile` only (`MemoriesScreen.kt` and `MemoriesViewModelTest.kt`: three `import …memories.queue/pool/album` lines had become `import …album()` when the section accessors were turned into functions with a regex; `web` and `ios` green, so the Swift side compiled first time); the fix restores the three imports; its run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit `c6f5e02` (`feat(mobile): the Memories tab on both phones (slice 044)`) and the fix `fix(android): the memories imports lost their names to a regex` (see git log). CI: run 38260106599 red on `mobile` only (`MemoriesScreen.kt` and `MemoriesViewModelTest.kt`: three `import …memories.queue/pool/album` lines had become `import …album()` when the section accessors were turned into functions with a regex; `web` and `ios` green, so the Swift side compiled first time); the fix restores the three imports: run 38267926695 at `dbfdf72` red on `web` (one browser spec, `headcounts.spec.ts`, read the leader's roster as something without `participations`; not reproduced on the next run, the spec now asserts the roster status and body) and on `mobile` (the two Memories facts that had never run: `MemoriesScreenshotTest.memories_guardian_dark` looked for "Guardian album" where the section label renders uppercase, and `MemoriesViewModelTest` expected a cleared photo at the front of the pool where `upsert` keeps its place); `ios` green. The second fix (`fix(android): the two Memories facts match the screen and the model`) corrects both tests; its run id is recorded in the next commit once verified.
 Spec: D18 (photos), D34 (media pipeline, device-made thumbnails), ADR-0009 (visibility), D31 (device captures), D32 (glass on chips and the picker button). Details: `docs/engineering/media.md` ("Phones").
 
 | Gate | Command | Result |
@@ -1279,7 +1279,7 @@ Not done: a full-screen viewer; per-person tags from the phone; background uploa
 
 ## Slice 045: documents and forms with a step-up confirmation
 
-Status: done 2026-10-12. Commit: see git log (`feat(documents): requirements, sealed scans and the audited reveal behind a step-up confirmation (slice 045)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: see git log (`feat(documents): requirements, sealed scans and the audited reveal behind a step-up confirmation (slice 045)`). CI: run 38267931389 at `b5cc445` red on `mobile` only (the same two Memories test facts as the 044 fix run, corrected in the next fix commit); `web` (the whole browser suite incl. `preparation.spec.ts`) and `ios` green, so the slice itself is verified; the captures commit follows the first green run.
 Spec: D27 (documents tier), D35 (new: step-up reauthentication), D36 (new: documents pipeline), ADR-0001 (tier 3), D17 (timeline), D31 (device captures). Details: `docs/engineering/documents.md`.
 
 | Gate | Command | Result |

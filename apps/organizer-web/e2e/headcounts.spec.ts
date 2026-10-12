@@ -67,6 +67,8 @@ test('head count closed with a missing traveler opens an incident the organizer 
     tripId: string;
   };
   const roster = await call(kim, 'GET', `/v1/orgs/${organizationId}/trips/${tripId}/roster`);
+  // Say what came back when the roster is not a roster (seen once in CI as "undefined.find").
+  expect(roster.ok, `roster: ${roster.status} ${roster.text}`).toBeTruthy();
   const { participations } = JSON.parse(roster.text) as {
     participations: { id: string; displayName: string }[];
   };

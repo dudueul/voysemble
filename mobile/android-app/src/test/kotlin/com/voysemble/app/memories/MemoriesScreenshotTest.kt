@@ -42,7 +42,9 @@ class MemoriesScreenshotTest {
         val vm = MemoriesViewModel(sampleRole = "guardian")
         compose.setContent { VoysembleTheme(darkTheme = true) { MemoriesRoute(vm) } }
         compose.onNodeWithText("2 approved photos of your traveler").assertExists()
-        compose.onNodeWithText("Guardian album").assertExists()
+        // Section labels render uppercase (Widgets.SectionLabel).
+        compose.onNodeWithText("GUARDIAN ALBUM").assertExists()
+        compose.onNodeWithText("Approved photos tagged with your traveler or the whole group.").assertExists()
         compose.onNodeWithText("Add photos").assertDoesNotExist()
         compose.onRoot().captureRoboImage("$OUT/memories-guardian-dark.png")
     }
