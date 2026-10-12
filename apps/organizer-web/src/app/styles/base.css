@@ -250,6 +250,7 @@ p {
 
 .page__meta {
   display: flex;
+  flex-wrap: wrap; /* the editor's chips and buttons wrap on a phone (CI run 38285240535) */
   align-items: center;
   gap: 10px;
   color: var(--vy-color-neutral-500, #64748b);

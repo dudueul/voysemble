@@ -1531,7 +1531,7 @@ Not done: the drafts explained to travelers (the revision announcement carries t
 
 ## Slice 056: packing reminders in the lanes
 
-Status: done 2026-10-12. Commit: see git log (`feat(packing): reminders in the normal lane on the mornings before the trip (slice 056)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: see git log (`feat(packing): reminders in the normal lane on the mornings before the trip (slice 056)`, `3e225c3`). CI: run 38284457450 green (web incl. `packing-reminders.test.ts`, mobile incl. `InboxModelTest`, ios), 2026-10-12 17:39 UTC; captures commit `7947fb2` (no new capture; the Android and iOS pictures regenerated unchanged).
 Spec: D38 (packing; amended), D29 (lanes), D31. Details: `docs/engineering/packing.md` (Reminders), `notifications.md` (events table).
 
 | Gate | Command | Result |
@@ -1555,7 +1555,7 @@ Not done: a reminder schedule the organizer sets; a nudge from the organizer to 
 
 ## Slice 057: the revision history
 
-Status: done 2026-10-12. Commit: see git log (`feat(itinerary): the revision history page, every publish kept as it went out (slice 057)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: see git log (`feat(itinerary): the revision history page, every publish kept as it went out (slice 057)`, `47209f1`). CI: run 38285240535 red on `web` only (`mobile` and `ios` green): `responsive.spec.ts` found the itinerary editor 84 px too wide on the phone project, because the new "History" button joined the header's meta row, which did not wrap. The fix commit (`fix(console): the page header's meta row wraps on a phone`) lets `.page__meta` wrap; the verifying run is recorded there. The browser suite's other 94 cases, the history spec among them, passed on that run.
 Spec: D19 (old revisions kept; amended), D31. Details: `docs/engineering/itinerary.md` (Revision history).
 
 | Gate | Command | Result |
@@ -1578,7 +1578,7 @@ Not done: a side-by-side view of two snapshots; restoring a past revision into t
 
 ## Slice 058: rooming lists and the hotel's sealed link
 
-Status: done 2026-10-12. Commit: see git log (`feat(travel): rooming lists and the hotel's sealed link (slice 058)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: see git log (`feat(travel): rooming lists and the hotel's sealed link (slice 058)`, `3e31783`). CI: its run carries the 057 phone overflow (the History button) until the fix commit; the result is recorded in the next commit once verified.
 Spec: D41 (new), D27 (sealed third-party links; amended), D39 (the driver's link, the shape), D13 (guardians never see rooms), D31. Details: `docs/engineering/travel.md` (Rooming lists and the hotel's sealed link), `rate-limits.md`.
 
 | Gate | Command | Result |
