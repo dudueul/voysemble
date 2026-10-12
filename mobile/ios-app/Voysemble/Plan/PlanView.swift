@@ -185,9 +185,18 @@ struct PlanView: View {
 
     @ViewBuilder
     private func dayView(_ day: PlanDay) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(day.label).font(.title3.bold())
-            Text("\(day.dateLabel) · \(day.timeZoneLabel) · Day \(day.dayNumber)").font(.subheadline).foregroundStyle(.secondary)
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(day.label).font(.title3.bold())
+                Text("\(day.dateLabel) · \(day.timeZoneLabel) · Day \(day.dayNumber)").font(.subheadline).foregroundStyle(.secondary)
+            }
+            Spacer()
+            // The add affordance sits in the day header so a long day never hides it, as on Android.
+            if model.canPropose {
+                Button("Propose an event") { proposing = ProposalTarget.forDay(day) }
+                    .buttonStyle(.bordered)
+                    .disabled(model.proposal?.sending == true)
+            }
         }
         if let p = model.proposal { proposalLine(p) }
         if day.events.isEmpty {
@@ -205,11 +214,6 @@ struct PlanView: View {
                     .accessibilityLabel("Propose a change to \(e.title)")
                 }
             }
-        }
-        if model.canPropose {
-            Button("Propose an event for this day") { proposing = ProposalTarget.forDay(day) }
-                .buttonStyle(.bordered)
-                .disabled(model.proposal?.sending == true)
         }
     }
 

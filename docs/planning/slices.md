@@ -1070,7 +1070,7 @@ Not done: per-group breakdown; documents completion; Korean strings.
 
 ## Slice 035: the Plan tab and proposals from both phones
 
-Status: done 2026-10-12. Commit: see git log (`feat(plan): the Plan tab on both phones with leader proposals (slice 035)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: 139f497 (`feat(plan): the Plan tab on both phones with leader proposals (slice 035)`). CI: run 38244949195 red on `mobile` only (`PlanScreenshotTest.plan_day_light`: the "Propose an event for this day" button sat below the lazy list's viewport on the 8-event concert day, so it was never composed; `ios` green with the captures uploaded, `web` green). Fixed in the follow-up commit (`fix(plan): the add affordance moves into the day header`), which moves the button into the day header on both phones; verified by that commit's run.
 Spec: D24 (leaders propose, the organizer decides), D31 (device captures). Details: `docs/engineering/itinerary.md` ("The Plan tab and proposals from both phones").
 
 | Gate | Command | Result |

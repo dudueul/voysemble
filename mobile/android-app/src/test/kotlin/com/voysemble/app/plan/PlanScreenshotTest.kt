@@ -40,7 +40,7 @@ class PlanScreenshotTest {
         compose.setContent { VoysembleTheme(darkTheme = false) { PlanRoute(vm) } }
         compose.onNodeWithText("Concert day").assertExists()
         compose.onNodeWithText("Colosseum guided tour").assertExists()
-        compose.onNodeWithText("Propose an event for this day").assertExists()
+        compose.onNodeWithText("Propose an event").assertExists()
         compose.onRoot().captureRoboImage("$OUT/plan-day.png")
         // Switching days is immediate and local.
         compose.onNodeWithContentDescription("Open Arrival, Monday, Dec 28").performClick()

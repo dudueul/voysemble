@@ -236,7 +236,7 @@ the "not built" placeholder until this slice. Everything is derived from the sam
 
 The Plan tab: header with the revision line and the Live / Sample chip, day chips (`D4 ·
 Concert day`), the day's events with the Today row, and for leaders "Propose a change" on each
-event (change time or remove) and "Propose an event for this day" (add). `PlanViewModel` opens
+event (change time or remove) and "Propose an event" in the day header (add). `PlanViewModel` opens
 the device date's day on the first answer and keeps the reader's choice on later refreshes; an
 unreachable server marks the plan offline. The dialog (`ProposeChangeDialog` around
 `ProposeChangeForm`) is shared with Today's up-next card, which now also offers remove and is

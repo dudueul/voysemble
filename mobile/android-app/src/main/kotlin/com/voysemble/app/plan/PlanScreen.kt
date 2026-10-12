@@ -1,8 +1,8 @@
 // Copyright 2026- At Day. All rights reserved.
 // Plan tab (slice 035): the whole published itinerary, one day at a time. Day chips across the
 // top, the day's events in the organizer's order with the Today row, and for leaders the D24
-// affordances: "Propose a change" on an event (change or remove) and "Propose an event" for the
-// day (add). The same bottom bar as Today; the view model owns the state.
+// affordances: "Propose a change" on an event (change or remove) and "Propose an event" in the
+// day header (add). The same bottom bar as Today; the view model owns the state.
 
 package com.voysemble.app.plan
 
@@ -120,9 +120,17 @@ fun PlanScreen(
         }
         if (day != null) {
             item {
-                Column {
-                    Text(day.label, style = MaterialTheme.typography.titleLarge)
-                    Text("${day.dateLabel} · ${day.timeZoneLabel} · Day ${day.dayNumber}", style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
+                // The add affordance sits in the day header so a long day never hides it (CI run 38244949195).
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(day.label, style = MaterialTheme.typography.titleLarge)
+                        Text("${day.dateLabel} · ${day.timeZoneLabel} · Day ${day.dayNumber}", style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
+                    }
+                    if (state.canPropose) {
+                        OutlinedButton(onClick = { onPropose(ProposalTarget.forDay(day)) }, enabled = state.proposal?.sending != true, shape = MaterialTheme.shapes.small) {
+                            Text("Propose an event")
+                        }
+                    }
                 }
             }
             state.proposal?.let { p -> item { ProposalLine(p, onDismissProposal) } }
@@ -138,13 +146,6 @@ fun PlanScreen(
                             enabled = state.proposal?.sending != true,
                             modifier = Modifier.semantics { contentDescription = "Propose a change to ${e.title}" },
                         ) { Text("Propose a change") }
-                    }
-                }
-            }
-            if (state.canPropose) {
-                item {
-                    OutlinedButton(onClick = { onPropose(ProposalTarget.forDay(day)) }, enabled = state.proposal?.sending != true, shape = MaterialTheme.shapes.small) {
-                        Text("Propose an event for this day")
                     }
                 }
             }

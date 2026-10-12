@@ -141,8 +141,7 @@ Produced by `e2e/reports.spec.ts`.
 ## Slice 035 (2026-10-12): the Plan tab and proposals from both phones
 
 `android/plan-day.png` (Roborazzi) and `ios/plan-day.png` (CaptureTests): the Plan tab on the
-fixture's concert day with the day chips and the leader's "Propose a change" and "Propose an event
-for this day". `android/plan-propose-dark.png` and `ios/plan-propose-dark.png`: the proposal form
+fixture's concert day with the day chips and the leader's "Propose a change" and "Propose an event". `android/plan-propose-dark.png` and `ios/plan-propose-dark.png`: the proposal form
 for a new event, filled as a leader would. All land here through the CI `captures` job.
 
 ## Slice 036 (2026-10-12): live Settings
