@@ -44,7 +44,8 @@ export type CaptureName =
   | 'settings-live'
   | 'reports-live'
   | 'safety-missing-live'
-  | 'communication-chat';
+  | 'communication-chat'
+  | 'command-center-trips';
 
 /** Phone captures (docs/captures/ios, docs/captures/android) the gallery shows, by file name. */
 export type PhoneCaptureName =
@@ -55,7 +56,10 @@ export type PhoneCaptureName =
   | 'headcount-open'
   | 'chats-thread-dark'
   | 'window-open'
-  | 'bulletin-light';
+  | 'bulletin-light'
+  | 'today-trip-switch'
+  | 'rooming-light'
+  | 'inbox-light';
 
 export interface PhoneShot {
   platform: 'ios' | 'android';

@@ -129,6 +129,23 @@ export const en: SiteContent = {
             },
           },
           {
+            id: 'trips',
+            title: 'Several trips, one console',
+            summary:
+              'A school runs more than one trip a year. The console works on one trip at a time: the organizer switches from the top bar or the Today page, creates the next trip where the list is, and every page follows at once.',
+            details: [
+              'Without a choice the trip that is on today is active, else the next to start, else the one that ended last; the choice is remembered per organization.',
+              'The phones follow the same rule at sign-in, and a leader on two trips, or a guardian with two children, switches from the Today header.',
+              'Each organizer sets their own name; it is what travelers, leaders and guardians read wherever the organizer acts: a chat message, an incident card, a fee row, the audit trail. The email stays private.',
+            ],
+            decision: ['D42', 'D21'],
+            who: ['organizer', 'leader', 'guardian'],
+            capture: {
+              file: 'command-center-trips',
+              alt: 'The Today page with three trips in the Trips panel, the one just created active in the top bar’s switch.',
+            },
+          },
+          {
             id: 'roster',
             title: 'The roster is the source of truth',
             summary:
@@ -138,6 +155,7 @@ export const en: SiteContent = {
               'Codes are shown once and exported as PDF or CSV to hand out on paper or by message; only their hashes are stored.',
               'One account per person for life: a leader works for several organizations, a student returns years later as a leader, and each organization’s data stays under its own key.',
               'The guardian contact is used for the invite only and is not kept.',
+              'The People page shows each traveler’s fee beside their name, and the roster exports as a CSV at any time: name, role, group, the guardian’s traveler, invite status, last acknowledgment; never a contact.',
             ],
             decision: ['D12', 'D21'],
             who: ['organizer'],
@@ -172,6 +190,7 @@ export const en: SiteContent = {
               'Care notes are personal data: encrypted at rest and decrypted only for the leaders of that group, never for the whole trip.',
               'Passport and consent scans live on the organizer console only: revealing one needs a fresh sign-in, the view is watermarked, and they are never sent to a phone.',
               'A parental consent that is still missing shows up as a reminder on the console, with the due date.',
+              'Reminders go out by themselves on the mornings three days and one day before a document is due, to the travelers still missing it and their guardians; the organizer can nudge on any day, once a day per person.',
             ],
             decision: ['D27'],
             who: ['organizer', 'leader', 'guardian'],
@@ -180,12 +199,12 @@ export const en: SiteContent = {
             id: 'sealed-links',
             title: 'Drivers and hotels without accounts',
             summary:
-              'A bus driver, a hotel, a restaurant: they get a sealed, time-limited link or a printout with exactly their slice. The driver sees pickups, times and counts, not names.',
+              'A bus driver, a hotel: they get a sealed, time-limited link with exactly their slice, no account. The driver’s sheet is the names on the bus and the times; the hotel’s sheet is the rooming list by room.',
             details: [
-              'Links expire with the trip and can be revoked at any moment from the console.',
-              'A venue sees counts and dietary needs; a hotel sees a rooming count. Nobody outside the trip sees the roster.',
+              'Links are shown once, expire with the trip and can be revoked at any moment from the console; every opening is counted.',
+              'Never a contact, a guardian, a care note or a document. Leaders read the rooming list on the phone at the hotel, and during the stay the head count rows carry the room numbers.',
             ],
-            decision: ['D27'],
+            decision: ['D27', 'D39', 'D41'],
             who: ['organizer'],
           },
           {
@@ -195,7 +214,7 @@ export const en: SiteContent = {
               'Trip fees are a ledger: paid, unpaid or refunded per roster row, entered by hand or from a bank CSV. Guardians see their own balance and due date on the phone. Nobody types a card number into the app.',
             details: [
               'The organizer’s own license is paid by card on the web with Stripe; families are never billed through Voysemble.',
-              'The ledger is exportable and reconciled per trip, so the end-of-trip accounting is one download.',
+              'The ledger exports as a CSV from the Billing page, every traveler in roster order with the balance, so the end-of-trip accounting is one download.',
             ],
             decision: ['D23'],
             who: ['organizer', 'guardian'],
@@ -235,6 +254,7 @@ export const en: SiteContent = {
             details: [
               'Day 4, Thursday, 07:12 in Rome: breakfast, the lobby meeting moved to 07:30 by the leader, the buses at 08:00, the Colosseum at 09:00.',
               'The same screen, read-only, on the guardian’s phone at home.',
+              'The packing list opens from its card and the inbox from the bell: what the lanes delivered, with “Open” leading to the plan, the head count or the packing list.',
             ],
             decision: ['D24', 'D13'],
             who: ['traveler', 'leader', 'guardian'],
@@ -334,6 +354,7 @@ export const en: SiteContent = {
               'The per-person timeline on the console shows syncs, head counts, acknowledgments, leader-tagged photos and notes, so the organizer answers from evidence.',
               'The guardian message is sent in the guardian’s language and reads like a person wrote it: “Minji Park is with the group. Phone lost. Confirmed by leader Kim Daeun at 15:42.”',
               'Photos are attached only when the organizer chooses to. Every step is audited.',
+              'For what the head count did not catch, a lost passport or a sick traveler, the organizer opens a card by hand naming the travelers; the same flow follows, and the guardians and leaders hear it at once.',
             ],
             decision: ['D17'],
             who: ['organizer', 'leader', 'guardian'],
@@ -365,7 +386,8 @@ export const en: SiteContent = {
             summary:
               'Everyone on the trip, each group with its leader, each traveler with their leader, each guardian with the organizer. No traveler-to-traveler messages and no guardian-to-leader thread.',
             details: [
-              'Group channels are moderated by their leader. The organizer can open any channel during an incident, and that opening is recorded.',
+              'A leader removes a message in their group’s channels, the sender their own, the organizer in theirs; a tombstone stays in place for everyone. While an incident names a traveler, the organizer reads that traveler’s channel and their group’s from the incident card, and every read lands on the traveler’s timeline.',
+              'Each channel card speaks the reader’s language, Korean or English.',
               'Fixed channels keep minors out of private threads and keep volunteer leaders out of parent conversations.',
             ],
             decision: ['D22'],
@@ -383,6 +405,7 @@ export const en: SiteContent = {
             details: [
               'The drafts are suggestions in the editor, never a change on anyone’s phone. The organizer stays the single publisher.',
               'The published revision goes out as the usual change notice with required acknowledgments and the guardian summary.',
+              'The drafts come from a model at the edge, answering in a fixed shape; the journey graph beside the editor shows the tight connections of the day, so the organizer sees what a slip breaks before publishing.',
             ],
             decision: ['D19'],
             who: ['organizer'],
@@ -395,6 +418,7 @@ export const en: SiteContent = {
             details: [
               'Travelers: required acknowledgments and head count calls are priority and get through a muted phone; everything else is normal and can be muted.',
               'Leaders get everything immediately. Quiet hours per trip, 23:00 to 06:30 by default, hold everything except priority.',
+              'The mornings three days and one day before departure remind everyone with packing left; guardians get the digest by email, and an incident’s status reaches them at once.',
             ],
             decision: ['D29'],
             who: ['traveler', 'leader', 'guardian'],
@@ -500,6 +524,24 @@ export const en: SiteContent = {
         file: 'chats-thread-dark',
         alt: 'A chat thread on iPhone in dark mode with a message pending.',
         label: 'Chats, dark mode',
+      },
+      {
+        platform: 'android',
+        file: 'today-trip-switch',
+        alt: 'The trip switch on Android: the account’s trips with their days and roles, the current one marked.',
+        label: 'Switching trips',
+      },
+      {
+        platform: 'ios',
+        file: 'rooming-light',
+        alt: 'The rooming list on iPhone: the hotel, the rooms by number with the names in them, who has no room yet.',
+        label: 'The rooming list',
+      },
+      {
+        platform: 'ios',
+        file: 'inbox-light',
+        alt: 'The inbox on iPhone: what the lanes delivered, each row with Open and Mark read.',
+        label: 'The inbox',
       },
     ],
   },

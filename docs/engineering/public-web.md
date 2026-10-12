@@ -55,9 +55,12 @@ Pages: `/`, `/ko/`, `/privacy/`, `/terms/`, `/ko/privacy/`, `/ko/terms/`, `/404.
 
 Hero (headline, lead, two calls to action, four proof chips, the command center capture) ·
 Roles (organizer on the PC console; leader, traveler, guardian on the phone; four bullets each)
-· Phones (six real captures in device frames: Today and the Plan tab on iPhone, the Plan tab and a
-head count on Android, Today in Korean, a dark chat thread) · Features: before the trip (first
-run, roster, itinerary editor, care notes and documents, sealed links, fees, settings), on the trip
+· Phones (nine real captures in device frames: Today and the Plan tab on iPhone, the Plan tab and a
+head count on Android, Today in Korean, a dark chat thread, the trip switch on Android, the
+rooming list and the inbox on iPhone) · Features: before the trip (first run, several trips and
+the organizer's own name, roster with its export and fee column, itinerary editor, care notes and
+documents with their reminders, sealed links for the driver and the hotel, fees with the export,
+settings), on the trip
 (Today, the Plan tab, head counts with the console's missing list, announcements, revision
 notices, proposals, meeting windows, incidents, photos, chat, disruption replanning,
 notifications, lost device), after the trip (live reports, retention, templates) ·
@@ -101,6 +104,18 @@ BUILD_ID=<sha> pnpm build`; previews pass `SITE_URL=https://www.<build>.dev.voys
 Custom domains `voysemble.com` and `www.voysemble.com` on the `voysemble-www` Worker. Set
 `CF_ANALYTICS_TOKEN` in the CI environment to turn the beacon on. Mail forwarding for `hello@`,
 `privacy@`, `legal@`.
+
+## Refreshed with the product (slice 072)
+
+The copy follows the decided and built product: slice 072 added the "Several trips, one console"
+feature (D42, the trip switch on the console and the phones, the organizer's own name) with the
+`command-center-trips` capture, and brought the roster (export, fee column), documents (the
+reminder mornings), sealed links (the driver's names, the hotel's rooming list, D39/D41), fees
+(the export), Today (the packing card and the inbox), incidents (a card by hand), chat
+(moderation, the audited read, the reader's language), disruption (the edge model, the journey
+graph) and notifications (packing reminders, the email digest) up to date in both languages; the
+phone gallery gained the trip switch, the rooming list and the inbox. `render.test.ts` keeps the
+two languages in one structure and every capture on disk.
 
 ## Not done
 

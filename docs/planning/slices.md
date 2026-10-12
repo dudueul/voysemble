@@ -1799,7 +1799,7 @@ Not done: the organization name as a section when an account spans organizations
 
 ## Slice 068: an incident opened by hand from the console
 
-Status: done 2026-10-12. Commit: see git log (`feat(incidents): the organizer opens a card by hand, naming travelers (slice 068)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: ac48073 (`feat(incidents): the organizer opens a card by hand, naming travelers (slice 068)`). CI: run 38297802712 green (web, mobile, ios); captures recorded by CI in 62f6ac4.
 Spec: D17 (incidents; amended), D29 (the opening reaches leaders and guardians), D13. Details: `docs/engineering/incidents.md` (route row, behaviour, console, facts).
 
 | Gate | Command | Result |
@@ -1874,3 +1874,22 @@ Built:
 - Docs: `identity-and-roster.md` section, `reports.md` not-done, ledger, feature flag `people.roster-export` working.
 
 Not done: a filtered export (the page's filters stay on screen); the export in the organizer's language (English column names, for spreadsheets).
+
+## Slice 072: the public site describes the product as it is now
+
+Status: done 2026-10-12. Commit: see git log (`feat(public-web): the features as built since slice 040, in both languages (slice 072)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D30 (the site describes the decided product thoroughly), D31 (real captures), D42, D39, D41, D22, D23, D27, D29. Details: `docs/engineering/public-web.md` (Refreshed with the product).
+
+| Gate | Command | Result |
+|---|---|---|
+| Site unit tests | `pnpm --filter @voysemble/public-web test` | 10 passed (the two languages share one structure; every capture, the new ones included, is on disk) |
+| Site build | `pnpm --filter @voysemble/public-web build` | 10 pages, 25 assets |
+| Site browser spec | `pnpm --filter @voysemble/public-web test:e2e` | 13 passed (every feature's bullets counted, nine phone captures rendered) |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+Built:
+- `model.ts`: `CaptureName` gains `command-center-trips`; `PhoneCaptureName` gains `today-trip-switch`, `rooming-light`, `inbox-light`.
+- `en.ts` and `ko.ts`, in one structure: the new "Several trips, one console" feature (the switch on the console and the phones, the default rule, the organizer's own name); the roster's export and fee column; the document reminder mornings; the sealed links as decided (the driver's names, the hotel's rooming list, the rooms on the head count rows); the fee export; the packing card and the inbox on Today; the card opened by hand; chat moderation, the audited read and the reader's language; the edge model and the journey graph; the packing reminders and the email digest; three more phone captures.
+- Docs: `public-web.md` sections and the refresh note; ledger 068 (CI record) and 072; feature flag `public-web.features-current` working.
+
+Not done: a feature page per role; the console captures in Korean on the Korean page (the captures are English); store badges.

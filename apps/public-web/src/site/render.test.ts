@@ -42,6 +42,7 @@ const ctx: RenderContext = {
     'reports-live': '/img/rl.png',
     'safety-missing-live': '/img/sm.png',
     'communication-chat': '/img/cc2.png',
+    'command-center-trips': '/img/cct.png',
     og: '/img/og.png',
   },
   phoneImages: Object.fromEntries(
