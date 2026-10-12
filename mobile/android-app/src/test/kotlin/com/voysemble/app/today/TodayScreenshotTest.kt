@@ -86,6 +86,24 @@ class TodayScreenshotTest {
     }
 
     @Test
+    fun today_guardian_asked_for_help() {
+        // Slice 080 (D13): the guardian's card while Minji's own request is open, before any message.
+        compose.setContent {
+            VoysembleTheme(darkTheme = false) {
+                TodayScreen(
+                    state = TodayUiState(KoreaConcertTourFixture.today(), live = true, guardian = KoreaConcertTourFixture.guardianCardAskedForHelp()),
+                    onAcknowledge = {},
+                    onSelectTab = {},
+                    packingSummary = "6 of 9 packed",
+                )
+            }
+        }
+        compose.onNodeWithText("Asked for help at 07:05").assertExists()
+        compose.onNodeWithText("The leaders and the organizer are on it. You will get a confirmed update here.").assertExists()
+        compose.onRoot().captureRoboImage("$OUT/today-guardian-help.png")
+    }
+
+    @Test
     fun today_room() {
         // Slice 075 (D41): Minji's room tonight under the head count card, scrolled into view.
         compose.setContent {

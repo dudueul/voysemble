@@ -43,6 +43,10 @@ API, and wires the organizer console's Safety page to those cards. Exercised by
 - Slice 078: the card a head count opens when it closes with people missing is mailed to every
   owner and organizer at once as well (`notifications.md`); the replay of the closed session
   opens nothing and mails nothing.
+- Slice 080: the guardian's status carries the incident's kind, so their Today card reads "Asked
+  for help at 07:05" while the traveler's own request is open (the words stay with the
+  traveler and the organizer) and "An incident is open since 07:05" for a card opened by hand
+  (`guardian.md`).
 
 ## Routes
 

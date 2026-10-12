@@ -64,6 +64,7 @@
     "incidents.organizer-email": "working",
     "headcounts.organizer-email": "working",
     "mobile.incidents.kind": "working",
+    "guardian.help-card": "working",
     "travel.bookings": "working",
     "packing.checklist": "working",
     "packing.reminders": "working",

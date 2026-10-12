@@ -2,7 +2,8 @@
 // Facts (D13): only the guardian of a traveler reads the status; before any count the traveler
 // is not counted; an open count with a present mark reads present with the leader's name and
 // device clock; a close with the traveler missing reads missing and opens the incident; the
-// organizer's guardian message appears on the status; no coordinates and no other names.
+// organizer's guardian message appears on the status; no coordinates and no other names. Slice
+// 080: the incident carries its kind, so a traveler's own help request reads as such.
 
 import type {
   GuardianStatus,
@@ -77,7 +78,7 @@ describe('guardian status (slice 025)', () => {
   });
 
   it('present on an open count, missing at close with the incident, then the guardian message', async () => {
-    const { nate, kim, base, byName, sync, status } = await setupTrip();
+    const { nate, kim, minji, base, byName, sync, status } = await setupTrip();
     const id = crypto.randomUUID();
     const open = await sync(kim, id, {
       openedAtDevice: '06:50',
@@ -111,7 +112,12 @@ describe('guardian status (slice 025)', () => {
     expect(closed.incidentId).toBeTruthy();
     const s2 = await status();
     expect(s2.count).toMatchObject({ status: 'missing', closed: true, atDevice: '06:55' });
-    expect(s2.incident).toMatchObject({ id: closed.incidentId, status: 'open', message: null });
+    expect(s2.incident).toMatchObject({
+      id: closed.incidentId,
+      status: 'open',
+      kind: 'headcount_missing',
+      message: null,
+    });
 
     expect(
       (
@@ -130,5 +136,22 @@ describe('guardian status (slice 025)', () => {
     );
     expect(s3.incident?.message?.bodyKo).toContain('Minji Park');
     expect(s3.incident?.message?.sentByName).toBeTruthy();
+    // Slice 080: once resolved, Minji's own help request is the latest incident, kind help, no
+    // message yet; her words stay with her and the organizer.
+    expect(
+      (await api(nate).post(`${base}/incidents/${closed.incidentId}/resolve`, { note: null }))
+        .status,
+    ).toBe(200);
+    expect(
+      (
+        await api(minji).post(`${base}/incidents`, {
+          title: 'I feel sick',
+          participationIds: [byName('Minji Park')],
+        })
+      ).status,
+    ).toBe(201);
+    const s4 = await status();
+    expect(s4.incident).toMatchObject({ status: 'open', kind: 'help', message: null });
+    expect(JSON.stringify(s4)).not.toContain('I feel sick');
   });
 });

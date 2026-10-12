@@ -3,7 +3,9 @@
 // The guardian's card on Today (D13, slice 025), shared by Android and iOS: one headline, one
 // detail line and an optional leader-confirmed message, in the reader's language. Pure rules over
 // the wire status; the apps only render. Tone drives the colour: calm (nothing happening yet),
-// good (counted, confirmed), attention (missing, open incident).
+// good (counted, confirmed), attention (missing, open incident). Slice 080: a traveler's own help
+// request and a card opened by hand show while open, before any message; the words stay with
+// the traveler and the organizer (D13).
 
 package com.voysemble.core.today
 
@@ -83,6 +85,20 @@ private fun cardWithoutFee(
             detail = if (ko) "${clock(incident?.openedAt ?: "")}에 열린 확인 요청" else "Opened at ${clock(incident?.openedAt ?: "")}",
             tone = if (resolved) GuardianTone.GOOD else GuardianTone.ATTENTION,
             message = message,
+        )
+        incident != null && incident.status == "open" && incident.kind == "help" -> GuardianCard(
+            t.displayName, t.groupName,
+            headline = if (ko) "${clock(incident.openedAt)}에 도움을 요청했습니다" else "Asked for help at ${clock(incident.openedAt)}",
+            detail = if (ko) "인솔자와 주최자가 대응 중입니다. 확인된 소식을 여기서 알려 드립니다." else "The leaders and the organizer are on it. You will get a confirmed update here.",
+            tone = GuardianTone.ATTENTION,
+            message = null,
+        )
+        incident != null && incident.status == "open" && incident.kind == "manual" -> GuardianCard(
+            t.displayName, t.groupName,
+            headline = if (ko) "${clock(incident.openedAt)}부터 열린 사건이 있습니다" else "An incident is open since ${clock(incident.openedAt)}",
+            detail = if (ko) "인솔자가 확인 중입니다. 확인된 소식을 여기서 알려 드립니다." else "The leaders are checking. You will get a confirmed update here.",
+            tone = GuardianTone.ATTENTION,
+            message = null,
         )
         c.status == "missing" -> GuardianCard(
             t.displayName, t.groupName,

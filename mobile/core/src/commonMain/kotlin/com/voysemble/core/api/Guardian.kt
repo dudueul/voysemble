@@ -31,6 +31,8 @@ public data class GuardianIncidentDto(
     val status: String,
     val openedAt: String,
     val message: GuardianMessageDto? = null,
+    /** Slice 080: headcount_missing | manual | help; the card says "asked for help" for the last. */
+    val kind: String = "headcount_missing",
 )
 
 /** The traveler's fee as the guardian may see it (D23): amounts in minor units. */

@@ -66,6 +66,10 @@ final class LiveModelsTests: XCTestCase {
         // Slice 075: the sample shows Minji's room with Juho.
         XCTAssertEqual(model.room?.room, "412")
         XCTAssertEqual(model.room?.roommates, ["Juho Kim"])
+        // Slice 080: the guardian's card for an open help request, in both languages.
+        XCTAssertEqual(KoreaConcertTourFixture.shared.guardianCardAskedForHelp(locale: "en").headline, "Asked for help at 07:05")
+        XCTAssertEqual(KoreaConcertTourFixture.shared.guardianCardAskedForHelp(locale: "ko").headline, "07:05에 도움을 요청했습니다")
+        XCTAssertEqual(KoreaConcertTourFixture.shared.guardianCardAskedForHelp(locale: "en").tone, GuardianTone.attention)
     }
 
     func testTravelerHelpSaysOfflineWhenUnreachable() async {

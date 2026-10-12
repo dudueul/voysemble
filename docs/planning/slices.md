@@ -1970,7 +1970,7 @@ Not done: a traveler's own seat on the bus or the flight; the room on the Plan t
 
 ## Slice 076: the organizers' email on a card from the phone
 
-Status: done 2026-10-12. Commit: see git log (`feat(incidents): a card opened from a phone reaches the owners and organizers by email at once; a traveler asks once (slice 076)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: f37b2fe (`feat(incidents): a card opened from a phone reaches the owners and organizers by email at once; a traveler asks once (slice 076)`). CI: run 38305193064 green (web, mobile, ios); captures recorded by CI in c7b5ce9.
 Spec: D29 (amended: owners and organizers, who have no app, get an email at once), D17, ADR-0007 (the EmailPort). Details: `docs/engineering/notifications.md` (events table, the new section, facts), `incidents.md`.
 
 | Gate | Command | Result |
@@ -2040,3 +2040,26 @@ Built:
 - Docs: `incidents.md` Mobile and facts; captures README; ledger 079; feature flag `mobile.incidents.kind`.
 
 Not done: filtering the Incidents screen by kind; the kind on the console's incident card beyond the help chip (the title says it).
+
+## Slice 080: the guardian's card while their traveler's request is open
+
+Status: done 2026-10-12. Commit: see git log (`feat(guardian): the guardian's Today card says "asked for help" while the traveler's own request is open (slice 080)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D13 (status, never raw data: the request's words stay with the traveler and the organizer), D17, D31. Details: `docs/engineering/guardian.md` (route table, phone card rules, facts), `incidents.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 40 files, 117 passed (`guardian.test.ts`: the kind on the head count's card; Minji's request as the latest incident, her words absent) |
+| Core JVM tests | `./gradlew :core:jvmTest` (CI `mobile` job) | `GuardianModelTest` +1 (the help card in both languages, the hand-opened card, the fall-through, the fixture card) |
+| Android tests + captures | `./gradlew :android-app:testDebugUnitTest` / `recordRoborazziDebug` (CI `mobile` job) | `TodayScreenshotTest.today_guardian_asked_for_help` (`today-guardian-help.png`) |
+| iOS tests + captures | `xcodebuild test` (CI `ios` job) | `LiveModelsTests` (the fixture card in both languages, the tone); `CaptureTests.testTodayGuardian` captures `today-guardian-help` |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+Gradle and Xcode do not run in this workspace; the CI `mobile` and `ios` jobs verify the Kotlin and Swift, desk-checked here.
+
+Built:
+- Contracts: `GuardianStatus.incident.kind`. Worker: `guardianStatus` carries the kind; `guardian.test.ts` (the kind on the head count's card; Minji's request as the latest incident, her words absent).
+- Core: `GuardianIncidentDto.kind` (default `headcount_missing`); `guardianCardOf` gains the help and by-hand rules before the count's; the fixture's `guardianStatusAskedForHelp` and `guardianCardAskedForHelp`; `GuardianModelTest`.
+- Android and iOS: no view change (the card renders the headline); the capture on each.
+- Docs: `guardian.md`, `incidents.md`; captures README; ledger 076 (CI record) and 080; feature flag `guardian.help-card`.
+
+Not done: a guardian's own request for their traveler; a push to the guardian beyond the lane row (D29).

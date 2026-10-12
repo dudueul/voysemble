@@ -49,6 +49,23 @@ class GuardianModelTest {
     }
 
     @Test
+    fun a_help_request_and_a_card_by_hand_show_while_open() {
+        // Slice 080: the traveler's own request, then a card the organizer or a leader opened; resolved without a message, the count speaks again.
+        val help = GuardianIncidentDto("inc1", "open", "2026-12-31T06:05:00.000Z", null, "help")
+        val card = guardianCardOf(status(present, help), clock = { "07:05" })
+        assertEquals("Asked for help at 07:05", card.headline)
+        assertEquals("The leaders and the organizer are on it. You will get a confirmed update here.", card.detail)
+        assertEquals(GuardianTone.ATTENTION, card.tone)
+        assertNull(card.message)
+        assertEquals("07:05에 도움을 요청했습니다", guardianCardOf(status(present, help), "ko", clock = { "07:05" }).headline)
+        val byHand = guardianCardOf(status(present, help.copy(kind = "manual")), clock = { "07:05" })
+        assertEquals("An incident is open since 07:05", byHand.headline)
+        assertEquals(GuardianTone.ATTENTION, byHand.tone)
+        assertEquals("Counted present", guardianCardOf(status(present, help.copy(status = "resolved"))).headline)
+        assertEquals("Asked for help at 07:05", com.voysemble.core.fixtures.KoreaConcertTourFixture.guardianCardAskedForHelp().headline)
+    }
+
+    @Test
     fun not_counted_before_any_count_and_other_marks() {
         val none = guardianCardOf(status(GuardianCountDto("not_counted", closed = false)))
         assertEquals("Not counted yet today", none.headline)

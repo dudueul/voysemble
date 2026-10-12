@@ -7,7 +7,7 @@
 import { z } from '@hono/zod-openapi';
 import { Id, Timestamp } from './common';
 import { GuardianFee } from './fees';
-import { GuardianMessage, IncidentStatus } from './incident';
+import { GuardianMessage, IncidentKind, IncidentStatus } from './incident';
 import { DisplayName, GroupName } from './roster';
 
 /** The traveler's mark on the latest head count that covered them (D14, D25). */
@@ -35,11 +35,16 @@ export const GuardianStatus = z
       byName: z.string().nullable(),
       receivedAt: Timestamp.nullable(),
     }),
-    /** The latest incident naming the traveler; its guardian message once the organizer sent one. */
+    /**
+     * The latest incident naming the traveler; its guardian message once the organizer sent one.
+     * Slice 080: its kind, so the card can say "asked for help" (the traveler's own words stay
+     * with the traveler and the organizer).
+     */
     incident: z
       .object({
         id: z.uuid(),
         status: IncidentStatus,
+        kind: IncidentKind,
         openedAt: Timestamp,
         message: GuardianMessage.nullable(),
       })

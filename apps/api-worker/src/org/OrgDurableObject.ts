@@ -2392,6 +2392,7 @@ export class OrgDurableObject extends DurableObject<Env> {
         ? {
             id: i.id,
             status: i.status as IncidentStatus,
+            kind: i.kind as Incident['kind'],
             openedAt: i.opened_at,
             message:
               i.guardian_message_en && i.guardian_message_ko && i.guardian_message_sent_at

@@ -5,6 +5,7 @@
 
 package com.voysemble.core.fixtures
 
+import com.voysemble.core.api.GuardianIncidentDto
 import com.voysemble.core.incidents.IncidentKind
 import com.voysemble.core.today.MyRoomCard
 import com.voysemble.core.api.CareNoteDto
@@ -292,6 +293,13 @@ public object KoreaConcertTourFixture {
     )
 
     public fun guardianCard(locale: String = "en"): GuardianCard = guardianCardOf(guardianStatus(), locale)
+
+    /** Slice 080: the same status with Minji's own help request open and unanswered. */
+    public fun guardianStatusAskedForHelp(): GuardianStatusDto =
+        guardianStatus().copy(incident = GuardianIncidentDto("inc_help_minji", "open", "2026-12-31T06:05:00.000Z", null, "help"))
+
+    public fun guardianCardAskedForHelp(locale: String = "en"): GuardianCard =
+        guardianCardOf(guardianStatusAskedForHelp(), locale) { "07:05" }
 
     /** Colosseum regroup window 10:45-11:20, 200 m, as seen by traveler Minji (t1), not yet opted in. */
     /** Minji's channels (D22): everyone, her group, her leaders. */

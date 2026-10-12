@@ -50,6 +50,8 @@ final class CaptureTests: XCTestCase {
             careDraft: KoreaConcertTourFixture.shared.careNote(),
         )
         try capture(TodayView(model: editing), name: "today-guardian-care")
+        // Slice 080 (D13): the guardian's card while Minji's own request is open, before any message.
+        try capture(TodayView(model: TodayModel(guardian: KoreaConcertTourFixture.shared.guardianCardAskedForHelp(locale: "en"))), name: "today-guardian-help")
     }
 
     func testTodayRoom() throws {
