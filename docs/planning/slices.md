@@ -1920,7 +1920,7 @@ Not done: a note at opening; opening from the head count's missing list in one t
 
 ## Slice 074: a traveler asks for help from Today
 
-Status: done 2026-10-12. Commit: see git log (`feat(mobile): a traveler asks for help from Today; the card is an incident of kind help (slice 074)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: 38f7c3b (`feat(mobile): a traveler asks for help from Today; the card is an incident of kind help (slice 074)`). CI: run 38303453000 green (web, mobile, ios); captures recorded by CI in 32ec38e.
 Spec: D17 (amended: a traveler opens a card for themselves), D29 (the leaders and guardians hear it at once), D31. Details: `docs/engineering/incidents.md` (Behaviour, Routes, Mobile, facts).
 
 | Gate | Command | Result |
@@ -1946,7 +1946,7 @@ Not done: a one-tap call to the leader from the card (no phone numbers are store
 
 ## Slice 075: your room tonight on Today
 
-Status: done 2026-10-12. Commit: see git log (`feat(mobile): "Your room tonight" on Today, read from the stay that covers the day (slice 075)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: 56a5e7b (`feat(mobile): "Your room tonight" on Today, read from the stay that covers the day (slice 075)`). CI: run 38304394867 green (web, mobile, ios); captures recorded by CI in 125b788.
 Spec: D41 (amended: a traveler reads their own room and who shares it), D13 (guardians never read rooms), D31. Details: `docs/engineering/travel.md` (Routes, "Your room tonight", facts).
 
 | Gate | Command | Result |
@@ -1983,3 +1983,22 @@ Built:
 - Docs: `notifications.md` events row and section; `incidents.md` behaviour, route row and facts; D29 amendment; ledger 074 (CI record) and 076; feature flag `incidents.organizer-email`.
 
 Not done: an email for a head count that closes with people missing (the console's alert carries it); a per-organizer switch for these emails; the production email transport (unchanged, the digest's).
+
+## Slice 077: the public site describes slices 073 to 076
+
+Status: done 2026-10-12. Commit: see git log (`feat(public-web): the leader's card, the help request, the room tonight and the organizers' email on the site (slice 077)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D30 (the site describes the decided product thoroughly), D31 (real captures), D17, D29, D41. Details: `docs/engineering/public-web.md` (Refreshed with the product).
+
+| Gate | Command | Result |
+|---|---|---|
+| Site unit tests | `pnpm --filter @voysemble/public-web test` | 10 passed (the two languages share one structure; every capture, the three new phone shots included, is on disk) |
+| Site build | `pnpm --filter @voysemble/public-web build` | 10 pages, 28 assets |
+| Site browser spec | `pnpm --filter @voysemble/public-web test:e2e` | 13 passed (every feature's bullets counted, twelve phone captures rendered) |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+Built:
+- `model.ts`: `PhoneCaptureName` gains `today-help`, `today-room`, `incidents-new`.
+- `en.ts` and `ko.ts`, in one structure: the incidents feature's leader card, help request and organizers' email (decisions D17, D29); Today's room tonight and help card (D41, D17 added); the sealed links' traveler view; the notifications' organizers' mailbox; three phone shots.
+- Docs: `public-web.md` refresh note; ledger 074 (CI record) and 077.
+
+Not done: a feature page per role; the console captures in Korean on the Korean page; store badges.

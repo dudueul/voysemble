@@ -59,7 +59,10 @@ export type PhoneCaptureName =
   | 'bulletin-light'
   | 'today-trip-switch'
   | 'rooming-light'
-  | 'inbox-light';
+  | 'inbox-light'
+  | 'today-help'
+  | 'today-room'
+  | 'incidents-new';
 
 export interface PhoneShot {
   platform: 'ios' | 'android';

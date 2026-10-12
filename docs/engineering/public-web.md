@@ -117,6 +117,13 @@ graph) and notifications (packing reminders, the email digest) up to date in bot
 phone gallery gained the trip switch, the rooming list and the inbox. `render.test.ts` keeps the
 two languages in one structure and every capture on disk.
 
+Slice 077 brought slices 073 to 076 to the site in both languages: the incidents feature
+(a leader's card from the phone, the traveler's "I need help", the organizers' email; decisions
+D17 and D29), Today (the room tonight, the help card; D41 and D17 added), the sealed links (a
+traveler reads their own room and roommates, nothing more), notifications (the organizers'
+mailbox); the phone gallery gained the help card on Android, the room card and the leader's
+form on iPhone (`today-help`, `today-room`, `incidents-new`).
+
 ## Not done
 
 Store badges (no listings yet), a waitlist form (mail is the funnel for the pilot), a public
