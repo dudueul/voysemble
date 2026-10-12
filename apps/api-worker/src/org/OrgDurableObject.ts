@@ -58,6 +58,7 @@ import type {
   MyNotifications,
   MyPackingItem,
   MyPackingList,
+  MyRoom,
   Notification,
   NotificationEvent,
   NotificationLog,
@@ -4314,6 +4315,45 @@ export class OrgDurableObject extends DurableObject<Env> {
       }
     }
     return rooms;
+  }
+
+  /**
+   * Slice 075 (D41): the caller's own room for the stay that covers the date: the first hotel
+   * booking covering it (creation order, like `roomsOn`), their room once placed, and who shares
+   * it by name (the rooming list's order: leaders first, then by group and name). `stay: null`
+   * outside any stay.
+   */
+  async myRoom(tripId: string, participationId: string, date: string): Promise<MyRoom> {
+    this.requireOrg();
+    const bookings = this.ctx.storage.sql
+      .exec<TravelBookingRow>(
+        "SELECT * FROM travel_bookings WHERE trip_id = ? AND kind = 'hotel' ORDER BY created_at",
+        tripId,
+      )
+      .toArray();
+    for (const row of bookings) {
+      const hotel = this.hotelOf(row);
+      if (!hotel || !(hotel.checkIn <= date && date < hotel.checkOut)) continue;
+      const list = await this.rooming(tripId, row.id);
+      if ('notFound' in list) continue;
+      const room = list.people.find((p) => p.participationId === participationId)?.room ?? null;
+      return {
+        stay: {
+          hotelName: hotel.name,
+          city: hotel.city,
+          checkIn: hotel.checkIn,
+          checkOut: hotel.checkOut,
+          room,
+          roommates:
+            room === null
+              ? []
+              : list.people
+                  .filter((p) => p.room === room && p.participationId !== participationId)
+                  .map((p) => p.displayName),
+        },
+      };
+    }
+    return { stay: null };
   }
 
   /** Puts a leader or traveler of the trip in a room of the hotel; null takes them out. */

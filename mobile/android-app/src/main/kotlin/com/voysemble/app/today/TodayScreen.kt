@@ -173,6 +173,8 @@ fun TodayScreen(
                 // Slice 074 (D17): a traveler asks for help; the card tracks the request.
                 if (state.canAskHelp) item { HelpCardView(state.help, state.helpSending, state.helpError) { askingHelp = true } }
             }
+            // Slice 075 (D41): my room tonight, while a stay covers today (travelers and leaders).
+            state.room?.let { room -> item { RoomCard(room) } }
             // Slice 048 (D38): everyone packs; the card opens the list and reads its count.
             item { PackingCard(packingSummary, onOpenPacking) }
             item { SectionTitle(tr(Txt.TODAY_LATER)) }

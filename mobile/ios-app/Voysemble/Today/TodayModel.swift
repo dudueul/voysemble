@@ -30,6 +30,8 @@ final class TodayModel: ObservableObject {
     @Published private(set) var help: HelpCard?
     @Published private(set) var helpSending = false
     @Published private(set) var helpError: String?
+    /// Slice 075 (D41): my room for tonight's stay; nil outside a stay and for guardians.
+    @Published private(set) var room: MyRoomCard?
     private var travelerId: String?
 
     let api: ApiClient?
@@ -62,6 +64,7 @@ final class TodayModel: ObservableObject {
             self.snapshot = TodayLiveKt.emptyTodaySnapshot(tripName: trip.tripName)
         } else {
             self.snapshot = snapshot
+            self.room = KoreaConcertTourFixture.shared.myRoom()
         }
     }
 
@@ -104,6 +107,13 @@ final class TodayModel: ObservableObject {
                         guardian = GuardianModelKt.guardianCardOf(status: status, locale: locale, clock: { iso in Clocks.localTime(iso) })
                         travelerId = status.traveler.participationId
                         await loadCare()
+                    }
+                }
+                // Slice 075: my room for tonight's stay (travelers and leaders; a guardian never reads rooms).
+                if trip.role == "traveler" || trip.role == "leader" {
+                    let r = try? await api.myRoom(orgId: trip.organizationId, tripId: trip.tripId, correlationId: nil)
+                    if let dto = (r as? ApiResultOk<MyRoomDto>)?.value {
+                        room = MyRoomModelKt.myRoomCardOf(dto: dto)
                     }
                 }
                 // Slice 074: a traveler's own help card, from the cards the server lists for them.

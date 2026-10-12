@@ -5,6 +5,7 @@
 
 package com.voysemble.core.fixtures
 
+import com.voysemble.core.today.MyRoomCard
 import com.voysemble.core.api.CareNoteDto
 import com.voysemble.core.chat.ChatChannel
 import com.voysemble.core.chat.ChatMessage
@@ -344,6 +345,9 @@ public object KoreaConcertTourFixture {
             RoomPerson("p-hana", "Lee Hana", leader = false, group = "Bus B", room = null),
         ),
     )
+
+    /** Slice 075 (D41): Minji's room tonight, as the sample rooming list has it (412 with Juho). */
+    public fun myRoom(): MyRoomCard = MyRoomCard("Hotel de la Ville", "412", listOf("Juho Kim"), "2027-01-02")
 
     /** The sample packing list (D38, slice 048): nine items, six in the bag. */
     public fun packing(): PackingList = PackingList(

@@ -114,6 +114,8 @@ struct TodayView: View {
                                 }
                         }
                     }
+                    // Slice 075 (D41): my room tonight, while a stay covers today (travelers and leaders).
+                    if let room = model.room { RoomCard(card: room) }
                     // Slice 048 (D38): everyone packs; the card opens the list and reads its count.
                     PackingCard(model: packing)
                     Text(tr(.todayLater)).font(.headline).padding(.top, 4)
@@ -563,6 +565,27 @@ struct HelpForm: View {
             }
             Section {
                 Button(tr(.todayHelpSend)) { onSend(text) }.voyButton(prominent: true)
+            }
+        }
+    }
+}
+
+/// Slice 075 (D41): "Your room tonight": the hotel and the room once placed, who shares it;
+/// before that, the hotel and whom to ask.
+struct RoomCard: View {
+    let card: MyRoomCard
+
+    var body: some View {
+        Card {
+            Text(tr(.todayRoom)).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+            if let room = card.room {
+                Text(tr2(.todayRoomAt, room, card.hotelName)).font(.headline).padding(.top, 6)
+                Text(card.roommates.isEmpty ? tr(.todayRoomAlone) : tr1(.todayRoomWith, card.roommates.joined(separator: ", ")))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 2)
+            } else {
+                Text(tr1(.todayRoomPending, card.hotelName)).font(.subheadline).foregroundStyle(.secondary).padding(.top, 6)
             }
         }
     }

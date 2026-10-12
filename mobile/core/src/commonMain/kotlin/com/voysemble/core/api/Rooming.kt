@@ -3,6 +3,7 @@
 // Rooming list wire types (mirror of packages/contracts/src/travel.ts, the RoomingList part; D41,
 // slice 059). A leader's phone reads a hotel's rooming list (`GET .../travel/{bookingId}/rooming`);
 // the organizer places people on the console; travelers and guardians never call this (D13).
+// Slice 075: a traveler or leader reads their own room for tonight's stay (`GET .../rooming/mine`).
 
 package com.voysemble.core.api
 
@@ -36,3 +37,18 @@ public data class RoomingListDto(
     val roomsUsed: Int = 0,
     val assigned: Int = 0,
 )
+
+/** Slice 075 (D41): the caller's own stay tonight; `room` null until the organizer placed them. */
+@Serializable
+public data class MyRoomStayDto(
+    val hotelName: String,
+    val city: String,
+    val checkIn: String,
+    val checkOut: String,
+    val room: String? = null,
+    /** The others in the same room, by name. */
+    val roommates: List<String> = emptyList(),
+)
+
+@Serializable
+public data class MyRoomDto(val stay: MyRoomStayDto? = null)

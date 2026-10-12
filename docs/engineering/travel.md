@@ -29,6 +29,7 @@ link or a printed roster, not built yet).
 | `POST .../travel` | owner, organizer | `CreateBookingRequest` (a discriminated union on `kind`) → 201 `Booking`. A hotel that checks out before it checks in is 400. |
 | `PATCH .../travel/{id}` | owner, organizer | `UpdateBookingRequest`: any subset of the kind's fields, with no defaults, merged over the stored row; the kind must match the row (409). A hotel patch that reverses the dates is 400. |
 | `DELETE .../travel/{id}` | owner, organizer | Gone. |
+| `GET .../rooming/mine` (slice 075) | traveler, leader | `MyRoom { stay }`: the hotel stay that covers today in the trip's zone (the first booking covering it, like `roomsOn`), the caller's room once the organizer placed them (null before), and who shares it by name; `stay: null` outside any stay. A guardian, an organizer without a participation and a stranger are 403 (D13). |
 
 Travelers, guardians and strangers are 403; anonymous 401; an unknown trip 404.
 
@@ -84,6 +85,19 @@ row), iOS `Plan/RoomingView.swift` (`RoomingDestination` from the row's link). A
 said; offline keeps the last answer; the fixture's list stands in without a trip. Evidence:
 `android/rooming-light.png`, `android/rooming-dark.png`, `ios/rooming-light.png`,
 `ios/rooming-dark.png`.
+
+### Your room tonight (slice 075, D41)
+
+A traveler asks "where do I sleep tonight?" more often than anything else, and a leader needs
+their own room too. Today carries "YOUR ROOM TONIGHT" while a hotel stay covers the day:
+"Room 412 · Hotel de la Ville" and "with Juho Kim" ("A room to yourself" when alone), or, before
+the organizer placed them, "Hotel de la Ville · your room is not set yet. Ask your leader."; the
+card is absent outside a stay and for guardians (D13: they never read rooms). The phones read
+`GET .../rooming/mine` on every Today refresh (`ApiClient.myRoom`), the core maps it
+(`today/MyRoomModel.kt`: `MyRoomCard`, `myRoomCardOf`), the sample shows Minji's room with
+Juho (the fixture's rooming list). D41 is amended: a traveler reads their own room and who
+shares it, nothing else of the list. Android `today/RoomCard.kt`, iOS `RoomCard` in
+`TodayView.swift`. Evidence: `android/today-room.png`, `ios/today-room.png`.
 
 ## The driver's sealed link (slice 049, D39)
 
@@ -185,8 +199,17 @@ lists the rooms and prints. Evidence: `web/<project>/travel-rooming.png`,
 Slice 070: the roster route carries each person's room while a hotel stay covers today in the
 trip's zone, so a leader's head count rows show it (`headcounts.md`).
 
+Slice 075 (`rooming.test.ts`): with no hotel, then a past stay with a room, Minji's answer is
+`stay: null`; a stay covering today in Seoul answers the hotel with no room and no roommates;
+once Minji, Juho and Hana are in 412 and Kim in 501, Minji reads 412 with Juho and Hana, Kim
+501 alone; Sora (guardian), the owner, a stranger are 403, anonymous 401, an unknown trip 404.
+Core: the stay maps to the card, with or without a room; no stay, no card. Android: the room
+rides on the traveler's refresh; the sample shows 412. iOS: the sample's room and roommate; an
+unreachable leader has no card.
+
 ## Not done
 
 A sealed link for a hotel (the rooming list, D27); provider lookups (flight status, hotel
-confirmations); bookings in the trip report; a traveler's own seat or room; a Korean sheet for
+confirmations); bookings in the trip report; a traveler's own seat (their room is on Today since
+slice 075); a Korean sheet for
 a Korean driver (the sheet follows the console's language).

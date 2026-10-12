@@ -52,6 +52,21 @@ final class CaptureTests: XCTestCase {
         try capture(TodayView(model: editing), name: "today-guardian-care")
     }
 
+    func testTodayRoom() throws {
+        // Slice 075 (D41): Minji's room tonight with her roommate, and a stay before the organizer placed her.
+        let placed = KoreaConcertTourFixture.shared.myRoom()
+        let pending = MyRoomCard(hotelName: "Hotel de la Ville", room: nil, roommates: [], checkOut: "2027-01-02")
+        try capture(
+            VStack(spacing: 14) {
+                RoomCard(card: placed)
+                RoomCard(card: pending)
+                Spacer()
+            }
+            .padding(16)
+            .background(Color(argb: Tokens.Color.Light.bg)),
+            name: "today-room")
+    }
+
     func testTodayHelp() throws {
         // Slice 074 (D17): the traveler's "I need help" card with a request on its way, and the form.
         let sent = HelpCard(id: "local-help", title: "I feel sick", status: .open, openedAt: "07:12", resolvedAt: nil)

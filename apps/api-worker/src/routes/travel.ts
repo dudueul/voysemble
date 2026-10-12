@@ -20,6 +20,7 @@ import {
   HotelLink,
   HotelLinkList,
   HotelSheet,
+  MyRoom,
   OpenDriverSheetRequest,
   OpenHotelSheetRequest,
   RoomingList,
@@ -34,7 +35,7 @@ import { db } from '../db/client';
 import { organizations } from '../db/schema';
 import type { AppEnv } from '../env';
 import { clientIp, enforceLimits } from '../lib/rate-limit';
-import { isPast, nowIso, plusSeconds, SECONDS } from '../lib/time';
+import { isPast, localClock, nowIso, plusSeconds, SECONDS } from '../lib/time';
 import { hashToken, randomToken } from '../lib/tokens';
 import { orgObject } from '../org/client';
 import { ERROR_RESPONSES, SESSION_SECURITY } from './openapi-common';
@@ -139,6 +140,24 @@ const roomingRoute = createRoute({
   request: { params: BookingParams },
   responses: {
     200: { description: 'The list.', content: { 'application/json': { schema: RoomingList } } },
+    401: ERROR_RESPONSES[401],
+    403: ERROR_RESPONSES[403],
+    404: ERROR_RESPONSES[404],
+    500: ERROR_RESPONSES[500],
+  },
+});
+
+const myRoomRoute = createRoute({
+  method: 'get',
+  path: '/v1/orgs/{orgId}/trips/{tripId}/rooming/mine',
+  tags: ['travel'],
+  summary: "The caller's own room for tonight's stay (traveler, leader)",
+  description:
+    "Slice 075 (D41). The hotel stay that covers today in the trip's zone, the caller's room once the organizer placed them, and who shares it by name; `stay: null` outside any stay. A traveler reads their own room only; a guardian, an organizer without a participation and a stranger are 403 (D13).",
+  security: SESSION_SECURITY,
+  request: { params: TripParams },
+  responses: {
+    200: { description: 'The stay.', content: { 'application/json': { schema: MyRoom } } },
     401: ERROR_RESPONSES[401],
     403: ERROR_RESPONSES[403],
     404: ERROR_RESPONSES[404],
@@ -438,6 +457,22 @@ export function mountTravelRoutes(app: OpenAPIHono<AppEnv>): void {
     const r = await org.rooming(tripId, bookingId);
     if ('notFound' in r) throw new HTTPException(404, { message: 'Hotel not found.' });
     return c.json(r, 200);
+  });
+
+  app.openapi(myRoomRoute, async (c) => {
+    const auth = requireAuth(c);
+    const { orgId, tripId } = c.req.valid('param');
+    await requireOrgRole(c.env, auth, orgId, 'member');
+    const org = await orgObject(c.env, orgId);
+    const trip = await org.getTrip(tripId);
+    if (!trip) throw new HTTPException(404, { message: 'Trip not found.' });
+    const me = await org.participationForAccount(tripId, auth.accountId);
+    if (me?.role !== 'traveler' && me?.role !== 'leader') {
+      throw new HTTPException(403, {
+        message: 'Only travelers and leaders on the trip have a room here.',
+      });
+    }
+    return c.json(await org.myRoom(tripId, me.id, localClock(nowIso(), trip.timezone).date), 200);
   });
 
   app.openapi(assignRoomRoute, async (c) => {

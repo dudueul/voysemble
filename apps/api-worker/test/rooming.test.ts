@@ -5,11 +5,14 @@
 // hotel's link is minted for a hotel only, opens the sheet with no session (the stay, the rooms by
 // label with their names, the unassigned, the leaders; no contact, no guardian), counts the
 // opens, revokes; deleting the hotel takes the rooms and links; removing a person takes their room.
+// Slice 075: a traveler or leader reads their own room for tonight's stay and who shares it;
+// nothing outside a stay; a guardian, the organizer and a stranger cannot.
 
 import type {
   CreateHotelLinkResponse,
   HotelLinkList,
   HotelSheet,
+  MyRoom,
   RoomingList,
 } from '@voysemble/contracts';
 import { describe, expect, it } from 'vitest';
@@ -213,5 +216,99 @@ describe('the room on the roster during the stay (slice 070)', () => {
     const rows = await roster();
     expect(rows.find((p) => p.displayName === 'Minji Park')?.room).toBe('412');
     expect(rows.filter((p) => p.room !== undefined)).toHaveLength(1);
+  });
+});
+
+describe('your room tonight (slice 075)', () => {
+  it('a traveler and a leader read their own room and roommates for the stay that covers today', async () => {
+    const nate = await signIn('nate@example.com');
+    const org = await createOrg(nate);
+    const trip = await createTrip(nate, org.id);
+    const base = `/v1/orgs/${org.id}/trips/${trip.id}`;
+    await api(nate).post(`${base}/roster/import`, { csv: SAMPLE_CSV });
+    await api(nate).post(`${base}/roster/leaders`, { displayName: 'Kim', groupName: 'Bus A' });
+    const issued = await json<{ invites: { displayName: string; code: string }[] }>(
+      await api(nate).post(`${base}/invites`),
+    );
+    const redeem = async (email: string, name: string) => {
+      const c = await signIn(email);
+      const code = issued.invites.find((i) => i.displayName === name)?.code;
+      expect((await api(c).post('/v1/invites/redeem', { code })).status).toBe(200);
+      return c;
+    };
+    const kim = await redeem('kim@example.com', 'Kim');
+    const minji = await redeem('minji@example.com', 'Minji Park');
+    const sora = await redeem('sora@example.com', 'Sora Park');
+    const mine = `${base}/rooming/mine`;
+    const ids = new Map(
+      (
+        await json<{ participations: { id: string; displayName: string }[] }>(
+          await api(nate).get(`${base}/roster`),
+        )
+      ).participations.map((p) => [p.displayName, p.id]),
+    );
+    // No hotel yet, then a stay in the past: nothing tonight.
+    expect(await json<MyRoom>(await api(minji).get(mine))).toEqual({ stay: null });
+    const past = await json<{ id: string }>(
+      await api(nate).post(`${base}/travel`, {
+        kind: 'hotel',
+        name: 'Old Hotel',
+        city: 'Rome',
+        checkIn: '2026-01-10',
+        checkOut: '2026-01-12',
+        rooms: 10,
+        confirmation: '',
+      }),
+    );
+    await api(nate).put(`${base}/travel/${past.id}/rooming`, {
+      participationId: ids.get('Minji Park'),
+      room: '101',
+    });
+    expect(await json<MyRoom>(await api(minji).get(mine))).toEqual({ stay: null });
+    // A stay that covers today in Seoul: the hotel with no room yet, then the room and roommates.
+    const today = localClock(nowIso(), 'Asia/Seoul').date;
+    const stay = await json<{ id: string }>(
+      await api(nate).post(`${base}/travel`, {
+        kind: 'hotel',
+        name: 'Hotel de la Ville',
+        city: 'Rome',
+        checkIn: today,
+        checkOut: plusDays(today, 2),
+        rooms: 21,
+        confirmation: 'HDLV',
+      }),
+    );
+    expect(await json<MyRoom>(await api(minji).get(mine))).toEqual({
+      stay: {
+        hotelName: 'Hotel de la Ville',
+        city: 'Rome',
+        checkIn: today,
+        checkOut: plusDays(today, 2),
+        room: null,
+        roommates: [],
+      },
+    });
+    const put = (name: string, room: string) =>
+      api(nate).put(`${base}/travel/${stay.id}/rooming`, { participationId: ids.get(name), room });
+    await put('Minji Park', '412');
+    await put('Juho Kim', '412');
+    await put('Lee, Hana', '412');
+    await put('Kim', '501');
+    const minjis = await json<MyRoom>(await api(minji).get(mine));
+    expect([minjis.stay?.room, minjis.stay?.roommates]).toEqual(['412', ['Juho Kim', 'Lee, Hana']]);
+    const kims = await json<MyRoom>(await api(kim).get(mine));
+    expect([kims.stay?.room, kims.stay?.roommates, kims.stay?.hotelName]).toEqual([
+      '501',
+      [],
+      'Hotel de la Ville',
+    ]);
+    // A guardian, the organizer (no participation), a stranger and anonymous have no room here.
+    expect((await api(sora).get(mine)).status).toBe(403);
+    expect((await api(nate).get(mine)).status).toBe(403);
+    expect((await api(await signIn('stranger@example.com')).get(mine)).status).toBe(403);
+    expect((await api(null).get(mine)).status).toBe(401);
+    expect(
+      (await api(minji).get(`${base.replace(trip.id, crypto.randomUUID())}/rooming/mine`)).status,
+    ).toBe(404);
   });
 });

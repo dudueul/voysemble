@@ -31,6 +31,8 @@ final class LiveModelsTests: XCTestCase {
         XCTAssertTrue(model.snapshot.offline)
         XCTAssertNil(model.error)
         XCTAssertFalse(model.syncing)
+        // Slice 075: no stay is known while unreachable; the card stays away.
+        XCTAssertNil(model.room)
     }
 
     func testGuardianCareEntryIsHonestWhenUnreachable() async {
@@ -61,6 +63,9 @@ final class LiveModelsTests: XCTestCase {
         XCTAssertEqual(model.help?.title, "Asked for help")
         XCTAssertEqual(model.help?.status, HelpStatus.open)
         XCTAssertEqual(model.help?.openedAt, "07:12")
+        // Slice 075: the sample shows Minji's room with Juho.
+        XCTAssertEqual(model.room?.room, "412")
+        XCTAssertEqual(model.room?.roommates, ["Juho Kim"])
     }
 
     func testTravelerHelpSaysOfflineWhenUnreachable() async {

@@ -2,10 +2,12 @@
 // Facts: acknowledging moves the announcement to PENDING once; tab selection is reflected; live
 // mode builds today's snapshot from the published itinerary for the device date and clock, and an
 // unreachable server marks the snapshot offline. Slice 074: a traveler asks for help (the POST
-// names only them; the card tracks the server's answer); sample mode keeps a local card.
+// names only them; the card tracks the server's answer); sample mode keeps a local card. Slice
+// 075: a traveler's room tonight rides on the refresh; the sample shows Minji's.
 
 package com.voysemble.app.today
 
+import com.voysemble.core.today.MyRoomCard
 import com.voysemble.core.today.HelpStatus
 import com.voysemble.core.api.ApiClient
 import com.voysemble.core.api.ApiClientConfig
@@ -87,6 +89,7 @@ class TodayViewModelTest {
                     respond(card, HttpStatusCode.Created, json)
                 }
                 req.url.encodedPath.endsWith("/incidents") -> respond(if (posts.isEmpty()) """{"incidents":[]}""" else """{"incidents":[$card]}""", HttpStatusCode.OK, json)
+                req.url.encodedPath.endsWith("/rooming/mine") -> respond("""{"stay":{"hotelName":"Hotel de la Ville","city":"Rome","checkIn":"2026-12-28","checkOut":"2027-01-02","room":"412","roommates":["Juho Kim"]}}""", HttpStatusCode.OK, json)
                 req.url.encodedPath.endsWith("/announcements") -> respond(announcementsJson, HttpStatusCode.OK, json)
                 else -> respond(itineraryJson, HttpStatusCode.OK, json)
             }
@@ -95,6 +98,8 @@ class TodayViewModelTest {
         vm.ready.join()
         assertTrue(vm.state.value.canAskHelp)
         assertNull(vm.state.value.help)
+        // Slice 075: the room rides on the refresh.
+        assertEquals(MyRoomCard("Hotel de la Ville", "412", listOf("Juho Kim"), "2027-01-02"), vm.state.value.room)
         vm.askHelp("  I feel sick ").join()
         assertEquals(listOf("""{"title":"I feel sick","participationIds":["p-minji"]}"""), posts)
         assertEquals("I feel sick", vm.state.value.help?.title)
@@ -109,6 +114,7 @@ class TodayViewModelTest {
         // Sample mode: a local card at the fixture's clock; a leader's trip has no card.
         val sample = TodayViewModel()
         assertTrue(sample.state.value.canAskHelp)
+        assertEquals("412", sample.state.value.room?.room)
         sample.askHelp("")
         assertEquals("Asked for help", sample.state.value.help?.title)
         assertEquals("07:12", sample.state.value.help?.openedAt)

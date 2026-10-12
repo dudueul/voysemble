@@ -48,7 +48,7 @@ class TodayScreenshotTest {
         compose.setContent {
             VoysembleTheme(darkTheme = false) {
                 // Slice 053 (D29): the header's bell carries the inbox's unread count.
-                TodayScreen(state = TodayUiState(KoreaConcertTourFixture.today(), canPropose = true), onAcknowledge = {}, onSelectTab = {}, inboxUnread = 2)
+                TodayScreen(state = TodayUiState(KoreaConcertTourFixture.today(), canPropose = true, room = KoreaConcertTourFixture.myRoom()), onAcknowledge = {}, onSelectTab = {}, inboxUnread = 2)
             }
         }
         compose.onNodeWithText("Acknowledge").assertExists()
@@ -86,6 +86,20 @@ class TodayScreenshotTest {
     }
 
     @Test
+    fun today_room() {
+        // Slice 075 (D41): Minji's room tonight under the head count card, scrolled into view.
+        compose.setContent {
+            VoysembleTheme(darkTheme = false) {
+                TodayScreen(state = TodayUiState(KoreaConcertTourFixture.today(), canPropose = true, room = KoreaConcertTourFixture.myRoom()), onAcknowledge = {}, onSelectTab = {})
+            }
+        }
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("YOUR ROOM TONIGHT"))
+        compose.onNodeWithText("Room 412 · Hotel de la Ville").assertExists()
+        compose.onNodeWithText("with Juho Kim").assertExists()
+        compose.onRoot().captureRoboImage("$OUT/today-room.png")
+    }
+
+    @Test
     fun today_help_form() {
         compose.setContent { VoysembleTheme(darkTheme = false) { HelpForm(onSend = {}) } }
         compose.onNodeWithContentDescription("What's wrong (optional)").assertExists()
@@ -97,7 +111,7 @@ class TodayScreenshotTest {
     fun today_dark() {
         compose.setContent {
             VoysembleTheme(darkTheme = true) {
-                TodayScreen(state = TodayUiState(KoreaConcertTourFixture.today(), canPropose = true), onAcknowledge = {}, onSelectTab = {})
+                TodayScreen(state = TodayUiState(KoreaConcertTourFixture.today(), canPropose = true, room = KoreaConcertTourFixture.myRoom()), onAcknowledge = {}, onSelectTab = {})
             }
         }
         compose.onRoot().captureRoboImage("$OUT/today-dark.png")
@@ -160,7 +174,7 @@ class TodayScreenshotTest {
         AppLocale.current = "ko"
         compose.setContent {
             VoysembleTheme(darkTheme = false) {
-                TodayScreen(state = TodayUiState(KoreaConcertTourFixture.today(), canPropose = true), onAcknowledge = {}, onSelectTab = {})
+                TodayScreen(state = TodayUiState(KoreaConcertTourFixture.today(), canPropose = true, room = KoreaConcertTourFixture.myRoom()), onAcknowledge = {}, onSelectTab = {})
             }
         }
         compose.onNodeWithText("다음 일정").assertExists()

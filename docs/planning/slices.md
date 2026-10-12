@@ -1896,7 +1896,7 @@ Not done: a feature page per role; the console captures in Korean on the Korean 
 
 ## Slice 073: a leader opens an incident card from the phone
 
-Status: done 2026-10-12. Commit: see git log (`feat(mobile): a leader opens an incident card from the phone, naming travelers of their group (slice 073)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: 8ae7b51 (`feat(mobile): a leader opens an incident card from the phone, naming travelers of their group (slice 073)`). CI: run 38301363512 green (web, mobile, ios); captures recorded by CI in d54162c.
 Spec: D17 (incidents; amended in 068), D14 (leaders and their groups), D31. Details: `docs/engineering/incidents.md` (route row, Mobile).
 
 | Gate | Command | Result |
@@ -1943,3 +1943,27 @@ Built:
 - Docs: `incidents.md`; D17 amendment; captures README; ledger 072 (CI record) and 074; feature flag `incidents.help-from-phone`.
 
 Not done: a one-tap call to the leader from the card (no phone numbers are stored); the traveler's help card on the console's missing list; a guardian's own request for their traveler.
+
+## Slice 075: your room tonight on Today
+
+Status: done 2026-10-12. Commit: see git log (`feat(mobile): "Your room tonight" on Today, read from the stay that covers the day (slice 075)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D41 (amended: a traveler reads their own room and who shares it), D13 (guardians never read rooms), D31. Details: `docs/engineering/travel.md` (Routes, "Your room tonight", facts).
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 40 files, 117 passed (`rooming.test.ts` +1: the stay, the room and roommates, the refusals) |
+| Core JVM tests | `./gradlew :core:jvmTest` (CI `mobile` job) | `MyRoomModelTest` (2), `L10nTest` the five new keys |
+| Android tests + captures | `./gradlew :android-app:testDebugUnitTest` / `recordRoborazziDebug` (CI `mobile` job) | `TodayViewModelTest` (the room on the refresh and in the sample); `TodayScreenshotTest.today_room` (`today-room.png`); the sample Today captures gain the card |
+| iOS tests + captures | `xcodebuild test` (CI `ios` job) | `LiveModelsTests` (the sample's room; none while unreachable); `CaptureTests.testTodayRoom` (`today-room.png`) |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+Gradle and Xcode do not run in this workspace; the CI `mobile` and `ios` jobs verify the Kotlin and Swift, desk-checked here.
+
+Built:
+- Contracts: `MyRoom`. Worker: `OrgDurableObject.myRoom(tripId, participationId, date)`; `GET .../rooming/mine` (travelers and leaders); `rooming.test.ts` (+1).
+- Core: `MyRoomStayDto`, `MyRoomDto`, `ApiClient.myRoom`; `today/MyRoomModel.kt` (`MyRoomCard`, `myRoomCardOf`); the fixture's `myRoom`; five `TODAY_ROOM*` strings in both languages; `MyRoomModelTest`.
+- Android: `TodayUiState.room` (the fixture's in sample mode), the refresh reads it for travelers and leaders; `today/RoomCard.kt`; the Today screen's card before the packing card; tests and the capture.
+- iOS: `TodayModel.room` and the refresh; `RoomCard`; the capture and the tests.
+- Docs: `travel.md`; D41 amendment; captures README; ledger 073 (CI record) and 075; feature flag `mobile.my-room`.
+
+Not done: a traveler's own seat on the bus or the flight; the room on the Plan tab's hotel row; the roommates' groups.

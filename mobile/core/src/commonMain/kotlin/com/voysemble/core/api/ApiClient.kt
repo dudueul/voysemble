@@ -338,6 +338,15 @@ public class ApiClient(
         }
 
     /** GET .../travel/{bookingId}/rooming (D41, slice 059): a hotel's rooming list, for leaders. */
+    /** GET .../rooming/mine: my own room for tonight's stay (slice 075, D41); travelers and leaders. */
+    public suspend fun myRoom(orgId: String, tripId: String, correlationId: String? = null): ApiResult<MyRoomDto> =
+        call(correlationId) {
+            http.get {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "orgs", orgId, "trips", tripId, "rooming", "mine") }
+                common(correlationId)
+            }
+        }
+
     public suspend fun rooming(orgId: String, tripId: String, bookingId: String, correlationId: String? = null): ApiResult<RoomingListDto> =
         call(correlationId) {
             http.get {

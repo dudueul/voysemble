@@ -5,6 +5,8 @@
 
 package com.voysemble.app.today
 
+import com.voysemble.core.today.myRoomCardOf
+import com.voysemble.core.today.MyRoomCard
 import com.voysemble.core.today.helpRequestOf
 import com.voysemble.core.today.helpCardOf
 import com.voysemble.core.today.HelpStatus
@@ -70,6 +72,8 @@ data class TodayUiState(
     val help: HelpCard? = null,
     val helpSending: Boolean = false,
     val helpError: String? = null,
+    /** Slice 075 (D41): my room for tonight's stay; null outside a stay (the card is not shown) and for guardians. */
+    val room: MyRoomCard? = null,
 )
 
 /** The guardian's care-note panel: content-free status, the note while editing, one message line. */
@@ -98,6 +102,7 @@ class TodayViewModel(
             live = trip != null && api != null,
             canPropose = trip == null || trip.role == "leader",
             canAskHelp = trip == null || trip.role == "traveler",
+            room = if (trip == null || api == null) KoreaConcertTourFixture.myRoom() else null,
         ),
     )
     val state: StateFlow<TodayUiState> = _state
@@ -184,6 +189,14 @@ class TodayViewModel(
                     } else {
                         null
                     }
+                    // Slice 075: my room for tonight's stay (travelers and leaders; a guardian never reads rooms).
+                    var room: MyRoomCard? = _state.value.room
+                    if (t.role == "traveler" || t.role == "leader") {
+                        when (val r = a.myRoom(t.organizationId, t.tripId)) {
+                            is ApiResult.Ok -> room = myRoomCardOf(r.value)
+                            else -> Unit
+                        }
+                    }
                     // Slice 074: a traveler's own help card, from the cards the server lists for them.
                     var help: HelpCard? = _state.value.help
                     if (t.role == "traveler") {
@@ -198,6 +211,7 @@ class TodayViewModel(
                                 .withAnnouncement(latest?.toTodayAnnouncement(::localTime)),
                             guardian = guardian ?: it.guardian,
                             help = help,
+                            room = room,
                             syncing = false,
                         )
                     }

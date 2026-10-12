@@ -293,3 +293,26 @@ export const HotelSheet = z
   })
   .openapi('HotelSheet');
 export type HotelSheet = z.infer<typeof HotelSheet>;
+
+/**
+ * Slice 075 (D41): the caller's own room for the hotel stay that covers today in the trip's
+ * zone: the hotel, their room label once the organizer placed them, and who shares the room by
+ * name. `stay: null` outside any stay. Travelers and leaders only; a guardian never reads rooms.
+ */
+export const MyRoom = z
+  .object({
+    stay: z
+      .object({
+        hotelName: z.string(),
+        city: z.string(),
+        checkIn: CalendarDate,
+        checkOut: CalendarDate,
+        /** Null until the organizer places the caller. */
+        room: z.string().nullable(),
+        /** The others in the same room, by name: leaders first, then by group and name. */
+        roommates: z.array(z.string()),
+      })
+      .nullable(),
+  })
+  .openapi('MyRoom');
+export type MyRoom = z.infer<typeof MyRoom>;
