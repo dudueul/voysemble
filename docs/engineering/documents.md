@@ -42,10 +42,24 @@ never signs in (`verifyMagicLink` refuses the purpose); another account's link i
 | `POST .../items/{participationId}/scan` | multipart `file`: PDF (`%PDF-`), JPEG or PNG from the magic bytes, at most 12 MiB; images lose their metadata (`lib/image-strip.ts`); sealed and stored; the row becomes collected. 503 without `MEDIA_KEY`. |
 | `POST .../items/{participationId}/scan/reveal` | `requireRecentReauth`; the bytes unsealed with `Cache-Control: no-store`, `Content-Disposition: inline`; a `document_reveal` fact lands on the timeline. A POST, not a GET: Chromium replays an idempotent GET on a stale keep-alive socket, which doubled the audit line in the browser suite. |
 | `DELETE .../items/{participationId}/scan` | the object shredded; the state stays. |
-| `POST .../documents/{id}/remind` (slice 060) | Every traveler whose item is `missing`, and the guardians bound to them, get a normal-lane `document_reminder` ("Documents: Passport copy still needed"; the body names the traveler, the document and the due date) through `notifyRows`, once a day per person (the reference carries the trip-zone date); leaders are not addressed. Answers `{ missing, reminded, skipped }`. |
+| `POST .../documents/{id}/remind` (slice 060) | Every traveler whose item is `missing`, and the guardians bound to them, get a normal-lane `document_reminder` ("Documents: Passport copy still needed"; the body names the traveler, the document and the due date) through `notifyRows`, once a day per person (the reference `document:<id>:<date>` carries the trip-zone date); leaders are not addressed. Answers `{ missing, reminded, skipped }`. The words and the rows live in `lib/document-reminders.ts`, shared with the cron (slice 062). |
 
 Leaders, travelers, guardians and strangers are 403 on all of them; the report
 (`TripReport.documents`, slice 034) carries completion over the required requirements.
+
+## The reminder schedule (slice 062)
+
+The cron (`*/10 * * * *`, `index.ts` `scheduled`) calls `runDocumentReminders(env, now)`
+(`lib/document-reminders.ts`): for every active organization, every trip and every requirement
+with a due date and something still missing, on the mornings three days and one day before the
+due date (the trip zone's date; `daysUntil` and the constants are the packing reminders', slice
+056), from 09:00, it writes the same reminder the organizer's nudge writes: the same title, the
+same body per traveler, the same reference `document:<requirementId>:<date>`. `notifyRows`
+writes a row once per participation and reference, so the first of the two that morning (a run
+every ten minutes, a nudge from the page) delivers and the other skips; the run before 09:00
+and any other morning write nothing. A requirement without a due date is nudged by hand only.
+The run logs `{ run: 'documents', requirements, reminders, skipped, failed }`; one
+organization's failure counts and the rest go on.
 
 ## Console (Preparation page)
 
@@ -89,13 +103,21 @@ page's documents tile reads the report. Evidence:
 - Reminders (`document-reminders.test.ts`, slice 060): a reminder reaches the two travelers
   missing the passport copy and Hana's guardian, not the collected traveler, her guardian or the
   leader; the body names the traveler, the document and the due date; a second call the same day
-  writes nothing and says so; the log reads one event with three normal-lane rows; nothing
-  missing reminds nobody; a leader is 403; an unknown requirement 404; the words in both
-  languages. Browser: the nudge from the Preparation page and the second one's answer.
+  writes nothing and says so; the log reads one event with three normal-lane rows and the
+  reference of the day; nothing missing reminds nobody; a leader is 403; an unknown requirement
+  404; the words in both languages. Browser: the nudge from the Preparation page and the second
+  one's answer.
+- The schedule (slice 062): with a consent form due in three days and nobody handed in, the run
+  at 08:00 writes nothing, the run on the morning after writes nothing, the run at 09:30 reminds
+  the three travelers and the two guardians (one requirement), the same morning again skips the
+  five, the log reads one event with five normal-lane rows and the reference of that morning;
+  the morning one day before reminds the five again while a requirement without a due date adds
+  nothing.
 
 ## Not done
 
 A document viewer that scales PDFs; the
 owner-held key for tier 3 (ADR-0001 seam); the shred of a removed row's objects before the
-trip's own. The sealed third-party links of D27 exist: the driver's since slice 049 and the
+trip's own; reminder mornings the organizer chooses (three days and one day before are fixed,
+like the packing reminders). The sealed third-party links of D27 exist: the driver's since slice 049 and the
 hotel's since slice 058 (`travel.md`).

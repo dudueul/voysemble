@@ -1,11 +1,13 @@
 // Copyright 2026- At Day. All rights reserved.
 // Worker entry. Exports the fetch handler, the Durable Object classes and, since slice 054, the
-// cron handler that sends the guardian digest (D29) and the packing reminders (D38): the
-// notification rows are the queue, the runs read what is due. Queue consumers arrive with later
+// cron handler that sends the guardian digest (D29), the packing reminders (D38) and the
+// document reminders (D27, slice 062): the notification rows are the queue, the runs read what
+// is due. Queue consumers arrive with later
 // slices.
 
 import { createApp } from './app';
 import { runDigests } from './lib/digest';
+import { runDocumentReminders } from './lib/document-reminders';
 import { runPackingReminders } from './lib/packing-reminders';
 
 export { RateLimitDurableObject } from './lib/RateLimitDurableObject';
@@ -29,6 +31,21 @@ export default {
       runPackingReminders(env, now).then((run) =>
         console.log(
           JSON.stringify({ level: 'info', cron: controller.cron, at: now, run: 'packing', ...run }),
+        ),
+      ),
+    );
+    // Slice 062: the document reminders on the mornings before a due date; the same reference as
+    // the organizer's nudge, so a person hears it once a day.
+    ctx.waitUntil(
+      runDocumentReminders(env, now).then((run) =>
+        console.log(
+          JSON.stringify({
+            level: 'info',
+            cron: controller.cron,
+            at: now,
+            run: 'documents',
+            ...run,
+          }),
         ),
       ),
     );

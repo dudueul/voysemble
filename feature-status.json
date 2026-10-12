@@ -43,6 +43,7 @@
     "documents.sealed-links": "working",
     "documents.requirements": "working",
     "documents.reminders": "working",
+    "documents.reminder-schedule": "working",
     "travel.bookings": "working",
     "packing.checklist": "working",
     "packing.reminders": "working",

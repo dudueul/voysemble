@@ -99,7 +99,10 @@ test('head count closed with a missing traveler opens an incident the organizer 
 
   // Slice 014: the command center is live for this trip.
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Welcome back, E2e');
+  // The command center gathers five queries first; a busy runner takes longer than the default wait.
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Welcome back, E2e', {
+    timeout: 15_000,
+  });
   await expect(page.getByText('Live', { exact: true })).toBeVisible();
   await expect(page.getByText('starts in', { exact: false })).toBeVisible();
   await expect(page.getByTestId('stat-Travelers')).toHaveText('2');

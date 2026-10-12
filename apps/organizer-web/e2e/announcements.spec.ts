@@ -48,7 +48,10 @@ test('publish, ack progress, unacked names', async ({ page, browser }, info) => 
     .textContent();
 
   await page.goto('/communication');
-  await expect(page.getByRole('status')).toContainText('No announcements yet');
+  // Two cards show a loading status while the page fills; the empty line is the Announcements card's.
+  await expect(page.getByRole('status').filter({ hasText: 'No announcements yet' })).toBeVisible({
+    timeout: 15_000,
+  });
   await page.getByLabel('Title').fill('Breakfast moved to 06:30');
   await page.getByLabel('Message').fill('Lobby. Bus leaves 07:15.');
   await page.getByRole('button', { name: 'Publish' }).click();

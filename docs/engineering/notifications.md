@@ -33,6 +33,7 @@ zone is the trip's.
 | An organizer decides a proposal | `proposal_decided` | the leader who proposed | "Proposal accepted: Breakfast" |
 | The morning three days and one day before the start, from 09:00 (the cron, slice 056; `packing.md`) | `packing_reminder` | travelers and leaders with packing left, the guardians of those travelers; one body each, once per morning (`notifyRows`) | "Packing: 3 days to go" |
 | The organizer presses "Remind" on a document requirement (slice 060; `documents.md`) | `document_reminder` | the travelers still missing it, the guardians of those travelers; once a day (`notifyRows`) | "Documents: Passport copy still needed" |
+| The morning three days and one day before a requirement's due date, from 09:00 (the cron, slice 062; `documents.md`) | `document_reminder` | the same, with the same reference as the nudge: whichever comes first that morning delivers (`notifyRows`) | the same |
 
 A second sync of an open head count calls nobody again. `notifyTrip` never throws into the
 route: a failure to notify is logged and the thing that happened stands.

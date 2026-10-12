@@ -1601,7 +1601,7 @@ Not done: rooms on the leader's phone (the Plan tab's hotel night could name the
 
 ## Slice 059: the rooming list on the leader's phone
 
-Status: done 2026-10-12. Commit: see git log (`feat(mobile): the rooming list on the leader's phone (slice 059)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: see git log (`feat(mobile): the rooming list on the leader's phone (slice 059)`, `ce30ec8`). CI: run 38287672174 green on `mobile` (incl. `RoomingModelTest`, `RoomingViewModelTest`, `RoomingScreenshotTest`) and `ios` (incl. `testRooming`), so the slice itself is verified; red on `web` only, on two browser cases this phone-only slice does not touch: `announcements.spec.ts` (a strict-mode locator met two loading statuses while the Communication page was still filling) and `headcounts.spec.ts` (the command center heading took longer than the five-second default on that runner); 93 cases passed. The next commit hardens both (the empty line scoped to its text; a longer wait on the command center's first paint); the captures (`rooming-*.png`) land with the next green run.
 Spec: D41 (rooming lists; amended), D13 (guardians never see rooms), D31. Details: `docs/engineering/travel.md` (the phones section).
 
 | Gate | Command | Result |
@@ -1641,7 +1641,7 @@ Built:
 - Tests: worker (2), console unit (1), browser (the nudge twice).
 - Docs: `documents.md` route row, console paragraph and facts, `notifications.md` tables, D27 amendment, ledger, feature flag `documents.reminders` working.
 
-Not done: a reminder schedule (the mornings before the due date, like the packing reminders); the nudge from the person card; the guardian's own view of what is missing on the phone (the inbox row names it).
+Not done: the nudge from the person card; the guardian's own view of what is missing on the phone (the inbox row names it). The schedule arrived with slice 062.
 
 ## Slice 061: the inbox row opens its target on both phones
 
@@ -1664,3 +1664,22 @@ Built:
 - Docs: `notifications.md` Phones paragraph and not-done, captures README, ledger, feature flag `mobile.inbox.open` working.
 
 Not done: opening the exact announcement or incident (the screens open on their first item); a deep link from a push (push delivery is deferred).
+
+## Slice 062: document reminders from the cron on the mornings before the due date
+
+Status: done 2026-10-12. Commit: see git log (`feat(documents): reminders from the cron on the mornings before the due date (slice 062)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D27 (documents; amended in 060), D29 (lanes), D38 (the reminder mornings, shared with packing). Details: `docs/engineering/documents.md` (the schedule section), `notifications.md` (events table).
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 40 files, 108 tests (`document-reminders.test.ts` gains the cron case: 3) |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+Built:
+- Worker: `lib/document-reminders.ts` (`documentReminderTitle`, `documentReminderBody`, `documentReminderRef`, `documentReminderRows`, `runDocumentReminders`); the remind route reads its words and rows from the lib; `index.ts` `scheduled` runs the document reminders beside the digest and the packing reminders and logs `{ run: 'documents', requirements, reminders, skipped, failed }`.
+- The reference `document:<requirementId>:<date>` is the nudge's and the cron's: whichever comes first that morning delivers, the other skips.
+- Tests: the cron case (08:00 nothing; the morning after nothing; 09:30 five reminders; again five skipped; the log's one event and reference; the day-before morning again; a requirement without a due date adds nothing).
+- Docs: `documents.md` schedule section, facts and not-done, `notifications.md` events row, ledger, feature flag `documents.reminder-schedule` working.
+- Also in this commit: `announcements.spec.ts` waits for the Announcements card's own empty status (two cards carry a loading status while the page fills) and `headcounts.spec.ts` gives the heading fifteen seconds, after the flaky web run of slice 059.
+
+Not done: reminder mornings the organizer chooses; a reminder for the organizer when a due date passes with documents still missing; the leader's view of who is missing what (D27 keeps documents off the phone).

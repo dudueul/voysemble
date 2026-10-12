@@ -1,11 +1,14 @@
 // Copyright 2026- At Day. All rights reserved.
-// Facts (D27, D29; slice 060): a reminder for a requirement reaches every traveler still missing
-// it and the guardians bound to them, once a day, in the normal lane, with the document and the
-// due date in the body; a collected traveler and their guardian hear nothing; a second call the
-// same day writes nothing and says so; the log reads one event; a requirement with nothing
-// missing reminds nobody; a leader cannot send it; an unknown requirement is 404; the words in
-// both languages.
+// Facts (D27, D29; slices 060 and 062): a reminder for a requirement reaches every traveler still
+// missing it and the guardians bound to them, once a day, in the normal lane, with the document
+// and the due date in the body; a collected traveler and their guardian hear nothing; a second
+// call the same day writes nothing and says so; the log reads one event; a requirement with
+// nothing missing reminds nobody; a leader cannot send it; an unknown requirement is 404; the
+// words in both languages. The cron (slice 062) sends the same reminder on the mornings three
+// days and one day before the due date, from 09:00 in the trip's zone, once per morning; the
+// organizer's nudge that morning writes nothing more.
 
+import { env } from 'cloudflare:test';
 import type {
   DocumentRemindResponse,
   DocumentRequirement,
@@ -13,8 +16,16 @@ import type {
   NotificationLog,
 } from '@voysemble/contracts';
 import { describe, expect, it } from 'vitest';
-import { documentReminderBody, documentReminderTitle } from '../src/routes/documents';
+import {
+  documentReminderBody,
+  documentReminderRef,
+  documentReminderTitle,
+  runDocumentReminders,
+} from '../src/lib/document-reminders';
+import { localClock, nowIso, plusDays, zonedToIso } from '../src/lib/time';
 import { api, createOrg, createTrip, json, SAMPLE_CSV, signIn } from './helpers';
+
+const ZONE = 'Asia/Seoul';
 
 describe('document reminders (slice 060)', () => {
   it('reminds the missing travelers and their guardians once a day', async () => {
@@ -98,7 +109,9 @@ describe('document reminders (slice 060)', () => {
     const events = log.events.filter((e) => e.kind === 'document_reminder');
     expect(events).toHaveLength(1);
     expect(events[0]?.lanes).toEqual({ priority: 0, normal: 3, digest: 0 });
-    expect(events[0]?.refId).toMatch(new RegExp(`^document:${passport.id}:\\d{4}-\\d{2}-\\d{2}$`));
+    expect(events[0]?.refId).toBe(
+      documentReminderRef(passport.id, localClock(nowIso(), ZONE).date),
+    );
 
     // Nothing missing: nobody reminded. A leader cannot send it; an unknown requirement is 404.
     const consent = await json<DocumentRequirement>(
@@ -116,6 +129,56 @@ describe('document reminders (slice 060)', () => {
     expect((await api(nate).post(`${base}/documents/${crypto.randomUUID()}/remind`)).status).toBe(
       404,
     );
+  });
+
+  it('runs from the cron on the mornings before the due date, once per morning (slice 062)', async () => {
+    const nate = await signIn('nate@example.com');
+    const org = await createOrg(nate);
+    const trip = await createTrip(nate, org.id);
+    const base = `/v1/orgs/${org.id}/trips/${trip.id}`;
+    await api(nate).post(`${base}/roster/import`, { csv: SAMPLE_CSV });
+    // The run "happens" yesterday morning in Seoul (the trip's zone), three days before the due
+    // date; nobody has handed the form in.
+    const runDate = plusDays(localClock(nowIso(), ZONE).date, -1);
+    const consent = await json<DocumentRequirement>(
+      await api(nate).post(`${base}/documents`, {
+        name: 'Consent form',
+        dueOn: plusDays(runDate, 3),
+      }),
+    );
+    const nothing = { requirements: 0, reminders: 0, skipped: 0, failed: 0 };
+    // Before 09:00 nothing; on the morning after (two days to go) nothing.
+    expect(await runDocumentReminders(env, zonedToIso(runDate, '08:00', ZONE))).toEqual(nothing);
+    expect(
+      await runDocumentReminders(env, zonedToIso(plusDays(runDate, 1), '09:30', ZONE)),
+    ).toEqual(nothing);
+    // 09:30: the three travelers and the two guardians, one row each.
+    const morning = zonedToIso(runDate, '09:30', ZONE);
+    expect(await runDocumentReminders(env, morning)).toEqual({
+      requirements: 1,
+      reminders: 5,
+      skipped: 0,
+      failed: 0,
+    });
+    // The same morning again: nothing new.
+    expect(await runDocumentReminders(env, morning)).toEqual({
+      requirements: 1,
+      reminders: 0,
+      skipped: 5,
+      failed: 0,
+    });
+    // One event, five normal-lane rows, the reference the organizer's nudge would carry that day.
+    const log = await json<NotificationLog>(await api(nate).get(`${base}/notifications`));
+    const events = log.events.filter((e) => e.kind === 'document_reminder');
+    expect(events).toHaveLength(1);
+    expect(events[0]?.lanes).toEqual({ priority: 0, normal: 5, digest: 0 });
+    expect(events[0]?.refId).toBe(documentReminderRef(consent.id, runDate));
+    // The morning one day before: a new reminder to the same five. A requirement without a due
+    // date is never on the cron's calendar.
+    await api(nate).post(`${base}/documents`, { name: 'Insurance card' });
+    expect(
+      await runDocumentReminders(env, zonedToIso(plusDays(runDate, 2), '09:30', ZONE)),
+    ).toEqual({ requirements: 1, reminders: 5, skipped: 0, failed: 0 });
   });
 
   it('writes the title and the body in both languages', () => {

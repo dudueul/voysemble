@@ -28,6 +28,11 @@ import { requireAuth, requireOrgRole, requireRecentReauth } from '../auth/middle
 import { db } from '../db/client';
 import { organizations } from '../db/schema';
 import type { AppEnv, AuthContext } from '../env';
+import {
+  documentReminderRef,
+  documentReminderRows,
+  documentReminderTitle,
+} from '../lib/document-reminders';
 import { sniffImageType, stripMetadata } from '../lib/image-strip';
 import { mediaKeyFrom, sealBytes, unsealBytes } from '../lib/media-crypto';
 import { notifyTripRows } from '../lib/notify';
@@ -167,28 +172,6 @@ const remindRoute = createRoute({
     500: ERROR_RESPONSES[500],
   },
 });
-
-/** "Documents: Passport copy still needed" / "서류: 여권 사본이 아직 필요합니다". */
-export function documentReminderTitle(locale: 'ko' | 'en', name: string): string {
-  return locale === 'ko'
-    ? `서류: ${name}이(가) 아직 필요합니다`
-    : `Documents: ${name} still needed`;
-}
-
-/** The body names the traveler and the due date; a guardian reads whose it is. */
-export function documentReminderBody(
-  locale: 'ko' | 'en',
-  traveler: string,
-  name: string,
-  dueOn: string | null,
-): string {
-  if (locale === 'ko') {
-    const due = dueOn ? ` 기한은 ${dueOn}입니다.` : '';
-    return `${traveler}: ${name}이(가) 아직 제출되지 않았습니다.${due} 주최자나 인솔자에게 전달해 주세요.`;
-  }
-  const due = dueOn ? `, due ${dueOn}` : '';
-  return `${traveler}: ${name} not handed in yet${due}. Give it to the organizer or a group leader.`;
-}
 
 const setStateRoute = createRoute({
   method: 'put',
@@ -370,8 +353,6 @@ export function mountDocumentRoutes(app: OpenAPIHono<AppEnv>): void {
     const auth = requireAuth(c);
     const { orgId, tripId, requirementId } = c.req.valid('param');
     const { org } = await organizerFor(c.env, auth, orgId, tripId);
-    const list = await org.documentItems(tripId, requirementId);
-    if ('notFound' in list) throw notFound();
     const trip = await org.getTrip(tripId);
     if (!trip) throw notFound();
     const organization = await db(c.env.DB)
@@ -380,35 +361,22 @@ export function mountDocumentRoutes(app: OpenAPIHono<AppEnv>): void {
       .where(eq(organizations.id, orgId))
       .get();
     const locale = organization?.defaultLocale === 'en' ? 'en' : 'ko';
-    const missing = list.items.filter((i) => i.state === 'missing');
-    if (missing.length === 0) return c.json({ missing: 0, reminded: 0, skipped: 0 }, 200);
-    const roster = await org.listRoster(tripId);
-    const rows: { participationId: string; body: string }[] = [];
-    for (const item of missing) {
-      const body = documentReminderBody(
-        locale,
-        item.displayName,
-        list.requirement.name,
-        list.requirement.dueOn,
-      );
-      rows.push({ participationId: item.participationId, body });
-      for (const g of roster.filter(
-        (p) => p.role === 'guardian' && p.guardianOf === item.participationId,
-      )) {
-        rows.push({ participationId: g.id, body });
-      }
-    }
-    // Once a day per person: the reference carries the trip-zone date.
+    // The words and the rows are the cron's too (slice 062, `lib/document-reminders.ts`).
+    const reminder = await documentReminderRows(org, tripId, requirementId, locale);
+    if (!reminder) throw notFound();
+    if (reminder.missing === 0) return c.json({ missing: 0, reminded: 0, skipped: 0 }, 200);
+    // Once a day per person: the reference carries the trip-zone date, so the cron's run that
+    // morning and this nudge are the same reminder.
     const today = localClock(nowIso(), trip.timezone).date;
     const r = await notifyTripRows(c.env, org, orgId, trip, {
       kind: 'document_reminder',
-      title: documentReminderTitle(locale, list.requirement.name),
+      title: documentReminderTitle(locale, reminder.name),
       refType: 'document',
-      refId: `document:${requirementId}:${today}`,
-      rows,
+      refId: documentReminderRef(requirementId, today),
+      rows: reminder.rows,
     });
     if (!r) throw new HTTPException(500, { message: 'The reminder could not be written.' });
-    return c.json({ missing: missing.length, reminded: r.written, skipped: r.skipped }, 200);
+    return c.json({ missing: reminder.missing, reminded: r.written, skipped: r.skipped }, 200);
   });
 
   app.openapi(setStateRoute, async (c) => {
