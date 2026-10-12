@@ -92,6 +92,18 @@ describe('rate limits (slice 041)', () => {
         })
       ).status,
     ).toBe(401);
+    // A loopback caller (what `wrangler dev` reports) is skipped too, however often it calls.
+    for (let i = 0; i < 16; i++) {
+      expect(
+        (
+          await post(
+            '/v1/auth/magic-link/verify',
+            { token: `local-${i}`.padEnd(40, 'x'), client: 'web' },
+            i % 2 ? '::1' : '127.0.0.1',
+          )
+        ).status,
+      ).toBe(401);
+    }
   });
 
   it('caps invite codes tried by one account', async () => {

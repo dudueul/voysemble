@@ -15,9 +15,13 @@ capped per subject, in one place.
 | `POST /v1/invites/redeem` | the caller's address | 30 per hour |
 
 The caller's address is `cf-connecting-ip`, which Cloudflare sets at the edge and nobody else can
-spoof past it; it is absent locally and in tests, so address limits never bite a developer and the
-per-subject limits are what the tests exercise. A refused call answers `429 RATE_LIMITED` in the
-usual error envelope with `Retry-After` in seconds.
+spoof past it. It is absent in the worker tests (which set it by hand when they test an address
+limit), and `wrangler dev` reports the loopback address (`127.0.0.1`, `::1`) for every request, so
+a loopback caller gets no address limit: the browser suite signs in dozens of times from one
+machine, and CI run 38252080198 (slice 041) tripped the twenty-link limit halfway through it
+before this rule existed. Cloudflare's edge never reports a loopback address, so production is
+unaffected. A refused call answers `429 RATE_LIMITED` in the usual error envelope with
+`Retry-After` in seconds.
 
 ## How it counts (`lib/RateLimitDurableObject.ts`)
 
@@ -33,7 +37,7 @@ window to its end. The object is registered as `RATE_LIMIT_DO` in every environm
 The sixth link for one address in a window is 429 with `Retry-After`; the address is
 case-insensitive; another address still gets its link; one caller address is capped at twenty
 across mailboxes and another caller is not affected; verify attempts from one address are capped
-at fifteen and skipped without an address; an account's eleventh invite code in an hour is 429;
+at fifteen and skipped without an address or from a loopback address; an account's eleventh invite code in an hour is 429;
 the object's window counts, never counts a refusal, and reopens on time.
 
 ## Not done

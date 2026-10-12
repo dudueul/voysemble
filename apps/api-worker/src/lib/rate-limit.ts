@@ -3,8 +3,9 @@
 // Rate limits for the endpoints anyone can call (slice 041): the magic-link request (one email
 // per link, so a flood is a mailbox attack and a cost), the verify endpoint (token guessing) and
 // the invite redeem (code guessing). Limits are per subject: the email (hashed in the object
-// name), the caller's address when Cloudflare gives one (`cf-connecting-ip`; absent locally and
-// in tests, so address limits never bite a developer), and the signed-in account. A refused call
+// name), the caller's address when Cloudflare gives one (`cf-connecting-ip`; absent in the worker
+// tests and loopback under `wrangler dev`, so address limits never bite a developer or the
+// browser suite), and the signed-in account. A refused call
 // is 429 RATE_LIMITED with Retry-After, the same body shape as every other error.
 
 import type { Context } from 'hono';
@@ -34,9 +35,18 @@ export class RateLimitedError extends HTTPException {
   }
 }
 
-/** The caller's address as Cloudflare reports it; null locally and in tests. */
+/** Loopback addresses as `wrangler dev` reports them; Cloudflare's edge never reports one. */
+const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+
+/**
+ * The caller's address as Cloudflare reports it. Null (no address limit) without the header, as
+ * in the worker tests, and for a loopback caller: `wrangler dev` sets the header to 127.0.0.1 for
+ * every request, and the browser suite signs in dozens of times from one machine (CI run
+ * 38252080198 tripped the twenty-link limit halfway through the suite).
+ */
 export function clientIp(c: Context<AppEnv>): string | null {
-  return c.req.header('cf-connecting-ip')?.trim() || null;
+  const ip = c.req.header('cf-connecting-ip')?.trim() || null;
+  return ip && !LOOPBACK.has(ip) ? ip : null;
 }
 
 async function sha256Hex(s: string): Promise<string> {

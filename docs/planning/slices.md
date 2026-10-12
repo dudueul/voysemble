@@ -1191,7 +1191,7 @@ Not done: store badges (listings pending); a Korean-first hero capture (the hero
 
 ## Slice 041: rate limits on the public endpoints
 
-Status: done 2026-10-12. Commit: see git log (`feat(auth): rate limits on magic links, verify and invite codes (slice 041)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit `b4a7a9b` (`feat(auth): rate limits on magic links, verify and invite codes (slice 041)`) and the fix `fix(auth): loopback callers get no address limit` (see git log). CI: run 38252080198 red on `web` only (the browser suite: `wrangler dev` reports `127.0.0.1` as `cf-connecting-ip` for every request, so the twenty-link address limit tripped after thirteen sign-ins and every later spec failed at sign-in; `mobile` and `ios` green). The fix exempts loopback callers from the address limits (Cloudflare's edge never reports one); its run id is recorded in the next commit once verified.
 Spec: ADR-0001 (abuse of the public endpoints), the identity doc's open item. Details: `docs/engineering/rate-limits.md`.
 
 | Gate | Command | Result |
