@@ -120,3 +120,55 @@ jobs:
           name: ios-build-log
           path: mobile/ios-app/xcodebuild.log
           if-no-files-found: ignore
+      # Screen captures written by VoysembleTests/CaptureTests.swift (D31).
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-captures
+          path: docs/captures/ios
+          if-no-files-found: ignore
+  # D31: the captures every job recorded are committed back to the branch so docs/captures/ is
+  # always the current state of every client. Runs only when every job passed (captures of a red
+  # build are not evidence), only on push (a pull_request checkout has no branch to push to), and
+  # marks its commit [skip ci] so it never triggers itself.
+  captures:
+    needs: [web, mobile, ios]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: web-captures
+          path: docs/captures
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: android-captures
+          path: docs/captures/android
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: ios-captures
+          path: docs/captures/ios
+      - name: Commit captures
+        run: |
+          git config user.name "voysemble-ci"
+          git config user.email "ci@voysemble.com"
+          git add -A docs/captures
+          if git diff --cached --quiet; then
+            echo "captures unchanged"
+            exit 0
+          fi
+          git commit -m "chore(captures): record device captures for ${GITHUB_SHA::7} [skip ci]"
+          for i in 1 2 3 4; do
+            git pull --rebase origin "${{ github.ref_name }}" && git push origin "HEAD:${{ github.ref_name }}" && exit 0
+            sleep $((2 ** i))
+          done
+          exit 1

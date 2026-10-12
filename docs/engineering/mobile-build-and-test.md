@@ -62,6 +62,7 @@ Android SDK.
 | Android unit | `android-app/src/test` (`*ViewModelTest`) | JUnit 4 + `kotlin.test` asserts, `Dispatchers.setMain(UnconfinedTestDispatcher())` | View model state transitions and safe error messages |
 | Android screenshot | `android-app/src/test` (`*ScreenshotTest`) | Robolectric `GraphicsMode.NATIVE`, sdk 35, `w412dp-h915dp`, Roborazzi | Every screen state renders; PNG evidence in `docs/captures/android/` |
 | iOS unit | `ios-app/VoysembleTests` | XCTest on the simulator | Swift code compiles against the framework; Kotlin models behave the same from Swift (`CoreModelsTests`) |
+| iOS screenshot | `ios-app/VoysembleTests/CaptureTests.swift` | XCTest on the simulator: each view hosted in a `UIHostingController` inside a `UIWindow` on the test host's scene, drawn with `drawHierarchy`, 393x852 at 2x | Every screen state renders; PNG evidence in `docs/captures/ios/` (D31) |
 
 Test naming: Kotlin tests use `snake_case` names that state the fact; the file header lists
 the facts the file proves. Android unit tests use `org.junit.Test` (JUnit bridge for
@@ -74,10 +75,16 @@ the facts the file proves. Android unit tests use `org.junit.Test` (JUnit bridge
 - `mobile` (ubuntu): `./gradlew build` then `:android-app:recordRoborazziDebug`; uploads
   `android-captures` (PNGs) and `mobile-test-reports`.
 - `ios` (`macos-15`): picks an available iPhone simulator by UDID (downloads the iOS platform
-  if none), XcodeGen, warm framework link, `xcodebuild test`; uploads `ios-build-log`.
+  if none), XcodeGen, warm framework link, `xcodebuild test`; uploads `ios-build-log` and
+  `ios-captures` (PNGs from `CaptureTests`).
+- `captures` (ubuntu, after `web`, `mobile` and `ios` all passed, push events only): downloads
+  `web-captures`, `android-captures` and `ios-captures`, and commits any change under
+  `docs/captures/` to the branch as `chore(captures): record device captures for <sha> [skip ci]`
+  (D31). The commit never triggers CI. Pull with rebase before pushing from a workstation or the
+  authoring sandbox, since the branch may have moved by one captures commit.
 
-Artifacts live on GitHub's blob storage (`*.blob.core.windows.net`). Download them from the run
-page and copy PNGs into `docs/captures/android/` when a slice needs them in the repo.
+Artifacts live on GitHub's blob storage (`*.blob.core.windows.net`), which the authoring sandbox
+cannot reach; the `captures` job is what brings the PNGs into the repo.
 
 ## 6. Adding a screen: checklist
 
@@ -88,7 +95,8 @@ page and copy PNGs into `docs/captures/android/` when a slice needs them in the 
 3. Android tests: a `*ScreenshotTest` with at least light, dark, and one non-default state;
    a `*ViewModelTest` when the view model has logic.
 4. iOS: `*View.swift` with an `ObservableObject` model over the same core functions; add a
-   case to `CoreModelsTests` when new core functions are called from Swift.
+   case to `CoreModelsTests` when new core functions are called from Swift, and a capture of
+   each new screen state to `CaptureTests` (D31).
 5. `feature-status.json`: `simulated` for fixture screens, `working` once the screen reads
    the API with tests proving it.
 6. `docs/captures/README.md` and `mobile/README.md` screen table; slice entry in

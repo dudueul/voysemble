@@ -726,3 +726,31 @@ Deviations found while building:
 
 Not done: store badges, a waitlist form, help center, reviewed legal wording, the CI capture commit-back
 (D31, next slice).
+
+## Slice 022: device capture pipeline (D31)
+
+Status: done 2026-10-12. Commit: see git log (`ci(captures): ...`). CI: pending at commit time; the run id and the first captures commit are recorded in a follow-up docs commit once verified.
+Spec: D31 (founder request 2026-10-12: record designed views per device proactively, native apps included). Details: `docs/engineering/mobile-build-and-test.md` (§4, §5, §6), `docs/engineering/documentation-rules.md` (rule 11), `docs/captures/README.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| iOS captures | CI `ios` job (`xcodebuild test`, `CaptureTests`) | nine PNGs under `docs/captures/ios/`; see the CI row |
+| Android captures | CI `mobile` job (`recordRoborazziDebug`) | unchanged tests; PNGs now committed by CI |
+| Commit-back | CI `captures` job | one `[skip ci]` commit per green push with changed captures |
+| Lint + headers | `pnpm lint`, `pnpm check:headers` | clean |
+
+Built:
+- `mobile/ios-app/VoysembleTests/CaptureTests.swift`: every iOS screen state (Today light and dark, head
+  count open and closed dark, Bulletin with the revision card, Incidents, meeting window, sign-in, invite)
+  hosted in a `UIWindow` on the test host's scene and drawn to PNG at 393x852, 2x; output directory from
+  `VOYSEMBLE_CAPTURES_DIR` or derived from the source path.
+- CI: `ios-captures` artifact; `captures` job (needs web, mobile, ios; push only; `contents: write`)
+  downloads the three capture artifacts and commits changes under `docs/captures/` with `[skip ci]`,
+  rebasing before push with retries.
+- Docs: rule 11, the iOS screenshot tier, the CI section, the adding-a-screen checklist, captures README.
+
+Deviations found while building: the authoring sandbox cannot download CI artifacts (proxy), which is
+why the commit-back exists; Swift compiles only in CI, so the capture harness is verified there.
+
+Not done: captures of the live (API-backed) Android and iOS states (the fixtures are captured; live
+states need a mocked API in the screenshot tests), tablet captures for the apps.

@@ -11,8 +11,12 @@ evidence for the visual-acceptance gate (doc 01 §18.4, §24.4), compared by a r
 | `web/tablet-1024/*.png`, `web/phone-390/*.png` | same (responsive spec) | 1024x768, 390x844 |
 | `public/<project>/*.png` | `pnpm --filter @voysemble/public-web test:e2e` | the same four viewports |
 | `android/*.png` | CI `mobile` job (Roborazzi) | 412x915 |
+| `ios/*.png` | CI `ios` job (`CaptureTests.swift`, UIWindow + `drawHierarchy`) | 393x852 at 2x |
 
-Mobile captures (390x844 iOS, 412x915 Android) arrive with the P1 mobile slices.
+Since slice 022 (D31) the CI `captures` job commits every job's PNGs back to the branch as
+`chore(captures): record device captures for <sha> [skip ci]`, so this folder is the current state of
+every client after each green push to `next`. Android and iOS captures therefore appear here one CI run
+after the slice that added them.
 
 ## Slice 007 (2026-10-11): sign-in and setup checklist on the real API
 
@@ -52,3 +56,10 @@ against `wrangler dev`, with the ack meter and unacked names from the API.
 a full page is megabytes). Produced by `apps/public-web/e2e/landing.spec.ts` against the
 assets-only Worker under `wrangler dev`.
 D31: from this slice on, every client slice records captures per device class.
+
+## Slice 022 (2026-10-12): capture pipeline, iOS captures
+
+`ios/today-light.png`, `today-dark.png`, `headcount-open.png`, `headcount-closed-dark.png`,
+`bulletin-light.png`, `incidents-light.png`, `window-open.png`, `sign-in.png`, `invite.png` from
+`mobile/ios-app/VoysembleTests/CaptureTests.swift` on the CI simulator; `android/*.png` from the
+Roborazzi tests. Both land here through the `captures` job.

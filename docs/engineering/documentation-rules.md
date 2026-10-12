@@ -12,3 +12,10 @@ Founder directive: document details everywhere.
 8. Every deviation from the reference docs -> ADR with "Supersedes" line.
 9. `feature-status.json` is updated in the same commit as the feature.
 10. Source header on every file: `Copyright 2026- At Day. All rights reserved.`
+11. Device captures every slice (D31): a slice that touches a client records the designed views
+    for each device class it affects, as tests that write PNGs: web console and public site at
+    desktop-1440, laptop-1280, tablet-1024, phone-390 (Playwright, `docs/captures/web/`,
+    `docs/captures/public/`); Android at 412x915 light and dark (Roborazzi,
+    `docs/captures/android/`); iOS at 393x852 (XCTest `CaptureTests`, `docs/captures/ios/`).
+    CI's `captures` job commits them back to the branch (`[skip ci]`), so pull before pushing.
+    The slice entry links the captures.
