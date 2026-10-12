@@ -1756,7 +1756,7 @@ Not done: a reason shown to the sender; an organizer's removal inside a group ch
 
 ## Slice 066: the fee ledger as a CSV file; the fee column on People
 
-Status: done 2026-10-12. Commit: see git log (`feat(fees): export the ledger as a CSV file; the People page shows each traveler's fee (slice 066)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: 82e2041 (`feat(fees): export the ledger as a CSV file; the People page shows each traveler's fee (slice 066)`). CI: run 38295815393 green (web, mobile, ios); captures recorded by CI in 4fab50d.
 Spec: D23 (the ledger; amended), D21, D31. Details: `docs/engineering/fees.md` (the route row, the console paragraph, facts).
 
 | Gate | Command | Result |
@@ -1796,3 +1796,23 @@ Built:
 - Docs: `mobile-auth.md` section and flow step, D42 amendment, captures README, ledger 065 and 066 (CI records), feature flag `mobile.trip-switch` working.
 
 Not done: the organization name as a section when an account spans organizations; the switch on the Bulletin tab's header; remembering the choice across sign-ins (the store keeps the last active trip already).
+
+## Slice 068: an incident opened by hand from the console
+
+Status: done 2026-10-12. Commit: see git log (`feat(incidents): the organizer opens a card by hand, naming travelers (slice 068)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D17 (incidents; amended), D29 (the opening reaches leaders and guardians), D13. Details: `docs/engineering/incidents.md` (route row, behaviour, console, facts).
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | `incidents.test.ts` +1 (the card by hand, the refusals, the inboxes, the guardian's projection, the flow); 5 tests in the two touched files locally |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 22 files, 133 tests (the Safety live-incidents case gains the composer; the open count reads two) |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e -- incidents.spec.ts` | 1 passed on desktop-1440 (`safety-manual-incident.png` recorded; the guardian's projected card through the API) |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+Built:
+- Contracts: `OpenIncidentRequest`. Worker: `openManualIncident` (travelers only, kind `manual`, no head count); `POST .../incidents` (owner, organizer) with the "Incident opened" notification to the named travelers' leaders and guardians; `statusLine('opened')`; `incidents.test.ts` +1.
+- Console: `incidents.open`; the Safety page's "New incident" button and `NewIncidentForm` (the title, the roster's travelers as checkboxes, Open / Cancel); strings EN/KO; CSS; the Safety unit case; `incidents.spec.ts` (capture `safety-manual-incident.png`).
+- Phones: nothing to change; a manual card rides the same list, confirmation and guardian projection.
+- Docs: `incidents.md` route row, behaviour, console paragraph, facts and not-done; D17 amendment; captures README; ledger 066 (CI record) and 068; feature flag `incidents.manual` working.
+
+Not done: a manual card from the leader's phone; a note at opening; closing the composer with Escape.

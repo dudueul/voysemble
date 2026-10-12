@@ -44,6 +44,7 @@ import type {
   MeetingWindow,
   MeResponse,
   NotificationLog,
+  OpenIncidentRequest,
   OpenWindowRequest,
   Organization,
   OrganizationList,
@@ -527,6 +528,9 @@ export const incidentsQuery = (orgId: string, tripId: string) =>
   });
 
 export const incidents = {
+  /** Slice 068 (D17): a card the organizer opens by hand, naming travelers. */
+  open: (orgId: string, tripId: string, body: OpenIncidentRequest) =>
+    api<Incident>(`/v1/orgs/${orgId}/trips/${tripId}/incidents`, { method: 'POST', body }),
   resolve: (orgId: string, tripId: string, incidentId: string, note: string | null) =>
     api<Incident>(`/v1/orgs/${orgId}/trips/${tripId}/incidents/${incidentId}/resolve`, {
       method: 'POST',

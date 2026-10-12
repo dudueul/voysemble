@@ -4,7 +4,8 @@
 // sync; staff list and resolve them, a leader (or organizer) confirms what they see, and the
 // organizer sends the guardian status message composed from the latest confirmation. Guardians
 // list only the cards about their own traveler, projected to status plus message; travelers see
-// nothing here.
+// nothing here. Slice 068: the organizer also opens a card by hand, naming travelers; the
+// guardians of those travelers and the leaders of their groups hear it at once.
 
 import { createRoute, type OpenAPIHono } from '@hono/zod-openapi';
 import {
@@ -12,6 +13,7 @@ import {
   Id,
   Incident,
   IncidentList,
+  OpenIncidentRequest,
   ResolveIncidentRequest,
   z,
 } from '@voysemble/contracts';
@@ -19,11 +21,34 @@ import { HTTPException } from 'hono/http-exception';
 import { type OrgAccess, requireAuth, requireOrgRole } from '../auth/middleware';
 import type { AppEnv } from '../env';
 import { notificationBody, notifyTrip } from '../lib/notify';
+import { nowIso } from '../lib/time';
 import { orgObject } from '../org/client';
 import { ERROR_RESPONSES, SESSION_SECURITY } from './openapi-common';
 import { TripParams } from './trips';
 
 const IncidentParams = z.object({ orgId: Id, tripId: Id, incidentId: z.uuid() });
+
+const openRoute = createRoute({
+  method: 'post',
+  path: '/v1/orgs/{orgId}/trips/{tripId}/incidents',
+  tags: ['incidents'],
+  summary: 'Open an incident card by hand, naming travelers (owner, organizer)',
+  description:
+    'Slice 068 (D17). For anything the head count did not catch: a lost passport, a sick traveler. The card is open, kind `manual`, opened by the organizer; the leaders of the named travelers\' groups and their guardians hear "Incident opened" at once; the rest of the flow is the head count card\'s (a leader confirms, the organizer sends the guardian message, resolves). A guardian, a leader or an unknown id is 404.',
+  security: SESSION_SECURITY,
+  request: {
+    params: TripParams,
+    body: { content: { 'application/json': { schema: OpenIncidentRequest } } },
+  },
+  responses: {
+    201: { description: 'The card.', content: { 'application/json': { schema: Incident } } },
+    400: ERROR_RESPONSES[400],
+    401: ERROR_RESPONSES[401],
+    403: ERROR_RESPONSES[403],
+    404: ERROR_RESPONSES[404],
+    500: ERROR_RESPONSES[500],
+  },
+});
 
 const listRoute = createRoute({
   method: 'get',
@@ -118,6 +143,30 @@ export function mountIncidentRoutes(app: OpenAPIHono<AppEnv>): void {
       throw new HTTPException(403, { message: 'Only organizers and trip leaders see incidents.' });
     }
     return c.json({ incidents: await org.listIncidents(tripId, me) }, 200);
+  });
+
+  app.openapi(openRoute, async (c) => {
+    const auth = requireAuth(c);
+    const { orgId, tripId } = c.req.valid('param');
+    const body = c.req.valid('json');
+    const access = await requireOrgRole(c.env, auth, orgId, 'organizer');
+    const org = await orgObject(c.env, orgId);
+    const byName = access.role === 'owner' ? 'Owner' : 'Organizer';
+    const r = await org.openManualIncident({
+      tripId,
+      title: body.title,
+      participationIds: body.participationIds,
+      byName,
+      now: nowIso(),
+    });
+    if ('notFound' in r) throw new HTTPException(404, { message: 'Trip not found.' });
+    if ('notATraveler' in r) {
+      throw new HTTPException(404, {
+        message: 'Every person named must be a traveler of this trip.',
+      });
+    }
+    await notifyIncidentStatus(c.env, org, orgId, tripId, r.incident, 'opened', byName);
+    return c.json(r.incident, 201);
   });
 
   app.openapi(confirmRoute, async (c) => {
@@ -256,6 +305,8 @@ function statusLine(status: string): string {
       return 'Still unknown';
     case 'resolved':
       return 'Resolved';
+    case 'opened':
+      return 'Incident opened';
     default:
       return `Incident: ${status}`;
   }

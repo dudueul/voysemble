@@ -242,7 +242,8 @@ chips, the tight-connections and proposals cards. `web/<project>/command-center-
 the command center with the same events in its next 48 hours. Produced by
 `apps/organizer-web/e2e/journey-graph.spec.ts`. No phone change.
 
-`android/today-trip-switch.png`, `ios/today-trip-switch.png` (slice 067): the account's trips as the
+`web/<project>/safety-manual-incident.png` (slice 068): the Safety page after the organizer opened a
+card by hand, leading the list. `android/today-trip-switch.png`, `ios/today-trip-switch.png` (slice 067): the account's trips as the
 switch lists them, the current one marked. `web/<project>/communication-chat-removed.png` (slice 065): the organizer's guardian thread after
 removing Sora's message, the tombstone in its place. `web/<project>/safety-audited-read.png` (slice 064): the open incident card with Bus A's channel read
 under its note. `web/<project>/command-center-trips.png` (slice 063): the Today page with three trips, the one

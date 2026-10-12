@@ -8,6 +8,7 @@
 // list stays a fixture with its own "Sample data" chip. Guardians never see this page's content.
 // Slice 064 (D22): an open card offers the organizer a read of the group's and each named
 // traveler's channel; every read is a fact on the travelers' timelines and the thread says so.
+// Slice 068 (D17): "New incident" opens a card by hand, naming travelers of the roster.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -34,6 +35,7 @@ import {
   incidentsQuery,
   orgsQuery,
   pickActiveOrg,
+  rosterQuery,
   tripsQuery,
   useActiveTrip,
   windows as windowsApi,
@@ -264,6 +266,97 @@ function AuditedThread({
         </button>
       </span>
     </section>
+  );
+}
+
+/** Slice 068 (D17): the composer for a card opened by hand; the travelers come from the roster. */
+function NewIncidentForm({
+  orgId,
+  tripId,
+  onDone,
+}: {
+  orgId: string;
+  tripId: string;
+  onDone: () => void;
+}) {
+  const qc = useQueryClient();
+  const roster = useQuery(rosterQuery(orgId, tripId));
+  const [title, setTitle] = useState('');
+  const [chosen, setChosen] = useState<string[]>([]);
+  const open = useMutation({
+    mutationFn: () =>
+      incidentsApi.open(orgId, tripId, { title: title.trim(), participationIds: chosen }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: incidentsQuery(orgId, tripId).queryKey });
+      onDone();
+    },
+  });
+  const travelers = (roster.data ?? []).filter((p) => p.role === 'traveler');
+  const toggle = (id: string) =>
+    setChosen((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]));
+  return (
+    <form
+      className="form incident-form"
+      aria-label={s.newIncident}
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (title.trim() && chosen.length > 0) open.mutate();
+      }}
+    >
+      <p className="muted small">{s.newIncidentHint}</p>
+      <label className="field">
+        <span className="field__label">{s.newIncidentTitle}</span>
+        <input
+          className="field__input"
+          name="title"
+          required
+          maxLength={160}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+        />
+      </label>
+      <fieldset className="field">
+        <legend className="field__label">{s.newIncidentPeople}</legend>
+        {roster.isPending ? (
+          <p className="state__body" role="status">
+            {strings.states.loading}
+          </p>
+        ) : (
+          <div className="incident-form__people">
+            {travelers.map((p) => (
+              <label key={p.id} className="incident-form__person">
+                <input
+                  type="checkbox"
+                  checked={chosen.includes(p.id)}
+                  onChange={() => toggle(p.id)}
+                />
+                <span>
+                  {p.displayName}
+                  {p.groupName ? <span className="muted"> · {p.groupName}</span> : null}
+                </span>
+              </label>
+            ))}
+          </div>
+        )}
+      </fieldset>
+      {open.isError ? (
+        <p className="field__error" role="alert">
+          {open.error instanceof ApiError ? open.error.message : s.newIncidentFailed}
+        </p>
+      ) : null}
+      <div className="form__actions">
+        <button
+          type="submit"
+          className="btn btn--primary btn--sm"
+          disabled={open.isPending || !title.trim() || chosen.length === 0}
+        >
+          {s.newIncidentOpen}
+        </button>
+        <button type="button" className="btn btn--ghost btn--sm" onClick={onDone}>
+          {s.newIncidentCancel}
+        </button>
+      </div>
+    </form>
   );
 }
 
@@ -815,6 +908,8 @@ export function SafetyPage() {
     enabled: Boolean(org && trip),
   });
   const ready = Boolean(org && trip);
+  // Slice 068: the composer folds out of the Incidents card's header.
+  const [composing, setComposing] = useState(false);
   const openCount = (live.data ?? []).filter((i) => i.status === 'open').length;
   return (
     <SectionPage
@@ -833,10 +928,32 @@ export function SafetyPage() {
           <Card
             title={s.incidents}
             id="safety-incidents"
-            action={ready ? undefined : <SampleChip />}
+            action={
+              ready ? (
+                <button
+                  type="button"
+                  className="btn btn--primary btn--sm"
+                  aria-expanded={composing}
+                  onClick={() => setComposing((v) => !v)}
+                >
+                  {s.newIncident}
+                </button>
+              ) : (
+                <SampleChip />
+              )
+            }
           >
             {org && trip ? (
-              <LiveIncidents orgId={org.id} tripId={trip.id} />
+              <>
+                {composing ? (
+                  <NewIncidentForm
+                    orgId={org.id}
+                    tripId={trip.id}
+                    onDone={() => setComposing(false)}
+                  />
+                ) : null}
+                <LiveIncidents orgId={org.id} tripId={trip.id} />
+              </>
             ) : orgs.isPending || (org !== null && trips.isPending) ? (
               <p className="state__body" role="status">
                 {strings.states.loading}

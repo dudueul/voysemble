@@ -1082,37 +1082,96 @@ describe('sample sections', () => {
     const posted: unknown[] = [];
     let resolved = false;
     let messaged = false;
+    const manual: unknown[] = [];
     stubApi({
       'GET /v1/orgs': () => ({ organizations: [ORG] }),
       [`GET /v1/orgs/${ORG.id}/trips`]: () => ({ trips: [TRIP] }),
       [`GET /v1/orgs/${ORG.id}/trips/${TRIP.id}/windows`]: () => ({ windows: [] }),
       [`GET /v1/orgs/${ORG.id}/trips/${TRIP.id}/headcounts`]: () => ({ headcounts: [] }),
+      // Slice 068: the composer's travelers, and the card it opens.
+      [`GET /v1/orgs/${ORG.id}/trips/${TRIP.id}/roster`]: () => ({
+        participations: [
+          {
+            id: 'p2',
+            tripId: TRIP.id,
+            role: 'traveler',
+            displayName: 'Juho Kim',
+            groupName: 'Bus A',
+            guardianOf: null,
+            accountId: null,
+            createdAt: 'x',
+            invite: 'none',
+            lastAckAt: null,
+          },
+          {
+            id: 'p5',
+            tripId: TRIP.id,
+            role: 'traveler',
+            displayName: 'Minji Park',
+            groupName: 'Bus A',
+            guardianOf: null,
+            accountId: null,
+            createdAt: 'x',
+            invite: 'none',
+            lastAckAt: null,
+          },
+          {
+            id: 'p9',
+            tripId: TRIP.id,
+            role: 'guardian',
+            displayName: 'Sora Park',
+            groupName: 'Bus A',
+            guardianOf: 'p5',
+            accountId: null,
+            createdAt: 'x',
+            invite: 'none',
+            lastAckAt: null,
+          },
+        ],
+      }),
+      [`POST /v1/orgs/${ORG.id}/trips/${TRIP.id}/incidents`]: () => {
+        const card = {
+          ...INC,
+          id: '99999999-9999-4999-8999-999999999999',
+          kind: 'manual',
+          title: 'Lost passport at the hotel desk',
+          headcountId: null,
+          people: [{ participationId: 'p5', displayName: 'Minji Park', groupName: 'Bus A' }],
+          openedByName: 'Owner',
+          confirmations: [],
+        };
+        manual.push(card);
+        return card;
+      },
       [`GET /v1/orgs/${ORG.id}/trips/${TRIP.id}/incidents`]: () => ({
-        incidents: resolved
-          ? [
-              {
-                ...INC,
-                status: 'resolved',
-                resolvedByName: 'Organizer',
-                resolvedAt: INC.openedAt,
-                resolutionNote: 'Lobby',
-              },
-            ]
-          : [
-              messaged
-                ? {
-                    ...INC,
-                    guardianMessage: {
-                      bodyEn:
-                        'Juho Kim is with the group. Phone lost. Confirmed by leader Kim at 07:10.',
-                      bodyKo:
-                        'Juho Kim 학생은 그룹과 함께 있습니다. Phone lost. 인솔자 Kim 님이 07:10에 확인했습니다.',
-                      sentAt: INC.openedAt,
-                      sentByName: 'Organizer',
-                    },
-                  }
-                : INC,
-            ],
+        incidents: [
+          ...manual,
+          ...(resolved
+            ? [
+                {
+                  ...INC,
+                  status: 'resolved',
+                  resolvedByName: 'Organizer',
+                  resolvedAt: INC.openedAt,
+                  resolutionNote: 'Lobby',
+                },
+              ]
+            : [
+                messaged
+                  ? {
+                      ...INC,
+                      guardianMessage: {
+                        bodyEn:
+                          'Juho Kim is with the group. Phone lost. Confirmed by leader Kim at 07:10.',
+                        bodyKo:
+                          'Juho Kim 학생은 그룹과 함께 있습니다. Phone lost. 인솔자 Kim 님이 07:10에 확인했습니다.',
+                        sentAt: INC.openedAt,
+                        sentByName: 'Organizer',
+                      },
+                    }
+                  : INC,
+              ]),
+        ],
       }),
       [`POST /v1/orgs/${ORG.id}/trips/${TRIP.id}/incidents/${INC.id}/guardian-message`]: () => {
         messaged = true;
@@ -1164,9 +1223,24 @@ describe('sample sections', () => {
     );
     fireEvent.click(within(card).getByRole('button', { name: 'Close' }));
     expect(screen.queryByTestId('audited-thread')).toBeNull();
+    // Slice 068: a card opened by hand, naming Minji; it leads the list.
+    fireEvent.click(screen.getByRole('button', { name: 'New incident' }));
+    const form = await screen.findByRole('form', { name: 'New incident' });
+    await within(form).findByLabelText('Minji Park · Bus A');
+    fireEvent.change(within(form).getByLabelText('What happened'), {
+      target: { value: 'Lost passport at the hotel desk' },
+    });
+    fireEvent.click(within(form).getByLabelText('Minji Park · Bus A'));
+    fireEvent.click(within(form).getByRole('button', { name: 'Open incident' }));
+    await screen.findByText('Lost passport at the hotel desk');
+    expect(screen.queryByRole('form', { name: 'New incident' })).toBeNull();
+    expect(
+      within(screen.getByTestId('incident-list')).getAllByRole('listitem')[0]?.textContent,
+    ).toContain('Lost passport at the hotel desk');
     expect(text(card)).toContain('Open');
+    // Two open now: the head count's card and the one opened by hand.
     expect(text(screen.getByRole('heading', { level: 1 }).parentElement)).toContain(
-      '1 open incident',
+      '2 open incidents',
     );
     expect(text(within(card).getByTestId(`confirmation-${INC.id}`))).toContain('With the group');
     expect(text(within(card).getByTestId(`confirmation-${INC.id}`))).toContain(

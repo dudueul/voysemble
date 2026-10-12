@@ -82,6 +82,18 @@ export type Incident = z.infer<typeof Incident>;
 export const IncidentList = z.object({ incidents: z.array(Incident) }).openapi('IncidentList');
 export type IncidentList = z.infer<typeof IncidentList>;
 
+/**
+ * Slice 068: the organizer opens a card by hand (a lost passport, a sick traveler), naming the
+ * travelers it is about; the rest of the flow is the head count card's.
+ */
+export const OpenIncidentRequest = z
+  .object({
+    title: z.string().trim().min(1).max(160),
+    participationIds: z.array(Id).min(1).max(50),
+  })
+  .openapi('OpenIncidentRequest');
+export type OpenIncidentRequest = z.infer<typeof OpenIncidentRequest>;
+
 export const ResolveIncidentRequest = z
   .object({ note: z.string().trim().min(1).max(500).nullable() })
   .openapi('ResolveIncidentRequest');

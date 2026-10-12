@@ -367,6 +367,15 @@ export const en = {
       resolved: 'Resolved',
     },
     noIncidents: 'No incidents. A head count that closes with missing travelers opens a card here.',
+    // Slice 068 (D17): a card opened by hand.
+    newIncident: 'New incident',
+    newIncidentHint:
+      'For anything the head count did not catch: a lost passport, a sick traveler. Leaders see it on the phone and confirm; the guardians of the travelers named hear the status.',
+    newIncidentTitle: 'What happened',
+    newIncidentPeople: 'Travelers involved',
+    newIncidentOpen: 'Open incident',
+    newIncidentCancel: 'Cancel',
+    newIncidentFailed: 'Could not open the incident.',
     noTrip: 'Create an organization and a trip first.',
     resolve: 'Resolve',
     resolveNote: 'What happened (optional)',

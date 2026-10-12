@@ -2709,3 +2709,21 @@ fieldset.filters {
   align-items: center;
   gap: 6px;
 }
+
+/* Slice 068: the manual incident composer on the Safety page. */
+.incident-form {
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--vy-border);
+}
+
+.incident-form__people {
+  display: grid;
+  gap: 6px;
+}
+
+.incident-form__person {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}

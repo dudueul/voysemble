@@ -26,12 +26,17 @@ API, and wires the organizer console's Safety page to those cards. Exercised by
   to 500 characters. A second resolve answers 409; an id from another trip answers 404.
 - Travelers and guardians get 403 on list and resolve. The guardian status message of D17 is a
   later slice and will be sent on the organizer's action, never automatically.
+- Slice 068: the organizer opens a card by hand for what the head count did not catch (a lost
+  passport, a sick traveler); from there the flow is the same: leaders see it on the phone and
+  confirm, the organizer sends the guardian message and resolves, the guardian reads the
+  projected card.
 
 ## Routes
 
 | Route | Who | Behaviour |
 |---|---|---|
 | `GET /v1/orgs/{orgId}/trips/{tripId}/incidents` | staff | Cards, open first. |
+| `POST /v1/orgs/{orgId}/trips/{tripId}/incidents` (slice 068) | owner, organizer | `OpenIncidentRequest { title (1..160), participationIds (1..50) }`: a card opened by hand, kind `manual`, open, no head count, opened by "Owner" / "Organizer"; every id must be a traveler of the trip (a guardian, a leader or an unknown id is 404); the leaders of the named travelers' groups and their guardians get "Incident opened: <names>" at once (D29). 201 with the card. |
 | `POST /v1/orgs/{orgId}/trips/{tripId}/incidents/{incidentId}/resolve` | staff | `{ note }`; returns the resolved card. |
 
 ## Console (Safety page)
@@ -45,6 +50,11 @@ fixtures with their own chips until their slices.
 Slice 064 (D22): an open card also offers "Read <group>'s channel (audited)" and "Read
 <traveler>'s channel (audited)" for the named travelers; the read-only thread says the read is
 recorded on each traveler's timeline. `chat.md` has the rule.
+
+Slice 068 (D17): the card's header carries "New incident"; the composer folds out above the
+list with "What happened" and the roster's travelers as checkboxes ("Minji Park · Bus A");
+"Open incident" posts the card, which then leads the list. Evidence:
+`web/<project>/safety-manual-incident.png`.
 
 ## Mobile
 
@@ -112,7 +122,17 @@ otherwise), reachable from Today next to "Open head count". iOS `IncidentsView` 
   start, posts an answer into the trail; offline keeps it pending and marks the feed offline,
   and the next refresh replays it once.
 
+- Slice 068, worker: the owner opens "Lost passport at the hotel desk" naming Minji (manual, open,
+  no head count, by "Owner"); a leader is 403; a guardian id, an unknown id are 404; a blank
+  title and an empty list are 400; the list leads with it; Kim's and Sora's inboxes carry
+  "Incident opened: Minji Park" with the card as reference, Minji's nothing; Sora reads "Status
+  update about Minji Park"; Kim confirms, the organizer messages and resolves. Console unit: the
+  composer lists the travelers, posts the title and the chosen id, closes, and the card leads the
+  list. Browser: the same from the Safety page with the capture, and the guardian's projected
+  card through the API.
+
 ## Not done
 
-Manual incident creation from the console, push delivery of the guardian message (D29 lane), a
-guardian-facing screen on the phone, iOS live mode for incidents, the person timeline.
+Push delivery of the guardian message (D29 lane); a guardian-facing screen on the phone beyond
+the Today card; a manual card from the leader's phone (the console opens them, slice 068); a
+note at opening (the title carries it).

@@ -1990,6 +1990,52 @@ export class OrgDurableObject extends DurableObject<Env> {
     );
   }
 
+  /**
+   * Slice 068 (D17): a card the organizer opens by hand, naming travelers of the trip. A guardian,
+   * a leader or an unknown id is refused (`notATraveler`); the card is open, kind `manual`,
+   * without a head count.
+   */
+  async openManualIncident(input: {
+    tripId: string;
+    title: string;
+    participationIds: string[];
+    byName: string;
+    now: string;
+  }): Promise<{ incident: Incident } | { notFound: true } | { notATraveler: string }> {
+    this.requireOrg();
+    if (!(await this.getTrip(input.tripId))) return { notFound: true };
+    const roster = await this.listRoster(input.tripId);
+    const ids = [...new Set(input.participationIds)];
+    for (const id of ids) {
+      const p = roster.find((r) => r.id === id);
+      if (p?.role !== 'traveler') return { notATraveler: id };
+    }
+    const sql = this.ctx.storage.sql;
+    const id = crypto.randomUUID();
+    this.ctx.storage.transactionSync(() => {
+      sql.exec(
+        `INSERT INTO incidents
+          (id, trip_id, kind, status, title, headcount_id, opened_at, opened_by_name)
+         VALUES (?, ?, 'manual', 'open', ?, NULL, ?, ?)`,
+        id,
+        input.tripId,
+        input.title,
+        input.now,
+        input.byName,
+      );
+      for (const pid of ids) {
+        sql.exec(
+          'INSERT OR IGNORE INTO incident_people (incident_id, participation_id) VALUES (?, ?)',
+          id,
+          pid,
+        );
+      }
+    });
+    const row = sql.exec<IncidentRow>('SELECT * FROM incidents WHERE id = ?', id).toArray()[0];
+    if (!row) return { notFound: true };
+    return { incident: this.incidentFromRow(row) };
+  }
+
   /** Idempotent per head count: a second call returns the existing card. */
   private openHeadcountIncident(session: HeadcountSession): string {
     const existing = this.incidentForHeadcount(session.id);

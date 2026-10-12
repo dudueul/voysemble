@@ -5,12 +5,15 @@
 // get 403 on list and resolve. Slice 016: a leader confirms with a note (traveler 403); the
 // organizer sends the guardian message composed in both languages from the latest confirmation
 // (409 before any confirmation; leaders cannot send); the guardian lists only their traveler's
-// card, projected, with the message; a resolved card takes no confirmation.
+// card, projected, with the message; a resolved card takes no confirmation. Slice 068: the
+// organizer opens a card by hand naming travelers; leaders and guardians hear it; a leader,
+// a guardian id, an unknown id and a blank title are refused; the flow continues as usual.
 
 import type {
   Incident,
   IncidentList,
   IssueInvitesResponse,
+  MyNotifications,
   RosterImportResponse,
   SyncHeadcountResponse,
 } from '@voysemble/contracts';
@@ -220,5 +223,81 @@ describe('incidents', () => {
     expect(
       (await api(kim).post(`${base}/${id}/confirm`, { status: 'unknown', note: null })).status,
     ).toBe(409);
+  });
+});
+
+describe('manual incidents (slice 068)', () => {
+  it('the organizer opens a card by hand naming travelers; leaders and guardians hear it', async () => {
+    const t = await setupTrip();
+    const tripBase = t.base.replace(/\/incidents$/, '');
+    const minjiId = t.byName('Minji Park');
+    const opened = await json<Incident>(
+      await api(t.nate).post(t.base, {
+        title: 'Lost passport at the hotel desk',
+        participationIds: [minjiId],
+      }),
+    );
+    expect(opened).toMatchObject({
+      kind: 'manual',
+      status: 'open',
+      title: 'Lost passport at the hotel desk',
+      headcountId: null,
+      openedByName: 'Owner',
+    });
+    expect(opened.people.map((p) => p.displayName)).toEqual(['Minji Park']);
+    // A leader cannot open one; a guardian or an unknown id is not a traveler; blank is 400.
+    expect(
+      (await api(t.kim).post(t.base, { title: 'x', participationIds: [minjiId] })).status,
+    ).toBe(403);
+    expect(
+      (await api(t.nate).post(t.base, { title: 'x', participationIds: [t.byName('Sora Park')] }))
+        .status,
+    ).toBe(404);
+    expect(
+      (await api(t.nate).post(t.base, { title: 'x', participationIds: [crypto.randomUUID()] }))
+        .status,
+    ).toBe(404);
+    expect(
+      (await api(t.nate).post(t.base, { title: '  ', participationIds: [minjiId] })).status,
+    ).toBe(400);
+    expect((await api(t.nate).post(t.base, { title: 'x', participationIds: [] })).status).toBe(400);
+    // The list leads with it; Kim (Bus A's leader) and Sora (Minji's guardian) hear "Incident opened".
+    const list = await json<IncidentList>(await api(t.nate).get(t.base));
+    expect(list.incidents[0]?.id).toBe(opened.id);
+    const inbox = async (c: Parameters<typeof api>[0]) =>
+      (
+        await json<MyNotifications>(await api(c).get(`${tripBase}/notifications/mine`))
+      ).notifications.map((n) => [n.kind, n.title, n.refId]);
+    expect(await inbox(t.kim)).toContainEqual([
+      'incident_status',
+      'Incident opened: Minji Park',
+      opened.id,
+    ]);
+    expect(await inbox(t.sora)).toContainEqual([
+      'incident_status',
+      'Incident opened: Minji Park',
+      opened.id,
+    ]);
+    expect(await inbox(t.minji)).toEqual([]);
+    const forSora = await json<IncidentList>(await api(t.sora).get(t.base));
+    expect(forSora.incidents.map((i) => [i.id, i.title])).toEqual([
+      [opened.id, 'Status update about Minji Park'],
+    ]);
+    // The rest is the head count card's flow: Kim confirms, the organizer messages and resolves.
+    expect(
+      (
+        await api(t.kim).post(`${t.base}/${opened.id}/confirm`, {
+          status: 'with_group',
+          note: 'The desk had it.',
+        })
+      ).status,
+    ).toBe(200);
+    expect((await api(t.nate).post(`${t.base}/${opened.id}/guardian-message`)).status).toBe(200);
+    const resolved = await json<Incident>(
+      await api(t.nate).post(`${t.base}/${opened.id}/resolve`, {
+        note: 'Passport back with Minji.',
+      }),
+    );
+    expect(resolved.status).toBe('resolved');
   });
 });
