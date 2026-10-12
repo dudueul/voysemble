@@ -528,6 +528,7 @@ export const en = {
     colDigest: 'Digest',
     colHeld: 'Held',
     heldCount: (n: number) => `${n} until quiet hours end`,
+    emailedCount: (n: number) => `${n} emailed`,
     kind: {
       announcement: 'announcement',
       itinerary_revision: 'itinerary revision',
@@ -537,6 +538,8 @@ export const en = {
     },
     pushNote:
       'Phones read their inbox from the API; push delivery through the stores is not set up yet, so a notification shows when the app opens.',
+    digestNote:
+      'Digest rows go out by email at the guardian digest hour (Settings); the count next to the lane is what was emailed so far.',
     loadFailed: 'Could not load the notification log.',
   },
   driver: {

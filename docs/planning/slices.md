@@ -1482,3 +1482,26 @@ Built:
 - Docs: `notifications.md` Phones section and facts, D29 amendment, captures README, mobile README, ledger, feature flags `mobile.inbox` and `mobile.notification-channels` working.
 
 Not done: push delivery (the channels are its Android half); opening the referenced announcement, head count, incident or proposal from a row; the guardian digest email and its cron; chat mentions; the organizer's mobile digest.
+
+## Slice 054: the guardian digest email and its cron
+
+Status: done 2026-10-12. Commit: see git log (`feat(notifications): the guardian digest email from a ten-minute cron (slice 054)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D29 (notification rules; amended), D11 (plain-text email, KO/EN), ADR-0007 (EmailPort). Details: `docs/engineering/notifications.md` (The guardian digest email).
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 35 files, 98 tests (adds `digest.test.ts`: 3) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 17 files, 111 tests (`NotificationsPage.test.tsx` asserts the emailed count) |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e -- notifications.spec.ts` | 2 passed; capture `notifications-log.png` updated (the digest line) |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+Built:
+- Contracts: `NotificationEvent.emailed`.
+- Worker: OrgDurableObject schema 21 (`notifications.digested_at`, `digest_outcome`) with `dueDigests(now)` (the due digest rows grouped per recipient and trip) and `markDigested(ids, now, outcome)`; the log counts the emailed rows; `email/templates.ts` `digestEmail` (KO/EN, the trip-zone clock per item, no link); `OutboundEmail.tag` gains `digest`; `lib/digest.ts` `runDigests(env, now, port)` (every active organization, one email per recipient and trip, skipped without an account, a failed send left for the next run, one organization's failure contained); `index.ts` `scheduled` hands the cron to it and logs the counts; `wrangler.jsonc` `triggers.crons` every ten minutes.
+- Console: the digest column's emailed count and the digest line under the log; strings EN/KO.
+- Tests: worker (3), console unit (the emailed count), browser (unchanged spec, updated capture).
+- Docs: `notifications.md` section and facts, D29 amendment, identity-and-roster bindings note, captures README, ledger, feature flag `notifications.digest-email` working.
+
+Lesson: the revision announcement is written in the organization's language (Korean by default), so a test about the digest's body names the moved event, not the announcement's English title.
+
+Not done: the production email transport (the named environments do not bind one yet; the digest goes through the same `EmailPort` as the sign-in link); push delivery; the organization object's own alarm in place of the sweep when there are many organizations; chat mentions; the organizer's mobile digest.

@@ -519,6 +519,7 @@ export const ko: Strings = {
     colDigest: '다이제스트',
     colHeld: '대기',
     heldCount: (n: number) => `${n}건, 방해 금지 종료까지`,
+    emailedCount: (n: number) => `${n}건 메일 발송`,
     kind: {
       announcement: '공지',
       itinerary_revision: '일정 개정',
@@ -528,6 +529,8 @@ export const ko: Strings = {
     },
     pushNote:
       '휴대폰은 API에서 받은편지함을 읽습니다. 스토어 푸시 전달은 아직 설정되지 않아 앱을 열 때 알림이 표시됩니다.',
+    digestNote:
+      '다이제스트 레인은 보호자 다이제스트 시각(설정)에 이메일로 발송됩니다. 레인 옆 숫자는 지금까지 메일로 보낸 건수입니다.',
     loadFailed: '알림 기록을 불러오지 못했습니다.',
   },
   driver: {

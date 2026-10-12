@@ -3,6 +3,7 @@
 // Plain-text email bodies, KO and EN (D11). Generic wording: no PII beyond the recipient's
 // address, no organization names in the magic-link mail.
 
+import { localClock } from '../lib/time';
 import type { OutboundEmail } from './EmailPort';
 
 export function magicLinkEmail(to: string, locale: 'ko' | 'en', url: string): OutboundEmail {
@@ -52,4 +53,33 @@ export function reauthEmail(to: string, locale: 'ko' | 'en', url: string): Outbo
   };
   const t = locale === 'ko' ? ko : en;
   return { to, subject: t.subject, text: t.text, locale, tag: 'magic-link' };
+}
+
+/**
+ * The guardian digest (D29, slice 054): the digest-lane notifications of one trip for one
+ * recipient, sent once at the organization's digest hour. Titles and short bodies only, each
+ * with its wall-clock time in the trip's zone; no location, no care fact, no link with a token.
+ */
+export function digestEmail(
+  to: string,
+  locale: 'ko' | 'en',
+  organizationName: string,
+  tripName: string,
+  timeZone: string,
+  items: { title: string; body: string; createdAt: string }[],
+): OutboundEmail {
+  const lines = items.map((i) => {
+    const { date, time } = localClock(i.createdAt, timeZone);
+    return `- ${date} ${time} · ${i.title}${i.body ? `\n  ${i.body}` : ''}`;
+  });
+  const ko = {
+    subject: `${tripName} 보호자 요약 (${items.length}건)`,
+    text: `${organizationName}의 ${tripName}에서 오늘 보호자에게 공유된 알림입니다.\n\n${lines.join('\n')}\n\n자세한 내용은 Voysemble 앱의 받은 알림에서 확인하세요. 이 메일에는 답장할 수 없습니다.`,
+  };
+  const en = {
+    subject: `${tripName}: your guardian digest (${items.length === 1 ? '1 update' : `${items.length} updates`})`,
+    text: `What ${organizationName} shared with guardians on ${tripName} today.\n\n${lines.join('\n')}\n\nThe details are in the inbox of the Voysemble app. Replies to this email are not read.`,
+  };
+  const t = locale === 'ko' ? ko : en;
+  return { to, subject: t.subject, text: t.text, locale, tag: 'digest' };
 }

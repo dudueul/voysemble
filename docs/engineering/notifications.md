@@ -73,6 +73,24 @@ the phone's settings show them before the first push and a later push can name i
 app never asks to bypass the device's Do Not Disturb: "through quiet hours" is the product's rule
 on the server. Push delivery itself still waits for the store setup.
 
+## The guardian digest email (slice 054)
+
+The digest lane is a queue the cron drains. `wrangler.jsonc` runs `scheduled` every ten minutes
+(`triggers.crons`, inherited by the named environments); `index.ts` hands it to
+`lib/digest.ts` `runDigests(env, now)`: for every active organization in D1, the organization
+object's `dueDigests(now)` (the digest-lane rows with `deliver_at <= now` and no `digested_at`,
+grouped per recipient with their trip), one email per group through the `EmailPort`
+(`templates.ts` `digestEmail`: the trip's name in the subject with the count, each item's date
+and time in the trip's zone, its title and short body, no link, no token, KO or EN by the
+account's language), then `markDigested(ids, now, 'emailed')`. A recipient who has not joined
+(no account) is marked `'skipped'` without an email: the row still reaches their inbox at the
+digest hour when they do. A send that fails leaves the rows for the next run; one organization's
+failure never stops the others. The run logs one line with its counts (organizations, emails,
+rows, skipped, failed). The organizer's log counts the emailed rows next to the digest lane
+("24 · 24 emailed") and says where the hour is set. A run with nothing due costs one D1 read and
+one call per organization; a later slice moves the wake-up into the organization object's own
+alarm when the number of organizations makes the sweep the wrong shape.
+
 ## Facts established by tests
 
 - Rules (`notification-rules.test.ts`): the lane per role and kind; quiet hours across midnight;
@@ -100,11 +118,18 @@ on the server. Push delivery itself still waits for the store setup.
   the Today header's bell says "Inbox, 2 unread".
 - iOS (`LiveModelsTests`, `CaptureTests`): sample mode reads the fixture; live and unreachable is
   offline and honest; the row label's shape; the two captures.
+- Digest (`digest.test.ts`): a revision shared with guardians lands in Sora's digest lane and in no
+  email before the digest hour; the run after it mails Sora once (tagged digest, her language, the
+  trip in the subject, the moved event in the body, no token), marks the rows, and the log counts
+  one emailed of two digest rows (Hana's guardian never joined: skipped, no email); a second run
+  sends nothing; a failed send leaves the rows and the next run with a working transport sends
+  them; the template in both languages with the trip-zone clock. Console unit: the emailed count
+  in the digest column.
 
 ## Not done
 
 Push delivery (FCM and APNs: a token per device, the Android channels are there, an opaque event
 id per push); opening the thing a row points at from the inbox (the reference is there; the
-phones' navigation is still tab-and-push); the guardian digest email at the digest hour (the
-digest rows are there; the sender and the cron are not); chat mentions; the organizer's mobile
-digest; packing reminders.
+phones' navigation is still tab-and-push); the production email transport (the digest goes
+through the same `EmailPort` as the sign-in link, which named environments do not bind yet);
+chat mentions; the organizer's mobile digest; packing reminders.

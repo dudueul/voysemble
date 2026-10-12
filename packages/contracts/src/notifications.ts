@@ -66,6 +66,8 @@ export const NotificationEvent = z
     }),
     /** Normal-lane notifications still waiting for quiet hours to end at the time of the read. */
     held: z.number().int(),
+    /** Digest-lane notifications that went out by email at the digest hour (slice 054). */
+    emailed: z.number().int(),
     recipients: z.number().int(),
   })
   .openapi('NotificationEvent');

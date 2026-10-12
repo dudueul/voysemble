@@ -9,6 +9,10 @@
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
+  // Slice 054 (D29): the guardian digest run. Every ten minutes the Worker mails the digest-lane
+  // rows that came due (the organization's digest hour in the trip's zone); a run with nothing
+  // due costs one D1 read. Inherited by the named environments.
+  "triggers": { "crons": ["*/10 * * * *"] },
   "vars": { "ENV_NAME": "local", "BUILD_ID": "local" },
   // Global D1: identity, org directory, invites, sessions (ADR-0002). Migrations in ./migrations.
   "d1_databases": [

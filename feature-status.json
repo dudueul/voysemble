@@ -49,6 +49,7 @@
     "devices.revoke-wipe": "working",
     "notifications.lanes": "working",
     "notifications.push": "deferred",
+    "notifications.digest-email": "working",
     "auth.magic-link": "working",
     "auth.sessions": "working",
     "orgs.create": "working",

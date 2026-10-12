@@ -9,7 +9,7 @@ below is exercised by `apps/api-worker/test/{auth,organizations,roster-invites,c
 |---|---|---|
 | Global D1 (`DB`) | `accounts`, `sessions`, `magic_links`, `organizations`, `memberships`, `invite_codes` | SQL in `apps/api-worker/migrations/0001_identity.sql`. Drizzle schema in `src/db/schema.ts`; `test/schema.test.ts` fails if they drift. |
 | OrgDurableObject (`ORG_DO`, one per organization, name = organization id) | `schema_version`, `trips`, `participations` | In-object versioned migrations (`MIGRATIONS` array in `src/org/OrgDurableObject.ts`), applied under `blockConcurrencyWhile` on wake. |
-| KV `DEV_MAILBOX` | fixture mailbox | Local and tests only. Named environments do not bind it, so `createEmailPort` returns `UnavailableEmailPort` there until the Email Service binding is provisioned. |
+| KV `DEV_MAILBOX` | fixture mailbox | Local and tests only. Named environments do not bind it, so `createEmailPort` returns `UnavailableEmailPort` there until the Email Service binding is provisioned. The guardian digest (slice 054, `docs/engineering/notifications.md`) goes through the same port from a ten-minute cron. |
 
 Secrets are never stored. `sessions.token_hash`, `magic_links.token_hash`, `invite_codes.code_hash`
 hold SHA-256 of the presented value. Lookups compare hashes, so timing does not depend on the secret.

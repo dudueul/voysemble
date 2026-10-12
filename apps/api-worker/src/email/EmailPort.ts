@@ -12,7 +12,7 @@ export type OutboundEmail = {
   text: string;
   locale: 'ko' | 'en';
   /** Lets tests find a message without scanning bodies. Never contains the token. */
-  tag: 'magic-link' | 'invite';
+  tag: 'magic-link' | 'invite' | 'digest';
 };
 
 export interface EmailPort {

@@ -558,6 +558,17 @@ const MIGRATIONS: { version: number; sql: string }[] = [
       CREATE INDEX IF NOT EXISTS notifications_trip_idx ON notifications(trip_id, created_at);
     `,
   },
+  {
+    // The guardian digest email (D29, slice 054): when the digest run took a digest-lane row and
+    // what it did with it ('emailed', or 'skipped' when the recipient had no account); both null
+    // until the run after the digest hour.
+    version: 21,
+    sql: `
+      ALTER TABLE notifications ADD COLUMN digested_at TEXT;
+      ALTER TABLE notifications ADD COLUMN digest_outcome TEXT;
+      CREATE INDEX IF NOT EXISTS notifications_digest_idx ON notifications(lane, deliver_at);
+    `,
+  },
 ];
 
 type ChatMessageRow = {
@@ -665,6 +676,21 @@ type NotificationRow = {
   created_at: string;
   deliver_at: string;
   read_at: string | null;
+  /** Slice 054: when the digest run took this row and what it did; null for the other lanes and until the run. */
+  digested_at: string | null;
+  digest_outcome: 'emailed' | 'skipped' | null;
+};
+
+/** One guardian's (or anyone's) digest-lane rows due by now, grouped for one email (slice 054). */
+export type DueDigest = {
+  tripId: string;
+  tripName: string;
+  timeZone: string;
+  participationId: string;
+  /** The account the email goes to; null when the person has not joined (the rows wait in the inbox). */
+  accountId: string | null;
+  displayName: string;
+  items: { id: string; kind: string; title: string; body: string; createdAt: string }[];
 };
 
 type DriverLinkRow = {
@@ -4350,6 +4376,7 @@ export class OrgDurableObject extends DurableObject<Env> {
           refId: r.ref_id,
           lanes: { priority: 0, normal: 0, digest: 0 },
           held: 0,
+          emailed: 0,
           recipients: 0,
         };
         events.set(key, e);
@@ -4361,8 +4388,73 @@ export class OrgDurableObject extends DurableObject<Env> {
       ] += 1;
       e.recipients += 1;
       if (r.lane === 'normal' && r.deliver_at > now) e.held += 1;
+      if (r.lane === 'digest' && r.digest_outcome === 'emailed') e.emailed += 1;
     }
     return { events: [...events.values()] };
+  }
+
+  /**
+   * The digest-lane rows due by `now` that no email has carried yet, grouped per recipient with
+   * the trip they belong to (slice 054). The cron turns each group into one email and marks the
+   * rows; a recipient who has not joined yet has no account and keeps the rows in the inbox.
+   */
+  async dueDigests(now: string): Promise<DueDigest[]> {
+    this.requireOrg();
+    const rows = this.ctx.storage.sql
+      .exec<NotificationRow & { account_id: string | null; display_name: string }>(
+        `SELECT n.*, p.account_id, p.display_name FROM notifications n
+         JOIN participations p ON p.id = n.participation_id
+         WHERE n.lane = 'digest' AND n.deliver_at <= ? AND n.digested_at IS NULL
+         ORDER BY n.participation_id, n.created_at, n.id`,
+        now,
+      )
+      .toArray();
+    const trips = new Map<string, Trip | null>();
+    const groups = new Map<string, DueDigest>();
+    for (const r of rows) {
+      if (!trips.has(r.trip_id)) trips.set(r.trip_id, await this.getTrip(r.trip_id));
+      const trip = trips.get(r.trip_id);
+      if (!trip) continue;
+      let g = groups.get(r.participation_id);
+      if (!g) {
+        g = {
+          tripId: r.trip_id,
+          tripName: trip.name,
+          timeZone: trip.timezone,
+          participationId: r.participation_id,
+          accountId: r.account_id,
+          displayName: r.display_name,
+          items: [],
+        };
+        groups.set(r.participation_id, g);
+      }
+      g.items.push({
+        id: r.id,
+        kind: r.kind,
+        title: r.title,
+        body: r.body,
+        createdAt: r.created_at,
+      });
+    }
+    return [...groups.values()];
+  }
+
+  /** Marks digest rows as taken by the run at `now` (emailed, or skipped); returns how many changed. */
+  async markDigested(ids: string[], now: string, outcome: 'emailed' | 'skipped'): Promise<number> {
+    this.requireOrg();
+    let changed = 0;
+    const sql = this.ctx.storage.sql;
+    this.ctx.storage.transactionSync(() => {
+      for (const id of ids) {
+        changed += sql.exec(
+          'UPDATE notifications SET digested_at = ?, digest_outcome = ? WHERE id = ? AND digested_at IS NULL',
+          now,
+          outcome,
+          id,
+        ).rowsWritten;
+      }
+    });
+    return changed;
   }
 
   async personTimeline(tripId: string, participationId: string): Promise<TimelineEntry[] | null> {

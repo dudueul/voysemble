@@ -1,7 +1,8 @@
 // Copyright 2026- At Day. All rights reserved.
 // Notifications (D29, slice 052): the organizer's log of what the lanes sent for the active trip.
-// One row per event: when, what, how many went in the priority, normal and digest lanes, and how
-// many normal-lane notifications still wait for quiet hours to end. The rules themselves (which
+// One row per event: when, what, how many went in the priority, normal and digest lanes, how
+// many normal-lane notifications still wait for quiet hours to end and how many digest rows the
+// digest email carried (slice 054). The rules themselves (which
 // role gets which lane, the quiet hours and the digest hour) are set on the Settings page and
 // explained here. Live once the organization has a trip; a sample otherwise.
 
@@ -25,6 +26,7 @@ const SAMPLE: NotificationEvent[] = [
     refId: 'sample-1',
     lanes: { priority: 38, normal: 6, digest: 0 },
     held: 0,
+    emailed: 0,
     recipients: 44,
   },
   {
@@ -35,6 +37,7 @@ const SAMPLE: NotificationEvent[] = [
     refId: 'sample-2',
     lanes: { priority: 20, normal: 0, digest: 0 },
     held: 0,
+    emailed: 0,
     recipients: 20,
   },
   {
@@ -45,6 +48,7 @@ const SAMPLE: NotificationEvent[] = [
     refId: 'sample-3',
     lanes: { priority: 0, normal: 40, digest: 24 },
     held: 40,
+    emailed: 24,
     recipients: 64,
   },
 ];
@@ -118,7 +122,12 @@ function LogCard({ events, timeZone }: { events: NotificationEvent[]; timeZone: 
                 </td>
                 <td>{e.lanes.priority}</td>
                 <td>{e.lanes.normal}</td>
-                <td>{e.lanes.digest}</td>
+                <td>
+                  {e.lanes.digest}
+                  {e.emailed > 0 ? (
+                    <span className="muted small"> · {s.emailedCount(e.emailed)}</span>
+                  ) : null}
+                </td>
                 <td>
                   {e.held > 0 ? (
                     <span className="chip chip--delayed">{s.heldCount(e.held)}</span>
@@ -131,6 +140,7 @@ function LogCard({ events, timeZone }: { events: NotificationEvent[]; timeZone: 
           </tbody>
         </table>
       )}
+      <p className="muted small">{s.digestNote}</p>
       <p className="muted small">
         <Icons.bell /> {s.pushNote}
       </p>

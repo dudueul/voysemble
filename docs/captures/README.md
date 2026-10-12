@@ -264,3 +264,10 @@ announcement in the normal lane), the plan update, the accepted proposal and the
 confirmation read. `android/inbox-all-read-dark.png`, `ios/inbox-all-read-dark.png`: the same
 inbox all read, dark. `android/today-light.png` and `ios/today-light.png` (updated): the header's
 bell carries the badge "2". No console change.
+
+## Slice 054 (2026-10-12): the guardian digest email
+
+`web/desktop-1440/notifications-log.png`, `web/laptop-1280/notifications-log.png` (updated): the
+log's digest column now carries the emailed count when the digest run mailed rows, and the line
+under the table says where the digest hour is set. Produced by
+`apps/organizer-web/e2e/notifications.spec.ts`. No phone change.

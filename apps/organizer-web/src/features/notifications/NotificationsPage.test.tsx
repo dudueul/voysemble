@@ -1,6 +1,6 @@
 // Copyright 2026- At Day. All rights reserved.
 // Facts (D29, slice 052): the sample log shows three events; the live log reads the trip's events
-// with their lane counts and the held chip; an empty live log says so.
+// with their lane counts, the held chip and the emailed count; an empty live log says so.
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, screen } from '@testing-library/react';
@@ -77,6 +77,7 @@ describe('the notification log', () => {
             refId: 'a1',
             lanes: { priority: 3, normal: 3, digest: 0 },
             held: 0,
+            emailed: 0,
             recipients: 6,
           },
           {
@@ -87,6 +88,7 @@ describe('the notification log', () => {
             refId: 'a2',
             lanes: { priority: 0, normal: 4, digest: 2 },
             held: 4,
+            emailed: 2,
             recipients: 6,
           },
         ],
@@ -101,6 +103,8 @@ describe('the notification log', () => {
     expect(first.querySelectorAll('td')[0]?.textContent).toBe('2026-12-31 06:31');
     const second = screen.getByTestId('notif-a2');
     expect(second.textContent).toContain('4 until quiet hours end');
+    // Slice 054: the digest column says how many rows the digest email carried.
+    expect(second.querySelectorAll('td')[4]?.textContent).toBe('2 · 2 emailed');
     expect(screen.getByRole('heading', { level: 1 }).parentElement?.textContent).toContain(
       '2 events sent',
     );
