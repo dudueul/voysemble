@@ -2,6 +2,9 @@
 // Browser facts for slice 046 (D37): the organizer adds a flight, marks it delayed, adds a hotel
 // (the row reads the nights), adds a bus riding group Bus A (its seats follow the roster: two of
 // twenty-four), then removes the hotel. Capture travel-live.png with the three bookings in place.
+// Slice 049 (D39): mints the driver's link for the bus, opens it with no session (the sheet lists
+// the bus's names only; capture driver-sheet.png), sees the open counted, revokes it, and the
+// sheet says the link no longer works.
 
 import { expect, type Page, test } from '@playwright/test';
 import { OUT, signInWithOrg } from './helpers';
@@ -103,11 +106,42 @@ test('travel: a flight with its status, a hotel with its nights, a bus with its 
     '1 flights · 1 hotels · 1 buses · 3 travelers to move',
   );
 
+  // The driver's link: minted once, opened without a session, counted, revoked.
+  await page.getByRole('button', { name: 'Driver link for Bus A' }).click();
+  const url = await page.getByTestId('driver-link-url').inputValue();
+  expect(url).toMatch(/\/driver\/[0-9a-f-]{36}#token=[A-Za-z0-9_-]{40,}$/);
+  await expect(page.getByTestId('driver-links')).toContainText('0 opens');
+
   await page.mouse.move(0, 0);
   await page.screenshot({
     path: `${OUT}/${info.project.name}/travel-live.png`,
     fullPage: true,
   });
+
+  const driverCtx = await page.context().browser()?.newContext();
+  if (!driverCtx) throw new Error('no browser for the driver context');
+  const driver = await driverCtx.newPage();
+  await driver.goto(url);
+  await expect(driver.getByTestId('driver-bus')).toHaveText('Bus A · Roma Coach');
+  const group = driver.getByTestId('driver-group-Bus A');
+  await expect(group).toContainText('Minji Park');
+  await expect(group).toContainText('Juho Kim');
+  await expect(driver.getByText('Lee Hana')).toHaveCount(0);
+  await expect(driver.getByText('+39 333 000 0000')).toHaveCount(0);
+  await expect(driver.getByText('Names only', { exact: false })).toBeVisible();
+  await driver.screenshot({
+    path: `${OUT}/${info.project.name}/driver-sheet.png`,
+    fullPage: true,
+  });
+
+  await page.reload();
+  await expect(page.getByText('Live', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('driver-links')).toContainText('1 opens');
+  await page.getByRole('button', { name: /^Revoke the link minted/ }).click();
+  await expect(page.getByTestId('driver-links')).toContainText('Revoked');
+  await driver.reload();
+  await expect(driver.getByRole('alert')).toContainText('This link no longer works');
+  await driverCtx.close();
 
   // Remove the hotel; the card goes back to its empty line.
   await page.getByRole('button', { name: 'Remove Hotel de la Ville' }).click();

@@ -3,7 +3,8 @@
 // organization has a trip: the plan from `GET .../travel`, one add form per card, a flight's
 // status as a select, a bus's riding groups as checkboxes over the roster's groups (its assigned
 // seats follow the roster), and a remove button per row. Booking references are strings the
-// organizer typed; no provider integration exists. The fixture otherwise.
+// organizer typed; no provider integration exists. A bus also carries its driver links (D39,
+// slice 049): minted here, shown once, listed with their opens, revoked. The fixture otherwise.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
@@ -20,6 +21,7 @@ import { Icons } from '../../app/shell/icons';
 import { buses, flights, hotels } from '../../fixtures/sections';
 import { errorText } from '../../lib/errors';
 import {
+  driverLinksQuery,
   orgsQuery,
   pickActiveOrg,
   travel as travelApi,
@@ -158,7 +160,14 @@ function LiveTravel({ org, trip }: { org: Organization; trip: Trip }) {
               ) : (
                 <ul className="list" data-testid="bus-list">
                   {data.buses.map((b) => (
-                    <BusRow key={b.id} bus={b} busy={act.isPending} onRemove={() => remove(b.id)} />
+                    <BusRow
+                      key={b.id}
+                      org={org}
+                      trip={trip}
+                      bus={b}
+                      busy={act.isPending}
+                      onRemove={() => remove(b.id)}
+                    />
                   ))}
                 </ul>
               )}
@@ -260,10 +269,14 @@ function HotelRow({
 }
 
 function BusRow({
+  org,
+  trip,
   bus: b,
   busy,
   onRemove,
 }: {
+  org: Organization;
+  trip: Trip;
   bus: BusCharter;
   busy: boolean;
   onRemove: () => void;
@@ -290,7 +303,115 @@ function BusRow({
         <span className="small">{s.seats(b.assigned, b.seats)}</span>
       </div>
       <RemoveButton name={b.label} busy={busy} onClick={onRemove} />
+      <DriverLinks org={org} trip={trip} bus={b} />
     </li>
+  );
+}
+
+/** The driver's sealed links of one bus (D39): mint (the URL shows once), list with opens, revoke. */
+function DriverLinks({ org, trip, bus }: { org: Organization; trip: Trip; bus: BusCharter }) {
+  const qc = useQueryClient();
+  const links = useQuery(driverLinksQuery(org.id, trip.id, bus.id));
+  const [minted, setMinted] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const refresh = () =>
+    qc.invalidateQueries({ queryKey: driverLinksQuery(org.id, trip.id, bus.id).queryKey });
+  const mint = useMutation({
+    mutationFn: () => travelApi.createDriverLink(org.id, trip.id, bus.id),
+    onSuccess: (r) => {
+      setMinted(r.url);
+      setCopied(false);
+      setNote(null);
+      void refresh();
+    },
+    onError: (e) => setNote(errorText(e, s.driverLinkFailed)),
+  });
+  const revoke = useMutation({
+    mutationFn: (linkId: string) => travelApi.revokeDriverLink(org.id, trip.id, bus.id, linkId),
+    onSuccess: () => {
+      setNote(null);
+      void refresh();
+    },
+    onError: (e) => setNote(errorText(e, s.actionFailed)),
+  });
+  const copy = async () => {
+    if (!minted) return;
+    try {
+      await navigator.clipboard.writeText(minted);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  };
+  const rows = links.data?.links ?? [];
+  return (
+    <div className="stack driver-links" data-testid={`driver-links-${bus.id}`}>
+      <div className="missing__actions">
+        <button
+          type="button"
+          className="btn btn--ghost btn--sm"
+          disabled={mint.isPending}
+          onClick={() => mint.mutate()}
+          aria-label={s.driverLinkOf(bus.label)}
+        >
+          {mint.isPending ? s.driverLinkMinting : s.driverLink}
+        </button>
+        <span className="field__hint" role="status">
+          {note ?? ''}
+        </span>
+      </div>
+      {minted ? (
+        <div className="stack" style={{ gap: 4 }}>
+          <span className="small">{s.driverLinkMinted}</span>
+          <input
+            className="field__input"
+            readOnly
+            value={minted}
+            aria-label={s.driverLinkOf(bus.label)}
+            data-testid="driver-link-url"
+            onFocus={(e) => e.currentTarget.select()}
+          />
+          <div className="missing__actions">
+            <button type="button" className="btn btn--ghost btn--sm" onClick={() => void copy()}>
+              {copied ? s.driverLinkCopied : s.driverLinkCopy}
+            </button>
+            <a className="btn btn--ghost btn--sm" href={minted} target="_blank" rel="noreferrer">
+              {s.driverLinkOpen}
+            </a>
+          </div>
+        </div>
+      ) : null}
+      {links.data ? (
+        rows.length === 0 ? (
+          <span className="muted small">{s.driverLinksNone}</span>
+        ) : (
+          <ul className="list list--plain small" data-testid="driver-links">
+            {rows.map((l) => {
+              const mintedOn = l.createdAt.slice(0, 10);
+              return (
+                <li key={l.id} className={l.revokedAt ? 'checklist__done' : ''}>
+                  {s.driverLinkLine(mintedOn, l.expiresAt.slice(0, 10), l.opens)}
+                  {l.revokedAt ? (
+                    <span className="chip chip--expired">{s.driverLinkRevoked}</span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn btn--ghost btn--sm"
+                      disabled={revoke.isPending}
+                      onClick={() => revoke.mutate(l.id)}
+                      aria-label={s.driverLinkRevokeOf(mintedOn)}
+                    >
+                      {s.driverLinkRevoke}
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )
+      ) : null}
+    </div>
   );
 }
 

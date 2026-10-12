@@ -146,3 +146,65 @@ export function nightsBetween(checkIn: string, checkOut: string): number {
   const n = Math.round((Date.parse(checkOut) - Date.parse(checkIn)) / 86_400_000);
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
+
+// ---- The driver's sealed link (D27, D39, slice 049) ----
+
+/** A time-limited, revocable link to one bus's sheet; the token itself is shown once, only its hash is stored. */
+export const DriverLink = z
+  .object({
+    id: Id,
+    tripId: Id,
+    bookingId: Id,
+    createdAt: Timestamp,
+    expiresAt: Timestamp,
+    revokedAt: Timestamp.nullable(),
+    /** Times the sheet was opened through this link. */
+    opens: z.number().int(),
+    lastOpenedAt: Timestamp.nullable(),
+  })
+  .openapi('DriverLink');
+export type DriverLink = z.infer<typeof DriverLink>;
+
+export const DriverLinkList = z.object({ links: z.array(DriverLink) }).openapi('DriverLinkList');
+export type DriverLinkList = z.infer<typeof DriverLinkList>;
+
+/** The URL carries the token in its fragment and is returned once, at creation. */
+export const CreateDriverLinkResponse = z
+  .object({ link: DriverLink, url: z.string() })
+  .openapi('CreateDriverLinkResponse');
+export type CreateDriverLinkResponse = z.infer<typeof CreateDriverLinkResponse>;
+
+export const OpenDriverSheetRequest = z
+  .object({ token: z.string().min(32).max(128) })
+  .openapi('OpenDriverSheetRequest');
+export type OpenDriverSheetRequest = z.infer<typeof OpenDriverSheetRequest>;
+
+/** One roster group riding the bus: names only, leaders first. */
+export const DriverSheetGroup = z
+  .object({
+    name: z.string(),
+    leaders: z.array(z.string()),
+    travelers: z.array(z.string()),
+  })
+  .openapi('DriverSheetGroup');
+export type DriverSheetGroup = z.infer<typeof DriverSheetGroup>;
+
+/**
+ * What a driver sees: the trip, the bus and the names riding it. Never a contact, a room, a
+ * care note or a guardian (D13, D27): for anything else the driver asks the leader on the bus.
+ */
+export const DriverSheet = z
+  .object({
+    organizationName: z.string(),
+    tripName: z.string(),
+    startsOn: CalendarDate,
+    endsOn: CalendarDate,
+    bus: z.object({ label: z.string(), company: z.string(), seats: z.number().int() }),
+    groups: z.array(DriverSheetGroup),
+    leaders: z.number().int(),
+    travelers: z.number().int(),
+    /** When this link stops working. */
+    expiresAt: Timestamp,
+  })
+  .openapi('DriverSheet');
+export type DriverSheet = z.infer<typeof DriverSheet>;

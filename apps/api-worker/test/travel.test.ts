@@ -4,11 +4,31 @@
 // names; a flight's status changes with a patch; a patch of another kind is 409; a hotel that
 // checks out before it checks in is 400; a bus of zero seats and a bad time are 400; a leader
 // reads but cannot write; a traveler, a guardian and a stranger are 403; a deleted booking is
-// gone and an unknown one is 404.
+// gone and an unknown one is 404. Slice 049 (D39): the organizer mints a driver link to the bus,
+// the sheet opens without an account and lists names only (leaders and travelers of the bus's
+// groups), each open is counted, a revoked, unknown or bad token is 404, a traveler cannot mint,
+// and deleting the bus takes its links.
 
-import type { Booking, TravelPlan } from '@voysemble/contracts';
+import { SELF } from 'cloudflare:test';
+import type {
+  Booking,
+  CreateDriverLinkResponse,
+  DriverLinkList,
+  DriverSheet,
+  TravelPlan,
+} from '@voysemble/contracts';
 import { describe, expect, it } from 'vitest';
+import { driverLinkExpiry } from '../src/routes/travel';
 import { api, createOrg, createTrip, json, SAMPLE_CSV, signIn } from './helpers';
+
+/** The driver has no account: a plain POST with the token from the URL fragment. */
+async function openSheet(orgId: string, token: string) {
+  return SELF.fetch(`https://example.com/v1/driver/${orgId}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ token }),
+  });
+}
 
 async function setupTrip() {
   const nate = await signIn('nate@example.com');
@@ -187,5 +207,105 @@ describe('travel bookings (slice 046)', () => {
     const after = await json<TravelPlan>(await api(t.nate).get(travel));
     expect(after.hotels).toEqual([]);
     expect(after.flights).toHaveLength(1);
+  });
+
+  it("the driver's sealed link: minted once, names only, counted, revocable (slice 049)", async () => {
+    const t = await setupTrip();
+    const travel = `${t.base}/travel`;
+    const bus = await json<Booking>(
+      await api(t.nate).post(travel, {
+        kind: 'bus',
+        label: 'Bus A',
+        company: 'Roma Coach',
+        seats: 24,
+        driverContact: '+39 06 000 0000',
+        groups: ['Bus A'],
+      }),
+    );
+    const hotel = await json<Booking>(
+      await api(t.nate).post(travel, {
+        kind: 'hotel',
+        name: 'Hotel de la Ville',
+        city: 'Rome',
+        checkIn: '2026-12-28',
+        checkOut: '2027-01-02',
+      }),
+    );
+
+    // Minted by the organizer; the URL carries the token in its fragment, once.
+    const minted = await api(t.nate).post(`${travel}/${bus.id}/driver-links`);
+    expect(minted.status).toBe(201);
+    const { link, url } = await json<CreateDriverLinkResponse>(minted);
+    const token = /#token=([A-Za-z0-9_-]+)$/.exec(url)?.[1] ?? '';
+    expect(token.length).toBeGreaterThanOrEqual(40);
+    expect(url.startsWith(`https://example.com/driver/${t.org.id}#token=`)).toBe(true);
+    expect(link.opens).toBe(0);
+    expect(link.revokedAt).toBeNull();
+    expect(link.expiresAt > link.createdAt).toBe(true);
+    // Not for a hotel, not by a leader or a traveler.
+    expect((await api(t.nate).post(`${travel}/${hotel.id}/driver-links`)).status).toBe(404);
+    expect((await api(t.kim).post(`${travel}/${bus.id}/driver-links`)).status).toBe(403);
+    expect((await api(t.minji).post(`${travel}/${bus.id}/driver-links`)).status).toBe(403);
+
+    // The driver opens the sheet without an account: names only, leaders first; the open counts.
+    const opened = await openSheet(t.org.id, token);
+    expect(opened.status).toBe(200);
+    expect(opened.headers.get('cache-control')).toBe('no-store');
+    const sheet = await json<DriverSheet>(opened);
+    expect(sheet.organizationName).toBe('Seoul Arts High');
+    expect(sheet.bus).toEqual({ label: 'Bus A', company: 'Roma Coach', seats: 24 });
+    expect(sheet.groups).toEqual([
+      { name: 'Bus A', leaders: ['Kim'], travelers: ['Juho Kim', 'Minji Park'] },
+    ]);
+    expect([sheet.leaders, sheet.travelers]).toEqual([1, 2]);
+    expect(JSON.stringify(sheet)).not.toContain('+39');
+    expect(JSON.stringify(sheet)).not.toContain('Sora');
+    await openSheet(t.org.id, token);
+    const listed = await json<DriverLinkList>(
+      await api(t.nate).get(`${travel}/${bus.id}/driver-links`),
+    );
+    expect(listed.links.map((l) => [l.id, l.opens])).toEqual([[link.id, 2]]);
+    expect(listed.links[0]?.lastOpenedAt).not.toBeNull();
+
+    // Unknown, malformed and revoked tokens are one answer.
+    expect(
+      (
+        await openSheet(
+          t.org.id,
+          token.replace(/.$/, (ch) => (ch === 'a' ? 'b' : 'a')),
+        )
+      ).status,
+    ).toBe(404);
+    expect((await openSheet(t.org.id, 'short')).status).toBe(400);
+    expect((await openSheet(crypto.randomUUID(), token)).status).toBe(404);
+    const revoked = await api(t.nate).delete(`${travel}/${bus.id}/driver-links/${link.id}`);
+    expect(revoked.status).toBe(200);
+    expect((await json<{ revokedAt: string | null }>(revoked)).revokedAt).not.toBeNull();
+    expect((await openSheet(t.org.id, token)).status).toBe(404);
+    expect(
+      (await api(t.nate).delete(`${travel}/${bus.id}/driver-links/${crypto.randomUUID()}`)).status,
+    ).toBe(404);
+
+    // A second link works until the bus is deleted, which takes its links.
+    const second = await json<CreateDriverLinkResponse>(
+      await api(t.nate).post(`${travel}/${bus.id}/driver-links`),
+    );
+    const secondToken = /#token=([A-Za-z0-9_-]+)$/.exec(second.url)?.[1] ?? '';
+    expect((await openSheet(t.org.id, secondToken)).status).toBe(200);
+    expect((await api(t.nate).delete(`${travel}/${bus.id}`)).status).toBe(200);
+    expect((await openSheet(t.org.id, secondToken)).status).toBe(404);
+    expect((await api(t.nate).get(`${travel}/${bus.id}/driver-links`)).status).toBe(404);
+  });
+
+  it('a link expires thirty days out, or two days after the trip, never under a day', () => {
+    expect(driverLinkExpiry('2026-10-12T10:00:00.000Z', '2027-01-07')).toBe(
+      '2026-11-11T10:00:00.000Z',
+    );
+    expect(driverLinkExpiry('2026-12-30T10:00:00.000Z', '2027-01-07')).toBe(
+      '2027-01-09T00:00:00.000Z',
+    );
+    expect(driverLinkExpiry('2027-01-09T10:00:00.000Z', '2027-01-07')).toBe(
+      '2027-01-10T10:00:00.000Z',
+    );
   });
 });

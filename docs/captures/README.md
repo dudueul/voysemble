@@ -226,3 +226,10 @@ open). Produced by `apps/organizer-web/e2e/preparation.spec.ts`. `android/packin
 `ios/packing-guardian-dark.png` (CaptureTests): a traveler's list with six of nine packed and a
 guardian's list for their traveler. `android/today-guardian.png` (updated) carries the packing
 card. Produced by `PackingScreenshotTest` and `CaptureTests.testPacking`.
+
+## Slice 049 (2026-10-12): the driver's sealed link
+
+`web/desktop-1440/driver-sheet.png`, `web/laptop-1280/driver-sheet.png`: the public bus sheet a
+driver opens from the link (names only, printable). `web/<project>/travel-live.png` (updated): the
+bus row with the minted link, its URL shown once, and the link list with its opens. Produced by
+`apps/organizer-web/e2e/travel.spec.ts`. No phone change.

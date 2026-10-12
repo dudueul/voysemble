@@ -72,6 +72,28 @@ last answer, and before the first answer the section stays hidden rather than em
 shows the fixture's two flights, two hotels and two buses. Evidence: `android/plan-day.png`,
 `android/plan-arrival.png`, `ios/plan-day.png`, `ios/plan-arrival.png`.
 
+## The driver's sealed link (slice 049, D39)
+
+Drivers are not users (D27): they get a sealed, time-limited link, or the printed sheet. An
+organizer mints a link on a bus row ("Driver link"); the Worker stores only the token's hash
+(`driver_links`, schema 19: trip, booking, hash, created, expires, revoked, opens, last open) and
+answers the URL once (`/driver/<orgId>#token=…`, the token in the fragment so browsers never send
+it). The link expires thirty days out or two days after the trip ends, whichever comes first, never
+under a day (`driverLinkExpiry`). The console lists each link with its opens and a Revoke; a
+revoked link keeps its row (the opens stay as a fact). Deleting the bus deletes its links.
+
+The public route `POST /v1/driver/{orgId}` takes the token, needs no session, is rate limited per
+address (sixty per quarter hour) and answers `DriverSheet`: the organization and trip, the dates,
+the bus (label, company, seats) and, per roster group the bus names, the leaders and the travelers
+by name. Nothing else (D13, D27): no driver contact, no guardian, no room, no care note. Each open
+counts. Unknown, expired and revoked tokens are one 404 ("This link no longer works. Ask the
+organizer for a new one."); the answer carries `Cache-Control: no-store`.
+
+The sheet page (`/driver/$orgId`, `features/driver/DriverSheetPage.tsx`) sits outside the session
+gate, posts the token once per open, lists the names (leaders first, travelers numbered in two
+columns) and prints cleanly (the brand and the button hide under `@media print`). Evidence:
+`web/<project>/driver-sheet.png`; the console side in `travel-live.png`.
+
 ## Facts established by tests
 
 - Worker: an empty plan carries the roster's groups and traveler count; a flight, a hotel (5
@@ -90,6 +112,17 @@ shows the fixture's two flights, two hotels and two buses. Evidence: `android/pl
   section hidden. Screenshots: the concert day's night and buses; the arrival day's flight and
   check-in.
 - iOS: the same model facts on the fixture and on an unreachable server; the captures.
+- Worker (slice 049): a link is minted for a bus only (a hotel is 404; a leader and a traveler are
+  403), its URL carries the token in the fragment; the sheet opens with no session, names only
+  (leaders first; no driver contact, no guardian), with `no-store`; the opens count; an unknown,
+  a malformed and a revoked token, and a wrong organization, answer 404 or 400; deleting the bus
+  takes its links; the expiry rule's three cases.
+- Console unit (slice 049): the bus row mints the link (the URL shows once), lists it with its
+  opens and revokes it; the sheet page posts the token once and shows the names by group, and
+  says so for a dead or an incomplete link.
+- Browser (slice 049): mint on Bus A, open the URL in a session-less context (the sheet shows
+  Minji and Juho, not Hana nor the driver contact; capture), the console reads "1 opens" after a
+  reload, revoke, and the sheet says the link no longer works.
 - Console unit: the live page lists the plan (the subtitle counts, the bus seats from the
   roster), posts a hotel with the typed fields (the row reads 5 nights), patches a flight's status
   with the kind, and removes a bus (the card goes back to its empty line).
@@ -99,5 +132,6 @@ shows the fixture's two flights, two hotels and two buses. Evidence: `android/pl
 
 ## Not done
 
-The sealed driver link and the printed roster (D27-style sealed links); provider lookups (flight
-status, hotel confirmations); bookings in the trip report; a traveler's own seat or room.
+A sealed link for a hotel (the rooming list, D27); provider lookups (flight status, hotel
+confirmations); bookings in the trip report; a traveler's own seat or room; a Korean sheet for
+a Korean driver (the sheet follows the console's language).

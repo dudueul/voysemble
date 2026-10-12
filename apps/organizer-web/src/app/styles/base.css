@@ -1808,6 +1808,13 @@ fieldset.filters {
   align-items: center;
 }
 
+/* the driver's links sit under the bus row, across its columns (slice 049) */
+.driver-links {
+  grid-column: 1 / -1;
+  gap: 6px;
+  padding-top: 4px;
+}
+
 /* media */
 .thumbs {
   display: grid;
@@ -2579,4 +2586,59 @@ fieldset.filters {
   text-align: center;
   transform: rotate(-20deg);
   user-select: none;
+}
+
+/* the driver's bus sheet (slice 049): a wider public card, printable */
+.driver-sheet {
+  max-width: 720px;
+}
+
+.driver-sheet__head {
+  margin-bottom: 8px;
+}
+
+.driver-sheet__group {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--vy-border);
+}
+
+.driver-sheet__name {
+  margin: 0 0 6px;
+  font-size: 1.1rem;
+}
+
+.driver-sheet__list {
+  margin: 4px 0 12px;
+  padding-left: 1.5em;
+  columns: 2;
+  column-gap: 24px;
+}
+
+.driver-sheet__list li {
+  break-inside: avoid;
+  padding: 2px 0;
+}
+
+.driver-sheet__actions {
+  margin-top: 16px;
+}
+
+@media print {
+  body {
+    background: #fff;
+  }
+  .auth {
+    padding: 0;
+    min-height: 0;
+  }
+  .auth__card {
+    box-shadow: none;
+    border: 0;
+    max-width: none;
+  }
+  .auth__brand,
+  .driver-sheet__actions {
+    display: none;
+  }
 }

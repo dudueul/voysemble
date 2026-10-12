@@ -1808,10 +1808,22 @@ describe('Travel on the API (slice 046)', () => {
     createdAt: '2026-10-12T00:00:00.000Z',
   };
 
+  const LINK = {
+    id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+    tripId: TRIP.id,
+    bookingId: BUS.id,
+    createdAt: '2026-10-12T01:00:00.000Z',
+    expiresAt: '2026-11-11T01:00:00.000Z',
+    revokedAt: null,
+    opens: 0,
+    lastOpenedAt: null,
+  };
+
   it('lists the plan, adds a hotel, sets a flight status, and removes a bus', async () => {
     let hotels: Record<string, unknown>[] = [];
     let buses: Record<string, unknown>[] = [BUS];
     let flight: Record<string, unknown> = FLIGHT;
+    let linkMinted = false;
     const calls: string[] = [];
     vi.stubGlobal(
       'fetch',
@@ -1849,6 +1861,17 @@ describe('Travel on the API (slice 046)', () => {
           buses = [];
           return Response.json({ deleted: true, bookingId: BUS.id });
         }
+        if (key === `GET ${base}/travel/${BUS.id}/driver-links`)
+          return Response.json({ links: linkMinted ? [LINK] : [] });
+        if (key === `POST ${base}/travel/${BUS.id}/driver-links`) {
+          linkMinted = true;
+          return Response.json(
+            { link: LINK, url: `https://app.example/driver/${ORG.id}#token=${'t'.repeat(43)}` },
+            { status: 201 },
+          );
+        }
+        if (key === `DELETE ${base}/travel/${BUS.id}/driver-links/${LINK.id}`)
+          return Response.json({ ...LINK, revokedAt: '2026-10-12T02:00:00.000Z' });
         return Response.json(
           { error: { code: 'NOT_FOUND', message: key, correlationId: 't' } },
           { status: 404 },
@@ -1905,6 +1928,20 @@ describe('Travel on the API (slice 046)', () => {
     expect(JSON.parse(String(patch?.[1]?.body))).toEqual({ kind: 'flight', status: 'delayed' });
     await waitFor(() =>
       expect(screen.getByTestId(`booking-${FLIGHT.id}`).textContent).toContain('Delayed'),
+    );
+
+    // Mint the driver's link for the bus (slice 049): the URL shows once; the list reads the opens.
+    fireEvent.click(screen.getByRole('button', { name: 'Driver link for Bus A' }));
+    const url = (await screen.findByTestId('driver-link-url')) as HTMLInputElement;
+    expect(url.value).toBe(`https://app.example/driver/${ORG.id}#token=${'t'.repeat(43)}`);
+    await waitFor(() =>
+      expect(screen.getByTestId('driver-links').textContent).toContain(
+        'Minted 2026-10-12 · expires 2026-11-11 · 0 opens',
+      ),
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Revoke the link minted 2026-10-12' }));
+    await waitFor(() =>
+      expect(calls).toContain(`DELETE ${base}/travel/${BUS.id}/driver-links/${LINK.id}`),
     );
 
     // Remove the bus.

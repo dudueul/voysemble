@@ -20,6 +20,7 @@ import type {
   CreateAnnouncementRequest,
   CreateBookingRequest,
   CreateDocumentRequirementRequest,
+  CreateDriverLinkResponse,
   CreatePackingItemRequest,
   DeletePhotoResponse,
   DocumentItem,
@@ -27,6 +28,9 @@ import type {
   DocumentRequirement,
   DocumentRequirementList,
   DocumentState,
+  DriverLink,
+  DriverLinkList,
+  DriverSheet,
   HeadcountList,
   Incident,
   IncidentList,
@@ -341,6 +345,30 @@ export const travel = {
       `/v1/orgs/${orgId}/trips/${tripId}/travel/${bookingId}`,
       { method: 'DELETE' },
     ),
+  /** The driver's sealed link (D39, slice 049): minted once with its URL, listed with its opens, revoked. */
+  createDriverLink: (orgId: string, tripId: string, bookingId: string) =>
+    api<CreateDriverLinkResponse>(
+      `/v1/orgs/${orgId}/trips/${tripId}/travel/${bookingId}/driver-links`,
+      { method: 'POST' },
+    ),
+  revokeDriverLink: (orgId: string, tripId: string, bookingId: string, linkId: string) =>
+    api<DriverLink>(
+      `/v1/orgs/${orgId}/trips/${tripId}/travel/${bookingId}/driver-links/${linkId}`,
+      { method: 'DELETE' },
+    ),
+};
+
+export const driverLinksQuery = (orgId: string, tripId: string, bookingId: string) =>
+  queryOptions({
+    queryKey: ['orgs', orgId, 'trips', tripId, 'travel', bookingId, 'driver-links'],
+    queryFn: () =>
+      api<DriverLinkList>(`/v1/orgs/${orgId}/trips/${tripId}/travel/${bookingId}/driver-links`),
+  });
+
+/** The public bus sheet (no session): the token from the link's fragment, posted once per open. */
+export const driver = {
+  open: (orgId: string, token: string) =>
+    api<DriverSheet>(`/v1/driver/${orgId}`, { method: 'POST', body: { token } }),
 };
 
 /** The trip report (slice 034): composed on the server from acks, head counts, incidents, fees. */

@@ -35,6 +35,8 @@ import type {
   DocumentScanType,
   DocumentState,
   DocumentSummary,
+  DriverLink,
+  DriverSheet,
   FeeLedger,
   FeeRow,
   FlightInput,
@@ -504,6 +506,24 @@ const MIGRATIONS: { version: number; sql: string }[] = [
       CREATE INDEX IF NOT EXISTS packing_ticks_participation_idx ON packing_ticks(participation_id);
     `,
   },
+  {
+    // The driver's sealed link (D27, D39, slice 049): one bus, a token hash, an expiry, a revocation, the opens.
+    version: 19,
+    sql: `
+      CREATE TABLE IF NOT EXISTS driver_links (
+        id TEXT PRIMARY KEY,
+        trip_id TEXT NOT NULL REFERENCES trips(id),
+        booking_id TEXT NOT NULL REFERENCES travel_bookings(id),
+        token_hash TEXT NOT NULL UNIQUE,
+        created_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        revoked_at TEXT,
+        opens INTEGER NOT NULL DEFAULT 0,
+        last_opened_at TEXT
+      );
+      CREATE INDEX IF NOT EXISTS driver_links_booking_idx ON driver_links(booking_id, created_at);
+    `,
+  },
 ];
 
 type ChatMessageRow = {
@@ -596,6 +616,18 @@ type TravelBookingRow = {
   kind: string;
   data: string;
   created_at: string;
+};
+
+type DriverLinkRow = {
+  id: string;
+  trip_id: string;
+  booking_id: string;
+  token_hash: string;
+  created_at: string;
+  expires_at: string;
+  revoked_at: string | null;
+  opens: number;
+  last_opened_at: string | null;
 };
 
 type PackingItemRow = {
@@ -3708,8 +3740,155 @@ export class OrgDurableObject extends DurableObject<Env> {
   async deleteBooking(tripId: string, id: string): Promise<{ deleted: true } | { notFound: true }> {
     this.requireOrg();
     if (!this.bookingRow(tripId, id)) return { notFound: true };
-    this.ctx.storage.sql.exec('DELETE FROM travel_bookings WHERE id = ?', id);
+    this.ctx.storage.transactionSync(() => {
+      // A bus's driver links die with it (slice 049).
+      this.ctx.storage.sql.exec('DELETE FROM driver_links WHERE booking_id = ?', id);
+      this.ctx.storage.sql.exec('DELETE FROM travel_bookings WHERE id = ?', id);
+    });
     return { deleted: true };
+  }
+
+  // ---- The driver's sealed link (D27, D39, slice 049) ----
+
+  private driverLinkOf(r: DriverLinkRow): DriverLink {
+    return {
+      id: r.id,
+      tripId: r.trip_id,
+      bookingId: r.booking_id,
+      createdAt: r.created_at,
+      expiresAt: r.expires_at,
+      revokedAt: r.revoked_at,
+      opens: r.opens,
+      lastOpenedAt: r.last_opened_at,
+    };
+  }
+
+  /** A link to one bus; only the token's hash is kept. The booking must be a bus of the trip. */
+  async createDriverLink(
+    tripId: string,
+    bookingId: string,
+    tokenHash: string,
+    now: string,
+    expiresAt: string,
+  ): Promise<DriverLink | { notFound: true }> {
+    this.requireOrg();
+    const booking = this.bookingRow(tripId, bookingId);
+    if (booking?.kind !== 'bus') return { notFound: true };
+    const row: DriverLinkRow = {
+      id: crypto.randomUUID(),
+      trip_id: tripId,
+      booking_id: bookingId,
+      token_hash: tokenHash,
+      created_at: now,
+      expires_at: expiresAt,
+      revoked_at: null,
+      opens: 0,
+      last_opened_at: null,
+    };
+    this.ctx.storage.sql.exec(
+      'INSERT INTO driver_links (id, trip_id, booking_id, token_hash, created_at, expires_at, revoked_at, opens, last_opened_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      row.id,
+      row.trip_id,
+      row.booking_id,
+      row.token_hash,
+      row.created_at,
+      row.expires_at,
+      row.revoked_at,
+      row.opens,
+      row.last_opened_at,
+    );
+    return this.driverLinkOf(row);
+  }
+
+  async listDriverLinks(
+    tripId: string,
+    bookingId: string,
+  ): Promise<DriverLink[] | { notFound: true }> {
+    this.requireOrg();
+    if (!this.bookingRow(tripId, bookingId)) return { notFound: true };
+    return this.ctx.storage.sql
+      .exec<DriverLinkRow>(
+        'SELECT * FROM driver_links WHERE booking_id = ? ORDER BY created_at DESC, id',
+        bookingId,
+      )
+      .toArray()
+      .map((r) => this.driverLinkOf(r));
+  }
+
+  /** Revoking keeps the row (the opens stay as a fact); the link answers nothing from now on. */
+  async revokeDriverLink(
+    tripId: string,
+    linkId: string,
+    now: string,
+  ): Promise<DriverLink | { notFound: true }> {
+    this.requireOrg();
+    const row =
+      this.ctx.storage.sql
+        .exec<DriverLinkRow>(
+          'SELECT * FROM driver_links WHERE id = ? AND trip_id = ?',
+          linkId,
+          tripId,
+        )
+        .toArray()[0] ?? null;
+    if (!row) return { notFound: true };
+    const next: DriverLinkRow = { ...row, revoked_at: row.revoked_at ?? now };
+    this.ctx.storage.sql.exec(
+      'UPDATE driver_links SET revoked_at = ? WHERE id = ?',
+      next.revoked_at,
+      linkId,
+    );
+    return this.driverLinkOf(next);
+  }
+
+  /**
+   * The sheet behind a token: unknown, expired and revoked are one answer (nothing to learn).
+   * Each open is counted. Names only: leaders and travelers of the roster groups the bus names.
+   */
+  async openDriverSheet(
+    tokenHash: string,
+    now: string,
+  ): Promise<Omit<DriverSheet, 'organizationName'> | { notFound: true }> {
+    this.requireOrg();
+    const sql = this.ctx.storage.sql;
+    const link =
+      sql
+        .exec<DriverLinkRow>('SELECT * FROM driver_links WHERE token_hash = ?', tokenHash)
+        .toArray()[0] ?? null;
+    if (!link || link.revoked_at || link.expires_at <= now) return { notFound: true };
+    const booking = this.bookingRow(link.trip_id, link.booking_id);
+    const trip = await this.getTrip(link.trip_id);
+    if (booking?.kind !== 'bus' || !trip) return { notFound: true };
+    sql.exec(
+      'UPDATE driver_links SET opens = opens + 1, last_opened_at = ? WHERE id = ?',
+      now,
+      link.id,
+    );
+    const bus = JSON.parse(booking.data) as {
+      label: string;
+      company: string;
+      seats: number;
+      groups?: string[];
+    };
+    const roster = await this.listRoster(link.trip_id);
+    const groups = (bus.groups ?? []).map((name) => {
+      const riding = roster.filter((p) => p.groupName === name);
+      const names = (role: string) =>
+        riding
+          .filter((p) => p.role === role)
+          .map((p) => p.displayName)
+          .sort((a, b) => a.localeCompare(b));
+      return { name, leaders: names('leader'), travelers: names('traveler') };
+    });
+    return {
+      tripName: trip.name,
+      startsOn: trip.startsOn,
+      endsOn: trip.endsOn,
+      bus: { label: bus.label, company: bus.company, seats: bus.seats },
+      groups,
+      leaders: groups.reduce((n, g) => n + g.leaders.length, 0),
+      travelers: groups.reduce((n, g) => n + g.travelers.length, 0),
+      expiresAt: link.expires_at,
+    };
   }
 
   // ---- Packing checklist (D38, slice 048) ----

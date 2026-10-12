@@ -1371,3 +1371,26 @@ Built:
 - Docs: `packing.md`, decision D38, documents doc pointer, captures README, mobile README, ledger, feature flags `packing.checklist` and `mobile.packing` working.
 
 Not done: packing reminders in the notification lanes (D29); the leader's per-traveler view on the phone; who-ticked on the console.
+
+## Slice 049: the driver's sealed link and the printed sheet
+
+Status: done 2026-10-12. Commit: see git log (`feat(travel): the driver's sealed link and the printed bus sheet (slice 049)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D39 (new: the driver's sealed link), D27 (third parties get sealed links, never accounts), D13 (what leaves the console), D37 (bookings), slice 041 (rate limits), D31 (captures). Details: `docs/engineering/travel.md` ("The driver's sealed link").
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker exec vitest run test/travel.test.ts` | 1 file, 3 tests (adds the link facts and the expiry rule) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 16 files, 103 tests (adds the bus row's link case and `DriverSheetPage.test.tsx`: 2) |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e -- travel.spec.ts` | 2 passed (desktop-1440, laptop-1280); captures `driver-sheet.png`, `travel-live.png` updated |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+No phone change (D27: drivers are not users; the sheet is a public web page).
+
+Built:
+- Contracts `travel.ts`: `DriverLink`, `DriverLinkList`, `CreateDriverLinkResponse`, `OpenDriverSheetRequest`, `DriverSheetGroup`, `DriverSheet`.
+- Worker: OrgDurableObject schema 19 (`driver_links`) with `createDriverLink`, `listDriverLinks`, `revokeDriverLink`, `openDriverSheet` (names only, each open counted; unknown, expired and revoked are one answer); deleting a bus deletes its links; `routes/travel.ts` mint, list and revoke for organizers, the public `POST /v1/driver/{orgId}` with the `driverIp` limit (60 per 15 minutes) and `no-store`; `driverLinkExpiry`.
+- Console: `driverLinksQuery`, `travel.createDriverLink/revokeDriverLink`, `driver.open`; the bus row's driver links block (mint, the URL shown once with Copy and Open, the list with opens and Revoke); the public sheet page on `/driver/$orgId` (outside the session gate; prints); strings EN/KO (`travel.driverLink*`, `driver.*`); print styles.
+- Tests: worker (+2 facts), console unit (+3), browser (the travel spec grows the link, the session-less open, the count, the revoke).
+- Docs: `travel.md` section and facts, decision D39, rate-limits row, captures README, documents doc pointer, ledger, feature flags `documents.sealed-links` and `travel.driver-links` working.
+
+Not done: a sealed link for a hotel (the rooming list); a Korean sheet by the driver's choice; a QR of the link on the console.

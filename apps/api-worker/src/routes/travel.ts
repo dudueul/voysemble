@@ -3,24 +3,123 @@
 // Travel bookings (D37, slice 046): the flights, hotels and bus charters of a trip. Owners and
 // organizers write; leaders read (the bus they ride, the hotel). Guardians and travelers do not:
 // the itinerary carries what they need. A bus's seat count follows the roster groups it names.
+// The driver's sealed link (D27, D39, slice 049): an organizer mints a time-limited, revocable
+// link to one bus's sheet (names only); the driver opens it without an account through the
+// public route, which counts the open. Only the token's hash is stored; the URL is shown once.
 
 import { createRoute, type OpenAPIHono } from '@hono/zod-openapi';
 import {
   Booking,
   CreateBookingRequest,
+  CreateDriverLinkResponse,
+  DriverLink,
+  DriverLinkList,
+  DriverSheet,
+  OpenDriverSheetRequest,
   TravelPlan,
   UpdateBookingRequest,
 } from '@voysemble/contracts';
+import { eq } from 'drizzle-orm';
 import { HTTPException } from 'hono/http-exception';
 import { z } from 'zod';
 import { requireAuth, requireOrgRole } from '../auth/middleware';
+import { db } from '../db/client';
+import { organizations } from '../db/schema';
 import type { AppEnv } from '../env';
-import { nowIso } from '../lib/time';
+import { clientIp, enforceLimits } from '../lib/rate-limit';
+import { isPast, nowIso, plusSeconds, SECONDS } from '../lib/time';
+import { hashToken, randomToken } from '../lib/tokens';
 import { orgObject } from '../org/client';
 import { ERROR_RESPONSES, SESSION_SECURITY } from './openapi-common';
 import { TripParams } from './trips';
 
 const BookingParams = TripParams.extend({ bookingId: z.uuid() });
+const LinkParams = BookingParams.extend({ linkId: z.uuid() });
+const DriverParams = z.object({ orgId: z.uuid() });
+
+/** Thirty days from now or two days after the trip ends, whichever comes first; never under a day. */
+export function driverLinkExpiry(now: string, endsOn: string): string {
+  const byTrip = plusSeconds(`${endsOn}T00:00:00.000Z`, 2 * SECONDS.day);
+  const byNow = plusSeconds(now, 30 * SECONDS.day);
+  const soonest = byTrip < byNow ? byTrip : byNow;
+  return isPast(plusSeconds(soonest, -SECONDS.day), now) ? plusSeconds(now, SECONDS.day) : soonest;
+}
+
+const createLinkRoute = createRoute({
+  method: 'post',
+  path: '/v1/orgs/{orgId}/trips/{tripId}/travel/{bookingId}/driver-links',
+  tags: ['travel'],
+  summary: "Mint the driver's sealed link to a bus (owner, organizer); the URL is returned once",
+  description:
+    'The link opens the bus sheet (names only) without an account until it expires (thirty days, or two days after the trip ends) or is revoked. Only the token hash is stored.',
+  security: SESSION_SECURITY,
+  request: { params: BookingParams },
+  responses: {
+    201: {
+      description: 'The link and its URL (token in the fragment).',
+      content: { 'application/json': { schema: CreateDriverLinkResponse } },
+    },
+    401: ERROR_RESPONSES[401],
+    403: ERROR_RESPONSES[403],
+    404: ERROR_RESPONSES[404],
+    500: ERROR_RESPONSES[500],
+  },
+});
+
+const listLinksRoute = createRoute({
+  method: 'get',
+  path: '/v1/orgs/{orgId}/trips/{tripId}/travel/{bookingId}/driver-links',
+  tags: ['travel'],
+  summary: 'The links minted for a bus with their opens (owner, organizer)',
+  security: SESSION_SECURITY,
+  request: { params: BookingParams },
+  responses: {
+    200: {
+      description: 'Newest first.',
+      content: { 'application/json': { schema: DriverLinkList } },
+    },
+    401: ERROR_RESPONSES[401],
+    403: ERROR_RESPONSES[403],
+    404: ERROR_RESPONSES[404],
+    500: ERROR_RESPONSES[500],
+  },
+});
+
+const revokeLinkRoute = createRoute({
+  method: 'delete',
+  path: '/v1/orgs/{orgId}/trips/{tripId}/travel/{bookingId}/driver-links/{linkId}',
+  tags: ['travel'],
+  summary: 'Revoke a link (owner, organizer); its opens stay on record',
+  security: SESSION_SECURITY,
+  request: { params: LinkParams },
+  responses: {
+    200: { description: 'Revoked.', content: { 'application/json': { schema: DriverLink } } },
+    401: ERROR_RESPONSES[401],
+    403: ERROR_RESPONSES[403],
+    404: ERROR_RESPONSES[404],
+    500: ERROR_RESPONSES[500],
+  },
+});
+
+const openSheetRoute = createRoute({
+  method: 'post',
+  path: '/v1/driver/{orgId}',
+  tags: ['travel'],
+  summary: "Open a bus sheet with the driver's link (no account); each open is counted",
+  description:
+    'The token comes from the URL fragment. Unknown, expired and revoked tokens are one 404: nothing to learn. Rate limited per address.',
+  request: {
+    params: DriverParams,
+    body: { content: { 'application/json': { schema: OpenDriverSheetRequest } } },
+  },
+  responses: {
+    200: { description: 'The sheet.', content: { 'application/json': { schema: DriverSheet } } },
+    400: ERROR_RESPONSES[400],
+    404: ERROR_RESPONSES[404],
+    429: ERROR_RESPONSES[429],
+    500: ERROR_RESPONSES[500],
+  },
+});
 
 const planRoute = createRoute({
   method: 'get',
@@ -163,4 +262,66 @@ export function mountTravelRoutes(app: OpenAPIHono<AppEnv>): void {
     if ('notFound' in r) throw new HTTPException(404, { message: 'Booking not found.' });
     return c.json({ deleted: true as const, bookingId }, 200);
   });
+
+  app.openapi(createLinkRoute, async (c) => {
+    const auth = requireAuth(c);
+    const { orgId, tripId, bookingId } = c.req.valid('param');
+    await requireOrgRole(c.env, auth, orgId, 'organizer');
+    const org = await orgObject(c.env, orgId);
+    const trip = await org.getTrip(tripId);
+    if (!trip) throw new HTTPException(404, { message: 'Trip not found.' });
+    const token = randomToken();
+    const now = nowIso();
+    const r = await org.createDriverLink(
+      tripId,
+      bookingId,
+      hashToken(token),
+      now,
+      driverLinkExpiry(now, trip.endsOn),
+    );
+    if ('notFound' in r) throw new HTTPException(404, { message: 'Bus not found.' });
+    const url = `${new URL(c.req.url).origin}/driver/${orgId}#token=${token}`;
+    return c.json({ link: r, url }, 201);
+  });
+
+  app.openapi(listLinksRoute, async (c) => {
+    const auth = requireAuth(c);
+    const { orgId, tripId, bookingId } = c.req.valid('param');
+    await requireOrgRole(c.env, auth, orgId, 'organizer');
+    const org = await orgObject(c.env, orgId);
+    const r = await org.listDriverLinks(tripId, bookingId);
+    if ('notFound' in r) throw new HTTPException(404, { message: 'Bus not found.' });
+    return c.json({ links: r }, 200);
+  });
+
+  app.openapi(revokeLinkRoute, async (c) => {
+    const auth = requireAuth(c);
+    const { orgId, tripId, linkId } = c.req.valid('param');
+    await requireOrgRole(c.env, auth, orgId, 'organizer');
+    const org = await orgObject(c.env, orgId);
+    const r = await org.revokeDriverLink(tripId, linkId, nowIso());
+    if ('notFound' in r) throw new HTTPException(404, { message: 'Link not found.' });
+    return c.json(r, 200);
+  });
+
+  app.openapi(openSheetRoute, async (c) => {
+    await enforceLimits(c, [{ scope: 'driverIp', subject: clientIp(c) }]);
+    const { orgId } = c.req.valid('param');
+    const { token } = c.req.valid('json');
+    const organization = await db(c.env.DB)
+      .select({ name: organizations.name, status: organizations.status })
+      .from(organizations)
+      .where(eq(organizations.id, orgId))
+      .get();
+    if (organization?.status !== 'active') {
+      throw new HTTPException(404, { message: NOT_VALID_LINK });
+    }
+    const org = await orgObject(c.env, orgId);
+    const r = await org.openDriverSheet(hashToken(token), nowIso());
+    if ('notFound' in r) throw new HTTPException(404, { message: NOT_VALID_LINK });
+    c.header('Cache-Control', 'no-store');
+    return c.json({ ...r, organizationName: organization.name }, 200);
+  });
 }
+
+const NOT_VALID_LINK = 'This link no longer works. Ask the organizer for a new one.';

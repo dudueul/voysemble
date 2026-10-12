@@ -1,6 +1,7 @@
 // Copyright 2026- At Day. All rights reserved.
 // Code-based TanStack Router tree.
-// Public: /sign-in, /auth/verify, /auth/reauth (slice 045), /invitations/accept (slice 042). Everything else sits under a
+// Public: /sign-in, /auth/verify, /auth/reauth (slice 045), /invitations/accept (slice 042),
+// /driver/$orgId (slice 049, the driver's bus sheet). Everything else sits under a
 // pathless layout whose beforeLoad
 // requires a session (GET /v1/me) and redirects to /sign-in otherwise. `/` = command center on
 // fixtures; /setup = first-run checklist on the real API; other sections are honest placeholders.
@@ -12,6 +13,7 @@ import { ReauthPage } from '../features/auth/ReauthPage';
 import { SignInPage } from '../features/auth/SignInPage';
 import { VerifyPage } from '../features/auth/VerifyPage';
 import { CommandCenterPage } from '../features/command-center/CommandCenterPage';
+import { DriverSheetPage } from '../features/driver/DriverSheetPage';
 import { ItineraryPage } from '../features/itinerary/ItineraryPage';
 import { PlaceholderPage } from '../features/placeholder/PlaceholderPage';
 import { BillingPage } from '../features/sections/BillingPage';
@@ -49,6 +51,13 @@ const reauthRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/auth/reauth',
   component: ReauthPage,
+});
+
+/** The driver's sealed link lands here (slice 049): no session, the token in the fragment. */
+const driverRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/driver/$orgId',
+  component: DriverSheetPage,
 });
 
 /** The emailed organizer invitation lands here (slice 042); signed out, it shows the sign-in form. */
@@ -151,6 +160,7 @@ export const router = createRouter({
     verifyRoute,
     reauthRoute,
     acceptInvitationRoute,
+    driverRoute,
     appRoute.addChildren([indexRoute, setupRoute, itineraryRoute, ...sectionRoutes, unknownRoute]),
   ]),
   defaultPreload: 'intent',
