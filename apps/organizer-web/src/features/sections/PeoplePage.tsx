@@ -28,6 +28,7 @@ import {
   roster as rosterApi,
   rosterQuery,
   tripsQuery,
+  useActiveTrip,
 } from '../../lib/session';
 import { strings } from '../../lib/strings';
 import { Card, Initials, SectionPage } from './SectionPage';
@@ -760,7 +761,7 @@ export function PeoplePage() {
   const orgs = useQuery(orgsQuery);
   const org = orgs.data ? pickActiveOrg(orgs.data) : null;
   const trips = useQuery({ ...tripsQuery(org?.id ?? ''), enabled: Boolean(org) });
-  const trip = trips.data?.[0] ?? null;
+  const trip = useActiveTrip(org?.id ?? '', trips.data);
   const roster = useQuery({
     ...rosterQuery(org?.id ?? '', trip?.id ?? ''),
     enabled: Boolean(org && trip),

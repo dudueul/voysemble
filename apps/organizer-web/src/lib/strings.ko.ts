@@ -28,6 +28,7 @@ export const ko: Strings = {
     menu: '메뉴',
     closeMenu: '메뉴 닫기',
     switchLanguage: (name: string) => `콘솔 언어를 ${name}(으)로 바꾸기`,
+    trip: '여행',
   },
   dashboard: {
     welcome: (name: string) => `${name}님, 다시 오셨네요`,
@@ -52,6 +53,11 @@ export const ko: Strings = {
     noAlerts: '지금 확인이 필요한 일은 없습니다.',
     live: '실시간',
     openSafety: '안전 열기',
+    openTrip: '열기',
+    openTripOf: (name: string) => `${name} 열기`,
+    newTrip: '새 여행',
+    newTripCancel: '취소',
+    newTripFailed: '여행을 만들지 못했습니다.',
     noMovements: '앞으로 48시간 동안 이동이 없습니다. 일정은 이후 슬라이스에서 API로 옮겨집니다.',
     noHeadcounts:
       '아직 인원 점검이 없습니다. 인솔자가 휴대폰에서 열면 그룹별 최신 결과가 여기에 보입니다.',
@@ -67,6 +73,9 @@ export const ko: Strings = {
       `다시 시도해 주세요. 계속 실패하면 참조 번호 ${ref}을(를) 지원팀에 알려 주세요.`,
     retry: '다시 시도',
     offlineBanner: (t: string) => `오프라인입니다. 마지막 동기화(${t}) 데이터를 보여 드립니다.`,
+    offlineTitle: '오프라인입니다',
+    offlineBody:
+      '상황판을 처음 불러오려면 연결이 필요합니다. 네트워크를 확인하고 다시 시도해 주세요.',
   },
   auth: {
     title: '로그인',

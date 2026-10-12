@@ -25,6 +25,7 @@ export const en = {
     menu: 'Menu',
     closeMenu: 'Close menu',
     switchLanguage: (name: string) => `Switch the console to ${name}`,
+    trip: 'Trip',
   },
   dashboard: {
     welcome: (name: string) => `Welcome back, ${name}`,
@@ -49,6 +50,11 @@ export const en = {
     noAlerts: 'Nothing needs attention right now.',
     live: 'Live',
     openSafety: 'Open Safety',
+    openTrip: 'Open',
+    openTripOf: (name: string) => `Open ${name}`,
+    newTrip: 'New trip',
+    newTripCancel: 'Cancel',
+    newTripFailed: 'The trip could not be created.',
     noMovements:
       'No movements in the next 48 hours. The itinerary moves onto the API in a later slice.',
     noHeadcounts:
@@ -65,6 +71,9 @@ export const en = {
       `Try again. If it keeps failing, quote reference ${ref} to support.`,
     retry: 'Retry',
     offlineBanner: (t: string) => `You are offline. Showing data from the last sync ${t}.`,
+    offlineTitle: 'You are offline',
+    offlineBody:
+      'The command center needs a connection the first time it loads. Check the network and retry.',
   },
   auth: {
     title: 'Sign in',

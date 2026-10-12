@@ -1623,7 +1623,7 @@ Not done: the room on the head count roster row (the sample head count already c
 
 ## Slice 060: document reminders from the Preparation page
 
-Status: done 2026-10-12. Commit: see git log (`feat(documents): one nudge a day to the travelers still missing a document and their guardians (slice 060)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: 7e34b09 (`feat(documents): one nudge a day to the travelers still missing a document and their guardians (slice 060)`). CI: run 38288452710 green (web, mobile, ios); captures recorded by CI in 6d3232d.
 Spec: D27 (documents; amended), D29 (lanes), D13 (guardians hear about their traveler). Details: `docs/engineering/documents.md` (the remind route and the console), `notifications.md` (tables).
 
 | Gate | Command | Result |
@@ -1645,7 +1645,7 @@ Not done: the nudge from the person card; the guardian's own view of what is mis
 
 ## Slice 061: the inbox row opens its target on both phones
 
-Status: done 2026-10-12. Commit: see git log (`feat(mobile): "Open" on an inbox row leads to what it points at (slice 061)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: 720c409 (`feat(mobile): "Open" on an inbox row leads to what it points at (slice 061)`). CI: run 38288908179 green (web, mobile, ios; the first run of the path-driven Today stack on iOS); captures recorded by CI in b946413.
 Spec: D29 (the inbox; amended in 053), D13 (what a guardian reads where), D27 (documents never on a phone), D31. Details: `docs/engineering/notifications.md` (Phones).
 
 | Gate | Command | Result |
@@ -1667,7 +1667,7 @@ Not done: opening the exact announcement or incident (the screens open on their 
 
 ## Slice 062: document reminders from the cron on the mornings before the due date
 
-Status: done 2026-10-12. Commit: see git log (`feat(documents): reminders from the cron on the mornings before the due date (slice 062)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: 3345b3b (`feat(documents): reminders from the cron on the mornings before the due date (slice 062)`). CI: run 38289846923 green (web, mobile, ios; the hardened announcements and head-count specs passed); captures recorded by CI in 32ed590.
 Spec: D27 (documents; amended in 060), D29 (lanes), D38 (the reminder mornings, shared with packing). Details: `docs/engineering/documents.md` (the schedule section), `notifications.md` (events table).
 
 | Gate | Command | Result |
@@ -1683,3 +1683,26 @@ Built:
 - Also in this commit: `announcements.spec.ts` waits for the Announcements card's own empty status (two cards carry a loading status while the page fills) and `headcounts.spec.ts` gives the heading fifteen seconds, after the flaky web run of slice 059.
 
 Not done: reminder mornings the organizer chooses; a reminder for the organizer when a due date passes with documents still missing; the leader's view of who is missing what (D27 keeps documents off the phone).
+
+## Slice 063: trip switching, alert links and the offline state on the console
+
+Status: done 2026-10-12. Commit: see git log (`feat(console): the organizer's trip is a choice; alerts link where they lead; offline is said (slice 063)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D42 (new: the active trip), D21 (one console for owners and organizers), D29 (alerts), D31. Details: `docs/engineering/command-center-live.md` (the slice 063 section, rules, facts).
+
+| Gate | Command | Result |
+|---|---|---|
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 22 files, 132 tests (adds `active-trip.test.ts`: 3, `TopBar.test.tsx`: 3, `CommandCenterPage.test.ts`: 5; `CommandCenterView.test.tsx` +4) |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e -- trip-switch.spec.ts headcounts.spec.ts command-center.spec.ts responsive.spec.ts locale.spec.ts sections.spec.ts` | 3 passed on desktop-1440 (the two new cases and the head-count flow with the alert link); 51 passed over all four projects for `trip-switch`, `command-center`, `responsive`, `locale`, `sections` (`command-center-trips.png`, `command-center-offline-first.png` recorded) |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+The first browser run of this slice failed on every new case because the console's `dist` was a build from before the change (`wrangler dev` serves `dist`); the api-worker `pretest` hook builds it, the console's own `test` does not. The rule from now: build the console before a local browser run that follows console changes.
+
+Built:
+- `lib/session.ts`: the active trip as an external store (`readActiveTripId`, `writeActiveTripId`, `subscribeActiveTrip`, `defaultTrip`, `pickActiveTrip`, `useActiveTrip`); the fifteen pages and the shell read it instead of the first trip.
+- Top bar: the trip is a native select when the organization has more than one (`data-testid="trip-switcher"`); `AppShell` writes the choice.
+- Today: the Trips panel's "Open" on the other rows and "New trip" with its fold-out form (the zone starting as the active trip's; the new trip becomes active); the page's `commandCenterState` rule and the `offline` view state; alerts' first action as a link (`Alert.to`; an open incident to `/safety`, the sample's to the itinerary, the journey graph and Preparation).
+- Strings EN/KO (`topbar.trip`, `dashboard.openTrip`, `openTripOf`, `newTrip`, `newTripCancel`, `newTripFailed`, `states.offlineTitle`, `offlineBody`); CSS `.topbar__trip`, `.trip__side`, `.trip-form`.
+- Tests: unit (15 new cases), browser (`trip-switch.spec.ts`: 2; the live alert's link in `headcounts.spec.ts`); captures `command-center-trips.png`, `command-center-offline-first.png`.
+- Docs: `command-center-live.md` section, rules and facts, D42, captures README, ledger, feature flags `console.trip-switching`, `console.alert-links`, `console.offline-state` working.
+
+Not done: a display name on accounts; a trip switch on the phones; archiving a completed trip out of the switch; the alerts' second actions as flows.

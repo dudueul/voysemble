@@ -4,6 +4,8 @@
 // state and renders loading / empty / error / offline / success. No data fetching here, so
 // every state is unit-testable and screenshot-able. `data.live` (slice 014) swaps the
 // "Sample data" chip for "Live"; panels render their own empty lines when the API has nothing.
+// Slice 063: an `offline` state for a first load without a connection (a later one shows the
+// last data under the banner instead), and the trip callbacks the Trips panel switches with.
 
 import { Icons } from '../../app/shell/icons';
 import type { Dashboard, Trip } from '../../fixtures/korea-concert-tour';
@@ -14,17 +16,29 @@ import { Announcements } from './Announcements';
 import { HeadcountPanel } from './HeadcountPanel';
 import { MovementsPanel } from './MovementsPanel';
 import { StatTiles } from './StatTiles';
-import { TripsPanel } from './TripsPanel';
+import { type NewTripInput, TripsPanel } from './TripsPanel';
 
 export type CommandCenterState =
   | { kind: 'loading' }
   | { kind: 'error'; correlationId: string; retry: () => void }
+  | { kind: 'offline'; retry: () => void }
   | { kind: 'ready'; data: Dashboard };
 
-export function CommandCenterView({ state }: { state: CommandCenterState }) {
+export function CommandCenterView({
+  state,
+  onSwitchTrip,
+  onCreateTrip,
+}: {
+  state: CommandCenterState;
+  /** Slice 063: the Trips panel's "Open" (live only). */
+  onSwitchTrip?: ((tripId: string) => void) | undefined;
+  /** Slice 063: the Trips panel's "New trip" (live only). */
+  onCreateTrip?: ((input: NewTripInput) => Promise<void>) | undefined;
+}) {
   if (state.kind === 'loading') return <LoadingState />;
   if (state.kind === 'error')
     return <ErrorState correlationId={state.correlationId} retry={state.retry} />;
+  if (state.kind === 'offline') return <OfflineState retry={state.retry} />;
 
   const { data } = state;
   const activeTrip = data.trips.find((t) => t.id === data.activeTripId) ?? null;
@@ -79,7 +93,12 @@ export function CommandCenterView({ state }: { state: CommandCenterState }) {
             <div className="stack">
               <HeadcountPanel groups={data.headcount} />
               <Announcements items={data.announcements} />
-              <TripsPanel trips={data.trips} activeTripId={data.activeTripId} />
+              <TripsPanel
+                trips={data.trips}
+                activeTripId={data.activeTripId}
+                onSwitchTrip={onSwitchTrip}
+                onCreateTrip={onCreateTrip}
+              />
             </div>
           </div>
         </>
@@ -148,6 +167,26 @@ function ErrorState({ correlationId, retry }: { correlationId: string; retry: ()
           </span>
           <h2 className="state__title">{strings.states.errorTitle}</h2>
           <p className="state__body">{strings.states.errorBody(correlationId)}</p>
+          <button type="button" className="btn btn--brand" onClick={retry}>
+            {strings.states.retry}
+          </button>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+/** No connection and nothing loaded yet: there is no last sync to show. */
+function OfflineState({ retry }: { retry: () => void }) {
+  return (
+    <main className="page">
+      <section className="card">
+        <div className="state" role="status">
+          <span className="state__icon">
+            <Icons.offline />
+          </span>
+          <h2 className="state__title">{strings.states.offlineTitle}</h2>
+          <p className="state__body">{strings.states.offlineBody}</p>
           <button type="button" className="btn btn--brand" onClick={retry}>
             {strings.states.retry}
           </button>

@@ -21,6 +21,10 @@ pnpm --filter @voysemble/organizer-web build      # dist/ consumed by the Worker
 pnpm --filter @voysemble/organizer-web test:e2e   # Playwright: facts + screenshots -> docs/captures/web/
 ```
 
+The browser suite runs against `dist/` through `wrangler dev` (the api-worker's `pretest` hook
+builds it, the console's own `test` does not): build again after a console change, or the
+specs test the previous build.
+
 No icon library, no CSS framework, no fonts from third parties, no analytics. Strings live in
 `src/lib/strings.ts` (EN source; KO in the i18n slice). Cover art is synthetic until licensed
 photography is approved (doc 01 §15).

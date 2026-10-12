@@ -11,7 +11,7 @@ import { Icons } from '../../app/shell/icons';
 import { errorText } from '../../lib/errors';
 import { formatTime } from '../../lib/format';
 import { changeLines, itineraryApi } from '../../lib/itinerary-api';
-import { orgsQuery, pickActiveOrg, tripsQuery } from '../../lib/session';
+import { orgsQuery, pickActiveOrg, tripsQuery, useActiveTrip } from '../../lib/session';
 import { strings } from '../../lib/strings';
 import { Card, SectionPage } from '../sections/SectionPage';
 
@@ -71,7 +71,7 @@ export function RevisionHistoryPage() {
   const orgs = useQuery(orgsQuery);
   const org = orgs.data ? pickActiveOrg(orgs.data) : null;
   const trips = useQuery({ ...tripsQuery(org?.id ?? ''), enabled: Boolean(org) });
-  const trip = trips.data?.[0] ?? null;
+  const trip = useActiveTrip(org?.id ?? '', trips.data);
   if (org && trip) return <LiveHistory org={org} trip={trip} />;
   return (
     <SectionPage title={s.historyTitle} subtitle={s.historySubtitle(SAMPLE.length)}>

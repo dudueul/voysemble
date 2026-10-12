@@ -9,7 +9,7 @@ import { Icons } from '../../app/shell/icons';
 import { ledger, ledgerTotals, plan } from '../../fixtures/sections';
 import { errorText } from '../../lib/errors';
 import { fees as feesApi, feesQuery, formatMoney, parseMoney, toMajor } from '../../lib/fees-api';
-import { orgsQuery, pickActiveOrg, tripsQuery } from '../../lib/session';
+import { orgsQuery, pickActiveOrg, tripsQuery, useActiveTrip } from '../../lib/session';
 import { strings } from '../../lib/strings';
 import { Card, formatKrw, Meter, SectionPage } from './SectionPage';
 
@@ -294,7 +294,7 @@ export function BillingPage() {
   const orgs = useQuery(orgsQuery);
   const org = orgs.data ? pickActiveOrg(orgs.data) : null;
   const trips = useQuery({ ...tripsQuery(org?.id ?? ''), enabled: Boolean(org) });
-  const trip = trips.data?.[0] ?? null;
+  const trip = useActiveTrip(org?.id ?? '', trips.data);
   const ledgerQuery = useQuery({
     ...feesQuery(org?.id ?? '', trip?.id ?? ''),
     enabled: Boolean(org && trip),

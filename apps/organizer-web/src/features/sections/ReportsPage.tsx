@@ -9,7 +9,13 @@ import type { TripReport } from '@voysemble/contracts';
 import { Icons } from '../../app/shell/icons';
 import { dayMetrics, documents } from '../../fixtures/sections';
 import { ApiError } from '../../lib/api-client';
-import { orgsQuery, pickActiveOrg, reportQuery, tripsQuery } from '../../lib/session';
+import {
+  orgsQuery,
+  pickActiveOrg,
+  reportQuery,
+  tripsQuery,
+  useActiveTrip,
+} from '../../lib/session';
 import { strings } from '../../lib/strings';
 import { BarChart, DataTable, LineChart, type Point } from './charts';
 import { Card, SectionPage } from './SectionPage';
@@ -219,7 +225,7 @@ export function ReportsPage() {
   const orgs = useQuery(orgsQuery);
   const org = orgs.data ? pickActiveOrg(orgs.data) : null;
   const trips = useQuery({ ...tripsQuery(org?.id ?? ''), enabled: Boolean(org) });
-  const trip = trips.data?.[0] ?? null;
+  const trip = useActiveTrip(org?.id ?? '', trips.data);
   if (org && trip) return <LiveReport orgId={org.id} tripId={trip.id} />;
   return <FixtureReport />;
 }

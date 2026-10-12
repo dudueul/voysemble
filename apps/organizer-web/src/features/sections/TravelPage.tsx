@@ -30,6 +30,7 @@ import {
   travel as travelApi,
   travelQuery,
   tripsQuery,
+  useActiveTrip,
 } from '../../lib/session';
 import { strings } from '../../lib/strings';
 import { Card, Meter, SectionPage } from './SectionPage';
@@ -49,7 +50,7 @@ export function TravelPage() {
   const orgs = useQuery(orgsQuery);
   const org = orgs.data ? pickActiveOrg(orgs.data) : null;
   const trips = useQuery({ ...tripsQuery(org?.id ?? ''), enabled: Boolean(org) });
-  const trip = trips.data?.[0] ?? null;
+  const trip = useActiveTrip(org?.id ?? '', trips.data);
   if (org && trip) return <LiveTravel org={org} trip={trip} />;
   return <FixtureTravel />;
 }

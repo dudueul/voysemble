@@ -11,7 +11,13 @@ import type { NotificationEvent, Organization, Trip } from '@voysemble/contracts
 import { Icons } from '../../app/shell/icons';
 import { errorText } from '../../lib/errors';
 import { formatTime } from '../../lib/format';
-import { notificationLogQuery, orgsQuery, pickActiveOrg, tripsQuery } from '../../lib/session';
+import {
+  notificationLogQuery,
+  orgsQuery,
+  pickActiveOrg,
+  tripsQuery,
+  useActiveTrip,
+} from '../../lib/session';
 import { strings } from '../../lib/strings';
 import { Card, SectionPage } from '../sections/SectionPage';
 
@@ -57,7 +63,7 @@ export function NotificationsPage() {
   const orgs = useQuery(orgsQuery);
   const org = orgs.data ? pickActiveOrg(orgs.data) : null;
   const trips = useQuery({ ...tripsQuery(org?.id ?? ''), enabled: Boolean(org) });
-  const trip = trips.data?.[0] ?? null;
+  const trip = useActiveTrip(org?.id ?? '', trips.data);
   if (org && trip) return <LiveNotifications org={org} trip={trip} />;
   return (
     <SectionPage title={s.title} subtitle={s.subtitle}>

@@ -31,7 +31,7 @@ import {
 } from '../../fixtures/sections';
 import { errorText } from '../../lib/errors';
 import { itineraryApi, proposalsApi } from '../../lib/itinerary-api';
-import { orgsQuery, pickActiveOrg, tripsQuery } from '../../lib/session';
+import { orgsQuery, pickActiveOrg, tripsQuery, useActiveTrip } from '../../lib/session';
 import { strings, useLocale } from '../../lib/strings';
 import { Card, SectionPage } from './SectionPage';
 
@@ -190,7 +190,7 @@ export function JourneyGraphPage() {
   const orgs = useQuery(orgsQuery);
   const org = orgs.data ? pickActiveOrg(orgs.data) : null;
   const trips = useQuery({ ...tripsQuery(org?.id ?? ''), enabled: Boolean(org) });
-  const trip = trips.data?.[0] ?? null;
+  const trip = useActiveTrip(org?.id ?? '', trips.data);
   if (org && trip) return <LiveJourney org={org} trip={trip} />;
   return <FixtureJourney />;
 }

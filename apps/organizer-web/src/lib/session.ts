@@ -78,6 +78,7 @@ import type {
   UpdateParticipationRequest,
   WindowList,
 } from '@voysemble/contracts';
+import { useSyncExternalStore } from 'react';
 import { ApiError, api } from './api-client';
 
 export const meQuery = queryOptions({
@@ -595,4 +596,80 @@ export function writeActiveOrgId(id: string): void {
 export function pickActiveOrg(orgs: Organization[]): Organization | null {
   const remembered = readActiveOrgId();
   return orgs.find((o) => o.id === remembered) ?? orgs[0] ?? null;
+}
+
+/* ---------- The active trip (slice 063) ---------- */
+
+/**
+ * The organizer's trip choice, remembered per organization in local storage (in memory, for this
+ * page load, when the browser blocks storage). The choice is an external store:
+ * `writeActiveTripId` tells every mounted `useActiveTrip` about it, so the whole console follows
+ * a switch at once. Without a choice, `defaultTrip` picks the trip that is on today, else the
+ * next to start, else the one that ended last.
+ */
+const ACTIVE_TRIP_KEY = 'vy.activeTripId';
+const activeTripMemory = new Map<string, string>();
+const activeTripListeners = new Set<() => void>();
+
+export function readActiveTripId(orgId: string): string | null {
+  try {
+    return localStorage.getItem(`${ACTIVE_TRIP_KEY}:${orgId}`);
+  } catch {
+    return activeTripMemory.get(orgId) ?? null;
+  }
+}
+
+export function writeActiveTripId(orgId: string, tripId: string): void {
+  activeTripMemory.set(orgId, tripId);
+  try {
+    localStorage.setItem(`${ACTIVE_TRIP_KEY}:${orgId}`, tripId);
+  } catch {
+    // Private mode or blocked storage: the choice lasts for this page load.
+  }
+  for (const listener of activeTripListeners) listener();
+}
+
+export function subscribeActiveTrip(listener: () => void): () => void {
+  activeTripListeners.add(listener);
+  return () => {
+    activeTripListeners.delete(listener);
+  };
+}
+
+type TripLike = { id: string; startsOn: string; endsOn: string };
+
+/** The trip on today, else the next to start, else the one that ended last; dates are ISO days. */
+export function defaultTrip<T extends TripLike>(trips: T[], today: string): T | null {
+  const on = trips.find((t) => t.startsOn <= today && today <= t.endsOn);
+  if (on) return on;
+  const upcoming = trips
+    .filter((t) => t.startsOn > today)
+    .sort((a, b) => a.startsOn.localeCompare(b.startsOn));
+  if (upcoming[0]) return upcoming[0];
+  return [...trips].sort((a, b) => b.endsOn.localeCompare(a.endsOn))[0] ?? null;
+}
+
+/** The remembered trip when it is still one of the organization's, else the default. */
+export function pickActiveTrip<T extends TripLike>(
+  orgId: string,
+  trips: T[] | undefined,
+  today: string = new Date().toISOString().slice(0, 10),
+): T | null {
+  if (!trips || trips.length === 0) return null;
+  const remembered = readActiveTripId(orgId);
+  return trips.find((t) => t.id === remembered) ?? defaultTrip(trips, today);
+}
+
+/** The active trip for a page: re-renders when the organizer switches it anywhere in the console. */
+export function useActiveTrip<T extends TripLike>(orgId: string, trips: T[] | undefined): T | null {
+  const remembered = useSyncExternalStore(
+    subscribeActiveTrip,
+    () => readActiveTripId(orgId),
+    () => null,
+  );
+  if (!trips || trips.length === 0) return null;
+  return (
+    trips.find((t) => t.id === remembered) ??
+    defaultTrip(trips, new Date().toISOString().slice(0, 10))
+  );
 }

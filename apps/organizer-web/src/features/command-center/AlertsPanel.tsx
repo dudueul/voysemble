@@ -1,5 +1,7 @@
 // Copyright 2026- At Day. All rights reserved.
-// Red/amber pinned first with suggested actions (doc 00 §8). Severity shown by word + icon, not color alone.
+// Red/amber pinned first with suggested actions (doc 00 §8). Severity shown by word + icon, not
+// color alone. Since slice 063 the first action is a link when the alert knows where it leads
+// (an open incident leads to Safety); the others stay buttons until their flows exist.
 
 import { Icons } from '../../app/shell/icons';
 import type { Alert } from '../../fixtures/korea-concert-tour';
@@ -44,15 +46,21 @@ export function AlertsPanel({ alerts, now }: { alerts: Alert[]; now: string; tim
                 </div>
                 <p className="alert__detail">{a.detail}</p>
                 <div className="alert__actions">
-                  {a.actions.map((label, i) => (
-                    <button
-                      key={label}
-                      type="button"
-                      className={`btn btn--sm ${i === 0 ? 'btn--primary' : 'btn--ghost'}`}
-                    >
-                      {label}
-                    </button>
-                  ))}
+                  {a.actions.map((label, i) =>
+                    i === 0 && a.to ? (
+                      <a key={label} className="btn btn--sm btn--primary" href={a.to}>
+                        {label}
+                      </a>
+                    ) : (
+                      <button
+                        key={label}
+                        type="button"
+                        className={`btn btn--sm ${i === 0 ? 'btn--primary' : 'btn--ghost'}`}
+                      >
+                        {label}
+                      </button>
+                    ),
+                  )}
                 </div>
               </div>
             </article>

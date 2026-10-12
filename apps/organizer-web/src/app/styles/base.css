@@ -156,6 +156,18 @@ p {
   font-weight: 600;
 }
 
+/* Slice 063: the trip switch, a native select dressed as the context text. */
+.topbar__trip {
+  font: inherit;
+  font-weight: 600;
+  color: inherit;
+  background: var(--vy-bg);
+  border: 1px solid var(--vy-border);
+  border-radius: 8px;
+  padding: 4px 8px;
+  max-width: 260px;
+}
+
 .topbar__search {
   margin-left: auto;
   display: flex;
@@ -717,6 +729,20 @@ p {
 .trip:first-child {
   border-top: 0;
   padding-top: 0;
+}
+
+/* Slice 063: the status chip over the "Open" button, aligned to the row's end. */
+.trip__side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.trip-form {
+  padding-bottom: 12px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--vy-border);
 }
 
 .cover {
@@ -2090,6 +2116,10 @@ fieldset.filters {
 
   .topbar__search {
     display: none;
+  }
+
+  .topbar__trip {
+    max-width: 150px;
   }
 
   .page {

@@ -1,13 +1,15 @@
 // Copyright 2026- At Day. All rights reserved.
 // Top bar: active org/trip context, search, notifications, account. Context stays visible on
-// every page (doc 01 §16.1).
+// every page (doc 01 §16.1). Since slice 063 the trip is a switch when the organization has more
+// than one: a native select, so a keyboard and a screen reader get it for free.
 
 import { getLocale, localeName, otherLocale, strings } from '../../lib/strings';
 import { Icons } from './icons';
 
 export function TopBar({
   orgName,
-  tripName,
+  trips,
+  activeTripId,
   tripStatus,
   accountLabel,
   hasAlerts,
@@ -15,9 +17,12 @@ export function TopBar({
   onMenu,
   menuOpen,
   onSwitchLocale,
+  onSwitchTrip,
 }: {
   orgName: string;
-  tripName: string | null;
+  /** The organization's trips; the active one is named, the rest are a switch away. */
+  trips: { id: string; name: string }[];
+  activeTripId: string | null;
   tripStatus: 'active' | 'planning' | 'completed' | null;
   /** Email of the signed-in account; initials derive from it. */
   accountLabel: string;
@@ -27,7 +32,10 @@ export function TopBar({
   menuOpen: boolean;
   /** Slice 038: switch the console to the other language (and the account's preference). */
   onSwitchLocale: () => void;
+  /** Slice 063: the organizer picked another trip; the whole console follows. */
+  onSwitchTrip: (tripId: string) => void;
 }) {
+  const activeTrip = trips.find((t) => t.id === activeTripId) ?? null;
   const initials = accountLabel.slice(0, 2).toUpperCase();
   const other = otherLocale(getLocale());
   return (
@@ -44,10 +52,26 @@ export function TopBar({
       </button>
       <section className="topbar__context" aria-label="Current organization and trip">
         <span>{orgName}</span>
-        {tripName ? (
+        {activeTrip ? (
           <>
             <span aria-hidden="true">/</span>
-            <span>{tripName}</span>
+            {trips.length > 1 ? (
+              <select
+                className="topbar__trip"
+                aria-label={strings.topbar.trip}
+                data-testid="trip-switcher"
+                value={activeTrip.id}
+                onChange={(e) => onSwitchTrip(e.target.value)}
+              >
+                {trips.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span>{activeTrip.name}</span>
+            )}
             {tripStatus ? (
               <span className={`chip chip--${tripStatus}`}>{strings.tripStatus[tripStatus]}</span>
             ) : null}

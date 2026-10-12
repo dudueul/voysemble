@@ -114,7 +114,7 @@ export function latestHeadcountGroups(sessions: HeadcountSession[]): HeadcountGr
     .map(([label, s]) => ({ label, checkedIn: s.accounted, expected: s.expected }));
 }
 
-/** Open incident cards become red alerts; the detail names the people. */
+/** Open incident cards become red alerts; the detail names the people; the action opens Safety. */
 export function alertsFromIncidents(incidents: Incident[], tripId: string): Alert[] {
   return incidents
     .filter((i) => i.status === 'open')
@@ -126,6 +126,7 @@ export function alertsFromIncidents(incidents: Incident[], tripId: string): Aler
       detail: `${i.people.map((p) => p.displayName).join(', ')} · ${i.openedByName}`,
       at: i.openedAt,
       actions: [strings.dashboard.openSafety],
+      to: '/safety',
     }));
 }
 

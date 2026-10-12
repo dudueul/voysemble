@@ -119,7 +119,9 @@ test('head count closed with a missing traveler opens an incident the organizer 
     fullPage: true,
   });
 
-  await page.goto('/safety');
+  // Slice 063: the alert's "Open Safety" is a real link.
+  await page.getByRole('article').first().getByRole('link', { name: 'Open Safety' }).click();
+  await page.waitForURL(/\/safety$/);
   const card = page.getByTestId(`incident-${incidentId}`);
   await expect(card).toContainText('Head count closed with 1 missing (Bus A, 06:58)');
   await expect(card).toContainText('Juho Kim');

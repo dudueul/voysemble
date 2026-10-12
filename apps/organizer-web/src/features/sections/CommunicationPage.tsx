@@ -23,6 +23,7 @@ import {
   orgsQuery,
   pickActiveOrg,
   tripsQuery,
+  useActiveTrip,
 } from '../../lib/session';
 import { strings } from '../../lib/strings';
 import { Card, Meter, SectionPage } from './SectionPage';
@@ -361,7 +362,7 @@ export function CommunicationPage() {
   const orgs = useQuery(orgsQuery);
   const org = orgs.data ? pickActiveOrg(orgs.data) : null;
   const trips = useQuery({ ...tripsQuery(org?.id ?? ''), enabled: Boolean(org) });
-  const trip = trips.data?.[0] ?? null;
+  const trip = useActiveTrip(org?.id ?? '', trips.data);
   const list = useQuery({
     ...announcementsQuery(org?.id ?? '', trip?.id ?? ''),
     enabled: Boolean(org && trip),

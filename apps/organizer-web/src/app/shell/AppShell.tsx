@@ -1,7 +1,8 @@
 // Copyright 2026- At Day. All rights reserved.
 // Layout frame: sidebar + top bar + routed page. Organization, trip, and account come from the
 // real session (slice 007). The alert dot reads open incidents of the active trip (slice 014)
-// and falls back to the fixture dashboard only while no trip exists (sample mode).
+// and falls back to the fixture dashboard only while no trip exists (sample mode). The active
+// trip is the organizer's remembered choice (slice 063, `useActiveTrip`); the top bar switches it.
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Outlet, useNavigate, useRouterState } from '@tanstack/react-router';
@@ -14,6 +15,8 @@ import {
   orgsQuery,
   pickActiveOrg,
   tripsQuery,
+  useActiveTrip,
+  writeActiveTripId,
 } from '../../lib/session';
 import { getLocale, hasStoredLocale, otherLocale, setLocale } from '../../lib/strings';
 import { Sidebar } from './Sidebar';
@@ -43,7 +46,7 @@ export function AppShell() {
   const orgs = useQuery(orgsQuery);
   const activeOrg = orgs.data ? pickActiveOrg(orgs.data) : null;
   const trips = useQuery({ ...tripsQuery(activeOrg?.id ?? ''), enabled: Boolean(activeOrg) });
-  const activeTrip = trips.data?.[0] ?? null;
+  const activeTrip = useActiveTrip(activeOrg?.id ?? '', trips.data);
   const { data } = useQuery({
     queryKey: ['dashboard', 'live'],
     queryFn: () => fetchDashboard('live'),
@@ -75,7 +78,8 @@ export function AppShell() {
       <div className="main">
         <TopBar
           orgName={orgName}
-          tripName={activeTrip?.name ?? null}
+          trips={trips.data ?? []}
+          activeTripId={activeTrip?.id ?? null}
           tripStatus={activeTrip ? tripStatusOn(activeTrip, new Date()) : null}
           accountLabel={me.data?.email ?? ''}
           hasAlerts={hasAlerts}
@@ -83,6 +87,9 @@ export function AppShell() {
           onMenu={() => setNavOpen((v) => !v)}
           menuOpen={navOpen}
           onSwitchLocale={switchLocale}
+          onSwitchTrip={(id) => {
+            if (activeOrg) writeActiveTripId(activeOrg.id, id);
+          }}
         />
         <Outlet />
       </div>

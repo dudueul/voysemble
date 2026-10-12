@@ -45,6 +45,8 @@ export interface Alert {
   detail: string;
   at: string;
   actions: string[];
+  /** Where the first action leads (slice 063): a console path; without it the action is a button. */
+  to?: string;
 }
 
 export interface HeadcountGroup {
@@ -246,6 +248,7 @@ export const alerts: Alert[] = [
       '10 late joiners arrive 18:55 instead of 17:40. Transfer and dinner on Jan 1 are affected; a Journey Graph proposal is ready.',
     at: '2026-12-31T05:50:00Z',
     actions: ['Review proposal', 'Message guardians'],
+    to: '/itinerary',
   },
   {
     id: 'al_rehearsal',
@@ -256,6 +259,7 @@ export const alerts: Alert[] = [
       'Auditorium staff confirmed doors open 17:00 local. Group can stay at the Forum longer.',
     at: '2026-12-31T05:20:00Z',
     actions: ['Shift itinerary', 'Notify leaders'],
+    to: '/journey-graph',
   },
   {
     id: 'al_consent',
@@ -265,6 +269,7 @@ export const alerts: Alert[] = [
     detail: 'Reminders sent yesterday. Due before the Jan 2 excursion.',
     at: '2026-12-30T18:00:00Z',
     actions: ['Open forms'],
+    to: '/preparation',
   },
 ];
 
