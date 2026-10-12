@@ -1775,7 +1775,7 @@ Not done: the export in the organizer's language (English column names, for spre
 
 ## Slice 067: the trip switch on both phones
 
-Status: done 2026-10-12. Commit: see git log (`feat(mobile): switch trips from the Today header; sign-in adopts the trip that matters today (slice 067)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: 9276e5a (`feat(mobile): switch trips from the Today header; sign-in adopts the trip that matters today (slice 067)`). CI: run 38296938044 green (web, mobile, ios: the Kotlin and Swift compiled, the new tests and captures passed); captures recorded by CI in ccde1aa.
 Spec: D42 (the active trip; amended for the phones), D12 (participations), D31. Details: `docs/engineering/mobile-auth.md` (Switching trips).
 
 | Gate | Command | Result |
@@ -1835,3 +1835,23 @@ Built:
 - Docs: `identity-and-roster.md` section; ledger; feature flag `accounts.display-name` working.
 
 Not done: the name on the phones' own account (participations carry theirs); a name at sign-up; the organizer's initials from two words.
+
+## Slice 070: the room of today's stay on the head count rows
+
+Status: done 2026-10-12. Commit: see git log (`feat(headcounts): the roster carries the room of today's stay, so a leader counts by room (slice 070)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D41 (rooming), D25 (head counts), D13. Details: `docs/engineering/headcounts.md` (The room on the row), `travel.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | `rooming.test.ts` +1; 16 tests in the three touched files locally (rooming, roster-invites, headcounts) |
+| Core JVM tests | `./gradlew :core:jvmTest` (CI `mobile` job) | `HeadcountsSyncTest` +1 (the seed keeps the room) |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+Gradle does not run in this workspace; the CI `mobile` job verifies the Kotlin, desk-checked here. The phones' head count rows already rendered `room` for the sample; the live rows now carry it during a stay, no UI change.
+
+Built:
+- Contracts: `RosterEntry.room` (optional). Worker: `OrgDurableObject.roomsOn(tripId, date)`; the roster route attaches the room of the stay covering today in the trip's zone; `rooming.test.ts` +1 (a past stay carries nothing; a stay covering today carries Minji's room and nobody else's).
+- Core: `ParticipationDto.room`; `headcountFromRoster` keeps it on the member.
+- Docs: `headcounts.md` section and not-done, `travel.md`, ledger 067 (CI record), feature flag `headcount.rooms-today` working.
+
+Not done: the room on the Today tab's hotel line; the room on the console's missing list and the Safety page.

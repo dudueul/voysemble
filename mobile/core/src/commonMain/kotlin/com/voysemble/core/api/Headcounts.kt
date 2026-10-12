@@ -90,7 +90,8 @@ public const val WHOLE_TRIP_LABEL: String = "Whole trip"
 
 /**
  * Seed a device session from the roster: travelers of `groupName` (or every traveler when null),
- * sorted by name, all unmarked. Leaders and guardians are never counted (ADR-0009 roster rules).
+ * sorted by name, all unmarked, each with the room of today's hotel stay when the roster carries one
+ * (slice 070). Leaders and guardians are never counted (ADR-0009 roster rules).
  */
 public fun headcountFromRoster(
     id: String,
@@ -102,7 +103,7 @@ public fun headcountFromRoster(
     val members = roster
         .filter { it.role == "traveler" && (groupName == null || it.groupName == groupName) }
         .sortedBy { it.displayName }
-        .map { HeadcountMember(id = it.id, name = it.displayName, room = null, lastAckAt = null, windowState = null, hasCareNote = it.hasCareNote) }
+        .map { HeadcountMember(id = it.id, name = it.displayName, room = it.room, lastAckAt = null, windowState = null, hasCareNote = it.hasCareNote) }
     return HeadcountSession(
         id = id,
         groupLabel = groupName ?: WHOLE_TRIP_LABEL,

@@ -4272,6 +4272,31 @@ export class OrgDurableObject extends DurableObject<Env> {
     };
   }
 
+  /**
+   * Slice 070: who sleeps where on a date: the rooms of the hotel bookings whose stay covers it
+   * (`checkIn <= date < checkOut`); with two such hotels the earlier booking's room wins.
+   */
+  async roomsOn(tripId: string, date: string): Promise<Record<string, string>> {
+    this.requireOrg();
+    const rooms: Record<string, string> = {};
+    const bookings = this.ctx.storage.sql
+      .exec<TravelBookingRow>(
+        "SELECT * FROM travel_bookings WHERE trip_id = ? AND kind = 'hotel' ORDER BY created_at",
+        tripId,
+      )
+      .toArray();
+    for (const row of bookings) {
+      const hotel = this.hotelOf(row);
+      if (!hotel || !(hotel.checkIn <= date && date < hotel.checkOut)) continue;
+      for (const r of this.ctx.storage.sql
+        .exec<RoomAssignmentRow>('SELECT * FROM room_assignments WHERE booking_id = ?', row.id)
+        .toArray()) {
+        if (!(r.participation_id in rooms)) rooms[r.participation_id] = r.room;
+      }
+    }
+    return rooms;
+  }
+
   /** Puts a leader or traveler of the trip in a room of the hotel; null takes them out. */
   async assignRoom(
     tripId: string,

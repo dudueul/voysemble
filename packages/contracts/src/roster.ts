@@ -93,6 +93,11 @@ export const RosterEntry = Participation.extend({
   lastAckAt: Timestamp.nullable(),
   /** A sealed care note is on file (D27); the content needs an audited reveal. */
   hasCareNote: z.boolean(),
+  /**
+   * Slice 070 (D41): the person's room in the hotel whose stay covers today in the trip's zone;
+   * absent outside a stay or without a room, so a head count row can show it during the stay.
+   */
+  room: z.string().optional(),
 }).openapi('RosterEntry');
 export type RosterEntry = z.infer<typeof RosterEntry>;
 

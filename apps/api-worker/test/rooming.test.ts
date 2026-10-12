@@ -13,6 +13,7 @@ import type {
   RoomingList,
 } from '@voysemble/contracts';
 import { describe, expect, it } from 'vitest';
+import { localClock, nowIso, plusDays } from '../src/lib/time';
 import { api, createOrg, createTrip, json, SAMPLE_CSV, signIn } from './helpers';
 
 describe('rooming lists and the hotel link (slice 058)', () => {
@@ -150,5 +151,67 @@ describe('rooming lists and the hotel link (slice 058)', () => {
     expect(afterRemove.people.map((p) => p.displayName)).toEqual(['Kim', 'Juho Kim', 'Minji Park']);
     expect((await api(nate).delete(`${base}/travel/${hotel.id}`)).status).toBe(200);
     expect((await api(nate).get(rooming)).status).toBe(404);
+  });
+});
+
+describe('the room on the roster during the stay (slice 070)', () => {
+  it("carries each person's room while a hotel stay covers today, nothing outside it", async () => {
+    const nate = await signIn('nate@example.com');
+    const org = await createOrg(nate);
+    const trip = await createTrip(nate, org.id);
+    const base = `/v1/orgs/${org.id}/trips/${trip.id}`;
+    await api(nate).post(`${base}/roster/import`, { csv: SAMPLE_CSV });
+    const roster = async () =>
+      (
+        await json<{ participations: { id: string; displayName: string; room?: string }[] }>(
+          await api(nate).get(`${base}/roster`),
+        )
+      ).participations;
+    const minjiId = (await roster()).find((p) => p.displayName === 'Minji Park')?.id ?? '';
+    // A stay in the past: no room on the roster.
+    const past = await json<{ id: string }>(
+      await api(nate).post(`${base}/travel`, {
+        kind: 'hotel',
+        name: 'Old Hotel',
+        city: 'Rome',
+        checkIn: '2026-01-10',
+        checkOut: '2026-01-12',
+        rooms: 10,
+        confirmation: '',
+      }),
+    );
+    expect(
+      (
+        await api(nate).put(`${base}/travel/${past.id}/rooming`, {
+          participationId: minjiId,
+          room: '101',
+        })
+      ).status,
+    ).toBe(200);
+    expect((await roster()).every((p) => p.room === undefined)).toBe(true);
+    // A stay that covers today in Seoul: the room rides onto the row; the others carry none.
+    const today = localClock(nowIso(), 'Asia/Seoul').date;
+    const stay = await json<{ id: string }>(
+      await api(nate).post(`${base}/travel`, {
+        kind: 'hotel',
+        name: 'Hotel de la Ville',
+        city: 'Rome',
+        checkIn: today,
+        checkOut: plusDays(today, 2),
+        rooms: 21,
+        confirmation: 'HDLV',
+      }),
+    );
+    expect(
+      (
+        await api(nate).put(`${base}/travel/${stay.id}/rooming`, {
+          participationId: minjiId,
+          room: '412',
+        })
+      ).status,
+    ).toBe(200);
+    const rows = await roster();
+    expect(rows.find((p) => p.displayName === 'Minji Park')?.room).toBe('412');
+    expect(rows.filter((p) => p.room !== undefined)).toHaveLength(1);
   });
 });

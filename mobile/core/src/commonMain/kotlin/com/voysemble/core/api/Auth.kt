@@ -49,6 +49,8 @@ public data class ParticipationDto(
     val createdAt: String,
     /** A sealed care note is on file (D27, slice 030); the content needs an audited reveal. */
     val hasCareNote: Boolean = false,
+    /** Slice 070 (D41): the room of the hotel stay that covers today; absent outside a stay. */
+    val room: String? = null,
 )
 
 @Serializable

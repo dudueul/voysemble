@@ -85,8 +85,16 @@ iOS keeps the fixture model this slice (same core API is available through the f
   sent `client: "native"`, so a real device would have received no session token. Both are fixed
   by encoding nulls and defaults, with regression tests in `HeadcountsSyncTest` and `ApiClientTest`.
 
+## The room on the row (slice 070, D41)
+
+`GET .../roster` carries `room` on a leader's or traveler's row while a hotel stay covers today
+in the trip's zone (`OrgDurableObject.roomsOn(tripId, date)`: the bookings with `checkIn <= date
+< checkOut`, the earlier booking's room first); absent outside a stay or without a room. The
+phones' seed (`headcountFromRoster`) keeps it on `HeadcountMember.room`, so the head count rows
+read "Room 412" at the hotel as the sample always did; nothing else changes on the phones.
+
 ## Not done
 
 The dashboard tile on real sessions, guardian status, iOS live mode, push "come now" to a
 missing traveler. Incident auto-creation on `closedWithMissing` landed in slice 013
-(`incidents.md`).
+(`incidents.md`). The room on the Today tab's hotel line.

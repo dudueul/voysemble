@@ -38,7 +38,7 @@ import { inviteCodes, memberships, organizations } from '../db/schema';
 import type { AppEnv } from '../env';
 import { CsvError, parseCsv } from '../lib/csv';
 import { clientIp, enforceLimits } from '../lib/rate-limit';
-import { isPast, nowIso, plusSeconds, SECONDS } from '../lib/time';
+import { isPast, localClock, nowIso, plusSeconds, SECONDS } from '../lib/time';
 import { hashInviteCode, randomInviteCode } from '../lib/tokens';
 import { orgObject } from '../org/client';
 import type { RosterRowInput } from '../org/OrgDurableObject';
@@ -308,7 +308,8 @@ export function mountRosterRoutes(app: OpenAPIHono<AppEnv>): void {
     const { orgId, tripId } = c.req.valid('param');
     await requireOrgRole(c.env, auth, orgId, 'leader');
     const org = await orgObject(c.env, orgId);
-    if (!(await org.getTrip(tripId))) throw new HTTPException(404, { message: 'Trip not found.' });
+    const trip = await org.getTrip(tripId);
+    if (!trip) throw new HTTPException(404, { message: 'Trip not found.' });
     const roster = await org.listRosterWithAcks(tripId);
     // Codes by trip (one query, no bound-parameter list): D1 caps parameters per statement.
     const codes = await db(c.env.DB)
@@ -328,9 +329,12 @@ export function mountRosterRoutes(app: OpenAPIHono<AppEnv>): void {
       byRow.set(code.participationId, list);
     }
     const now = nowIso();
+    // Slice 070 (D41): the room of the stay that covers today in the trip's zone, when there is one.
+    const rooms = await org.roomsOn(tripId, localClock(now, trip.timezone).date);
     const participations: RosterEntry[] = roster.map((p) => ({
       ...p,
       invite: inviteStatusOf(p.accountId, byRow.get(p.id) ?? [], now),
+      ...(rooms[p.id] ? { room: rooms[p.id] } : {}),
     }));
     return c.json({ participations }, 200);
   });

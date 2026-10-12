@@ -182,6 +182,9 @@ lists the rooms and prints. Evidence: `web/<project>/travel-rooming.png`,
   seats and PNR stay), add a hotel (5 nights, rooms, confirmation), add a bus with Bus A ticked (2
   of 24 seats from the roster, the groups line), the subtitle counts; remove the hotel.
 
+Slice 070: the roster route carries each person's room while a hotel stay covers today in the
+trip's zone, so a leader's head count rows show it (`headcounts.md`).
+
 ## Not done
 
 A sealed link for a hotel (the rooming list, D27); provider lookups (flight status, hotel

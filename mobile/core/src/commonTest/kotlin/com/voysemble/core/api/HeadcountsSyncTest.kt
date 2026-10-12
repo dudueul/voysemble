@@ -44,6 +44,15 @@ class HeadcountsSyncTest {
     """.trimIndent()
 
     @Test
+    fun the_room_of_todays_stay_rides_onto_the_row() {
+        // Slice 070 (D41): the roster carries a room during a hotel stay; the seed keeps it.
+        val withRoom = roster.map { if (it.id == "p-minji") it.copy(room = "412") else it }
+        val s = headcountFromRoster("x", withRoom, "Bus A", "Kim", "06:50")
+        assertEquals("412", s.members.first { it.id == "p-minji" }.room)
+        assertNull(s.members.first { it.id == "p-juho" }.room)
+    }
+
+    @Test
     fun roster_seeds_group_travelers_sorted_and_body_omits_unmarked() {
         val s = headcountFromRoster("11111111-1111-4111-8111-111111111111", roster, "Bus A", "Kim", "06:50")
         assertEquals(listOf("Juho Kim", "Minji Park"), s.members.map { it.name })
