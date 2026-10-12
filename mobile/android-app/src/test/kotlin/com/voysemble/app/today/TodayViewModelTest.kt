@@ -109,6 +109,7 @@ class TodayViewModelTest {
         // A refresh keeps the card from the server's list; no words sends the default title.
         vm.refresh().join()
         assertEquals("I feel sick", vm.state.value.help?.title)
+        assertNull(vm.state.value.help?.answeredBy)
         vm.askHelp("   ").join()
         assertEquals("""{"title":"Asked for help","participationIds":["p-minji"]}""", posts[1])
         // Sample mode: a local card at the fixture's clock; a leader's trip has no card.

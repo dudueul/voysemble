@@ -71,10 +71,13 @@ final class CaptureTests: XCTestCase {
 
     func testTodayHelp() throws {
         // Slice 074 (D17): the traveler's "I need help" card with a request on its way, and the form.
-        let sent = HelpCard(id: "local-help", title: "I feel sick", status: .open, openedAt: "07:12", resolvedAt: nil)
+        let sent = HelpCard(id: "local-help", title: "I feel sick", status: .open, openedAt: "07:12", resolvedAt: nil, answeredBy: nil, answeredAt: nil)
+        // Slice 082: the same request once the leader answered.
+        let answered = HelpCard(id: "i9", title: "I feel sick", status: .open, openedAt: "07:12", resolvedAt: nil, answeredBy: "Kim Daeun", answeredAt: "07:20")
         try capture(
             VStack(spacing: 14) {
                 HelpCardView(help: sent, sending: false, error: nil, onAsk: {})
+                HelpCardView(help: answered, sending: false, error: nil, onAsk: {})
                 HelpCardView(help: nil, sending: false, error: nil, onAsk: {})
                 Spacer()
             }

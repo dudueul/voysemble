@@ -2005,7 +2005,7 @@ Not done: a feature page per role; the console captures in Korean on the Korean 
 
 ## Slice 078: the organizers' email when a head count closes with people missing
 
-Status: done 2026-10-12. Commit: see git log (`feat(headcounts): a head count that closes with people missing reaches the owners and organizers by email at once (slice 078)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: 7c0a934 (`feat(headcounts): a head count that closes with people missing reaches the owners and organizers by email at once (slice 078)`). CI: run 38306003302 green (web, mobile, ios); captures recorded by CI in 063767a.
 Spec: D29 (amended in 076: owners and organizers get an email at once), D25, D17. Details: `docs/engineering/notifications.md` (events row, the section, facts), `incidents.md`, `headcounts.md`.
 
 | Gate | Command | Result |
@@ -2021,7 +2021,7 @@ Not done: a per-organizer switch for the incident emails; an email when the card
 
 ## Slice 079: where a card came from, on the phones
 
-Status: done 2026-10-12. Commit: see git log (`feat(mobile): each incident card says where it came from; a traveler's own request stands out (slice 079)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: d6c9ed0 (`feat(mobile): each incident card says where it came from; a traveler's own request stands out (slice 079)`). CI: run 38306322971 green (web, mobile, ios); captures recorded by CI in 68d4b06.
 Spec: D17, D31. Details: `docs/engineering/incidents.md` (Mobile, facts).
 
 | Gate | Command | Result |
@@ -2082,3 +2082,27 @@ Built:
 - Docs: `identity-and-roster.md`, `notifications.md`; ledger 077 (CI record) and 081; feature flag `accounts.incident-emails-switch`.
 
 Not done: a per-trip switch; a digest of the incident emails instead of one each.
+
+## Slice 082: the traveler sees that a leader answered
+
+Status: done 2026-10-12. Commit: see git log (`feat(mobile): the traveler's help card says which leader answered and when, never their note (slice 082)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D17 (a human answer), D13 (the note stays with the staff), D31. Details: `docs/engineering/incidents.md` (Behaviour, Routes, Mobile, facts).
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 40 files, 117 passed (`incidents.test.ts`: two answers, one shown without its note, the staff keep both) |
+| Core JVM tests | `./gradlew :core:jvmTest` (CI `mobile` job) | `HelpModelTest` +1; `L10nTest` the new key |
+| Android tests | `./gradlew :android-app:testDebugUnitTest` (CI `mobile` job) | `TodayScreenshotTest.today_help_answered`; `TodayViewModelTest` (no answer before one) |
+| iOS tests + captures | `xcodebuild test` (CI `ios` job) | `LiveModelsTests` (the answered words); `CaptureTests.testTodayHelp` (`today-help.png` gains the answered card) |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+Gradle and Xcode do not run in this workspace; the CI `mobile` and `ios` jobs verify the Kotlin and Swift, desk-checked here.
+
+Built:
+- Worker: `travelerView` keeps the latest answer with its note blanked; `incidents.test.ts` (two answers, one shown, no note anywhere in the traveler's list, the staff keep both).
+- Core: `HelpCard.answeredBy` and `answeredAt` (defaults null; Swift passes them explicitly); `helpCardOf` reads the latest answer; `TODAY_HELP_ANSWERED` in both languages; `HelpModelTest`.
+- Android and iOS: the card's answered line between "sent" and "resolved"; tests; the iOS capture.
+- Process: the slice scripts now stage every edit and write nothing unless all anchors match, with anchors tolerant of line reflow (no half-applied slices).
+- Docs: `incidents.md`; captures README; ledger 078 and 079 (CI records) and 082; feature flag `mobile.help-answered`.
+
+Not done: the leader's answer status in words on the traveler's card ("with the group" reads odd to the person it is about); a reply from the traveler on the card (the chat channel with their leaders is the way).

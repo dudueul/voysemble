@@ -1,7 +1,7 @@
 // Copyright 2026- At Day. All rights reserved.
 // The traveler's "I need help" card on Today (D17, slice 074): the invitation and the button
 // before any request, the request's words and "Your leaders and the organizer know" while it is
-// open, "Resolved" after; the sheet takes what is wrong (optional) and sends. The form is its own
+// open ("Kim answered · 07:20" once a leader did, slice 082), "Resolved" after; the sheet takes what is wrong (optional) and sends. The form is its own
 // composable so the screenshot test renders it without a sheet.
 
 package com.voysemble.app.today
@@ -49,7 +49,12 @@ fun HelpCardView(help: HelpCard?, sending: Boolean, error: String?, onAsk: () ->
             Text(help.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = if (open) c.warning else c.action)
             Spacer(Modifier.height(4.dp))
             Text(
-                if (open) trf(Txt.TODAY_HELP_SENT, help.openedAt) else trf(Txt.TODAY_HELP_RESOLVED, help.resolvedAt ?: help.openedAt),
+                when {
+                    !open -> trf(Txt.TODAY_HELP_RESOLVED, help.resolvedAt ?: help.openedAt)
+                    // Slice 082: someone answered; name them and the time.
+                    help.answeredBy != null -> trf(Txt.TODAY_HELP_ANSWERED, help.answeredBy, help.answeredAt ?: help.openedAt)
+                    else -> trf(Txt.TODAY_HELP_SENT, help.openedAt)
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = c.textMuted,
             )

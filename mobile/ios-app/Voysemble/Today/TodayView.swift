@@ -534,7 +534,10 @@ struct HelpCardView: View {
                     .font(.headline)
                     .foregroundStyle(Color(argb: open ? Tokens.Color.Light.warning : Tokens.Color.Light.action))
                     .padding(.top, 6)
-                Text(open ? tr1(.todayHelpSent, help.openedAt) : tr1(.todayHelpResolved, help.resolvedAt ?? help.openedAt))
+                // Slice 082: once a leader answered, the card names them and the time.
+                Text(!open ? tr1(.todayHelpResolved, help.resolvedAt ?? help.openedAt)
+                    : help.answeredBy.map { tr2(.todayHelpAnswered, $0, help.answeredAt ?? help.openedAt) }
+                    ?? tr1(.todayHelpSent, help.openedAt))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .padding(.top, 2)

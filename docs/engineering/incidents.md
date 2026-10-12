@@ -35,7 +35,8 @@ API, and wires the organizer console's Safety page to those cards. Exercised by
   their guardians hear "Help asked: <name>" at once; from there the flow is the same. A traveler
   lists the cards naming them, projected further than a guardian's: their own words on a `help`
   card ("Status update about <name>" otherwise), themselves alone, no trail, no note, no guardian
-  message.
+  message. Slice 082: the latest answer stays on the traveler's card (who, when, the status), its
+  note blanked; the rest of the trail does not.
 - Slice 076: a card opened from a phone (a traveler's help request, a leader's card) also reaches
   every owner and organizer by email at once (`notifications.md`); one the organizer opened on
   the console does not. A traveler asks once: a second request while one of theirs is open is
@@ -52,7 +53,7 @@ API, and wires the organizer console's Safety page to those cards. Exercised by
 
 | Route | Who | Behaviour |
 |---|---|---|
-| `GET /v1/orgs/{orgId}/trips/{tripId}/incidents` | staff; a guardian (slice 016) and a traveler (slice 074), projected | Cards, open first. A guardian gets the cards naming their traveler (`guardianView`); a traveler the cards naming themselves (`travelerView`: their own words on a `help` card, "Status update about <name>" otherwise, themselves alone, no trail, no note, no guardian message). |
+| `GET /v1/orgs/{orgId}/trips/{tripId}/incidents` | staff; a guardian (slice 016) and a traveler (slice 074), projected | Cards, open first. A guardian gets the cards naming their traveler (`guardianView`); a traveler the cards naming themselves (`travelerView`: their own words on a `help` card, "Status update about <name>" otherwise, themselves alone, no note, no guardian message; the trail cut to the latest answer with its note blanked, slice 082). |
 | `POST /v1/orgs/{orgId}/trips/{tripId}/incidents` (slice 068) | owner, organizer; a leader for their group (slice 073); a traveler for themselves (slice 074) | `OpenIncidentRequest { title (1..160), participationIds (1..50) }`: a card opened by hand, kind `manual`, open, no head count, opened by "Owner" / "Organizer"; every id must be a traveler of the trip (a guardian, a leader or an unknown id is 404); the leaders of the named travelers' groups and their guardians get "Incident opened: <names>" at once (D29). 201 with the card. A leader (slice 073) names travelers of their own group only (a whole-trip leader any traveler; 403 otherwise), and the card is opened by their name. A traveler (slice 074) names only themselves (403 otherwise): kind `help`, opened by their name, "Help asked: <name>" to the leaders of their group and their guardians; 409 while a request of theirs is open (slice 076). A card opened from a phone is mailed to every owner and organizer at once (slice 076). |
 | `POST /v1/orgs/{orgId}/trips/{tripId}/incidents/{incidentId}/resolve` | staff | `{ note }`; returns the resolved card. |
 
@@ -88,7 +89,8 @@ sample is a traveler's phone): before any request, the invitation and "I need he
 takes what is wrong (optional, 160 characters) and sends `helpRequestOf(text, me, default)` (the
 default title "Asked for help" when the words are blank) through `ApiClient.openIncident`; the
 card then reads the request's words and "Your leaders and the organizer know · 07:12" while
-open, "Resolved · 07:40" after, with the button back. The card is `helpCardOf(incidents, me,
+open ("Kim Daeun answered · 07:20. The organizer follows it." once a leader answered, slice 082),
+"Resolved · 07:40" after, with the button back. The card is `helpCardOf(incidents, me,
 clock)` in the core: the first card the server lists for the traveler (open first), kept across
 refreshes (`listIncidents` for a traveler, projected). Unreachable says "Offline. Find your
 leader or call the number on your card."; a refusal names the code. Android `HelpCardView`,
@@ -205,6 +207,12 @@ otherwise), reachable from Today next to "Open head count". iOS `IncidentsView` 
   unknown wire kind reads as by hand. Android: the live list carries the kinds; the screen shows
   the three chips with a help card leading. iOS: the sample's kinds, the help label, the fixture
   card's kind.
+
+- Slice 082, worker: after Kim answers twice, Minji's card carries one answer (Kim, the latest
+  status, no note) and her list never contains the note; the staff keep both; once resolved she
+  still reads Kim's answer without the note. Core: the latest answer names the leader and the
+  local time; none before. Android: the answered line on the card, no "I need help" button
+  while open. iOS: the answered line's words; the capture's middle card.
 
 ## Not done
 

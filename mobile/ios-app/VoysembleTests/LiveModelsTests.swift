@@ -63,6 +63,9 @@ final class LiveModelsTests: XCTestCase {
         XCTAssertEqual(model.help?.title, "Asked for help")
         XCTAssertEqual(model.help?.status, HelpStatus.open)
         XCTAssertEqual(model.help?.openedAt, "07:12")
+        XCTAssertNil(model.help?.answeredBy)
+        // Slice 082: the answered line in both of the card's languages.
+        XCTAssertEqual(tr2(.todayHelpAnswered, "Kim Daeun", "07:20"), "Kim Daeun answered · 07:20. The organizer follows it.")
         // Slice 075: the sample shows Minji's room with Juho.
         XCTAssertEqual(model.room?.room, "412")
         XCTAssertEqual(model.room?.roommates, ["Juho Kim"])

@@ -118,6 +118,17 @@ class TodayScreenshotTest {
     }
 
     @Test
+    fun today_help_answered() {
+        // Slice 082: the request answered by the leader, the card names them and the time.
+        val answered = HelpCard("i9", "I feel sick", HelpStatus.OPEN, "07:12", null, answeredBy = "Kim Daeun", answeredAt = "07:20")
+        compose.setContent {
+            VoysembleTheme(darkTheme = false) { HelpCardView(answered, sending = false, error = null, onAsk = {}) }
+        }
+        compose.onNodeWithText("Kim Daeun answered · 07:20. The organizer follows it.").assertExists()
+        compose.onAllNodesWithText("I need help").assertCountEquals(0)
+    }
+
+    @Test
     fun today_help_form() {
         compose.setContent { VoysembleTheme(darkTheme = false) { HelpForm(onSend = {}) } }
         compose.onNodeWithContentDescription("What's wrong (optional)").assertExists()

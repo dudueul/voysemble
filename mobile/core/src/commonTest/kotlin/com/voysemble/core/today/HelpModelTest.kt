@@ -28,6 +28,16 @@ class HelpModelTest {
     }
 
     @Test
+    fun the_latest_answer_names_the_leader_and_the_time() {
+        // Slice 082: the server lists the latest answer first, its note blanked.
+        val answer = com.voysemble.core.api.IncidentConfirmationDto("c1", "with_group", null, "Kim Daeun", "leader", "2026-12-31T06:20:00.000Z")
+        val answered = helpCardOf(listOf(card("i2", "open", "I feel sick", "p1").copy(confirmations = listOf(answer))), "p1", clock)
+        assertEquals("Kim Daeun", answered?.answeredBy)
+        assertEquals("06:20", answered?.answeredAt)
+        assertNull(helpCardOf(listOf(card("i2", "open", "I feel sick", "p1")), "p1", clock)?.answeredBy)
+    }
+
+    @Test
     fun nothing_naming_me_is_null() {
         assertNull(helpCardOf(listOf(card("i2", "open", "x", "p9")), "p1", clock))
         assertNull(helpCardOf(emptyList(), "p1", clock))

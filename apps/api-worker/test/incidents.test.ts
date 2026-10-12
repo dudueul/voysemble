@@ -14,7 +14,8 @@
 // mailbox at once (not one the organizer opened on the console); a traveler asks once while a
 // request is open. Slice 078: a head count that closes with people missing mails the owner too,
 // once (the replay and a clean close send nothing). Slice 081: an owner who turned the incident
-// emails off hears nothing more while the lanes still run.
+// emails off hears nothing more while the lanes still run. Slice 082: the traveler reads the
+// latest answer on their card (who, when, the status), never the leader's note.
 
 import { env } from 'cloudflare:test';
 import type {
@@ -456,6 +457,23 @@ describe('help from the phone (slice 074)', () => {
         })
       ).status,
     ).toBe(200);
+    // Slice 082: Minji reads that Kim answered (who, the status), never Kim's note; a second
+    // answer replaces the first on her card, the staff keep both.
+    expect(
+      (
+        await api(t.kim).post(`${t.base}/${card.id}/confirm`, {
+          status: 'unknown',
+          note: 'Checking with the driver.',
+        })
+      ).status,
+    ).toBe(200);
+    const answered = await json<IncidentList>(await api(t.minji).get(t.base));
+    expect(
+      answered.incidents[0]?.confirmations.map((x) => [x.confirmedByName, x.status, x.note]),
+    ).toEqual([['Kim', 'unknown', null]]);
+    expect(JSON.stringify(answered)).not.toContain('Checking with the driver.');
+    const staff = await json<IncidentList>(await api(t.nate).get(t.base));
+    expect(staff.incidents.find((i) => i.id === card.id)?.confirmations).toHaveLength(2);
     expect((await api(t.nate).post(`${t.base}/${card.id}/guardian-message`)).status).toBe(200);
     expect(
       (await api(t.nate).post(`${t.base}/${card.id}/resolve`, { note: 'Felt better after lunch.' }))
@@ -468,9 +486,9 @@ describe('help from the phone (slice 074)', () => {
         i.status,
         i.resolutionNote,
         i.guardianMessage,
-        i.confirmations.length,
+        i.confirmations.map((x) => [x.confirmedByName, x.note]),
       ]),
-    ).toEqual([[card.id, 'resolved', null, null, 0]]);
+    ).toEqual([[card.id, 'resolved', null, null, [['Kim', null]]]]);
     const forSora = await json<IncidentList>(await api(t.sora).get(t.base));
     expect(forSora.incidents.map((i) => [i.id, i.title, i.guardianMessage !== null])).toEqual([
       [card.id, 'Status update about Minji Park', true],

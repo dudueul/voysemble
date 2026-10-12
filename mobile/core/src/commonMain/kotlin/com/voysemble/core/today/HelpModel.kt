@@ -3,6 +3,7 @@
 // The traveler's "I need help" card on Today (D17, slice 074), shared by Android and iOS: the
 // request is an incident card of kind `help` naming only the traveler (POST .../incidents), and
 // the card the phone shows is the latest card the server lists for them (their own, projected).
+// Slice 082: once a leader answered, the card names them and the time (never their note).
 // Pure rules over the wire shapes; the apps render and carry the words.
 
 package com.voysemble.core.today
@@ -21,6 +22,10 @@ public data class HelpCard(
     val openedAt: String,
     /** Local HH:mm when resolved; null while open. */
     val resolvedAt: String?,
+    /** Slice 082: the leader whose answer is the latest; null until someone answered. */
+    val answeredBy: String? = null,
+    /** Local HH:mm of that answer. */
+    val answeredAt: String? = null,
 )
 
 /**
@@ -36,6 +41,8 @@ public fun helpCardOf(incidents: List<IncidentDto>, me: String, clock: (iso: Str
             status = if (card.status == "resolved") HelpStatus.RESOLVED else HelpStatus.OPEN,
             openedAt = clock(card.openedAt),
             resolvedAt = card.resolvedAt?.let(clock),
+            answeredBy = card.confirmations.firstOrNull()?.confirmedByName,
+            answeredAt = card.confirmations.firstOrNull()?.let { clock(it.confirmedAt) },
         )
     }
 

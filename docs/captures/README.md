@@ -242,7 +242,8 @@ chips, the tight-connections and proposals cards. `web/<project>/command-center-
 the command center with the same events in its next 48 hours. Produced by
 `apps/organizer-web/e2e/journey-graph.spec.ts`. No phone change.
 
-`android/today-guardian-help.png`, `ios/today-guardian-help.png` (slice 080): the guardian's Today while Minji's own
+`ios/today-help.png` (slice 082, updated): the help card gains a middle state, the request answered by the leader
+("Kim Daeun answered · 07:20. The organizer follows it."). `android/today-guardian-help.png`, `ios/today-guardian-help.png` (slice 080): the guardian's Today while Minji's own
 help request is open and unanswered ("Asked for help at 07:05", attention tone, no words). `android/incidents-help.png`, `ios/incidents-help.png` (slice 079): the Incidents screen with a traveler's own request
 leading the list, each card's chip saying where it came from (Asked for help, Head count, By hand); `incidents-open`,
 `incidents-light` and `incidents-pending-dark` gain the chips. `android/today-room.png` (the Today screen scrolled to the card), `ios/today-room.png` (the card with the room

@@ -2141,13 +2141,22 @@ export class OrgDurableObject extends DurableObject<Env> {
   }
 
   /**
-   * Traveler projection (slice 074): the cards naming them, themselves alone, no trail, no
-   * resolution note and no guardian message (that one is the guardian's); a card they opened
-   * keeps their own words, any other reads as a status update, like the guardian's.
+   * Traveler projection (slice 074): the cards naming them, themselves alone, no resolution
+   * note and no guardian message (that one is the guardian's); a card they opened keeps their
+   * own words, any other reads as a status update, like the guardian's. Slice 082: the latest
+   * answer stays (who and when, the status), its note blanked; the rest of the trail does not.
    */
   private travelerView(i: Incident, travelerId: string): Incident {
     const view = this.guardianView(i, travelerId);
-    return { ...view, title: i.kind === 'help' ? i.title : view.title, guardianMessage: null };
+    // Slice 082: the latest answer only, without the leader's note, so the traveler knows
+    // someone saw their request and who; the trail and the notes stay with the staff.
+    const answered = i.confirmations.slice(0, 1).map((c) => ({ ...c, note: null }));
+    return {
+      ...view,
+      title: i.kind === 'help' ? i.title : view.title,
+      guardianMessage: null,
+      confirmations: answered,
+    };
   }
 
   /**

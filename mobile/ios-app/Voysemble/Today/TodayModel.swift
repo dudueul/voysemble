@@ -210,7 +210,7 @@ extension TodayModel {
         helpError = nil
         guard let api, let trip else {
             let title = text.trimmingCharacters(in: .whitespacesAndNewlines)
-            help = HelpCard(id: "local-help", title: title.isEmpty ? tr(.todayHelpDefault) : title, status: .open, openedAt: snapshot.now, resolvedAt: nil)
+            help = HelpCard(id: "local-help", title: title.isEmpty ? tr(.todayHelpDefault) : title, status: .open, openedAt: snapshot.now, resolvedAt: nil, answeredBy: nil, answeredAt: nil)
             return
         }
         helpSending = true
