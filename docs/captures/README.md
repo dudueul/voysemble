@@ -279,3 +279,10 @@ Journey Graph page after Breakfast slipped twenty minutes and the organizer aske
 three from the fixture port (absorb the slip; shorten Lunch to end 13:10; cut Lunch), each with
 its rationale and steps and the apply button. Produced by
 `apps/organizer-web/e2e/journey-graph.spec.ts`. No phone change.
+
+## Slice 057 (2026-10-12): the revision history
+
+`web/desktop-1440/itinerary-history.png`, `web/laptop-1280/itinerary-history.png`: the history
+page after two publishes of the sample trip: revision 2 with its change line ("Day 1 · Group
+check-in · 09:00 → 08:30"), revision 1 as the first publish with its snapshot unfolded. Produced
+by `apps/organizer-web/e2e/itinerary.spec.ts`. No phone change.

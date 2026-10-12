@@ -16,6 +16,8 @@ import {
   ItineraryEvent,
   ItineraryEventInput,
   ItineraryProposal,
+  ItineraryRevisionDetail,
+  ItineraryRevisionList,
   ProposalList,
   PublishItineraryRequest,
   PublishItineraryResponse,
@@ -116,6 +118,47 @@ const publishRoute = createRoute({
 });
 
 const ProposalParams = z.object({ orgId: Id, tripId: Id, proposalId: z.uuid() });
+
+/** D19 (slice 057): old revisions are kept; anyone on the trip reads the history, with each diff. */
+const listRevisionsRoute = createRoute({
+  method: 'get',
+  path: '/v1/orgs/{orgId}/trips/{tripId}/itinerary/revisions',
+  tags: ['itinerary'],
+  summary: 'The published revisions, newest first, each with who, when and what changed (member)',
+  security: SESSION_SECURITY,
+  request: { params: TripParams },
+  responses: {
+    200: {
+      description: 'The revisions.',
+      content: { 'application/json': { schema: ItineraryRevisionList } },
+    },
+    401: ERROR_RESPONSES[401],
+    403: ERROR_RESPONSES[403],
+    404: ERROR_RESPONSES[404],
+    500: ERROR_RESPONSES[500],
+  },
+});
+
+const RevisionParams = TripParams.extend({ revision: z.coerce.number().int().min(1) });
+
+const getRevisionRoute = createRoute({
+  method: 'get',
+  path: '/v1/orgs/{orgId}/trips/{tripId}/itinerary/revisions/{revision}',
+  tags: ['itinerary'],
+  summary: 'One revision with the events exactly as they were published (member)',
+  security: SESSION_SECURITY,
+  request: { params: RevisionParams },
+  responses: {
+    200: {
+      description: 'The revision and its snapshot.',
+      content: { 'application/json': { schema: ItineraryRevisionDetail } },
+    },
+    401: ERROR_RESPONSES[401],
+    403: ERROR_RESPONSES[403],
+    404: ERROR_RESPONSES[404],
+    500: ERROR_RESPONSES[500],
+  },
+});
 
 /** D19 (slice 055): the AI port drafts two or three ways through a slipped day; the organizer applies one. */
 const disruptionDraftsRoute = createRoute({
@@ -256,6 +299,27 @@ export function mountItineraryRoutes(app: OpenAPIHono<AppEnv>): void {
       throw new HTTPException(404, { message: 'Event not found.' });
     }
     return c.body(null, 204);
+  });
+
+  app.openapi(listRevisionsRoute, async (c) => {
+    const auth = requireAuth(c);
+    const { orgId, tripId } = c.req.valid('param');
+    await requireOrgRole(c.env, auth, orgId, 'member');
+    const org = await orgObject(c.env, orgId);
+    const r = await org.listRevisions(tripId);
+    if ('notFound' in r) throw new HTTPException(404, { message: 'Trip not found.' });
+    return c.json({ revisions: r }, 200);
+  });
+
+  app.openapi(getRevisionRoute, async (c) => {
+    const auth = requireAuth(c);
+    const { orgId, tripId, revision } = c.req.valid('param');
+    await requireOrgRole(c.env, auth, orgId, 'member');
+    const org = await orgObject(c.env, orgId);
+    if (!(await org.getTrip(tripId))) throw new HTTPException(404, { message: 'Trip not found.' });
+    const r = await org.getRevision(tripId, revision);
+    if ('notFound' in r) throw new HTTPException(404, { message: 'Revision not found.' });
+    return c.json(r, 200);
   });
 
   app.openapi(disruptionDraftsRoute, async (c) => {

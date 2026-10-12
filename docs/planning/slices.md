@@ -1552,3 +1552,26 @@ Built:
 Lesson: the sample roster carries two guardians (Sora for Minji, Hana's guardian for Hana), so a count of "everyone with packing left" is five, not four; a reminder for someone who has not joined still goes in (it waits in their inbox), which is the behaviour wanted for a guardian who joins late.
 
 Not done: a reminder schedule the organizer sets; a nudge from the organizer to one traveler ("Remind") from the Preparation page; the leader's per-traveler view on the phone.
+
+## Slice 057: the revision history
+
+Status: done 2026-10-12. Commit: see git log (`feat(itinerary): the revision history page, every publish kept as it went out (slice 057)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D19 (old revisions kept; amended), D31. Details: `docs/engineering/itinerary.md` (Revision history).
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 38 files, 104 tests (adds `revisions.test.ts`: 1) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 18 files, 114 tests (adds `RevisionHistoryPage.test.tsx`: 3) |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e -- itinerary.spec.ts` | 14 passed; capture `itinerary-history.png` |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+Built:
+- Contracts: `ItineraryRevision`, `ItineraryRevisionList`, `ItineraryRevisionDetail`.
+- Worker: OrgDurableObject `listRevisions` and `getRevision` (the stored rows with their diffs and snapshots); `GET .../itinerary/revisions` and `GET .../itinerary/revisions/{n}` (member).
+- Console: `itineraryApi.revisions` and `revision`; `features/itinerary/RevisionHistoryPage.tsx` on `/itinerary/history` (one card per revision: who, when in the trip's zone, the counts, the change lines, the snapshot fold); the editor header's "History" button; strings EN/KO.
+- Tests: worker (1), console unit (3), browser (the history after two publishes, the capture).
+- Docs: `itinerary.md` section and facts, D19 amendment, captures README, ledger, feature flag `itinerary.revision-history` working.
+
+Lesson: biome's formatter did not settle on an inline function type with an object return (it reformatted it two ways in a row); a named type for the loader ends the loop.
+
+Not done: a side-by-side view of two snapshots; restoring a past revision into the draft; the history on the phones (the Bulletin carries the revision announcements).

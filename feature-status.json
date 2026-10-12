@@ -35,6 +35,7 @@
     "media.guardian-album": "working",
     "itinerary.change-proposals": "working",
     "itinerary.disruption-ai": "working",
+    "itinerary.revision-history": "working",
     "retention.crypto-shred": "deferred",
     "chat.fixed-channels": "working",
     "billing.fee-ledger": "working",

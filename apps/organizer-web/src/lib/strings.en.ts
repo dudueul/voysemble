@@ -950,6 +950,24 @@ export const en = {
       }`,
     saveFailed: 'A change could not be saved. It will be retried on your next edit.',
     publishFailed: 'Publishing failed. Reload and try again.',
+    history: 'History',
+    historyTitle: 'Revision history',
+    historySubtitle: (n: number) =>
+      n === 0 ? 'Nothing published yet' : n === 1 ? '1 revision kept' : `${n} revisions kept`,
+    historyIntro:
+      'Every publish is kept as it went out: who, when, what changed against the one before, and the events exactly as travelers saw them.',
+    historyNone: 'No revision yet. Publish the itinerary from the editor and it shows here.',
+    revisionLine: (n: number, when: string, by: string) => `Revision ${n} · ${when} · ${by}`,
+    revisionCounts: (added: number, changed: number, removed: number) =>
+      `${added} added · ${changed} changed · ${removed} removed`,
+    firstRevision: 'The first publish: every event is new.',
+    showSnapshot: 'Show the events as published',
+    hideSnapshot: 'Hide the events',
+    snapshotEvents: (n: number) => (n === 1 ? '1 event' : `${n} events`),
+    snapshotLoading: 'Loading the snapshot…',
+    snapshotFailed: 'Could not load the snapshot.',
+    backToEditor: 'Back to the editor',
+    historyFailed: 'Could not load the revision history.',
   },
   kind: {
     flight: 'Flight',

@@ -98,6 +98,32 @@ export const PublishItineraryResponse = z
   .openapi('PublishItineraryResponse');
 export type PublishItineraryResponse = z.infer<typeof PublishItineraryResponse>;
 
+/* ---------- Revision history (D19, slice 057) ---------- */
+
+/** One published revision as the history lists it: who, when, what changed, how many events. */
+export const ItineraryRevision = z
+  .object({
+    revision: z.number().int(),
+    publishedAt: Timestamp,
+    publishedByName: z.string(),
+    summary: RevisionSummary,
+    /** Events in the snapshot (cancelled ones included). */
+    events: z.number().int(),
+  })
+  .openapi('ItineraryRevision');
+export type ItineraryRevision = z.infer<typeof ItineraryRevision>;
+
+export const ItineraryRevisionList = z
+  .object({ revisions: z.array(ItineraryRevision) })
+  .openapi('ItineraryRevisionList');
+export type ItineraryRevisionList = z.infer<typeof ItineraryRevisionList>;
+
+/** A revision with its snapshot: the events exactly as they were published. */
+export const ItineraryRevisionDetail = ItineraryRevision.extend({
+  snapshot: z.array(ItineraryEvent),
+}).openapi('ItineraryRevisionDetail');
+export type ItineraryRevisionDetail = z.infer<typeof ItineraryRevisionDetail>;
+
 /* ---------- Leader change proposals (D24, slice 018) ---------- */
 
 export const ProposalKind = z.enum(['edit', 'add', 'remove']).openapi('ProposalKind');

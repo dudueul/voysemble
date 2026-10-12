@@ -10,6 +10,8 @@ import type {
   DisruptionDraftResponse,
   ItineraryEventInput,
   ItineraryProposal,
+  ItineraryRevisionDetail,
+  ItineraryRevisionList,
   ProposalList,
   PublishItineraryResponse,
   RevisionSummary,
@@ -98,6 +100,15 @@ export const itineraryApi = {
     api<undefined>(`/v1/orgs/${orgId}/trips/${tripId}/itinerary/events/${id}`, {
       method: 'DELETE',
     }),
+  /** D19 (slice 057): the published revisions, newest first, each with its diff. */
+  revisions: async (orgId: string, tripId: string) =>
+    (await api<ItineraryRevisionList>(`/v1/orgs/${orgId}/trips/${tripId}/itinerary/revisions`))
+      .revisions,
+  /** One revision with its snapshot, the events exactly as they were published. */
+  revision: (orgId: string, tripId: string, revision: number) =>
+    api<ItineraryRevisionDetail>(
+      `/v1/orgs/${orgId}/trips/${tripId}/itinerary/revisions/${revision}`,
+    ),
   /** D19 (slice 055): two or three drafts from the AI port for a propagated slip; empty when unavailable. */
   disruptionDrafts: (orgId: string, tripId: string, body: DisruptionDraftRequest) =>
     api<DisruptionDraftResponse>(`/v1/orgs/${orgId}/trips/${tripId}/itinerary/disruption-drafts`, {

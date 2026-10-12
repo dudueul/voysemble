@@ -86,6 +86,13 @@ export function ItineraryView({ state }: { state: ItineraryViewState }) {
             <span className="chip chip--sample">{strings.dashboard.simulated}</span>
           )}
           <span data-testid="revision">{strings.itinerary.revision(it.revision)}</span>
+          <a
+            className="btn btn--secondary btn--sm"
+            href="/itinerary/history"
+            data-testid="history-link"
+          >
+            {strings.itinerary.history}
+          </a>
           <span data-testid="drafts">{strings.itinerary.drafts(drafts)}</span>
           {state.publishControls ?? null}
           <button

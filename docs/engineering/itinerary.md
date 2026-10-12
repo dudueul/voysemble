@@ -270,9 +270,28 @@ Plan tab.
   says offline when unreachable; guardians never see it. Captures `plan-day.png`,
   `plan-propose-dark.png`.
 
+## Revision history (slice 057, D19)
+
+"Old revisions kept" has a page: `/itinerary/history` (`features/itinerary/RevisionHistoryPage.tsx`,
+the editor's "History" button leads there). `GET .../itinerary/revisions` (any member) lists the
+published revisions newest first, each with who published it, when, the stored diff against the
+one before (`RevisionSummary`: the counts and the change lines) and how many events the snapshot
+holds; `GET .../itinerary/revisions/{n}` adds the snapshot, the events exactly as they were
+published (a 404 for a revision that never was). The page shows one card per revision ("Revision
+2 · 2026-10-12 19:04 · Nate", "0 added · 1 changed · 0 removed · 1 event", the change lines as
+the revision announcement wrote them; the first revision says every event was new) and a fold
+that loads the snapshot by day and time. Travelers can read the history too: it is the published
+plan, kept. A sample without a trip. Evidence: `web/<project>/itinerary-history.png`.
+
+Facts (`revisions.test.ts`): a trip never published has an empty history; two publishes list
+newest first with the right counts and the change line (`09:00 → 08:30`, day 1); the first
+snapshot holds the event at 09:00 and the second at 08:30; an unknown revision and an unknown
+trip are 404; a traveler reads the list. Console unit: the sample's two revisions; the live list
+and the snapshot fold. Browser: the history after the two publishes and the capture.
+
 ## Not done
 
-Day labels on Today, the side-by-side revision history view in the console (the stored diffs
-make it a read-only page), disruption drafts (D19 AI), head counts on the live Today, choosing
-the kind of an added event (always an activity for the whole group), proposing a new end or
-place for an existing event from the phone.
+Day labels on Today, a side-by-side view of two snapshots (the history lists each snapshot on its
+own), head counts on the live Today, choosing the kind of an added event (always an activity for
+the whole group), proposing a new end or place for an existing event from the phone. Disruption
+drafts landed in slice 055 (`journey-graph.md`).

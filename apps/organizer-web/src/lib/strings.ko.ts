@@ -930,6 +930,23 @@ export const ko: Strings = {
       `${revision}판 게시 · 변경 ${changes}건${notified ? ' · 참가자에게 알림' : ' · 조용히'}`,
     saveFailed: '변경을 저장하지 못했습니다. 다음 수정 때 다시 시도합니다.',
     publishFailed: '게시에 실패했습니다. 새로고침 후 다시 시도해 주세요.',
+    history: '기록',
+    historyTitle: '개정 기록',
+    historySubtitle: (n: number) => (n === 0 ? '아직 게시된 개정이 없습니다' : `개정 ${n}건 보관`),
+    historyIntro:
+      '게시할 때마다 그대로 보관됩니다. 누가, 언제, 직전 개정과 무엇이 달라졌는지, 그리고 참가자가 본 그대로의 일정입니다.',
+    historyNone: '아직 개정이 없습니다. 편집기에서 일정을 게시하면 여기에 표시됩니다.',
+    revisionLine: (n: number, when: string, by: string) => `개정 ${n} · ${when} · ${by}`,
+    revisionCounts: (added: number, changed: number, removed: number) =>
+      `추가 ${added} · 변경 ${changed} · 삭제 ${removed}`,
+    firstRevision: '첫 게시: 모든 일정이 새로 추가되었습니다.',
+    showSnapshot: '게시된 일정 보기',
+    hideSnapshot: '일정 숨기기',
+    snapshotEvents: (n: number) => `일정 ${n}건`,
+    snapshotLoading: '스냅샷을 불러오는 중…',
+    snapshotFailed: '스냅샷을 불러오지 못했습니다.',
+    backToEditor: '편집기로 돌아가기',
+    historyFailed: '개정 기록을 불러오지 못했습니다.',
   },
   kind: {
     flight: '항공편',

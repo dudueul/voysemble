@@ -51,6 +51,8 @@ import type {
   ItineraryEvent,
   ItineraryEventInput,
   ItineraryProposal,
+  ItineraryRevision,
+  ItineraryRevisionDetail,
   MeetingWindow,
   MyNotifications,
   MyPackingItem,
@@ -4836,6 +4838,47 @@ export class OrgDurableObject extends DurableObject<Env> {
       note: r.note,
       order: r.sort_order,
       published: r.published === 1,
+    };
+  }
+
+  /** The published revisions of a trip, newest first, each with its stored diff (slice 057). */
+  async listRevisions(tripId: string): Promise<ItineraryRevision[] | { notFound: true }> {
+    this.requireOrg();
+    if (!(await this.getTrip(tripId))) return { notFound: true };
+    return this.ctx.storage.sql
+      .exec<RevisionRow>(
+        'SELECT * FROM itinerary_revisions WHERE trip_id = ? ORDER BY revision DESC',
+        tripId,
+      )
+      .toArray()
+      .map((r) => this.revisionOf(r));
+  }
+
+  /** One revision with the events exactly as they were published (slice 057). */
+  async getRevision(
+    tripId: string,
+    revision: number,
+  ): Promise<ItineraryRevisionDetail | { notFound: true }> {
+    this.requireOrg();
+    const r =
+      this.ctx.storage.sql
+        .exec<RevisionRow>(
+          'SELECT * FROM itinerary_revisions WHERE trip_id = ? AND revision = ?',
+          tripId,
+          revision,
+        )
+        .toArray()[0] ?? null;
+    if (!r) return { notFound: true };
+    return { ...this.revisionOf(r), snapshot: JSON.parse(r.snapshot) as ItineraryEvent[] };
+  }
+
+  private revisionOf(r: RevisionRow): ItineraryRevision {
+    return {
+      revision: r.revision,
+      publishedAt: r.published_at,
+      publishedByName: r.published_by_name,
+      summary: this.revisionSummary(r.trip_id, r.revision),
+      events: (JSON.parse(r.snapshot) as unknown[]).length,
     };
   }
 

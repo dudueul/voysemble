@@ -107,6 +107,28 @@ test('live itinerary: add, edit, publish, persist (slice 017)', async ({ page },
   await expect(page.getByTestId('publish-status')).toHaveText(
     'Revision 2 published · 1 change · travelers notified',
   );
+  // Slice 057 (D19): the history keeps both revisions with their diffs and snapshots.
+  await page.getByTestId('history-link').click();
+  await expect(page).toHaveURL(/\/itinerary\/history$/);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Revision history');
+  await expect(page.locator('.page__subtitle')).toHaveText('2 revisions kept');
+  await expect(page.getByTestId('revision-2-counts')).toContainText(
+    '0 added · 1 changed · 0 removed',
+  );
+  await expect(page.getByTestId('revision-2-changes')).toContainText(
+    'Day 1 · Group check-in · 09:00 → 08:30',
+  );
+  await page.getByRole('button', { name: 'Show the events as published' }).last().click();
+  await expect(page.getByTestId('revision-1-snapshot')).toContainText(
+    '09:00 · Group check-in · ICN Terminal 2, counter K',
+  );
+  await page.mouse.move(0, 0);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({
+    path: `${OUT}/${info.project.name}/itinerary-history.png`,
+    fullPage: true,
+  });
+
   await page.goto('/communication');
   const rev = page.getByTestId('announcement-list').getByRole('listitem').first();
   await expect(rev.getByTestId(/^revision-chip-/)).toHaveText('Itinerary update · revision 2');

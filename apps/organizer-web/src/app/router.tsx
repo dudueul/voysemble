@@ -15,6 +15,7 @@ import { VerifyPage } from '../features/auth/VerifyPage';
 import { CommandCenterPage } from '../features/command-center/CommandCenterPage';
 import { DriverSheetPage } from '../features/driver/DriverSheetPage';
 import { ItineraryPage } from '../features/itinerary/ItineraryPage';
+import { RevisionHistoryPage } from '../features/itinerary/RevisionHistoryPage';
 import { NotificationsPage } from '../features/notifications/NotificationsPage';
 import { PlaceholderPage } from '../features/placeholder/PlaceholderPage';
 import { BillingPage } from '../features/sections/BillingPage';
@@ -127,6 +128,13 @@ const itineraryRoute = createRoute({
   },
 });
 
+/** The revision history (slice 057, D19): every publish kept; the editor's "History" leads here. */
+const revisionHistoryRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/itinerary/history',
+  component: RevisionHistoryPage,
+});
+
 /** Sample section pages (slice 008): fixtures with the "Sample data" chip; status `simulated`. */
 const SECTION_PAGES = {
   'journey-graph': JourneyGraphPage,
@@ -173,6 +181,7 @@ export const router = createRouter({
       indexRoute,
       setupRoute,
       itineraryRoute,
+      revisionHistoryRoute,
       notificationsRoute,
       ...sectionRoutes,
       unknownRoute,
