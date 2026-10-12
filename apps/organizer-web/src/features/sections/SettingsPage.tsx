@@ -460,11 +460,16 @@ function AccountForm() {
   const qc = useQueryClient();
   const me = useQuery(meQuery);
   const [name, setName] = useState('');
+  // Slice 081: the incident emails switch (on until the account says otherwise).
+  const [emails, setEmails] = useState(true);
   const [note, setNote] = useState<string | null>(null);
   const current = me.data?.displayName ?? '';
+  const currentEmails = me.data?.incidentEmails ?? true;
   useEffect(() => setName(current), [current]);
+  useEffect(() => setEmails(currentEmails), [currentEmails]);
   const save = useMutation({
-    mutationFn: (displayName: string | null) => auth.updateDisplayName(displayName),
+    mutationFn: (body: { displayName: string | null; incidentEmails: boolean }) =>
+      auth.updateAccount(body),
     onSuccess: (updated) => {
       setNote(s.saved);
       qc.setQueryData(meQuery.queryKey, updated);
@@ -478,7 +483,7 @@ function AccountForm() {
       onSubmit={(e) => {
         e.preventDefault();
         setNote(null);
-        save.mutate(name.trim() || null);
+        save.mutate({ displayName: name.trim() || null, incidentEmails: emails });
       }}
     >
       <label className="field">
@@ -492,6 +497,16 @@ function AccountForm() {
         />
       </label>
       <p className="field__hint">{s.displayNameHint}</p>
+      <label className="field field--check">
+        <input
+          type="checkbox"
+          name="incidentEmails"
+          checked={emails}
+          onChange={(e) => setEmails(e.target.checked)}
+        />
+        <span>{s.incidentEmails}</span>
+      </label>
+      <p className="field__hint">{s.incidentEmailsHint}</p>
       <div className="field__row field__row--tight">
         <button type="submit" className="btn btn--primary btn--sm" disabled={save.isPending}>
           {save.isPending ? s.saving : s.save}

@@ -3,7 +3,9 @@
 // Slice 076: the owners and organizers of an organization have no app, so what needs them at
 // once reaches their mailbox: one message per account through the EmailPort, in the account's
 // language. Never throws into the route: a failure to send is logged (never the address or the
-// body) and the thing that happened stands.
+// body) and the thing that happened stands. Slice 081: an account that turned the incident
+// emails off (`accounts.incident_emails`) is left out; the lanes to leaders and guardians are
+// another matter and unaffected.
 
 import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '../db/client';
@@ -16,7 +18,7 @@ export type OrganizerRecipient = {
   organizationName: string;
 };
 
-/** Every owner and organizer of the organization, with their language and the organization's name. */
+/** Every owner and organizer of the organization who wants these emails, with their language and the organization's name. */
 export async function organizerRecipients(env: Env, orgId: string): Promise<OrganizerRecipient[]> {
   const rows = await db(env.DB)
     .select({
@@ -28,7 +30,11 @@ export async function organizerRecipients(env: Env, orgId: string): Promise<Orga
     .innerJoin(accounts, eq(accounts.id, memberships.accountId))
     .innerJoin(organizations, eq(organizations.id, memberships.organizationId))
     .where(
-      and(eq(memberships.organizationId, orgId), inArray(memberships.role, ['owner', 'organizer'])),
+      and(
+        eq(memberships.organizationId, orgId),
+        inArray(memberships.role, ['owner', 'organizer']),
+        eq(accounts.incidentEmails, true),
+      ),
     )
     .all();
   return rows.map((r) => ({

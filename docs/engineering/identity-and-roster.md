@@ -26,6 +26,14 @@ a route acting as a participation keeps the participation's display name. `GET /
 clears it). The console's Settings page has "Your account" with the name (any member sets their
 own); the Today page greets by it and the top bar's initials follow it; the email stays private.
 
+Slice 081: `accounts.incident_emails` (migration 0007, on by default) is the account's switch for
+the incident emails of slices 076 and 078 (a card opened from a phone, a head count closed with
+people missing): `GET /v1/me` carries `incidentEmails`, `PATCH /v1/me` takes it beside the name
+and the language, and `organizerRecipients` leaves an account that turned it off out. The
+"Your account" card saves the name and the switch together ("Email me when a card opens from a
+phone or a head count closes with people missing"). The lanes to leaders and guardians never
+depend on it.
+
 ## Flows
 
 ### Magic-link sign-in

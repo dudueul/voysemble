@@ -1986,7 +1986,7 @@ Not done: an email for a head count that closes with people missing (the console
 
 ## Slice 077: the public site describes slices 073 to 076
 
-Status: done 2026-10-12. Commit: see git log (`feat(public-web): the leader's card, the help request, the room tonight and the organizers' email on the site (slice 077)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: b58d9d9 (`feat(public-web): the leader's card, the help request, the room tonight and the organizers' email on the site (slice 077)`). CI: run 38305613607 green (web, mobile, ios); captures recorded by CI in fe100a5.
 Spec: D30 (the site describes the decided product thoroughly), D31 (real captures), D17, D29, D41. Details: `docs/engineering/public-web.md` (Refreshed with the product).
 
 | Gate | Command | Result |
@@ -2063,3 +2063,22 @@ Built:
 - Docs: `guardian.md`, `incidents.md`; captures README; ledger 076 (CI record) and 080; feature flag `guardian.help-card`.
 
 Not done: a guardian's own request for their traveler; a push to the guardian beyond the lane row (D29).
+
+## Slice 081: each organizer's switch for the incident emails
+
+Status: done 2026-10-12. Commit: see git log (`feat(accounts): each owner and organizer turns the incident emails off or on for themselves (slice 081)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D29 (notifications that respect the reader; amended in 076 and 078 for the organizers' emails), D21. Details: `docs/engineering/identity-and-roster.md` (the account section), `notifications.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 40 files, 117 passed (`auth.test.ts` the switch; `incidents.test.ts` the owner off; `schema.test.ts` the column) |
+| Console unit tests | `pnpm --filter @voysemble/organizer-web test` | 22 files, 135 passed (the Settings account case reads the PATCH body) |
+| Console browser spec | `pnpm --filter @voysemble/organizer-web test:e2e -- settings.spec.ts` | 2 passed (desktop and laptop: the switch off, saved, still off after a reload) |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+Built:
+- Contracts: `MeResponse.incidentEmails`, `UpdateMeRequest.incidentEmails`. Worker: migration 0007 and `accounts.incidentEmails`; the me routes read and write it; `organizerRecipients` leaves an account that turned it off out; `auth.test.ts` (on by default, off, a non-boolean 400, on again); `incidents.test.ts` (the owner off: Kim's next card mails nobody).
+- Console: `auth.updateAccount`; the "Your account" card's checkbox saved with the name; strings EN/KO; the Settings unit case reads the PATCH body; `settings.spec.ts` turns it off and reloads; the dashboard test fixtures carry the field.
+- Docs: `identity-and-roster.md`, `notifications.md`; ledger 077 (CI record) and 081; feature flag `accounts.incident-emails-switch`.
+
+Not done: a per-trip switch; a digest of the incident emails instead of one each.

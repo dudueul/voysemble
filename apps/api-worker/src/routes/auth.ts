@@ -150,7 +150,7 @@ const updateMeRoute = createRoute({
   tags: ['auth'],
   summary: 'Change the account language (console and emails) or its own name',
   description:
-    'Slice 038. The console reads the language on sign-in; the magic-link and digest emails use it. Slice 069: `displayName` (1..80, null clears it) is how the owner or organizer is named on a trip: chats, incident cards, fee rows, the audit trail. Absent fields stay. Answers the same shape as GET /v1/me.',
+    'Slice 038. The console reads the language on sign-in; the magic-link and digest emails use it. Slice 069: `displayName` (1..80, null clears it) is how the owner or organizer is named on a trip: chats, incident cards, fee rows, the audit trail. Slice 081: `incidentEmails` turns the incident emails (a card opened from a phone, a head count closed with people missing) off or on for this account; the lanes to leaders and guardians are unaffected. Absent fields stay. Answers the same shape as GET /v1/me.',
   security: SESSION_SECURITY,
   request: { body: { content: { 'application/json': { schema: UpdateMeRequest } } } },
   responses: {
@@ -282,9 +282,11 @@ export function mountAuthRoutes(app: OpenAPIHono<AppEnv>): void {
   app.openapi(updateMeRoute, async (c) => {
     const auth = requireAuth(c);
     const body = c.req.valid('json');
-    const patch: { locale?: 'ko' | 'en'; displayName?: string | null } = {};
+    const patch: { locale?: 'ko' | 'en'; displayName?: string | null; incidentEmails?: boolean } =
+      {};
     if (body.locale !== undefined) patch.locale = body.locale;
     if (body.displayName !== undefined) patch.displayName = body.displayName;
+    if (body.incidentEmails !== undefined) patch.incidentEmails = body.incidentEmails;
     if (Object.keys(patch).length > 0) {
       await db(c.env.DB).update(accounts).set(patch).where(eq(accounts.id, auth.accountId));
     }
@@ -312,7 +314,7 @@ async function meResponse(
     .where(eq(memberships.accountId, accountId))
     .all();
   const account = await db(env.DB)
-    .select({ displayName: accounts.displayName })
+    .select({ displayName: accounts.displayName, incidentEmails: accounts.incidentEmails })
     .from(accounts)
     .where(eq(accounts.id, accountId))
     .get();
@@ -321,6 +323,7 @@ async function meResponse(
     email,
     locale: locale === 'en' ? ('en' as const) : ('ko' as const),
     displayName: account?.displayName ?? null,
+    incidentEmails: account?.incidentEmails ?? true,
     memberships: rows,
   };
 }

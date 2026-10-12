@@ -1527,12 +1527,25 @@ describe('Settings on the API (slice 036)', () => {
     renderWithQuery(<SettingsPage />);
     const form = await screen.findByRole('form', { name: 'Your account' });
     fireEvent.change(within(form).getByLabelText('Your name'), { target: { value: ' Nate Kim ' } });
+    // Slice 081: the incident emails switch, on by default, saved with the name.
+    const emailsLabel =
+      'Email me when a card opens from a phone or a head count closes with people missing';
+    const emails = within(form).getByLabelText(emailsLabel) as HTMLInputElement;
+    expect(emails.checked).toBe(true);
+    fireEvent.click(emails);
     fireEvent.submit(form);
     await waitFor(() => expect(patched).toHaveLength(1));
     await waitFor(() =>
       expect(screen.getByTestId('settings-account-status').textContent).toBe('Saved.'),
     );
     expect((within(form).getByLabelText('Your name') as HTMLInputElement).value).toBe('Nate Kim');
+    const patchCall = vi
+      .mocked(fetch)
+      .mock.calls.find(([, init]) => (init as RequestInit | undefined)?.method === 'PATCH');
+    expect(JSON.parse(String((patchCall?.[1] as RequestInit | undefined)?.body))).toEqual({
+      displayName: 'Nate Kim',
+      incidentEmails: false,
+    });
   });
 
   it('loads the profile and members, saves the profile card, and reports Saved.', async () => {

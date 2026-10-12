@@ -580,6 +580,9 @@ export const auth = {
   /** Slice 069: the account's own name; null clears it. */
   updateDisplayName: (displayName: string | null) =>
     api<MeResponse>('/v1/me', { method: 'PATCH', body: { displayName } }),
+  /** Slice 081: the account card saves the name and the incident emails switch together. */
+  updateAccount: (body: { displayName: string | null; incidentEmails: boolean }) =>
+    api<MeResponse>('/v1/me', { method: 'PATCH', body }),
   /** Slice 045 (D35): a confirmation link to the account's own address, then its token. */
   reauth: () => api<ReauthAccepted>('/v1/auth/reauth', { method: 'POST' }),
   reauthVerify: (token: string) =>

@@ -13,7 +13,8 @@
 // they read their own cards, projected. Slice 076: a card opened from a phone reaches the owner's
 // mailbox at once (not one the organizer opened on the console); a traveler asks once while a
 // request is open. Slice 078: a head count that closes with people missing mails the owner too,
-// once (the replay and a clean close send nothing).
+// once (the replay and a clean close send nothing). Slice 081: an owner who turned the incident
+// emails off hears nothing more while the lanes still run.
 
 import { env } from 'cloudflare:test';
 import type {
@@ -296,6 +297,20 @@ describe('manual incidents (slice 068)', () => {
     expect(kimsMail?.text).toContain('Minji feels sick');
     expect(kimsMail?.text).toContain('leader Kim opened an incident from the phone');
     expect(kimsMail?.text).toContain('/safety');
+    // Slice 081: the owner turns the incident emails off; Kim's next card mails nobody.
+    expect((await api(t.nate).patch('/v1/me', { incidentEmails: false })).status).toBe(200);
+    const mailsBefore = await mailCount('nate-inc@example.com');
+    const quiet = await json<Incident>(
+      await api(t.kim).post(t.base, {
+        title: 'Juho feels sick',
+        participationIds: [t.byName('Juho Kim')],
+      }),
+    );
+    expect(await mailCount('nate-inc@example.com')).toBe(mailsBefore);
+    expect((await api(t.nate).post(`${t.base}/${quiet.id}/resolve`, { note: null })).status).toBe(
+      200,
+    );
+    expect((await api(t.nate).patch('/v1/me', { incidentEmails: true })).status).toBe(200);
     expect(
       (await api(t.kim).post(t.base, { title: 'x', participationIds: [t.byName('Lee, Hana')] }))
         .status,

@@ -120,7 +120,10 @@ Safety page's link). A card the organizer opened on the console sends nothing. T
 throws into the route; a failure is logged without the address or the body. A traveler asks
 once: while a request of theirs is open, another is 409 (the Today card already says the leaders
 know); after it is resolved they may ask again. The production transport is the digest's
-(unbound in named environments until the Email Service binding lands).
+(unbound in named environments until the Email Service binding lands). Slice 081: each owner
+and organizer turns these emails off or on for themselves on the console's Settings page
+(`accounts.incident_emails`, `identity-and-roster.md`); an account that turned them off is left
+out of every incident email, and the lanes to leaders and guardians are unaffected.
 
 ## Facts established by tests
 
@@ -168,4 +171,4 @@ Push delivery (FCM and APNs: a token per device, the Android channels are there,
 id per push); opening the exact announcement or incident rather than its tab or screen (the
 reference is there; the screens open on their own first item); the production email transport (the digest goes
 through the same `EmailPort` as the sign-in link, which named environments do not bind yet);
-chat mentions; the organizer's mobile digest; a per-organizer switch for the incident emails.
+chat mentions; the organizer's mobile digest.

@@ -931,6 +931,11 @@ export const en = {
     displayName: 'Your name',
     displayNameHint:
       'Shown to travelers, leaders and guardians wherever you act on a trip: chats, incident cards, fee rows, the audit trail. Your email stays private.',
+    // Slice 081: the incident emails switch.
+    incidentEmails:
+      'Email me when a card opens from a phone or a head count closes with people missing',
+    incidentEmailsHint:
+      'Owners and organizers have no app; this is how the urgent cards reach you at once. The lanes to leaders and guardians are unaffected.',
     noMembers: 'No one else yet. Leaders appear here when they redeem their invite code.',
     membersLoadFailed: 'Could not load the members.',
     loadFailed: 'Could not load the organization.',

@@ -2727,3 +2727,10 @@ fieldset.filters {
   align-items: center;
   gap: 8px;
 }
+
+/* Slice 081: a checkbox field on the Settings account card. */
+.field--check {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 8px;
+}

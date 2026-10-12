@@ -121,6 +121,18 @@ describe('magic link sign-in', () => {
     expect((await api(nate).patch('/v1/me', { displayName: 'x'.repeat(81) })).status).toBe(400);
     expect((await api(nate).patch('/v1/me', {})).status).toBe(200);
     expect((await json<MeResponse>(await api(nate).get('/v1/me'))).displayName).toBe('Nate Kim');
+    // Slice 081: the incident emails switch, on by default, off and on again; a non-boolean is 400.
+    expect(named.incidentEmails).toBe(true);
+    expect(
+      (await json<MeResponse>(await api(nate).patch('/v1/me', { incidentEmails: false })))
+        .incidentEmails,
+    ).toBe(false);
+    expect((await json<MeResponse>(await api(nate).get('/v1/me'))).incidentEmails).toBe(false);
+    expect((await api(nate).patch('/v1/me', { incidentEmails: 'no' })).status).toBe(400);
+    expect(
+      (await json<MeResponse>(await api(nate).patch('/v1/me', { incidentEmails: true })))
+        .incidentEmails,
+    ).toBe(true);
     // On a trip, what the organizer does carries the name instead of "Owner".
     const org = await createOrg(nate);
     const trip = await createTrip(nate, org.id);

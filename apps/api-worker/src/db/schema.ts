@@ -14,6 +14,8 @@ export const accounts = sqliteTable('accounts', {
   lastLoginAt: text('last_login_at'),
   /** Slice 069: the account's own name for whatever it does on a trip; null until set. */
   displayName: text('display_name'),
+  /** Slice 081: the incident emails switch (migration 0007); on by default. */
+  incidentEmails: integer('incident_emails', { mode: 'boolean' }).notNull().default(true),
 });
 
 export const sessions = sqliteTable(

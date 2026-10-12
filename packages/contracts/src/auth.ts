@@ -66,6 +66,12 @@ export const MeResponse = z
     locale: Locale,
     /** Slice 069: the account's own name, shown wherever it acts on a trip; null until set. */
     displayName: z.string().nullable(),
+    /**
+     * Slice 081: whether the account wants the incident emails (a card opened from a phone, a head
+     * count closed with people missing; slices 076 and 078). On by default; an owner or organizer
+     * turns it off on the console. The lanes to leaders and guardians are unaffected.
+     */
+    incidentEmails: z.boolean(),
     memberships: z.array(MembershipSummary),
   })
   .openapi('MeResponse');
@@ -73,12 +79,15 @@ export type MeResponse = z.infer<typeof MeResponse>;
 
 /**
  * `PATCH /v1/me` (slice 038): the account's own language for the console and the emails it gets;
- * slice 069: the account's own name (1..80 characters; null clears it). Absent fields stay.
+ * slice 069: the account's own name (1..80 characters; null clears it); slice 081: the incident
+ * emails switch. Absent fields stay.
  */
 export const UpdateMeRequest = z
   .object({
     locale: Locale.optional(),
     displayName: z.string().trim().min(1).max(80).nullable().optional(),
+    /** Slice 081: the incident emails switch. */
+    incidentEmails: z.boolean().optional(),
   })
   .openapi('UpdateMeRequest');
 export type UpdateMeRequest = z.infer<typeof UpdateMeRequest>;

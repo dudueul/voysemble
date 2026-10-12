@@ -910,6 +910,10 @@ export const ko: Strings = {
     displayName: '이름',
     displayNameHint:
       '대화, 사건 카드, 참가비 행, 감사 기록 등 여행에서 하는 일에 여행자·인솔자·보호자에게 보이는 이름입니다. 이메일은 공개되지 않습니다.',
+    incidentEmails:
+      '휴대폰에서 카드가 열리거나 인원 점검이 미확인 인원과 함께 마감되면 이메일로 알림',
+    incidentEmailsHint:
+      '소유자와 운영자에게는 앱이 없어 긴급한 카드가 이렇게 즉시 닿습니다. 인솔자와 보호자에게 가는 레인은 그대로입니다.',
     noMembers: '아직 다른 구성원이 없습니다. 인솔자가 초대 코드를 쓰면 여기에 나타납니다.',
     membersLoadFailed: '구성원을 불러오지 못했습니다.',
     loadFailed: '조직을 불러오지 못했습니다.',

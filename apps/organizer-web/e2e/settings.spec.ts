@@ -23,6 +23,17 @@ test('settings: the owner edits the organization and the values persist', async 
   await account.getByRole('button', { name: 'Save' }).click();
   await expect(page.getByTestId('settings-account-status')).toHaveText('Saved.');
   await expect(page.getByRole('button', { name: 'Account: Nate Kim' })).toHaveText('NA');
+  // Slice 081: the incident emails switch, off, saved, and still off after a reload.
+  const emailsLabel =
+    'Email me when a card opens from a phone or a head count closes with people missing';
+  await expect(account.getByLabel(emailsLabel)).toBeChecked();
+  await account.getByLabel(emailsLabel).uncheck();
+  await account.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByTestId('settings-account-status')).toHaveText('Saved.');
+  await page.reload();
+  await expect(
+    page.getByRole('form', { name: 'Your account' }).getByLabel(emailsLabel),
+  ).not.toBeChecked();
 
   // Profile: defaults from the decisions, then a rename and a new zone.
   const profile = page.getByRole('form', { name: 'Organization' });
