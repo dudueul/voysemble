@@ -13,6 +13,7 @@ import { authenticate } from './auth/middleware';
 import type { AppEnv } from './env';
 import { mountAnnouncementRoutes } from './routes/announcements';
 import { mountAuthRoutes } from './routes/auth';
+import { mountCareRoutes } from './routes/care';
 import { mountDevRoutes } from './routes/dev';
 import { mountFeeRoutes } from './routes/fees';
 import { mountGuardianRoutes } from './routes/guardian';
@@ -128,6 +129,7 @@ export function createApp(): OpenAPIHono<AppEnv> {
   mountPeopleRoutes(app);
   mountFeeRoutes(app);
   mountWindowRoutes(app);
+  mountCareRoutes(app);
   mountDevRoutes(app);
   mountWellKnownRoutes(app);
 

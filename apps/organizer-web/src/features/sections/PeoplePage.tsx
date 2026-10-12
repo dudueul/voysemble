@@ -5,7 +5,7 @@
 // honest: a dash in live mode, never a fake note.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { PersonTimeline } from '@voysemble/contracts';
+import { type CareNote, careLineOf, type PersonTimeline } from '@voysemble/contracts';
 import type { FormEvent, ReactNode } from 'react';
 import { useState } from 'react';
 import { Icons } from '../../app/shell/icons';
@@ -20,6 +20,8 @@ import {
   type PersonRow,
 } from '../../lib/people-model';
 import {
+  care as careApi,
+  careStatusQuery,
   orgsQuery,
   personTimelineQuery,
   pickActiveOrg,
@@ -57,6 +59,224 @@ function fixtureModel(): PeopleModel {
     groups: ['Bus A', 'Bus B'],
     totals: { ...peopleTotals, notJoined: total - peopleTotals.joined },
   };
+}
+
+const EMPTY_NOTE: CareNote = { allergies: '', medications: '', freeText: '' };
+
+/**
+ * Care note on a traveler's card (slice 030, D27): the content-free status, an audited reveal,
+ * and the organizer's edit form. The content is never fetched with the card; it arrives only
+ * from a reveal and is shown until hidden.
+ */
+function CareNoteSection({
+  orgId,
+  tripId,
+  participationId,
+  now,
+}: {
+  orgId: string;
+  tripId: string;
+  participationId: string;
+  now: string;
+}) {
+  const qc = useQueryClient();
+  const c = s.care;
+  const status = useQuery(careStatusQuery(orgId, tripId, participationId));
+  const [shown, setShown] = useState<CareNote | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<CareNote>(EMPTY_NOTE);
+  const [note, setNote] = useState<string | null>(null);
+  const refresh = () => {
+    void qc.invalidateQueries({
+      queryKey: careStatusQuery(orgId, tripId, participationId).queryKey,
+    });
+    void qc.invalidateQueries({ queryKey: rosterQuery(orgId, tripId).queryKey });
+    void qc.invalidateQueries({
+      queryKey: personTimelineQuery(orgId, tripId, participationId).queryKey,
+    });
+  };
+  const reveal = useMutation({
+    mutationFn: () => careApi.reveal(orgId, tripId, participationId),
+    onSuccess: (r) => {
+      setShown(r.note);
+      setNote(null);
+      refresh();
+    },
+    onError: (e) => setNote(e instanceof ApiError ? e.message : c.revealFailed),
+  });
+  const save = useMutation({
+    mutationFn: (n: CareNote) => careApi.put(orgId, tripId, participationId, n),
+    onSuccess: (r, n) => {
+      setEditing(false);
+      setShown(r.hasCareNote ? n : null);
+      setNote(r.hasCareNote ? c.saved : c.cleared);
+      refresh();
+    },
+    onError: (e) => setNote(e instanceof ApiError ? e.message : c.failed),
+  });
+  const field = (key: keyof CareNote, label: string, max: number) => (
+    <label className="field">
+      <span className="field__label">{label}</span>
+      <input
+        className="field__input"
+        maxLength={max}
+        value={draft[key]}
+        onChange={(e) => setDraft({ ...draft, [key]: e.target.value })}
+      />
+    </label>
+  );
+  return (
+    <div className="care-note" data-testid="care-note">
+      <h3 className="card__subtitle">{c.title}</h3>
+      {status.isPending ? (
+        <p className="muted small" role="status">
+          {strings.states.loading}
+        </p>
+      ) : status.isError ? (
+        <p className="field__error" role="alert">
+          {status.error instanceof ApiError ? status.error.message : c.revealFailed}
+        </p>
+      ) : (
+        <p className="muted small" data-testid="care-status">
+          {status.data.hasCareNote && status.data.updatedAt
+            ? c.setBy(
+                status.data.updatedByName ?? '',
+                relativeTo(now, status.data.updatedAt),
+                status.data.reveals,
+              )
+            : c.none}
+        </p>
+      )}
+      {shown ? (
+        <dl className="care-note__content" data-testid="care-content">
+          <dt>{c.allergies}</dt>
+          <dd>{shown.allergies || '—'}</dd>
+          <dt>{c.medications}</dt>
+          <dd>{shown.medications || '—'}</dd>
+          <dt>{c.freeText}</dt>
+          <dd>{shown.freeText || '—'}</dd>
+        </dl>
+      ) : null}
+      {editing ? (
+        <form
+          className="form form--inline"
+          aria-label={c.edit}
+          onSubmit={(e) => {
+            e.preventDefault();
+            save.mutate(draft);
+          }}
+        >
+          {field('allergies', c.allergies, 200)}
+          {field('medications', c.medications, 200)}
+          {field('freeText', c.freeText, 500)}
+          <div className="form__actions">
+            <button type="submit" className="btn btn--primary btn--sm" disabled={save.isPending}>
+              {c.save}
+            </button>
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              disabled={save.isPending}
+              onClick={() => save.mutate(EMPTY_NOTE)}
+            >
+              {c.clear}
+            </button>
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              onClick={() => setEditing(false)}
+            >
+              {c.cancel}
+            </button>
+          </div>
+        </form>
+      ) : (
+        <div className="form__actions">
+          {status.data?.hasCareNote ? (
+            shown ? (
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                onClick={() => setShown(null)}
+              >
+                {c.hide}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                disabled={reveal.isPending}
+                onClick={() => reveal.mutate()}
+              >
+                {c.reveal}
+              </button>
+            )
+          ) : null}
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm"
+            onClick={() => {
+              setDraft(shown ?? EMPTY_NOTE);
+              setEditing(true);
+            }}
+          >
+            {c.edit}
+          </button>
+        </div>
+      )}
+      {note ? (
+        <p className="small" role="status" data-testid="care-note-status">
+          {note}
+        </p>
+      ) : null}
+      <p className="muted small">{c.sealed}</p>
+    </div>
+  );
+}
+
+/** The roster column (D27): one audited reveal per click, shown inline until hidden. */
+function CareCell({
+  orgId,
+  tripId,
+  p,
+  live,
+}: {
+  orgId: string;
+  tripId: string;
+  p: PersonRow;
+  live: boolean;
+}) {
+  const [line, setLine] = useState<string | null>(null);
+  const reveal = useMutation({
+    mutationFn: () => careApi.reveal(orgId, tripId, p.id),
+    onSuccess: (r) => setLine(careLineOf(r.note)),
+    onError: (e) => setLine(e instanceof ApiError ? e.message : s.care.revealFailed),
+  });
+  if (!p.hasCareNote) return <span className="muted">—</span>;
+  return (
+    <span className="care-cell">
+      {line ? (
+        <>
+          <span className="care-cell__line" data-testid={`care-line-${p.id}`}>
+            {line}
+          </span>
+          <button type="button" className="linkbtn" onClick={() => setLine(null)}>
+            {s.care.hide}
+          </button>
+        </>
+      ) : (
+        <button
+          type="button"
+          className="btn btn--ghost btn--sm"
+          aria-label={s.revealNote(p.name)}
+          disabled={reveal.isPending}
+          onClick={() => (live ? reveal.mutate() : setLine(s.care.sample))}
+        >
+          <Icons.shield /> {s.careNote}
+        </button>
+      )}
+    </span>
+  );
 }
 
 /** Edit, revoke the code, remove the row (slice 028, D12). Joined rows wait for D28. */
@@ -287,9 +507,9 @@ function PersonCard({
           ) : null}
         </div>
         <RosterActions orgId={orgId} tripId={tripId} card={card} onRemoved={onClose} />
-        <div className="person-card__soon">
-          <span>{s.careNoteSoon}</span>
-        </div>
+        {p.role === 'traveler' ? (
+          <CareNoteSection orgId={orgId} tripId={tripId} participationId={p.id} now={now} />
+        ) : null}
         <h3 className="card__subtitle">{s.timeline}</h3>
         {card.entries.length === 0 ? (
           <p className="muted small" role="status">
@@ -325,9 +545,14 @@ function PeopleTable({
   selectedId = null,
   onSelect,
   card,
+  orgId,
+  tripId,
 }: {
   model: PeopleModel;
   live: boolean;
+  /** Live mode: the scope of the care-note reveals in the roster column (slice 030). */
+  orgId?: string;
+  tripId?: string;
   /** Reference instant for "last ack": the frozen fixture clock or the real one. */
   now: string;
   action: ReactNode;
@@ -467,19 +692,7 @@ function PeopleTable({
                     </td>
                     <td className="muted">{p.lastAckAt ? relativeTo(now, p.lastAckAt) : '—'}</td>
                     <td>
-                      {p.hasCareNote ? (
-                        <button
-                          type="button"
-                          className="btn btn--ghost btn--sm"
-                          aria-label={s.revealNote(p.name)}
-                        >
-                          <Icons.shield /> {s.careNote}
-                        </button>
-                      ) : (
-                        <span className="muted" title={live ? s.careNoteLater : undefined}>
-                          —
-                        </span>
-                      )}
+                      <CareCell orgId={orgId ?? ''} tripId={tripId ?? ''} p={p} live={live} />
                     </td>
                   </tr>
                 ))}
@@ -560,6 +773,8 @@ export function PeoplePage() {
       live
       now={now}
       action={action}
+      orgId={org.id}
+      tripId={trip.id}
       selectedId={selectedId}
       onSelect={setSelected}
       card={

@@ -91,6 +91,8 @@ export const RosterEntry = Participation.extend({
   invite: InviteStatus,
   /** Server receipt time of this person's latest acknowledgment; null if they never acked. */
   lastAckAt: Timestamp.nullable(),
+  /** A sealed care note is on file (D27); the content needs an audited reveal. */
+  hasCareNote: z.boolean(),
 }).openapi('RosterEntry');
 export type RosterEntry = z.infer<typeof RosterEntry>;
 

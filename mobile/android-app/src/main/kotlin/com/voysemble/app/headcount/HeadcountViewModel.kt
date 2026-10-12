@@ -15,6 +15,7 @@ import androidx.lifecycle.viewModelScope
 import com.voysemble.core.api.ApiClient
 import com.voysemble.core.api.ApiResult
 import com.voysemble.core.api.adoptPush
+import com.voysemble.core.api.careLineOf
 import com.voysemble.core.api.headcountFromRoster
 import com.voysemble.core.api.pushHeadcount
 import com.voysemble.core.fixtures.KoreaConcertTourFixture
@@ -61,6 +62,38 @@ class HeadcountViewModel(
 
     /** The first roster load (live mode); completed at once in sample mode. Tests await it. */
     val ready: Job = if (_status.value.live) load() else Job().also { it.complete() }
+
+    /**
+     * Care notes revealed on this screen (D27): member id to one line. Lives in memory only and
+     * dies with the view model; the device never stores a decrypted note.
+     */
+    private val _revealed = MutableStateFlow<Map<String, String>>(emptyMap())
+    val revealed: StateFlow<Map<String, String>> = _revealed
+
+    /** Reveal (audited on the server) or, in sample mode, the fixture note. */
+    fun revealCare(memberId: String): Job {
+        val a = api
+        val t = trip
+        if (a == null || t == null) {
+            _revealed.update { it + (memberId to careLineOf(KoreaConcertTourFixture.careNote())) }
+            return Job().also { it.complete() }
+        }
+        return viewModelScope.launch {
+            when (val r = a.revealCareNote(t.organizationId, t.tripId, memberId)) {
+                is ApiResult.Ok -> _revealed.update { it + (memberId to careLineOf(r.value.note)) }
+                is ApiResult.Failed -> _status.update {
+                    it.copy(error = when (r.status) {
+                        403 -> "Only this group's leaders see the care note."
+                        404 -> "No care note on file."
+                        else -> "Could not reveal the care note (${r.error.code})."
+                    })
+                }
+                is ApiResult.Unreachable -> _status.update { it.copy(error = "Offline. Care notes are never cached on the device.") }
+            }
+        }
+    }
+
+    fun hideCare(memberId: String) = _revealed.update { it - memberId }
 
     fun togglePresent(memberId: String) = _state.update { it.togglePresent(memberId) }
     fun excuse(memberId: String) = _state.update { it.mark(memberId, HeadcountMark.EXCUSED) }

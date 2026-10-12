@@ -2438,3 +2438,42 @@ fieldset.filters {
   background: color-mix(in srgb, var(--vy-color-neutral-400, #94a3b8) 14%, transparent);
   color: var(--vy-color-neutral-500, #64748b);
 }
+
+/* Care notes on the person card and the roster (slice 030, D27). */
+.care-note {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--vy-border);
+  border-radius: 10px;
+}
+
+.care-note__content {
+  display: grid;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--vy-warn) 10%, transparent);
+}
+
+.care-note__content dt {
+  font-size: 0.78rem;
+  color: var(--vy-color-neutral-500, #64748b);
+}
+
+.care-note__content dd {
+  margin: 0 0 4px;
+}
+
+.care-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.care-cell__line {
+  max-width: 260px;
+  font-size: 0.85rem;
+}

@@ -16,7 +16,7 @@ export interface PersonRow {
   status: JoinStatus;
   /** Display name of the traveler a guardian is bound to. */
   guardianOfName: string | null;
-  /** D27 care notes are not on the API yet; always false in live mode. */
+  /** A sealed care note is on file (D27, slice 030); the content needs an audited reveal. */
   hasCareNote: boolean;
   lastAckAt: string | null;
 }
@@ -57,7 +57,7 @@ export function buildPeople(entries: RosterEntry[]): PeopleModel {
     group: e.groupName,
     status: STATUS[e.invite],
     guardianOfName: e.guardianOf ? (names.get(e.guardianOf) ?? null) : null,
-    hasCareNote: false,
+    hasCareNote: e.hasCareNote ?? false,
     lastAckAt: e.lastAckAt,
   }));
   const groups: string[] = [];

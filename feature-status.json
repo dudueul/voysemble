@@ -37,7 +37,7 @@
     "retention.crypto-shred": "deferred",
     "chat.fixed-channels": "deferred",
     "billing.fee-ledger": "working",
-    "roster.care-notes": "deferred",
+    "roster.care-notes": "working",
     "documents.sealed-links": "deferred",
     "devices.revoke-wipe": "deferred",
     "notifications.lanes": "deferred",

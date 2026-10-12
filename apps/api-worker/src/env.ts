@@ -15,6 +15,12 @@ export type Bindings = Env & {
   ANDROID_PACKAGE?: string;
   ANDROID_CERT_SHA256?: string;
   APPLE_APP_IDS?: string;
+  /**
+   * Care notes (D27, slice 030): 32 bytes base64, set with `wrangler secret put CARE_NOTE_KEY`
+   * per named environment. Unset locally (a fixed development key stands in); unset in a named
+   * environment, care-note writes and reveals answer 503.
+   */
+  CARE_NOTE_KEY?: string;
 };
 
 /** Who is calling, resolved from the session by auth/middleware.ts. */

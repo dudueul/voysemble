@@ -942,3 +942,30 @@ Built:
 
 Not done: leader "open a window" on the phone; a window per itinerary event; push when a window opens; Korean phone strings.
 
+## Slice 030: care notes
+
+Status: done 2026-10-12. Commit: see git log (`feat(care): sealed care notes with audited reveals (slice 030)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D27 (care note = PII tier, decrypted for the traveler's group leaders and the organizer, behind an eye icon, every reveal audited; guardians write it), ADR-0001 tiers, ADR-0009 matrix. Details: `docs/engineering/care-notes.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 21 files, 61 tests (adds `care-crypto.test.ts`: 3, `care.test.ts`: 1) |
+| Core JVM tests | `./gradlew :core:jvmTest -Pvoysemble.android=false` | green (adds `CareTest`: 3) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 14 files, 78 tests (adds the People care case; the card case checks the status line) |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e` | `people.spec.ts` extended; capture `people-care.png` |
+| Android unit + screenshots | CI `mobile` job | `HeadcountViewModelTest` (+2), `headcount-care.png` |
+| iOS unit + captures | CI `ios` job | `LiveModelsTests` (+1), `headcount-care.png` |
+
+Facts established by tests: see the engineering doc.
+
+Built:
+- Contracts `care.ts` (`CareNote`, `CareNoteStatus`, `RevealCareNoteResponse`, `careNoteIsEmpty`, `careLineOf`), `TimelineKind` + `care_update`/`care_reveal`, `RosterEntry.hasCareNote`.
+- Worker: `lib/care-crypto.ts` (AES-GCM, `CARE_NOTE_KEY` secret, local dev key), OrgDO schema v12 (`care_notes`, `care_reveals`), `putCareNote`, `revealCareNote`, `careNoteStatus`, roster flag, timeline entries, removal cascade; `routes/care.ts` (status, put, reveal) with the ADR-0009 matrix.
+- Core: `api/Care.kt`, `ApiClient.revealCareNote`, `ParticipationDto.hasCareNote`, `HeadcountMember.hasCareNote`, fixture note.
+- Android and iOS: head count rows reveal (audited) and hide; memory-only; tests and captures.
+- Console: `careStatusQuery`, `care.put/reveal`, `CareNoteSection` on the person card, `CareCell` in the roster, strings, styles; unit test; e2e with capture.
+- Docs: `care-notes.md`, roster doc pointer, captures README, mobile README, feature flag (`roster.care-notes` working).
+
+Not done: guardian entry on the phone; edit notifications; documents (tier 3); Korean strings.
+

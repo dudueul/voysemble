@@ -21,6 +21,8 @@ public data class HeadcountMember(
     val lastAckAt: String?,
     /** Latest meeting-window state, if a window is open; informs the missing list only. */
     val windowState: WindowState?,
+    /** A care note is on file (D27): the row offers an audited reveal. */
+    val hasCareNote: Boolean = false,
 )
 
 public data class HeadcountSession(

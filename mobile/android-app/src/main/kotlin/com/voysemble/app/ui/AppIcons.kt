@@ -48,5 +48,6 @@ object AppIcons {
     val Bell: ImageVector by lazy { stroke("bell", "M6 16V11a6 6 0 1 1 12 0v5l2 2H4z", "M10 21h4") }
     val People: ImageVector by lazy { stroke("people", "M9 11m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0", "M3 20a6 6 0 0 1 12 0", "M17 11m-2.5 0a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0", "M15.5 20a5 5 0 0 1 5.5-4.5") }
     val Translate: ImageVector by lazy { stroke("translate", "M4 5h10M9 3v2M12 5c-1 5-4 8-8 10M6 9c1 3 3 5 6 6", "M14 21l4-9 4 9M15.5 17h5") }
+    val Care: ImageVector by lazy { stroke("care", "M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0-18 0", "M12 8v8M8 12h8") }
     val Clock: ImageVector by lazy { stroke("clock", "M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0-18 0", "M12 7v5l3 2") }
 }

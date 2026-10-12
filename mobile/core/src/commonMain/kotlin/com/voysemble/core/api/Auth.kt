@@ -47,6 +47,8 @@ public data class ParticipationDto(
     val guardianOf: String? = null,
     val accountId: String? = null,
     val createdAt: String,
+    /** A sealed care note is on file (D27, slice 030); the content needs an audited reveal. */
+    val hasCareNote: Boolean = false,
 )
 
 @Serializable

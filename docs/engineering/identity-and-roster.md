@@ -232,6 +232,6 @@ refetch after each action; a removal closes the card.
 
 ## Open items
 
-- Care notes (D27); device revocation for joined rows (D28); deep links from timeline entries; CSV export of the roster.
+- Device revocation for joined rows (D28); deep links from timeline entries; CSV export of the roster. Care notes: `docs/engineering/care-notes.md` (slice 030).
 - Invite email delivery (guardian contact) and invite revocation endpoint.
 - Organizer-facing web screens for onboarding checklist (D26) are slice 007 candidates.

@@ -70,6 +70,48 @@ class HeadcountViewModelTest {
     }
 
     @Test
+    fun sample_reveal_shows_the_fixture_note_and_hide_removes_it() {
+        val vm = HeadcountViewModel()
+        vm.revealCare("t1")
+        assertEquals("Allergies: Peanuts · Medications: EpiPen in the red bag · Asks for it herself.", vm.revealed.value["t1"])
+        vm.hideCare("t1")
+        assertEquals(null, vm.revealed.value["t1"])
+    }
+
+    @Test
+    fun live_reveal_posts_to_the_care_route_and_403_is_explained() = runTest {
+        var reveals = 0
+        val engine = MockEngine { req ->
+            when {
+                req.url.encodedPath.endsWith("/care-note/reveal") -> {
+                    reveals += 1
+                    assertEquals(HttpMethod.Post, req.method)
+                    if (req.url.encodedPath.contains("p-seojun")) {
+                        respond("""{"error":{"code":"FORBIDDEN","message":"Not your traveler.","correlationId":"c"}}""", HttpStatusCode.Forbidden, headersOf(HttpHeaders.ContentType, "application/json"))
+                    } else {
+                        assertEquals("/v1/orgs/org_1/trips/trip_1/people/p-minji/care-note/reveal", req.url.encodedPath)
+                        respond(
+                            """{"participationId":"p-minji","note":{"allergies":"Peanuts","medications":"","freeText":""},"updatedAt":"2026-10-12T04:00:00.000Z","updatedByName":"Sora Park","revealedAt":"2026-10-12T04:05:00.000Z"}""",
+                            HttpStatusCode.OK,
+                            headersOf(HttpHeaders.ContentType, "application/json"),
+                        )
+                    }
+                }
+                req.method == HttpMethod.Put -> respond(sessionJson(closed = false), HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+                else -> respond(rosterJson, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+            }
+        }
+        val vm = HeadcountViewModel(api = ApiClient(ApiClientConfig("h", "t") { "tok" }, engine), trip = trip, newId = { "11111111-1111-4111-8111-111111111111" })
+        vm.ready.join()
+        vm.revealCare("p-minji").join()
+        assertEquals("Allergies: Peanuts", vm.revealed.value["p-minji"])
+        vm.revealCare("p-seojun").join()
+        assertEquals(null, vm.revealed.value["p-seojun"])
+        assertEquals("Only this group's leaders see the care note.", vm.status.value.error)
+        assertEquals(2, reveals)
+    }
+
+    @Test
     fun live_seeds_leader_group_pushes_open_then_closed() = runTest {
         val puts = mutableListOf<String>()
         val engine = MockEngine { req ->

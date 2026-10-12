@@ -241,6 +241,13 @@ describe('sample sections', () => {
           }),
         ],
       }),
+      [`GET ${base}/people/p1/care-note`]: () => ({
+        participationId: 'p1',
+        hasCareNote: false,
+        updatedAt: null,
+        updatedByName: null,
+        reveals: 0,
+      }),
       [`GET ${base}/people/p1/timeline`]: () => ({
         participation: minji,
         guardianOf: null,
@@ -271,7 +278,9 @@ describe('sample sections', () => {
     const card = screen.getByTestId('person-card');
     expect(text(card)).toContain('Minji Park');
     expect(text(card)).toContain('Guardians: Sora Park · Invited');
-    expect(text(card)).toContain('Care note: arrives with its own slice (D27).');
+    await waitFor(() =>
+      expect(text(screen.getByTestId('care-status'))).toBe('No care note on file.'),
+    );
     const items = within(screen.getByTestId('timeline')).getAllByRole('listitem');
     expect(items).toHaveLength(2);
     expect(text(items[0] ?? null)).toContain('Head count · Bus A · present');
@@ -279,6 +288,148 @@ describe('sample sections', () => {
     expect(screen.getByTestId('person-p1').getAttribute('aria-selected')).toBe('true');
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(screen.queryByTestId('person-card')).toBeNull();
+  });
+
+  it('People: care note on the card: save, audited reveal, roster reveal, clear', async () => {
+    const base = `/v1/orgs/${ORG.id}/trips/${TRIP.id}`;
+    const minji = {
+      id: 'p1',
+      tripId: TRIP.id,
+      role: 'traveler',
+      displayName: 'Minji Park',
+      groupName: 'Bus A',
+      guardianOf: null,
+      accountId: 'a1',
+      createdAt: '2026-10-11T00:00:00.000Z',
+      invite: 'joined',
+      lastAckAt: null,
+      hasCareNote: false,
+    };
+    let stored: { allergies: string; medications: string; freeText: string } | null = null;
+    let reveals = 0;
+    const puts: unknown[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const key = `${init?.method ?? 'GET'} ${String(input)}`;
+        if (key === 'GET /v1/orgs') return Response.json({ organizations: [ORG] });
+        if (key === `GET /v1/orgs/${ORG.id}/trips`) return Response.json({ trips: [TRIP] });
+        if (key === `GET ${base}/roster`)
+          return Response.json({ participations: [{ ...minji, hasCareNote: stored !== null }] });
+        if (key === `GET ${base}/people/p1/timeline`)
+          return Response.json({
+            participation: { ...minji, hasCareNote: stored !== null },
+            guardianOf: null,
+            guardians: [],
+            entries: [],
+          });
+        if (key === `GET ${base}/people/p1/care-note`)
+          return Response.json({
+            participationId: 'p1',
+            hasCareNote: stored !== null,
+            updatedAt: stored ? '2026-10-12T04:00:00.000Z' : null,
+            updatedByName: stored ? 'Owner' : null,
+            reveals,
+          });
+        if (key === `PUT ${base}/people/p1/care-note`) {
+          const body = JSON.parse(String(init?.body)) as typeof minji & {
+            allergies: string;
+            medications: string;
+            freeText: string;
+          };
+          puts.push(body);
+          stored = body.allergies || body.medications || body.freeText ? body : null;
+          return Response.json({
+            participationId: 'p1',
+            hasCareNote: stored !== null,
+            updatedAt: '2026-10-12T04:00:00.000Z',
+            updatedByName: 'Owner',
+            reveals,
+          });
+        }
+        if (key === `POST ${base}/people/p1/care-note/reveal`) {
+          reveals += 1;
+          if (!stored)
+            return Response.json(
+              {
+                error: { code: 'NOT_FOUND', message: 'No care note on file.', correlationId: 't' },
+              },
+              { status: 404 },
+            );
+          return Response.json({
+            participationId: 'p1',
+            note: stored,
+            updatedAt: '2026-10-12T04:00:00.000Z',
+            updatedByName: 'Owner',
+            revealedAt: '2026-10-12T04:05:00.000Z',
+          });
+        }
+        return Response.json(
+          { error: { code: 'NOT_FOUND', message: key, correlationId: 't' } },
+          { status: 404 },
+        );
+      }),
+    );
+    renderWithQuery(<PeoplePage />);
+    await waitFor(() => expect(screen.getByTestId('person-p1')).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: 'Open the card of Minji Park' }));
+    await waitFor(() =>
+      expect(text(screen.getByTestId('care-status'))).toBe('No care note on file.'),
+    );
+    expect(screen.queryByRole('button', { name: 'Reveal (audited)' })).toBeNull();
+
+    // Save from the card.
+    fireEvent.click(screen.getByRole('button', { name: 'Edit care note' }));
+    const form = screen.getByRole('form', { name: 'Edit care note' });
+    fireEvent.change(within(form).getByLabelText('Allergies'), { target: { value: 'Peanuts' } });
+    fireEvent.change(within(form).getByLabelText('Medications'), {
+      target: { value: 'EpiPen in the red bag' },
+    });
+    fireEvent.submit(form);
+    await waitFor(() =>
+      expect(text(screen.getByTestId('care-note-status'))).toBe('Care note saved.'),
+    );
+    expect(puts[0]).toEqual({
+      allergies: 'Peanuts',
+      medications: 'EpiPen in the red bag',
+      freeText: '',
+    });
+    await waitFor(() => expect(text(screen.getByTestId('care-status'))).toContain('Set by Owner'));
+    // The content shown after the save came from what was typed, not from a reveal: no audit yet.
+    expect(text(screen.getByTestId('care-content'))).toContain('EpiPen in the red bag');
+    expect(reveals).toBe(0);
+
+    // Hide, then reveal (audited) on the card; the roster column reveals too.
+    fireEvent.click(screen.getByRole('button', { name: 'Hide' }));
+    expect(screen.queryByTestId('care-content')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Reveal (audited)' }));
+    await waitFor(() => expect(screen.getByTestId('care-content')).toBeTruthy());
+    expect(reveals).toBe(1);
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Reveal care note for Minji Park (audited)' }),
+      ).toBeTruthy(),
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Reveal care note for Minji Park (audited)' }),
+    );
+    await waitFor(() =>
+      expect(text(screen.getByTestId('care-line-p1'))).toBe(
+        'Allergies: Peanuts · Medications: EpiPen in the red bag',
+      ),
+    );
+    expect(reveals).toBe(2);
+
+    // Clear from the edit form.
+    fireEvent.click(screen.getByRole('button', { name: 'Edit care note' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Clear care note' }));
+    await waitFor(() =>
+      expect(text(screen.getByTestId('care-note-status'))).toBe('Care note cleared.'),
+    );
+    expect(puts[1]).toEqual({ allergies: '', medications: '', freeText: '' });
+    await waitFor(() =>
+      expect(text(screen.getByTestId('care-status'))).toBe('No care note on file.'),
+    );
   });
 
   it('People: roster actions on the card edit, revoke and remove with the right calls', async () => {

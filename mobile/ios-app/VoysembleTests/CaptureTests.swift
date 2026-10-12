@@ -34,6 +34,10 @@ final class CaptureTests: XCTestCase {
         let closed = HeadcountModel(deviceClock: { "06:58" })
         closed.close()
         try capture(NavigationStack { HeadcountView(model: closed) }, name: "headcount-closed-dark", scheme: .dark)
+        // Slice 030 (D27): Minji's care note revealed in the roster row.
+        let care = HeadcountModel()
+        care.revealCare("t1")
+        try capture(NavigationStack { HeadcountView(model: care) }, name: "headcount-care")
     }
 
     func testBulletinWithRevision() throws {

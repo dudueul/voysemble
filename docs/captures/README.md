@@ -101,3 +101,11 @@ after Minji reported "inside" from the API (1 inside, 1 opted out, the member li
 `ios/window-sharing-dark.png`, `ios/window-none.png` (CaptureTests): the switch on in dark mode and the
 "No window open" state. Both land here through the CI `captures` job.
 
+## Slice 030 (2026-10-12): care notes
+
+`web/desktop-1440/people-care.png`, `web/laptop-1280/people-care.png`: Minji's card after a save and an
+audited reveal (status line with the reveal count, the three fields, the timeline entry) and the roster
+row's revealed line. Produced by `e2e/people.spec.ts`. `android/headcount-care.png` (Roborazzi) and
+`ios/headcount-care.png` (CaptureTests): the head count roster row with the care icon and the revealed
+line under Minji's name. Both land here through the CI `captures` job.
+

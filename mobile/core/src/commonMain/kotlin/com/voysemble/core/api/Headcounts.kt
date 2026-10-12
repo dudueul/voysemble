@@ -102,7 +102,7 @@ public fun headcountFromRoster(
     val members = roster
         .filter { it.role == "traveler" && (groupName == null || it.groupName == groupName) }
         .sortedBy { it.displayName }
-        .map { HeadcountMember(id = it.id, name = it.displayName, room = null, lastAckAt = null, windowState = null) }
+        .map { HeadcountMember(id = it.id, name = it.displayName, room = null, lastAckAt = null, windowState = null, hasCareNote = it.hasCareNote) }
     return HeadcountSession(
         id = id,
         groupLabel = groupName ?: WHOLE_TRIP_LABEL,

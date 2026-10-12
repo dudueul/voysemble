@@ -58,6 +58,7 @@ import com.voysemble.core.window.WindowState
 fun HeadcountRoute(vm: HeadcountViewModel, onBack: () -> Unit) {
     val session by vm.state.collectAsStateWithLifecycle()
     val status by vm.status.collectAsStateWithLifecycle()
+    val revealed by vm.revealed.collectAsStateWithLifecycle()
     HeadcountScreen(
         session = session,
         status = status,
@@ -67,6 +68,9 @@ fun HeadcountRoute(vm: HeadcountViewModel, onBack: () -> Unit) {
         onClose = { vm.close() },
         onRetrySync = { vm.retrySync() },
         onBack = onBack,
+        revealed = revealed,
+        onRevealCare = { vm.revealCare(it) },
+        onHideCare = vm::hideCare,
     )
 }
 
@@ -80,6 +84,10 @@ fun HeadcountScreen(
     onBack: () -> Unit,
     status: HeadcountStatus = HeadcountStatus(live = false),
     onRetrySync: () -> Unit = {},
+    /** Care notes revealed on this screen (D27): member id to one line; shown until hidden or the screen goes. */
+    revealed: Map<String, String> = emptyMap(),
+    onRevealCare: (String) -> Unit = {},
+    onHideCare: (String) -> Unit = {},
 ) {
     val c = LocalVoysembleColors.current
     Scaffold(
@@ -140,7 +148,14 @@ fun HeadcountScreen(
             item {
                 VyCard {
                     session.members.forEachIndexed { i, m ->
-                        RosterRow(m, session.markOf(m.id), enabled = !session.isClosed, onToggle = onToggle)
+                        RosterRow(
+                            m,
+                            session.markOf(m.id),
+                            enabled = !session.isClosed,
+                            onToggle = onToggle,
+                            careLine = revealed[m.id],
+                            onCareTap = { if (revealed[m.id] == null) onRevealCare(m.id) else onHideCare(m.id) },
+                        )
                         if (i < session.members.lastIndex) Box(Modifier.fillMaxWidth().height(1.dp).background(c.border))
                     }
                 }
@@ -206,7 +221,14 @@ private fun MissingCard(
 }
 
 @Composable
-private fun RosterRow(m: HeadcountMember, mark: HeadcountMark, enabled: Boolean, onToggle: (String) -> Unit) {
+private fun RosterRow(
+    m: HeadcountMember,
+    mark: HeadcountMark,
+    enabled: Boolean,
+    onToggle: (String) -> Unit,
+    careLine: String? = null,
+    onCareTap: () -> Unit = {},
+) {
     val c = LocalVoysembleColors.current
     val (label, color) = when (mark) {
         HeadcountMark.PRESENT -> "Present" to c.success
@@ -215,24 +237,38 @@ private fun RosterRow(m: HeadcountMember, mark: HeadcountMark, enabled: Boolean,
         HeadcountMark.EXCUSED -> "Excused" to c.textMuted
         HeadcountMark.UNMARKED -> "Not marked" to c.warning
     }
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(enabled = enabled) { onToggle(m.id) }
-            .padding(vertical = 8.dp)
-            .semantics { contentDescription = "${m.name}: $label" },
-    ) {
-        Box(
-            Modifier.size(22.dp).background(if (mark == HeadcountMark.PRESENT) c.success else c.border, CircleShape),
-            contentAlignment = Alignment.Center,
+    Column(Modifier.fillMaxWidth()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(enabled = enabled) { onToggle(m.id) }
+                .padding(vertical = 8.dp)
+                .semantics { contentDescription = "${m.name}: $label" },
         ) {
-            if (mark == HeadcountMark.PRESENT) Icon(AppIcons.Check, contentDescription = null, tint = c.onAction, modifier = Modifier.size(14.dp))
+            Box(
+                Modifier.size(22.dp).background(if (mark == HeadcountMark.PRESENT) c.success else c.border, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (mark == HeadcountMark.PRESENT) Icon(AppIcons.Check, contentDescription = null, tint = c.onAction, modifier = Modifier.size(14.dp))
+            }
+            Text(m.name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+            if (m.hasCareNote) {
+                // D27: one tap, audited on the server; the line stays only while this screen is open.
+                Icon(
+                    AppIcons.Care,
+                    contentDescription = "Care note for ${m.name}",
+                    tint = c.warning,
+                    modifier = Modifier.size(22.dp).clickable(onClick = onCareTap),
+                )
+            }
+            m.room?.let { Text("Rm $it", style = MaterialTheme.typography.bodyMedium, color = c.textMuted) }
+            LabelChip(label, color)
         }
-        Text(m.name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-        m.room?.let { Text("Rm $it", style = MaterialTheme.typography.bodyMedium, color = c.textMuted) }
-        LabelChip(label, color)
+        careLine?.let {
+            Text(it, style = MaterialTheme.typography.bodyMedium, color = c.warning, modifier = Modifier.padding(start = 32.dp, bottom = 8.dp))
+        }
     }
 }
 

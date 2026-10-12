@@ -9,6 +9,8 @@ import type {
   AckStatus,
   Announcement,
   AnnouncementList,
+  CareNote,
+  CareNoteStatus,
   CreateAnnouncementRequest,
   HeadcountList,
   Incident,
@@ -22,6 +24,7 @@ import type {
   Participation,
   PersonTimeline,
   RemoveParticipationResponse,
+  RevealCareNoteResponse,
   RevokeInviteResponse,
   RosterImportResponse,
   RosterResponse,
@@ -96,6 +99,28 @@ export const personTimelineQuery = (orgId: string, tripId: string, participation
     queryFn: async () =>
       api<PersonTimeline>(`/v1/orgs/${orgId}/trips/${tripId}/people/${participationId}/timeline`),
   });
+
+/** Care notes (D27, slice 030): the status is cheap and content-free; the content needs a reveal. */
+export const careStatusQuery = (orgId: string, tripId: string, participationId: string) =>
+  queryOptions({
+    queryKey: ['orgs', orgId, 'trips', tripId, 'people', participationId, 'care-note'],
+    queryFn: async () =>
+      api<CareNoteStatus>(`/v1/orgs/${orgId}/trips/${tripId}/people/${participationId}/care-note`),
+  });
+
+export const care = {
+  put: (orgId: string, tripId: string, participationId: string, note: CareNote) =>
+    api<CareNoteStatus>(`/v1/orgs/${orgId}/trips/${tripId}/people/${participationId}/care-note`, {
+      method: 'PUT',
+      body: note,
+    }),
+  /** Audited on the server: the reveal lands on the person's timeline. */
+  reveal: (orgId: string, tripId: string, participationId: string) =>
+    api<RevealCareNoteResponse>(
+      `/v1/orgs/${orgId}/trips/${tripId}/people/${participationId}/care-note/reveal`,
+      { method: 'POST' },
+    ),
+};
 
 export const announcementsQuery = (orgId: string, tripId: string) =>
   queryOptions({

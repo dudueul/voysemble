@@ -5,6 +5,7 @@
 
 package com.voysemble.core.fixtures
 
+import com.voysemble.core.api.CareNoteDto
 import com.voysemble.core.announcements.AnnouncementFeed
 import com.voysemble.core.announcements.AnnouncementItem
 import com.voysemble.core.api.GuardianCountDto
@@ -84,6 +85,7 @@ public object KoreaConcertTourFixture {
                 room = room,
                 lastAckAt = if (i % 5 == 4) null else "06:${(40 + i % 15).toString().padStart(2, '0')}",
                 windowState = when (name) { "Dohyun Kang" -> WindowState.OUTSIDE; "Eunwoo Shin" -> WindowState.STALE; else -> null },
+                hasCareNote = name == "Minji Park",
             )
         }
         val missing = setOf("Dohyun Kang", "Eunwoo Shin")
@@ -205,6 +207,9 @@ public object KoreaConcertTourFixture {
     public fun guardianCard(locale: String = "en"): GuardianCard = guardianCardOf(guardianStatus(), locale)
 
     /** Colosseum regroup window 10:45-11:20, 200 m, as seen by traveler Minji (t1), not yet opted in. */
+    /** Minji's care note as the sample head count reveals it (D27). */
+    public fun careNote(): CareNoteDto = CareNoteDto(allergies = "Peanuts", medications = "EpiPen in the red bag", freeText = "Asks for it herself.")
+
     public fun meetingWindow(): MeetingWindow = MeetingWindow(
         id = "w1",
         label = "Colosseum regroup",

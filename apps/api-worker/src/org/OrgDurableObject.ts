@@ -18,6 +18,8 @@ import type {
   AckStatus,
   Announcement,
   ApplyFeeRequest,
+  CareNote,
+  CareNoteStatus,
   Currency,
   FeeLedger,
   FeeRow,
@@ -35,6 +37,7 @@ import type {
   OpenWindowRequest,
   Participation,
   ReportedWindowState,
+  RevealCareNoteResponse,
   RevisionChange,
   RevisionSummary,
   TimelineEntry,
@@ -45,7 +48,14 @@ import type {
   WindowMember,
   WindowMemberState,
 } from '@voysemble/contracts';
-import { feeStatusOf, WINDOW_STALE_MS, windowStatusOf } from '@voysemble/contracts';
+import {
+  careNoteIsEmpty,
+  feeStatusOf,
+  WINDOW_STALE_MS,
+  windowStatusOf,
+} from '@voysemble/contracts';
+import type { Bindings } from '../env';
+import { careKeyFrom, seal, unseal } from '../lib/care-crypto';
 import { nowIso } from '../lib/time';
 
 /** Versioned, idempotent schema steps. Append only; never edit an applied step. */
@@ -298,7 +308,42 @@ const MIGRATIONS: { version: number; sql: string }[] = [
       );
     `,
   },
+  {
+    // Slice 030 (D27): care notes sealed with AES-GCM (nonce + ciphertext, never plain text) and
+    // the audit of every reveal. Tier 2 PII: the row is noise without the CARE_NOTE_KEY secret.
+    version: 12,
+    sql: `
+      CREATE TABLE IF NOT EXISTS care_notes (
+        participation_id TEXT PRIMARY KEY REFERENCES participations(id),
+        trip_id TEXT NOT NULL REFERENCES trips(id),
+        iv TEXT NOT NULL,
+        ciphertext TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        updated_by_name TEXT NOT NULL,
+        updated_by_role TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS care_reveals (
+        id TEXT PRIMARY KEY,
+        participation_id TEXT NOT NULL REFERENCES participations(id),
+        trip_id TEXT NOT NULL,
+        revealed_by_name TEXT NOT NULL,
+        revealed_by_role TEXT NOT NULL,
+        revealed_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS care_reveals_person_idx ON care_reveals(participation_id, revealed_at);
+    `,
+  },
 ];
+
+type CareNoteRow = {
+  participation_id: string;
+  trip_id: string;
+  iv: string;
+  ciphertext: string;
+  updated_at: string;
+  updated_by_name: string;
+  updated_by_role: string;
+};
 
 type ProposalRow = {
   id: string;
@@ -904,6 +949,8 @@ export class OrgDurableObject extends DurableObject<Env> {
         sql.exec('DELETE FROM headcount_marks WHERE participation_id = ?', r.id);
         sql.exec('DELETE FROM incident_people WHERE participation_id = ?', r.id);
         sql.exec('DELETE FROM fees WHERE participation_id = ?', r.id);
+        sql.exec('DELETE FROM care_reveals WHERE participation_id = ?', r.id);
+        sql.exec('DELETE FROM care_notes WHERE participation_id = ?', r.id);
         sql.exec('DELETE FROM participations WHERE id = ?', r.id);
       }
     });
@@ -928,16 +975,21 @@ export class OrgDurableObject extends DurableObject<Env> {
    */
   async listRosterWithAcks(
     tripId: string,
-  ): Promise<(Participation & { lastAckAt: string | null })[]> {
+  ): Promise<(Participation & { lastAckAt: string | null; hasCareNote: boolean })[]> {
     this.requireOrg();
     return this.ctx.storage.sql
-      .exec<ParticipationRow & { last_ack_at: string | null }>(
-        `SELECT p.*, (SELECT MAX(a.received_at) FROM acks a WHERE a.participation_id = p.id) AS last_ack_at
+      .exec<ParticipationRow & { last_ack_at: string | null; has_care_note: number }>(
+        `SELECT p.*, (SELECT MAX(a.received_at) FROM acks a WHERE a.participation_id = p.id) AS last_ack_at,
+                EXISTS(SELECT 1 FROM care_notes c WHERE c.participation_id = p.id) AS has_care_note
          FROM participations p WHERE p.trip_id = ? ORDER BY p.group_name, p.role, p.display_name`,
         tripId,
       )
       .toArray()
-      .map((r) => ({ ...this.participationFromRow(r), lastAckAt: r.last_ack_at }));
+      .map((r) => ({
+        ...this.participationFromRow(r),
+        lastAckAt: r.last_ack_at,
+        hasCareNote: r.has_care_note === 1,
+      }));
   }
 
   async getParticipation(participationId: string): Promise<Participation | null> {
@@ -2238,12 +2290,156 @@ export class OrgDurableObject extends DurableObject<Env> {
    * a leader opened, incidents naming the person (open, resolve, guardian message), and
    * confirmations a leader gave. The join entry comes from D1 (invite codes) in the route.
    */
+  // ---- Care notes (D27, slice 030) ---------------------------------------------------------
+
+  private async careStatusOf(participationId: string): Promise<CareNoteStatus> {
+    const sql = this.ctx.storage.sql;
+    const note = sql
+      .exec<CareNoteRow>('SELECT * FROM care_notes WHERE participation_id = ?', participationId)
+      .toArray()[0];
+    const reveals = sql
+      .exec<{ n: number }>(
+        'SELECT COUNT(*) AS n FROM care_reveals WHERE participation_id = ?',
+        participationId,
+      )
+      .one().n;
+    return {
+      participationId,
+      hasCareNote: Boolean(note),
+      updatedAt: note?.updated_at ?? null,
+      updatedByName: note?.updated_by_name ?? null,
+      reveals,
+    };
+  }
+
+  /** The traveler row behind a care note, or null when the id is not a traveler of this trip. */
+  private async travelerOf(tripId: string, participationId: string): Promise<Participation | null> {
+    const p = await this.getParticipation(participationId);
+    return p && p.tripId === tripId && p.role === 'traveler' ? p : null;
+  }
+
+  async careNoteStatus(
+    tripId: string,
+    participationId: string,
+  ): Promise<CareNoteStatus | { notFound: true }> {
+    this.requireOrg();
+    if (!(await this.travelerOf(tripId, participationId))) return { notFound: true };
+    return this.careStatusOf(participationId);
+  }
+
+  /**
+   * Seal and store the note (an all-blank note clears the row). The content is encrypted here,
+   * inside the object, so neither the request log nor the storage carries it in clear.
+   */
+  async putCareNote(
+    tripId: string,
+    participationId: string,
+    note: CareNote,
+    by: { name: string; role: string },
+    now: string,
+  ): Promise<CareNoteStatus | { notFound: true } | { notConfigured: true }> {
+    this.requireOrg();
+    if (!(await this.travelerOf(tripId, participationId))) return { notFound: true };
+    const sql = this.ctx.storage.sql;
+    if (careNoteIsEmpty(note)) {
+      sql.exec('DELETE FROM care_notes WHERE participation_id = ?', participationId);
+      return this.careStatusOf(participationId);
+    }
+    const key = await careKeyFrom(this.env as Bindings);
+    if (!key) return { notConfigured: true };
+    const sealed = await seal(
+      key,
+      JSON.stringify({
+        allergies: note.allergies.trim(),
+        medications: note.medications.trim(),
+        freeText: note.freeText.trim(),
+      }),
+    );
+    sql.exec(
+      `INSERT INTO care_notes (participation_id, trip_id, iv, ciphertext, updated_at, updated_by_name, updated_by_role)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(participation_id) DO UPDATE SET iv = excluded.iv, ciphertext = excluded.ciphertext,
+         updated_at = excluded.updated_at, updated_by_name = excluded.updated_by_name, updated_by_role = excluded.updated_by_role`,
+      participationId,
+      tripId,
+      sealed.iv,
+      sealed.ct,
+      now,
+      by.name,
+      by.role,
+    );
+    return this.careStatusOf(participationId);
+  }
+
+  /** Decrypt for one reader and record the reveal (who, as which role, when). */
+  async revealCareNote(
+    tripId: string,
+    participationId: string,
+    by: { name: string; role: string },
+    now: string,
+  ): Promise<
+    RevealCareNoteResponse | { notFound: true } | { none: true } | { notConfigured: true }
+  > {
+    this.requireOrg();
+    if (!(await this.travelerOf(tripId, participationId))) return { notFound: true };
+    const sql = this.ctx.storage.sql;
+    const row = sql
+      .exec<CareNoteRow>('SELECT * FROM care_notes WHERE participation_id = ?', participationId)
+      .toArray()[0];
+    if (!row) return { none: true };
+    const key = await careKeyFrom(this.env as Bindings);
+    if (!key) return { notConfigured: true };
+    const note = JSON.parse(await unseal(key, { iv: row.iv, ct: row.ciphertext })) as CareNote;
+    sql.exec(
+      'INSERT INTO care_reveals (id, participation_id, trip_id, revealed_by_name, revealed_by_role, revealed_at) VALUES (?, ?, ?, ?, ?, ?)',
+      crypto.randomUUID(),
+      participationId,
+      tripId,
+      by.name,
+      by.role,
+      now,
+    );
+    return {
+      participationId,
+      note,
+      updatedAt: row.updated_at,
+      updatedByName: row.updated_by_name,
+      revealedAt: now,
+    };
+  }
+
   async personTimeline(tripId: string, participationId: string): Promise<TimelineEntry[] | null> {
     this.requireOrg();
     const me = await this.getParticipation(participationId);
     if (!me || me.tripId !== tripId) return null;
     const sql = this.ctx.storage.sql;
     const entries: TimelineEntry[] = [];
+    // Care note (D27): the latest write and every audited reveal; never the content.
+    for (const r of sql
+      .exec<CareNoteRow>('SELECT * FROM care_notes WHERE participation_id = ?', participationId)
+      .toArray()) {
+      entries.push({
+        kind: 'care_update',
+        at: r.updated_at,
+        title: `Care note updated by ${r.updated_by_role} ${r.updated_by_name}`,
+        detail: null,
+        ref: null,
+      });
+    }
+    for (const r of sql
+      .exec<{ revealed_by_name: string; revealed_by_role: string; revealed_at: string }>(
+        'SELECT revealed_by_name, revealed_by_role, revealed_at FROM care_reveals WHERE participation_id = ?',
+        participationId,
+      )
+      .toArray()) {
+      entries.push({
+        kind: 'care_reveal',
+        at: r.revealed_at,
+        title: `Care note revealed by ${r.revealed_by_role} ${r.revealed_by_name}`,
+        detail: null,
+        ref: null,
+      });
+    }
     for (const r of sql
       .exec<{
         announcement_id: string;

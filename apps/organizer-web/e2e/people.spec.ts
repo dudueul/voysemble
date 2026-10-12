@@ -72,10 +72,34 @@ test('people: live roster, invite status, groups, filters', async ({ page }, inf
   await expect(card).toContainText('Sora Park');
   await expect(card).toContainText('guardian of Minji Park · Invited');
   await expect(card).toContainText('No activity recorded yet.');
-  await expect(card).toContainText('Care note: arrives with its own slice (D27).');
+  await expect(card.getByTestId('care-note')).toHaveCount(0);
   await page.screenshot({ path: `${OUT}/${info.project.name}/people-person.png`, fullPage: true });
   await page.getByRole('button', { name: 'Open the card of Minji Park' }).click();
   await expect(card).toContainText('Guardians: Sora Park · Invited');
+
+  // Care note (slice 030, D27): saved from the card, sealed at rest, revealed with an audit entry.
+  await expect(card.getByTestId('care-status')).toHaveText('No care note on file.');
+  await card.getByRole('button', { name: 'Edit care note' }).click();
+  await card.getByLabel('Allergies').fill('Peanuts');
+  await card.getByLabel('Medications').fill('EpiPen in the red bag');
+  await card.getByRole('button', { name: 'Save care note' }).click();
+  await expect(card.getByTestId('care-note-status')).toHaveText('Care note saved.');
+  await expect(card.getByTestId('care-status')).toContainText('Set by Owner');
+  await expect(card.getByTestId('care-status')).toContainText('0 reveals so far');
+  await card.getByRole('button', { name: 'Hide' }).click();
+  await card.getByRole('button', { name: 'Reveal (audited)' }).click();
+  await expect(card.getByTestId('care-content')).toContainText('EpiPen in the red bag');
+  await expect(card.getByTestId('care-status')).toContainText('1 reveal so far');
+  await expect(card.getByTestId('timeline')).toContainText('Care note revealed by owner Owner');
+  await rows
+    .filter({ hasText: 'Minji Park' })
+    .getByRole('button', { name: 'Reveal care note for Minji Park (audited)' })
+    .click();
+  await expect(page.getByTestId(/^care-line-/)).toHaveText(
+    'Allergies: Peanuts · Medications: EpiPen in the red bag',
+  );
+  await page.mouse.move(0, 0);
+  await page.screenshot({ path: `${OUT}/${info.project.name}/people-care.png`, fullPage: true });
   await page.getByRole('button', { name: 'Close' }).click();
   await expect(card).toHaveCount(0);
 
@@ -92,7 +116,7 @@ test('people: live roster, invite status, groups, filters', async ({ page }, inf
   await page.getByRole('button', { name: 'All groups' }).click();
   await expect(rows).toHaveCount(5);
   await page.getByRole('button', { name: 'Open the card of Juho Kim' }).click();
-  await card.getByRole('button', { name: 'Edit' }).click();
+  await card.getByRole('button', { name: 'Edit', exact: true }).click();
   await card.getByLabel('Group (empty for none)').fill('Bus B');
   await card.getByRole('button', { name: 'Save' }).click();
   await expect(page.getByTestId('roster-action-status')).toHaveText('Saved.');

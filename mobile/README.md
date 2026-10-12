@@ -17,7 +17,7 @@ Design tokens: `packages/design-tokens` generates `core/.../design/Tokens.kt` an
 | Screen | Android | iOS | Evidence |
 |---|---|---|---|
 | Today (slice 005) | `android-app/.../today/TodayScreen.kt` | `ios-app/Voysemble/Today/TodayView.swift` | `./gradlew :android-app:recordRoborazziDebug` -> `docs/captures/android/` |
-| Head count (slice 009) | `android-app/.../headcount/HeadcountScreen.kt` | `ios-app/Voysemble/Headcount/HeadcountView.swift` | same, `headcount-*.png` |
+| Head count (slice 009; care-note reveal since 030) | `android-app/.../headcount/HeadcountScreen.kt` | `ios-app/Voysemble/Headcount/HeadcountView.swift` | same, `headcount-*.png` |
 | Bulletin (slice 009) | `android-app/.../bulletin/BulletinScreen.kt` | `ios-app/Voysemble/Bulletin/BulletinView.swift` | same, `bulletin-*.png` |
 | Sign-in + invite (slice 011) | `android-app/.../auth/*Screen.kt` | `ios-app/Voysemble/Auth/SignInView.swift` | same, `sign-in*.png`, `invite.png` |
 | Meeting window (slice 009, live since 029) | `android-app/.../window/MeetingWindowScreen.kt` + `AndroidLocationSource.kt` | `ios-app/Voysemble/Window/MeetingWindowView.swift` + `CoreLocationSource.swift` | same, `window-*.png`; `docs/engineering/meeting-windows.md` |

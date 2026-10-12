@@ -61,6 +61,19 @@ final class LiveModelsTests: XCTestCase {
         XCTAssertEqual(model.error, "Offline. The roster needs one connection to start a count.")
     }
 
+    func testHeadcountCareRevealSampleAndUnreachable() async {
+        // Slice 030 (D27): sample mode reveals the fixture line; live and unreachable says offline, nothing cached.
+        let sample = HeadcountModel()
+        sample.revealCare("t1")
+        XCTAssertEqual(sample.revealed["t1"], "Allergies: Peanuts · Medications: EpiPen in the red bag · Asks for it herself.")
+        sample.hideCare("t1")
+        XCTAssertNil(sample.revealed["t1"])
+        let live = HeadcountModel(api: unreachableClient(), trip: trip)
+        await live.revealCareNow("p1")
+        XCTAssertNil(live.revealed["p1"])
+        XCTAssertEqual(live.error, "Offline. Care notes are never cached on the device.")
+    }
+
     func testIncidentsLiveMarksOfflineWhenUnreachable() async {
         let model = IncidentsModel(api: unreachableClient(), trip: trip)
         XCTAssertTrue(model.live)

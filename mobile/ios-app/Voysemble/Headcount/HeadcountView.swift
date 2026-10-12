@@ -14,6 +14,8 @@ final class HeadcountModel: ObservableObject {
     @Published private(set) var error: String?
     /// Last push outcome from core (`synced`, `already-closed`, `rejected:<status>`, `offline`).
     @Published private(set) var lastPush: String?
+    /// Care notes revealed on this screen (D27): member id to one line. Memory only; never stored.
+    @Published private(set) var revealed: [String: String] = [:]
     let api: ApiClient?
     let trip: ActiveTrip?
     var live: Bool { api != nil && trip != nil }
@@ -59,6 +61,33 @@ final class HeadcountModel: ObservableObject {
 
     /// For the "Pending sync" chip: push again without changing anything on the device.
     func retrySync() { Task { await push() } }
+
+    /// Reveal (audited on the server) or, in sample mode, the fixture note.
+    func revealCare(_ id: String) {
+        if live {
+            Task { await revealCareNow(id) }
+        } else {
+            revealed[id] = CareKt.careLineOf(note: KoreaConcertTourFixture.shared.careNote())
+        }
+    }
+
+    func hideCare(_ id: String) { revealed[id] = nil }
+
+    func revealCareNow(_ id: String) async {
+        guard let api, let trip else { return }
+        do {
+            let r = try await api.revealCareNote(orgId: trip.organizationId, tripId: trip.tripId, participationId: id, correlationId: nil)
+            if let ok = (r as? ApiResultOk<RevealCareNoteResponseDto>)?.value {
+                revealed[id] = CareKt.careLineOf(note: ok.note)
+            } else if let failed = r as? ApiResultFailed {
+                error = failed.status == 403 ? "Only this group's leaders see the care note." : failed.status == 404 ? "No care note on file." : "Could not reveal the care note (\(failed.error.code))."
+            } else {
+                error = "Offline. Care notes are never cached on the device."
+            }
+        } catch {
+            self.error = "Offline. Care notes are never cached on the device."
+        }
+    }
 
     /// Roster -> the leader's own group (whole trip when the leader has none) -> open-session push.
     func load() async {
@@ -149,14 +178,29 @@ struct HeadcountView: View {
             Section("Roster · tap to mark present") {
                 ForEach(s.members, id: \.id) { m in
                     let mark = s.markOf(memberId: m.id)
-                    HStack {
-                        Image(systemName: mark == .present ? "checkmark.circle.fill" : "circle").foregroundStyle(mark == .present ? .green : .secondary)
-                        Text(m.name)
-                        Spacer()
-                        Text(label(for: mark)).font(.caption).foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Image(systemName: mark == .present ? "checkmark.circle.fill" : "circle").foregroundStyle(mark == .present ? .green : .secondary)
+                            Text(m.name)
+                            if m.hasCareNote {
+                                // D27: one tap, audited; the line stays only while this screen is open.
+                                Button {
+                                    if model.revealed[m.id] == nil { model.revealCare(m.id) } else { model.hideCare(m.id) }
+                                } label: {
+                                    Image(systemName: "cross.case").foregroundStyle(.orange)
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("Care note for \(m.name)")
+                            }
+                            Spacer()
+                            Text(label(for: mark)).font(.caption).foregroundStyle(.secondary)
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture { if !s.isClosed { model.toggle(m.id) } }
+                        if let line = model.revealed[m.id] {
+                            Text(line).font(.caption).foregroundStyle(.orange)
+                        }
                     }
-                    .contentShape(Rectangle())
-                    .onTapGesture { if !s.isClosed { model.toggle(m.id) } }
                 }
             }
         }

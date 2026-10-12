@@ -4,6 +4,7 @@
 package com.voysemble.app.headcount
 
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
@@ -42,5 +43,15 @@ class HeadcountScreenshotTest {
         compose.onNodeWithText("Pending sync").assertExists()
         compose.onNodeWithText("Closed with 2 missing · incident opened").assertExists()
         compose.onRoot().captureRoboImage("$OUT/headcount-closed-dark.png")
+    }
+
+    @Test
+    fun headcount_care_note_revealed_light() {
+        // Slice 030 (D27): Minji's care note revealed in the roster row (sample mode shows the fixture note).
+        val vm = HeadcountViewModel()
+        compose.setContent { VoysembleTheme(darkTheme = false) { HeadcountRoute(vm, onBack = {}) } }
+        compose.onNodeWithContentDescription("Care note for Minji Park").performClick()
+        compose.onNodeWithText("Allergies: Peanuts · Medications: EpiPen in the red bag · Asks for it herself.").assertExists()
+        compose.onRoot().captureRoboImage("$OUT/headcount-care.png")
     }
 }

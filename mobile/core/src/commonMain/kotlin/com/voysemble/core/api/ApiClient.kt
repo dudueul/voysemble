@@ -163,6 +163,15 @@ public class ApiClient(
             }
         }
 
+    /** POST .../people/{id}/care-note/reveal: decrypt one care note; the server audits the reveal (D27, slice 030). */
+    public suspend fun revealCareNote(orgId: String, tripId: String, participationId: String, correlationId: String? = null): ApiResult<RevealCareNoteResponseDto> =
+        call(correlationId) {
+            http.post {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "orgs", orgId, "trips", tripId, "people", participationId, "care-note", "reveal") }
+                common(correlationId)
+            }
+        }
+
     /** GET .../guardian/status: the guardian's view of their traveler (D13, slice 025). */
     public suspend fun guardianStatus(orgId: String, tripId: String, correlationId: String? = null): ApiResult<GuardianStatusDto> =
         call(correlationId) {

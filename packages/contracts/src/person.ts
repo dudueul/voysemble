@@ -10,7 +10,16 @@ import { Id, Timestamp } from './common';
 import { InviteStatus, RosterEntry } from './roster';
 
 export const TimelineKind = z
-  .enum(['joined', 'ack', 'headcount', 'incident', 'confirmation', 'guardian_message'])
+  .enum([
+    'joined',
+    'ack',
+    'headcount',
+    'incident',
+    'confirmation',
+    'guardian_message',
+    'care_update',
+    'care_reveal',
+  ])
   .openapi('TimelineKind');
 export type TimelineKind = z.infer<typeof TimelineKind>;
 

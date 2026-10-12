@@ -17,6 +17,7 @@ function entry(
     createdAt: '2026-10-12T00:00:00.000Z',
     invite: 'none',
     lastAckAt: null,
+    hasCareNote: false,
     ...partial,
   };
 }
