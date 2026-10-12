@@ -45,11 +45,12 @@ jobs:
           distribution: temurin
           java-version: "21"
       - uses: gradle/actions/setup-gradle@v4
-      - run: ./gradlew build --console=plain
+      # One invocation: the unit tests run once, in Roborazzi record mode, so the screenshot tests
+      # write docs/captures/android/ (a second invocation found the tests up to date and recorded
+      # nothing, run 38196420393). D31 makes the captures a gate: the job fails without them.
+      - run: ./gradlew build :android-app:recordRoborazziDebug --console=plain
         working-directory: mobile
-      # Screenshot evidence for the mobile Today screen (Robolectric + Roborazzi, 412x915).
-      - run: ./gradlew :android-app:recordRoborazziDebug --console=plain
-        working-directory: mobile
+      - run: ls docs/captures/android/*.png
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -114,6 +115,8 @@ jobs:
             | tee xcodebuild.log | grep -E "error:|warning: unre|Test Case|Executed|BUILD|TEST" || true
           grep -qE "\*\* TEST SUCCEEDED \*\*" xcodebuild.log
         working-directory: mobile/ios-app
+      # D31: the capture tests must have written the screens.
+      - run: ls docs/captures/ios/*.png
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -72,8 +72,10 @@ the facts the file proves. Android unit tests use `org.junit.Test` (JUnit bridge
 
 `.github/workflows/ci.yml`:
 
-- `mobile` (ubuntu): `./gradlew build` then `:android-app:recordRoborazziDebug`; uploads
-  `android-captures` (PNGs) and `mobile-test-reports`.
+- `mobile` (ubuntu): `./gradlew build :android-app:recordRoborazziDebug` in one invocation (the
+  unit tests run once, in record mode; a second invocation finds them up to date and records
+  nothing), then `ls docs/captures/android/*.png` as the D31 gate; uploads `android-captures`
+  (PNGs) and `mobile-test-reports`.
 - `ios` (`macos-15`): picks an available iPhone simulator by UDID (downloads the iOS platform
   if none), XcodeGen, warm framework link, `xcodebuild test`; uploads `ios-build-log` and
   `ios-captures` (PNGs from `CaptureTests`).
