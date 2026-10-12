@@ -12,6 +12,7 @@ import {
   MeResponse,
   MyParticipationList,
   SessionResponse,
+  UpdateMeRequest,
 } from '@voysemble/contracts';
 import { eq } from 'drizzle-orm';
 import { deleteCookie, setCookie } from 'hono/cookie';
@@ -24,7 +25,7 @@ import {
   verifyMagicLink,
 } from '../auth/service';
 import { db } from '../db/client';
-import { memberships, organizations } from '../db/schema';
+import { accounts, memberships, organizations } from '../db/schema';
 import { createEmailPort } from '../email/EmailPort';
 import { magicLinkEmail } from '../email/templates';
 import type { AppEnv } from '../env';
@@ -91,6 +92,26 @@ const meRoute = createRoute({
       description: 'The signed-in account.',
       content: { 'application/json': { schema: MeResponse } },
     },
+    401: ERROR_RESPONSES[401],
+    500: ERROR_RESPONSES[500],
+  },
+});
+
+const updateMeRoute = createRoute({
+  method: 'patch',
+  path: '/v1/me',
+  tags: ['auth'],
+  summary: 'Change the account language (console and emails)',
+  description:
+    'Slice 038. The console reads it on sign-in; the magic-link and digest emails use it. Answers the same shape as GET /v1/me.',
+  security: SESSION_SECURITY,
+  request: { body: { content: { 'application/json': { schema: UpdateMeRequest } } } },
+  responses: {
+    200: {
+      description: 'The account after the change.',
+      content: { 'application/json': { schema: MeResponse } },
+    },
+    400: ERROR_RESPONSES[400],
     401: ERROR_RESPONSES[401],
     500: ERROR_RESPONSES[500],
   },
@@ -181,19 +202,37 @@ export function mountAuthRoutes(app: OpenAPIHono<AppEnv>): void {
 
   app.openapi(meRoute, async (c) => {
     const auth = requireAuth(c);
-    const rows = await db(c.env.DB)
-      .select({
-        organizationId: memberships.organizationId,
-        organizationName: organizations.name,
-        role: memberships.role,
-      })
-      .from(memberships)
-      .innerJoin(organizations, eq(organizations.id, memberships.organizationId))
-      .where(eq(memberships.accountId, auth.accountId))
-      .all();
-    return c.json(
-      { accountId: auth.accountId, email: auth.email, locale: auth.locale, memberships: rows },
-      200,
-    );
+    return c.json(await meResponse(c.env, auth.accountId, auth.email, auth.locale), 200);
   });
+
+  app.openapi(updateMeRoute, async (c) => {
+    const auth = requireAuth(c);
+    const { locale } = c.req.valid('json');
+    await db(c.env.DB).update(accounts).set({ locale }).where(eq(accounts.id, auth.accountId));
+    return c.json(await meResponse(c.env, auth.accountId, auth.email, locale), 200);
+  });
+}
+
+async function meResponse(
+  env: AppEnv['Bindings'],
+  accountId: string,
+  email: string,
+  locale: string,
+) {
+  const rows = await db(env.DB)
+    .select({
+      organizationId: memberships.organizationId,
+      organizationName: organizations.name,
+      role: memberships.role,
+    })
+    .from(memberships)
+    .innerJoin(organizations, eq(organizations.id, memberships.organizationId))
+    .where(eq(memberships.accountId, accountId))
+    .all();
+  return {
+    accountId,
+    email,
+    locale: locale === 'en' ? ('en' as const) : ('ko' as const),
+    memberships: rows,
+  };
 }

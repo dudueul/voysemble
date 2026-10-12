@@ -69,4 +69,8 @@ export const MeResponse = z
   .openapi('MeResponse');
 export type MeResponse = z.infer<typeof MeResponse>;
 
+/** `PATCH /v1/me` (slice 038): the account's own language for the console and the emails it gets. */
+export const UpdateMeRequest = z.object({ locale: Locale }).openapi('UpdateMeRequest');
+export type UpdateMeRequest = z.infer<typeof UpdateMeRequest>;
+
 export const LogoutResponse = z.object({ loggedOut: z.literal(true) }).openapi('LogoutResponse');

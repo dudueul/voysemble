@@ -271,6 +271,9 @@ export const auth = {
       body: { token, client: 'web' },
     }),
   logout: () => api<{ loggedOut: true }>('/v1/auth/logout', { method: 'POST' }),
+  /** Slice 038: the account's language, read back by /v1/me on the next sign-in. */
+  updateLocale: (locale: 'ko' | 'en') =>
+    api<MeResponse>('/v1/me', { method: 'PATCH', body: { locale } }),
 };
 
 export const setup = {

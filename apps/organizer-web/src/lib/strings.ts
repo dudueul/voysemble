@@ -1,669 +1,135 @@
 // Copyright 2026- At Day. All rights reserved.
-// UI strings. English source; KO arrives with the i18n slice. Keep all user-visible copy here.
+// UI strings for the console in the account's language (slice 038): Korean or English, the two
+// the product supports. `strings` keeps the shape the pages import (`strings.people.title`, or a
+// module-level `const s = strings.people`) but every read resolves against the current table,
+// so a language change needs no change in the pages. The choice lives in localStorage, follows
+// the account (`/v1/me`), and is set from the top bar; the root remounts on change.
 
-export const strings = {
-  app: { name: 'Voysemble', console: 'Console' },
-  nav: {
-    today: 'Today',
-    itinerary: 'Itinerary',
-    journeyGraph: 'Journey Graph',
-    people: 'People',
-    communication: 'Communication',
-    travel: 'Travel',
-    safety: 'Safety',
-    media: 'Media',
-    preparation: 'Preparation',
-    reports: 'Reports',
-    billing: 'Billing',
-    settings: 'Settings',
-  },
-  topbar: {
-    search: 'Search trips, people, places',
-    notifications: 'Notifications',
-    account: 'Account',
-    menu: 'Menu',
-    closeMenu: 'Close menu',
-  },
-  dashboard: {
-    welcome: (name: string) => `Welcome back, ${name}`,
-    subtitle: (day: number, trip: string) => `${trip} · Day ${day}`,
-    subtitleBefore: (days: number, trip: string) =>
-      `${trip} · starts ${days === 1 ? 'tomorrow' : `in ${days} days`}`,
-    subtitleAfter: (trip: string) => `${trip} · ended`,
-    noAckYet: '—',
-    activeTrips: 'Active trips',
-    travelers: 'Travelers',
-    ackRate: 'Acknowledged',
-    openAlerts: 'Open alerts',
-    next48h: 'Next 48 hours',
-    alerts: 'Needs attention',
-    headcount: 'Head count',
-    announcements: 'Announcements',
-    upcomingTrips: 'Trips',
-    checkedIn: 'checked in',
-    viewAll: 'View all',
-    lastSync: (t: string) => `Synced ${t}`,
-    simulated: 'Sample data',
-    noAlerts: 'Nothing needs attention right now.',
-    live: 'Live',
-    openSafety: 'Open Safety',
-    noMovements:
-      'No movements in the next 48 hours. The itinerary moves onto the API in a later slice.',
-    noHeadcounts:
-      'No head count yet. Leaders open one from the phone; the latest per group shows here.',
-    noAnnouncements: 'No announcements requiring acknowledgment yet.',
-  },
-  states: {
-    loading: 'Loading your command center…',
-    emptyTitle: 'No trips yet',
-    emptyBody: 'Create a trip to see movements, alerts, and head counts here.',
-    emptyAction: 'Create a trip',
-    errorTitle: 'Could not load the command center',
-    errorBody: (ref: string) =>
-      `Try again. If it keeps failing, quote reference ${ref} to support.`,
-    retry: 'Retry',
-    offlineBanner: (t: string) => `You are offline. Showing data from the last sync ${t}.`,
-  },
-  auth: {
-    title: 'Sign in',
-    subtitle: 'We email you a one-time link. No password.',
-    email: 'Email',
-    send: 'Email me a link',
-    sending: 'Sending…',
-    sentTitle: 'Check your email',
-    sentBody: (email: string) =>
-      `If ${email} can sign in, a link is on its way. It works once, for 15 minutes.`,
-    useAnother: 'Use another address',
-    failed: (ref: string) => `Could not send the link. Reference ${ref}.`,
-    verifying: 'Signing you in…',
-    verifyFailedTitle: 'This link does not work any more',
-    verifyFailedBody: (ref: string) =>
-      `Links work once and expire after 15 minutes. Request a new one. Reference ${ref}.`,
-    verifyMissing: 'The link is incomplete. Open it from your email again or request a new one.',
-    backToSignIn: 'Back to sign in',
-    reference: (ref: string) => `reference ${ref}`,
-    signOut: 'Sign out',
-  },
-  setup: {
-    nav: 'Setup',
-    title: 'Set up your first trip',
-    subtitle: 'Four steps. You can come back to any of them later.',
-    progress: (n: number) => `${n} of 4 done`,
-    done: 'Done',
-    inProgress: 'In progress',
-    locked: 'Next',
-    step1: 'Create your organization',
-    step2: 'Create a trip',
-    step3: 'Import the roster',
-    step4: 'Hand out invite codes',
-    orgName: 'Organization name',
-    orgNamePlaceholder: 'Seoul Arts High School',
-    language: 'Default language',
-    createOrg: 'Create organization',
-    useSampleTrip: 'Use the sample trip',
-    sampleTripHint: 'Fills a 13-day Korea tour so the console is never empty.',
-    tripName: 'Trip name',
-    startsOn: 'Starts',
-    endsOn: 'Ends',
-    timezone: 'Time zone',
-    createTrip: 'Create trip',
-    csvFile: 'Roster CSV file',
-    csvText: 'Or paste CSV',
-    csvHint:
-      'Columns: name, group, guardian_name, guardian_contact. One traveler per row; a guardian row is created when guardian_name is filled.',
-    importRoster: 'Import rows',
-    imported: (created: number, skipped: number) =>
-      skipped ? `${created} people added, ${skipped} rows skipped.` : `${created} people added.`,
-    rosterSoFar: 'Roster so far',
-    travelers: 'Travelers',
-    guardians: 'Guardians',
-    leaders: 'Leaders',
-    leaderName: 'Leader name',
-    leaderGroup: 'Group',
-    addLeader: 'Add leader',
-    rosterSummary: (n: number) => `${n} people on the roster`,
-    invitesIntro: (n: number) =>
-      n === 0
-        ? 'Everyone on the roster has joined.'
-        : `${n} people have not joined yet. Issue codes, then hand them out on paper or by message.`,
-    issueInvites: 'Issue invite codes',
-    downloadCsv: 'Download CSV',
-    issued: (n: number) => `${n} codes issued. They are shown once; download them now.`,
-    nothingToIssue: 'No new codes: everyone already has a live code or has joined.',
-    joined: (joined: number, total: number) => `${joined} of ${total} joined`,
-    colName: 'Name',
-    colRole: 'Role',
-    colCode: 'Code',
-    colExpires: 'Expires',
-  },
-  people: {
-    subtitle: (t: number, g: number, l: number) => `${t} travelers · ${g} guardians · ${l} leaders`,
-    invite: 'Issue invites',
-    joined: 'Joined',
-    groups: 'Groups',
-    notJoined: 'Not joined yet',
-    roster: 'Roster',
-    filters: 'Filters',
-    filter: { all: 'Everyone', traveler: 'Travelers', guardian: 'Guardians', leader: 'Leaders' },
-    allGroups: 'All groups',
-    colName: 'Name',
-    colRole: 'Role',
-    colGroup: 'Group',
-    colStatus: 'Status',
-    colLastAck: 'Last ack',
-    colNotes: 'Care note',
-    status: {
-      joined: 'Joined',
-      invited: 'Invited',
-      pending: 'Code not issued',
-      expired: 'Code expired',
+import { useSyncExternalStore } from 'react';
+import { en, type Strings } from './strings.en';
+import { ko } from './strings.ko';
+
+export type Locale = 'ko' | 'en';
+export const LOCALE_KEY = 'voysemble.locale';
+const TABLES: Record<Locale, Strings> = { en, ko };
+
+/** The stored choice wins; otherwise the browser's language; English when neither says Korean. */
+export function pickInitialLocale(stored: string | null, navigatorLanguage: string): Locale {
+  if (stored === 'ko' || stored === 'en') return stored;
+  return navigatorLanguage.toLowerCase().startsWith('ko') ? 'ko' : 'en';
+}
+
+function readStored(): string | null {
+  try {
+    return typeof localStorage === 'undefined' ? null : localStorage.getItem(LOCALE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+let current: Locale = pickInitialLocale(
+  readStored(),
+  typeof navigator === 'undefined' ? 'en' : navigator.language,
+);
+const listeners = new Set<() => void>();
+
+function applyLang(locale: Locale) {
+  if (typeof document !== 'undefined') document.documentElement.lang = locale;
+}
+applyLang(current);
+
+export function getLocale(): Locale {
+  return current;
+}
+
+export function hasStoredLocale(): boolean {
+  const v = readStored();
+  return v === 'ko' || v === 'en';
+}
+
+/** Switch the console's language now; `persist` writes the choice for the next visit. */
+export function setLocale(locale: Locale, persist = true): void {
+  if (persist) {
+    try {
+      localStorage.setItem(LOCALE_KEY, locale);
+    } catch {
+      /* private mode: the choice lasts for this page */
+    }
+  }
+  if (locale === current) return;
+  current = locale;
+  applyLang(locale);
+  for (const fn of listeners) fn();
+}
+
+export function subscribeLocale(fn: () => void): () => void {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+
+/** The current language, re-rendering the caller when it changes. */
+export function useLocale(): Locale {
+  return useSyncExternalStore(subscribeLocale, getLocale, getLocale);
+}
+
+export const otherLocale = (locale: Locale): Locale => (locale === 'ko' ? 'en' : 'ko');
+
+/** The label of the language a toggle would switch to, in that language. */
+export const localeName: Record<Locale, string> = { ko: '한국어', en: 'English' };
+
+type Dict = Record<string, unknown>;
+const isDict = (v: unknown): v is Dict => typeof v === 'object' && v !== null && !Array.isArray(v);
+
+function resolve(path: string[]): unknown {
+  let node: unknown = TABLES[current];
+  for (const key of path) {
+    if (!isDict(node)) return undefined;
+    node = node[key];
+  }
+  return node;
+}
+
+/**
+ * A view onto the current table at `path`. Objects come back as nested views (so a page may hold
+ * `strings.people` across a language change); strings, functions and arrays come back as they are.
+ */
+function viewAt(path: string[], shape: Dict): Dict {
+  return new Proxy(shape, {
+    get(_target, key) {
+      if (typeof key !== 'string') return undefined;
+      const value = resolve([...path, key]);
+      const example = shape[key];
+      return isDict(value) && isDict(example) ? viewAt([...path, key], example) : value;
     },
-    guardianOf: (name: string) => `guardian of ${name}`,
-    careNote: 'Reveal',
-    revealNote: (name: string) => `Reveal care note for ${name} (audited)`,
-    showing: (n: number, total: number) => `Showing ${n} of ${total} sample rows.`,
-    showingLive: (n: number, total: number) => `Showing ${n} of ${total} people.`,
-    noTripSubtitle: 'The roster belongs to the active trip',
-    noTrip: 'Create an organization and a trip first.',
-    empty: 'Nobody on the roster yet. Import the CSV from the setup checklist.',
-    loadFailed: 'Could not load the roster.',
-    loading: 'Loading the roster…',
-    card: 'Person',
-    cardHint: 'Select a person to see their card and timeline.',
-    cardLoading: 'Loading the card…',
-    cardFailed: 'Could not load the card.',
-    close: 'Close',
-    guardians: 'Guardians',
-    noGuardians: 'No guardian on the roster.',
-    timeline: 'Timeline',
-    noEvents: 'No activity recorded yet.',
-    // Lost or stolen device (D28, slice 031).
-    revokeDevices: 'Revoke devices',
-    revokeDevicesConfirm: (name: string) =>
-      `Sign out every phone of ${name} and issue a new invite code? Their phones clear themselves on the next sync.`,
-    revokeDevicesYes: 'Yes, revoke devices',
-    revokeDevicesDone: (sessions: number, code: string, expires: string) =>
-      `${sessions} ${sessions === 1 ? 'phone' : 'phones'} signed out. New code ${code} (valid until ${expires}); hand it over in person.`,
-    revokeDevicesFailed: 'Could not revoke the devices.',
-    // Care notes (D27, slice 030).
-    care: {
-      title: 'Care note',
-      none: 'No care note on file.',
-      setBy: (name: string, when: string, reveals: number) =>
-        `Set by ${name} ${when} · ${reveals} ${reveals === 1 ? 'reveal' : 'reveals'} so far`,
-      reveal: 'Reveal (audited)',
-      hide: 'Hide',
-      edit: 'Edit care note',
-      allergies: 'Allergies',
-      medications: 'Medications',
-      freeText: 'Anything else a leader should know',
-      save: 'Save care note',
-      clear: 'Clear care note',
-      cancel: 'Cancel',
-      saved: 'Care note saved.',
-      cleared: 'Care note cleared.',
-      failed: 'Could not save the care note.',
-      revealFailed: 'Could not reveal the care note.',
-      sealed:
-        'Sealed at rest; every reveal is recorded on the timeline. Guardians can edit it from the phone.',
-      sample: 'Sample: Allergies: Peanuts · Medications: EpiPen in the red bag',
-      revealedBy: (name: string) => `Revealed to you ${name}`,
+    has(_target, key) {
+      return typeof key === 'string' && key in shape;
     },
-    edit: 'Edit',
-    editName: 'Name',
-    editGroup: 'Group (empty for none)',
-    save: 'Save',
-    cancel: 'Cancel',
-    saved: 'Saved.',
-    saveFailed: 'Could not save.',
-    revokeCode: 'Revoke code',
-    revoked: (n: number) =>
-      n === 1 ? 'Code revoked. Issue a new one from the setup checklist.' : `${n} codes revoked.`,
-    revokeFailed: 'Could not revoke the code.',
-    remove: 'Remove from roster',
-    removeConfirm: (name: string, guardians: number) =>
-      guardians > 0
-        ? `Remove ${name} and ${guardians} bound ${guardians === 1 ? 'guardian' : 'guardians'}? Their codes stop working.`
-        : `Remove ${name}? Their code stops working.`,
-    removeYes: 'Yes, remove',
-    removeFailed: 'Could not remove. Someone on this row already joined.',
-    kind: {
-      joined: 'Joined',
-      ack: 'Acknowledged',
-      headcount: 'Head count',
-      incident: 'Incident',
-      confirmation: 'Confirmed',
-      guardian_message: 'Guardian message',
-      care_update: 'Care note',
-      care_reveal: 'Care note',
-      devices_revoked: 'Devices',
-    } as Record<string, string>,
-    open: (name: string) => `Open the card of ${name}`,
-  },
-  communication: {
-    subtitle: (unread: number) => (unread ? `${unread} unread across channels` : 'All caught up'),
-    waiting: (n: number) =>
-      n === 1
-        ? '1 announcement still waiting for acknowledgments'
-        : `${n} announcements still waiting for acknowledgments`,
-    allAcked: 'Every required announcement is acknowledged',
-    noTripSubtitle: 'Announcements go to the active trip',
-    noTrip: 'Create an organization and a trip first.',
-    empty: 'No announcements yet. Publish the first one below.',
-    revisionChip: (n: number) => `Itinerary update · revision ${n}`,
-    whoHasNot: 'Who has not?',
-    everyoneAcked: 'Everyone acknowledged.',
-    statusFailed: 'Could not load the list.',
-    machineTranslation: (locale: 'ko' | 'en') =>
-      `Machine translation · ${locale === 'ko' ? '한국어' : 'English'}`,
-    editedTranslation: (by: string, locale: 'ko' | 'en') =>
-      `Translation edited by ${by} · ${locale === 'ko' ? '한국어' : 'English'}`,
-    translationNote:
-      'KO ↔ EN machine translation is added when the AI slice lands; the original is always shown.',
-    unreadNote: (n: number) => `${n} unread in the sample.`,
-    newAnnouncement: 'New announcement',
-    announcements: 'Announcements',
-    requiresAck: 'Requires ack',
-    sharedWithGuardians: 'Shared with guardians',
-    machineKo: 'KO machine translation',
-    autoTranslate: 'Auto-translate KO ↔ EN',
-    ackLabel: (a: number, t: number) => `${a} of ${t} acknowledged`,
-    unacked: 'Not yet',
-    nudge: 'Nudge at 06:00',
-    composer: 'Compose',
-    title: 'Title',
-    titlePlaceholder: 'Bus leaves 07:15',
-    body: 'Message',
-    publish: 'Publish',
-    channels: 'Channels',
-    channelRule:
-      'Fixed channels only: everyone, per group, traveler ↔ leader, guardian ↔ organizer. No traveler DMs.',
-    // Live chat (D22, slice 033).
-    chatIntro:
-      'Your channels: everyone on the trip, and one with each guardian. Group and traveler channels belong to the leaders.',
-    noChannels: 'No channels yet. They appear once the roster has guardians.',
-    openChannel: (title: string) => `Open ${title}`,
-    backToChannels: 'All channels',
-    noMessages: 'No messages yet. Say hello.',
-    messageLabel: 'Message',
-    send: 'Send',
-    sendFailed: 'Could not send the message.',
-    unreadBadge: (n: number) => `${n} new`,
-  },
-  safety: {
-    subtitle: 'Meeting windows, head counts, incidents. Guardians never see this page.',
-    window: (label: string) => `Meeting window: ${label}`,
-    windowMeta: (r: number, by: string) => `${r} m zone · opened by ${by}`,
-    windowTimes: (a: string, b: string) => `${a.slice(11, 16)}–${b.slice(11, 16)} UTC`,
-    autoStop: 'stops automatically at window end',
-    mapLabel: (inside: number, total: number) =>
-      `Schematic map: ${inside} of ${total} inside the zone`,
-    legend: 'Window states',
-    state: {
-      inside: 'Inside',
-      outside: 'Outside',
-      uncertain: 'Uncertain',
-      stale: 'Stale',
-      opted_out: 'Opted out',
+    ownKeys() {
+      return Object.keys(shape);
     },
-    // Live windows (slice 029, D15).
-    windowLiveMeta: (r: number, by: string, groups: string[]) =>
-      `${r} m zone · ${groups.length ? groups.join(', ') : 'all groups'} · opened by ${by}`,
-    windowStatus: { scheduled: 'Scheduled', open: 'Open', closed: 'Closed' },
-    windowLocalTimes: (a: string, b: string, tz: string) => `${a}–${b} ${tz}`,
-    noWindow:
-      'No meeting window is open. Open one below (or a leader does from the phone); travelers opt in per window and the service keeps only their state.',
-    closeWindow: 'Close window',
-    closeFailed: 'Could not close the window.',
-    members: 'Members',
-    reportedAt: (when: string) => `reported ${when}`,
-    notReported: 'not reported yet',
-    earlierWindows: 'Earlier windows',
-    openWindow: 'Open a window',
-    openWindowIntro:
-      'The meeting point is the only coordinate the service keeps, and only while the window is open. Travelers compare their own position with it on the phone and send inside or outside.',
-    form: {
-      label: 'Label',
-      place: 'Place',
-      radius: 'Radius (m)',
-      startsAt: 'Starts',
-      endsAt: 'Ends',
-      groups: 'Groups (comma separated; empty means every traveler)',
-      lat: 'Meeting point latitude',
-      lng: 'Meeting point longitude',
-      submit: 'Open window',
-      failed: 'Could not open the window.',
-      invalid: 'The window must end after it starts, and in the future.',
+    getOwnPropertyDescriptor(_target, key) {
+      if (typeof key !== 'string' || !(key in shape)) return undefined;
+      const value = resolve([...path, key]);
+      const example = shape[key];
+      return {
+        value: isDict(value) && isDict(example) ? viewAt([...path, key], example) : value,
+        enumerable: true,
+        configurable: true,
+        writable: false,
+      };
     },
-    incidents: 'Incidents',
-    opened: 'opened',
-    confirmed: (by: string, when: string) => `Confirmed by ${by} ${when}`,
-    guardianNotified: 'guardian notified',
-    pingLeader: 'Ping leader to confirm',
-    incidentStatus: {
-      open: 'Open',
-      confirmed: 'Confirmed',
-      closed: 'Closed',
-      resolved: 'Resolved',
+    set() {
+      return false;
     },
-    noIncidents: 'No incidents. A head count that closes with missing travelers opens a card here.',
-    noTrip: 'Create an organization and a trip first.',
-    resolve: 'Resolve',
-    resolveNote: 'What happened (optional)',
-    resolvedBy: (by: string, when: string) => `Resolved by ${by} ${when}`,
-    resolveFailed: 'Could not resolve the incident.',
-    confirmation: {
-      with_group: 'With the group',
-      not_with_group: 'Not with the group',
-      unknown: 'Status unknown',
-    },
-    confirmedBy: (by: string, role: string, when: string) => `Confirmed by ${role} ${by} ${when}`,
-    awaitingConfirmation: 'Waiting for a leader to confirm from the phone.',
-    sendGuardianMessage: 'Send guardian message',
-    guardianMessageSent: (when: string) => `Guardian message sent ${when}`,
-    guardianMessageFailed: 'Could not send the guardian message.',
-    liveIncidents: (open: number) =>
-      open === 0 ? 'No open incidents' : `${open} open incident${open === 1 ? '' : 's'}`,
-    missing: 'Missing at last head count',
-    missingIntro: 'Bus B, 06:50, closed with 2 missing. One tap each.',
-    // Live missing list (slice 034, D25).
-    missingLive:
-      'Per group, the latest closed head count that left travelers missing. Leaders act from the phone.',
-    missingNone: 'Nobody missing at the last head count.',
-    missingClosed: (group: string, at: string, by: string, n: number) =>
-      `${group} · closed ${at} by ${by} · ${n} missing`,
-    missingLoadFailed: 'Could not load the head counts.',
-    mark: {
-      missing: 'Missing',
-      present: 'Present',
-      with_other_group: 'Other group',
-      excused: 'Excused',
-    },
-    room: 'Room',
-    lastAck: 'last ack',
-    call: 'Call',
-    push: 'Push "come now"',
-    excuse: 'Excuse',
-    emergency: 'Emergency contacts',
-    localEmergency: 'Local emergency (Italy)',
-    embassy: 'Embassy of Korea, Rome (sample)',
-    tourLead: 'Tour lead, Bus A',
-  },
-  journey: {
-    subtitle: (n: number, risky: number) =>
-      risky
-        ? `${n} movements today · ${risky} tight connection${risky === 1 ? '' : 's'}`
-        : `${n} movements today`,
-    disruption: 'Disruption',
-    today: 'Today, Day 4 · Rome',
-    graphLabel: (n: number) => `Dependency chain of ${n} movements with slack between them`,
-    slack: (min: number) => `${min} min`,
-    status: { done: 'Done', now: 'Now', next: 'Next', risk: 'At risk' },
-    legend: 'Legend',
-    propagation: 'If the regroup slips 20 minutes',
-    propagationBody: 'What the graph propagates when the 10:45 window closes late:',
-    prop1: 'Window closes 11:05 instead of 10:45.',
-    prop2: 'Lunch shifts 25 minutes; the restaurant hold is until 13:00, still fine.',
-    prop3: 'Bus to rehearsal keeps 14:00: slack absorbed. No change to publish.',
-    proposals: 'Leader proposals',
-    proposal1Title: 'Kim Daeun: move lunch to 13:00',
-    proposal1Body: 'Filed offline on Bus A at 06:58. Diff against revision 7.',
-    accept: 'Accept into draft',
-    reject: 'Reject',
-  },
-  travel: {
-    subtitle: 'Flights, hotels, and bus charters for the active trip.',
-    flights: 'Flights',
-    pnr: 'PNR',
-    pax: (n: number) => `${n} seats`,
-    hotels: 'Hotels',
-    nights: (n: number) => `${n} nights`,
-    rooms: (n: number) => `${n} rooms`,
-    buses: 'Bus charters',
-    driver: 'Driver',
-    driverRule: 'Drivers are not users: they get a sealed, time-limited link or a printed roster.',
-    seats: (a: number, b: number) => `${a} of ${b} seats assigned`,
-  },
-  media: {
-    subtitle: (n: number, a: number, f: number) =>
-      `${n} photos · ${a} in the guardian album · ${f} awaiting review`,
-    pool: 'Trip pool',
-    photoBy: (who: string, day: number) => `Photo by ${who}, day ${day}`,
-    inAlbum: 'album',
-    queue: 'Review queue',
-    queueIntro: 'Flagged by the moderation model; hidden from the pool until a leader decides.',
-    flag: { nudity: 'Possible nudity', non_member_minor: 'Close-up of a non-member minor' },
-    day: (d: number) => `Day ${d}`,
-    approve: 'Approve',
-    remove: 'Remove',
-    album: 'Guardian album',
-    albumRule: 'Guardians see only approved photos tagged with their traveler or the whole group.',
-    approvedCount: 'approved photos',
-    wholeGroup: 'tagged whole group',
-    taggedMinji: 'tagged Minji Park',
-  },
-  preparation: {
-    subtitle: (missing: number) =>
-      missing ? `${missing} required documents still missing` : 'All required documents collected',
-    addRequirement: 'Add requirement',
-    documents: 'Documents & forms',
-    colDocument: 'Document',
-    colRequired: 'Required',
-    colCollected: 'Collected',
-    colDue: 'Due',
-    required: 'Required',
-    optional: 'Optional',
-    collected: (a: number, b: number) => `${a} of ${b} collected`,
-    complete: 'Complete',
-    remind: (n: number) => `Remind ${n}`,
-    scanRule:
-      'Scans open only on this console after re-authentication and are watermarked. They never sync to phones.',
-    packing: 'Packing checklist (shared with travelers)',
-    packingNote:
-      'Travelers tick items on their phone; this is the organizer view of one sample traveler.',
-  },
-  reports: {
-    subtitle: 'Trip so far. Numbers derive from acks, head counts, and documents.',
-    exportCsv: 'Export CSV',
-    kpis: 'Key figures',
-    avgAck: 'Average ack rate',
-    lastClose: 'Last head count closed in',
-    docs: 'Required documents',
-    announcements: 'Announcements sent',
-    ackByDay: 'Acknowledgment rate by day',
-    ackByDayLabel: 'Column chart: acknowledgment rate per trip day, percent',
-    closeByDay: 'Head count close time by day',
-    closeByDayLabel: 'Line chart: minutes to close the morning head count per trip day',
-    tableView: 'Table view',
-    retention: 'After the trip',
-    retentionBody:
-      'At trip close a 90-day wrap-up window starts. Then names, contacts, photos, and chat are crypto-shredded; these statistics and the itinerary template stay.',
-    // Live report (slice 034).
-    liveSubtitle:
-      'Trip so far. Numbers derive from acks, head counts, incidents, and the fee ledger.',
-    openIncidents: 'Open incidents',
-    feesCollected: 'Fees collected',
-    headcountsClosed: 'Head counts closed',
-    noData: 'No facts yet. Numbers appear with the first announcement or head count.',
-    none: '—',
-    loadFailed: 'Could not load the report.',
-    noTrip: 'Create an organization and a trip first.',
-    csvHeader: 'day,date,announcements_sent,ack_rate_pct,headcounts,avg_close_minutes,missing',
-  },
-  billing: {
-    subtitle:
-      'Your Voysemble plan, and the traveler fee ledger you keep. No card data is stored here.',
-    ledger: 'Traveler fee ledger',
-    importBank: 'Import bank CSV',
-    collected: (a: string, b: string) => `${a} of ${b} collected`,
-    counts: (p: number, pa: number, u: number, r: number) =>
-      `${p} paid · ${pa} partial · ${u} unpaid · ${r} refunded`,
-    colName: 'Name',
-    colGroup: 'Group',
-    colAmount: 'Amount',
-    colPaid: 'Paid',
-    colStatus: 'Status',
-    status: {
-      paid: 'Paid',
-      partial: 'Partial',
-      unpaid: 'Unpaid',
-      refunded: 'Refunded',
-      waived: 'Waived',
-    },
-    ledgerRule:
-      'Guardians see their own balance and due date on mobile. Collection stays with your bank.',
-    noTrip: 'Create an organization and a trip first.',
-    loading: 'Loading the ledger…',
-    loadFailed: 'Could not load the ledger.',
-    empty: 'No fee set yet. Set one for every traveler below.',
-    withoutFee: (n: number) =>
-      n === 1 ? '1 traveler has no fee yet.' : `${n} travelers have no fee yet.`,
-    setFee: 'Set the fee',
-    setFeeHint: 'One amount for every traveler. What was already paid stays.',
-    amount: 'Amount',
-    currency: 'Currency',
-    dueOn: 'Due on',
-    onlyWithoutFee: 'Only travelers without a fee',
-    applyFee: 'Apply to travelers',
-    applied: (n: number) => `Fee set for ${n} ${n === 1 ? 'traveler' : 'travelers'}.`,
-    badAmount: 'Enter an amount as a number.',
-    paidInput: (name: string) => `Paid by ${name}`,
-    savePaid: (name: string) => `Save payment for ${name}`,
-    saved: (name: string) => `Saved ${name}.`,
-    saveFailed: 'Could not save the row.',
-    colDue: 'Due',
-    importTitle: 'Import bank CSV',
-    importHint:
-      'Columns: name, paid, note. "paid" is the total paid so far, so importing the same file twice is harmless.',
-    csvLabel: 'Bank CSV',
-    importRows: 'Import rows',
-    imported: (n: number, unmatched: string[], skipped: number) =>
-      [
-        `${n} ${n === 1 ? 'row' : 'rows'} applied`,
-        unmatched.length ? `unmatched: ${unmatched.join(', ')}` : null,
-        skipped ? `${skipped} skipped` : null,
-      ]
-        .filter(Boolean)
-        .join(' · '),
-    importFailed: 'Could not import the CSV.',
-    plan: 'Voysemble plan',
-    planName: 'Plan',
-    seats: 'Seats',
-    price: 'Price per trip',
-    renews: 'Ends',
-    managePortal: 'Manage in Stripe portal',
-    stripeRule: 'Stripe Checkout and Portal, organizers only, web only.',
-    invoices: 'Invoices',
-    invoiceSample: 'Per-trip plan, 38 seats (sample)',
-  },
-  settings: {
-    subtitle: 'Organization profile, languages, notification rules, retention, members.',
-    profile: 'Organization',
-    orgName: 'Name',
-    language: 'Default language',
-    timezone: 'Time zone',
-    notifications: 'Notification rules',
-    quietFrom: 'Quiet hours from',
-    quietTo: 'Quiet hours to',
-    digestHour: 'Guardian digest at',
-    notifRule:
-      'Required-ack announcements and head-count calls bypass quiet hours. Guardians get one digest a day.',
-    retention: 'Retention',
-    wrapUp: 'Wrap-up window after trip close (days)',
-    wrapUpHint: 'Personal data is crypto-shredded when the window ends. 30 to 365 days.',
-    members: 'Members',
-    memberRule: 'Owners and organizers use this console. Leaders join by invite and use the app.',
-    liveSubtitle:
-      'Organization profile, language, notification rules, retention, members. Saved on the API.',
-    save: 'Save',
-    saving: 'Saving…',
-    saved: 'Saved.',
-    saveFailed: 'Could not save.',
-    ownerOnly: 'Only the owner changes these. Ask them if something is wrong.',
-    badClock: 'Use HH:mm.',
-    badWindow: 'Between 30 and 365 days.',
-    timezoneHint: 'IANA zone, e.g. Asia/Seoul or Europe/Rome. Trips carry their own.',
-    you: 'you',
-    noMembers: 'No one else yet. Leaders appear here when they redeem their invite code.',
-    membersLoadFailed: 'Could not load the members.',
-    loadFailed: 'Could not load the organization.',
-    loading: 'Loading…',
-    role: { owner: 'Owner', organizer: 'Organizer', leader: 'Leader', member: 'Member' } as Record<
-      string,
-      string
-    >,
-  },
-  placeholder: {
-    title: (section: string) => `${section} is not built yet`,
-    body: 'This area is in the work graph. Status in feature-status.json is "deferred".',
-  },
-  itinerary: {
-    title: 'Itinerary',
-    revision: (n: number) => `Revision ${n}`,
-    drafts: (n: number) =>
-      n === 0
-        ? 'All changes published'
-        : n === 1
-          ? '1 unpublished change'
-          : `${n} unpublished changes`,
-    publish: 'Publish changes',
-    addEvent: 'Add event',
-    days: 'Days',
-    eventsCount: (n: number) => (n === 1 ? '1 event' : `${n} events`),
-    noEvents: 'No events on this day yet.',
-    detailTitle: 'Event details',
-    selectPrompt: 'Select an event to edit it, or add one.',
-    fields: {
-      title: 'Title',
-      kind: 'Type',
-      start: 'Start',
-      end: 'End',
-      place: 'Place',
-      pax: 'Participants',
-      status: 'Status',
-      note: 'Note for travelers',
-    },
-    paxAll: 'Everyone',
-    moveUp: 'Move up',
-    moveDown: 'Move down',
-    remove: 'Remove event',
-    draft: 'Draft',
-    emptyTitle: 'No days in this trip yet',
-    emptyBody: 'Set the trip dates to start building the itinerary.',
-    proposals: (n: number) =>
-      n === 1 ? '1 change proposal from a leader' : `${n} change proposals from leaders`,
-    proposalKind: { edit: 'Edit', add: 'Add', remove: 'Remove' },
-    accept: 'Accept',
-    reject: 'Reject',
-    decisionNote: 'Reason (optional)',
-    proposedBy: (by: string, when: string) => `${by} · ${when}`,
-    proposalDecided: (status: string, by: string) => `${status} by ${by}`,
-    decideFailed: 'Could not decide the proposal.',
-    notify: 'Notify travelers (acknowledgment required)',
-    publishNote: 'Note for travelers (optional)',
-    published: (revision: number, changes: number, notified: boolean) =>
-      `Revision ${revision} published · ${changes} change${changes === 1 ? '' : 's'}${
-        notified ? ' · travelers notified' : ' · quiet'
-      }`,
-    saveFailed: 'A change could not be saved. It will be retried on your next edit.',
-    publishFailed: 'Publishing failed. Reload and try again.',
-  },
-  kind: {
-    flight: 'Flight',
-    bus: 'Bus',
-    meal: 'Meal',
-    activity: 'Activity',
-    hotel: 'Hotel',
-    meeting: 'Meeting point',
-    free: 'Free time',
-  },
-  severity: { red: 'Urgent', amber: 'Watch', info: 'Info' },
-  status: {
-    scheduled: 'Scheduled',
-    delayed: 'Delayed',
-    done: 'Done',
-    in_progress: 'Now',
-    cancelled: 'Cancelled',
-  },
-  tripStatus: { active: 'Active', planning: 'Planning', completed: 'Completed' },
-} as const;
+  });
+}
+
+export const strings: Strings = viewAt([], en as unknown as Dict) as unknown as Strings;
+
+/** Every key of the English table, as dotted paths; the tests check the Korean table has them all. */
+export function stringPaths(table: unknown, prefix = ''): string[] {
+  if (!isDict(table)) return [prefix];
+  return Object.keys(table).flatMap((k) => stringPaths(table[k], prefix ? `${prefix}.${k}` : k));
+}
+
+export const stringTables = TABLES;

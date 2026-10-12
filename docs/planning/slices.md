@@ -1127,3 +1127,24 @@ Built:
 - Docs: decision D32, `ios-liquid-glass.md`, mobile README, captures README.
 
 Not done: glass on Android (Material 3 Expressive is a separate decision), a toolbar with actions, morphing between glass elements.
+
+## Slice 038: Korean console
+
+Status: done 2026-10-12. Commit: see git log (`feat(console): Korean, the account language and the top-bar toggle (slice 038)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: founder rule (KO/EN only); D11 (languages), D21 (one account, its own preference). Details: `docs/engineering/console-i18n.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | adds the `PATCH /v1/me` case |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | adds `strings.test.ts` (4: parity, no English left, the view, the initial choice) |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e` | `locale.spec.ts` new; captures `command-center-ko.png`, `people-ko.png` |
+
+No phone change (D31: web captures only).
+
+Built:
+- Contracts `UpdateMeRequest`; worker `PATCH /v1/me` (accounts.locale) sharing the `/v1/me` response builder.
+- Console: `strings.en.ts` (the former table, widened), `strings.ko.ts` (every key in Korean), `strings.ts` (the view, `getLocale`/`setLocale`/`useLocale`, `pickInitialLocale`, `localeName`), the root remount, the top-bar toggle, the account sync in the shell, `auth.updateLocale`, the sign-in email language; tests; e2e with captures.
+- Docs: `console-i18n.md`, ledger, captures README, feature flag `web.korean` working.
+
+Not done: Korean on the phones; locale-aware date formatting.

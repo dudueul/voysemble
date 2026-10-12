@@ -2,7 +2,7 @@
 // Top bar: active org/trip context, search, notifications, account. Context stays visible on
 // every page (doc 01 §16.1).
 
-import { strings } from '../../lib/strings';
+import { getLocale, localeName, otherLocale, strings } from '../../lib/strings';
 import { Icons } from './icons';
 
 export function TopBar({
@@ -14,6 +14,7 @@ export function TopBar({
   onSignOut,
   onMenu,
   menuOpen,
+  onSwitchLocale,
 }: {
   orgName: string;
   tripName: string | null;
@@ -24,8 +25,11 @@ export function TopBar({
   onSignOut: () => void;
   onMenu: () => void;
   menuOpen: boolean;
+  /** Slice 038: switch the console to the other language (and the account's preference). */
+  onSwitchLocale: () => void;
 }) {
   const initials = accountLabel.slice(0, 2).toUpperCase();
+  const other = otherLocale(getLocale());
   return (
     <header className="topbar">
       <button
@@ -58,6 +62,16 @@ export function TopBar({
           aria-label={strings.topbar.search}
         />
       </search>
+      <button
+        type="button"
+        className="btn btn--ghost btn--sm"
+        lang={other}
+        aria-label={strings.topbar.switchLanguage(localeName[other])}
+        data-testid="locale-toggle"
+        onClick={onSwitchLocale}
+      >
+        {localeName[other]}
+      </button>
       <button type="button" className="iconbtn" aria-label={strings.topbar.notifications}>
         <Icons.bell />
         {hasAlerts ? <span className="iconbtn__dot" aria-hidden="true" /> : null}

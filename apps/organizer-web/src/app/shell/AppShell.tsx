@@ -15,6 +15,7 @@ import {
   pickActiveOrg,
   tripsQuery,
 } from '../../lib/session';
+import { getLocale, hasStoredLocale, otherLocale, setLocale } from '../../lib/strings';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 
@@ -26,6 +27,19 @@ export function AppShell() {
   const pathname = useRouterState({ select: (st) => st.location.pathname });
   useEffect(() => setNavOpen(false), [pathname]);
   const me = useQuery(meQuery);
+  // Slice 038: the account's language wins on a browser that has no choice of its own yet.
+  const accountLocale = me.data?.locale;
+  useEffect(() => {
+    if (accountLocale && !hasStoredLocale()) setLocale(accountLocale);
+  }, [accountLocale]);
+  const switchLocale = () => {
+    const next = otherLocale(getLocale());
+    setLocale(next);
+    void auth.updateLocale(next).then(
+      () => qc.invalidateQueries({ queryKey: meQuery.queryKey }),
+      () => undefined,
+    );
+  };
   const orgs = useQuery(orgsQuery);
   const activeOrg = orgs.data ? pickActiveOrg(orgs.data) : null;
   const trips = useQuery({ ...tripsQuery(activeOrg?.id ?? ''), enabled: Boolean(activeOrg) });
@@ -68,6 +82,7 @@ export function AppShell() {
           onSignOut={() => void signOut()}
           onMenu={() => setNavOpen((v) => !v)}
           menuOpen={navOpen}
+          onSwitchLocale={switchLocale}
         />
         <Outlet />
       </div>

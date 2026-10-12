@@ -9,14 +9,21 @@ import '@voysemble/design-tokens/dist/tokens.css';
 import './app/styles/base.css';
 import { router } from './app/router';
 import { queryClient } from './lib/query-client';
+import { useLocale } from './lib/strings';
 
 const root = document.getElementById('root');
 if (!root) throw new Error('#root missing');
 
+/** The whole tree remounts when the language changes (slice 038), so every page re-reads its strings. */
+function LocaleRoot() {
+  const locale = useLocale();
+  return <RouterProvider key={locale} router={router} />;
+}
+
 createRoot(root).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <LocaleRoot />
     </QueryClientProvider>
   </StrictMode>,
 );

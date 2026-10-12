@@ -93,6 +93,19 @@ describe('magic link sign-in', () => {
     expect(a.accountId).toBe(b.accountId);
   });
 
+  it('PATCH /v1/me changes the account language and the next /v1/me reads it (slice 038)', async () => {
+    const nate = await signIn('nate@example.com');
+    const before = await json<{ locale: string }>(await api(nate).get('/v1/me'));
+    expect(before.locale).toBe('en');
+    const changed = await json<{ locale: string; email: string }>(
+      await api(nate).patch('/v1/me', { locale: 'ko' }),
+    );
+    expect(changed).toMatchObject({ email: 'nate@example.com', locale: 'ko' });
+    expect((await json<{ locale: string }>(await api(nate).get('/v1/me'))).locale).toBe('ko');
+    expect((await api(nate).patch('/v1/me', { locale: 'fr' })).status).toBe(400);
+    expect((await api(null).patch('/v1/me', { locale: 'ko' })).status).toBe(401);
+  });
+
   it('/v1/me without a session is 401; logout revokes the token', async () => {
     const anon = await SELF.fetch('https://example.com/v1/me');
     expect(anon.status).toBe(401);

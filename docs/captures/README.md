@@ -155,3 +155,9 @@ card) with the members card showing the owner as you. Produced by `e2e/settings.
 Every `ios/*.png` from this slice on is rendered on the iOS 26 simulator (CI on `macos-26`, Xcode 26)
 with the glass control layer of D32: chips, the Plan day picker, the up-next card's buttons and the
 tab bar. The pictures before this slice came from Xcode 16.4 on `macos-15` with the flat fallback.
+
+## Slice 038 (2026-10-12): Korean console
+
+`web/desktop-1440/command-center-ko.png`, `web/laptop-1280/command-center-ko.png`,
+`web/desktop-1440/people-ko.png`, `web/laptop-1280/people-ko.png`: the command center and People after
+the top-bar toggle switched the console to Korean. Produced by `e2e/locale.spec.ts`.

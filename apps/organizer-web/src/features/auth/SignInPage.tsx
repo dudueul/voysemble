@@ -7,12 +7,12 @@ import { type FormEvent, useState } from 'react';
 import { Icons } from '../../app/shell/icons';
 import { ApiError } from '../../lib/api-client';
 import { auth } from '../../lib/session';
-import { strings } from '../../lib/strings';
+import { getLocale, strings } from '../../lib/strings';
 
 export function SignInPage() {
   const [email, setEmail] = useState('');
   const request = useMutation({
-    mutationFn: (value: string) => auth.requestMagicLink(value, 'en'),
+    mutationFn: (value: string) => auth.requestMagicLink(value, getLocale()),
   });
 
   const onSubmit = (e: FormEvent) => {

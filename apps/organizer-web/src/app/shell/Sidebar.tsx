@@ -5,19 +5,20 @@ import { Link } from '@tanstack/react-router';
 import { strings } from '../../lib/strings';
 import { type IconName, Icons } from './icons';
 
-export const NAV: ReadonlyArray<{ to: string; label: string; icon: IconName }> = [
-  { to: '/', label: strings.nav.today, icon: 'today' },
-  { to: '/itinerary', label: strings.nav.itinerary, icon: 'itinerary' },
-  { to: '/journey-graph', label: strings.nav.journeyGraph, icon: 'graph' },
-  { to: '/people', label: strings.nav.people, icon: 'people' },
-  { to: '/communication', label: strings.nav.communication, icon: 'chat' },
-  { to: '/travel', label: strings.nav.travel, icon: 'plane' },
-  { to: '/safety', label: strings.nav.safety, icon: 'shield' },
-  { to: '/media', label: strings.nav.media, icon: 'media' },
-  { to: '/preparation', label: strings.nav.preparation, icon: 'checklist' },
-  { to: '/reports', label: strings.nav.reports, icon: 'chart' },
-  { to: '/billing', label: strings.nav.billing, icon: 'card' },
-  { to: '/settings', label: strings.nav.settings, icon: 'settings' },
+// The label is a key into `strings.nav`, read at render, so the rail follows a language change (slice 038).
+export const NAV: ReadonlyArray<{ to: string; label: keyof typeof strings.nav; icon: IconName }> = [
+  { to: '/', label: 'today', icon: 'today' },
+  { to: '/itinerary', label: 'itinerary', icon: 'itinerary' },
+  { to: '/journey-graph', label: 'journeyGraph', icon: 'graph' },
+  { to: '/people', label: 'people', icon: 'people' },
+  { to: '/communication', label: 'communication', icon: 'chat' },
+  { to: '/travel', label: 'travel', icon: 'plane' },
+  { to: '/safety', label: 'safety', icon: 'shield' },
+  { to: '/media', label: 'media', icon: 'media' },
+  { to: '/preparation', label: 'preparation', icon: 'checklist' },
+  { to: '/reports', label: 'reports', icon: 'chart' },
+  { to: '/billing', label: 'billing', icon: 'card' },
+  { to: '/settings', label: 'settings', icon: 'settings' },
 ];
 
 export function Sidebar({
@@ -73,7 +74,7 @@ export function Sidebar({
                 activeProps={{ 'aria-current': 'page' }}
               >
                 <Icon />
-                <span>{item.label}</span>
+                <span>{strings.nav[item.label]}</span>
               </Link>
             );
           })}
