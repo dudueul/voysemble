@@ -24,6 +24,8 @@ import type {
   OpenWindowRequest,
   Organization,
   OrganizationList,
+  OrganizationProfile,
+  OrgMemberList,
   Participation,
   PersonTimeline,
   RemoveParticipationResponse,
@@ -36,6 +38,7 @@ import type {
   Trip,
   TripList,
   TripReport,
+  UpdateOrganizationRequest,
   UpdateParticipationRequest,
   WindowList,
 } from '@voysemble/contracts';
@@ -57,6 +60,26 @@ export const orgsQuery = queryOptions({
   queryKey: ['orgs'],
   queryFn: async () => (await api<OrganizationList>('/v1/orgs')).organizations,
 });
+
+/** The organization with its settings (slice 036); any member reads it. */
+export const orgProfileQuery = (orgId: string) =>
+  queryOptions({
+    queryKey: ['orgs', orgId, 'profile'],
+    queryFn: () => api<OrganizationProfile>(`/v1/orgs/${orgId}`),
+  });
+
+/** Accounts in the organization with their roles (owner, organizer). */
+export const orgMembersQuery = (orgId: string) =>
+  queryOptions({
+    queryKey: ['orgs', orgId, 'members'],
+    queryFn: async () => (await api<OrgMemberList>(`/v1/orgs/${orgId}/members`)).members,
+  });
+
+/** Settings writes (slice 036, owner only). */
+export const org = {
+  update: (orgId: string, body: UpdateOrganizationRequest) =>
+    api<OrganizationProfile>(`/v1/orgs/${orgId}`, { method: 'PATCH', body }),
+};
 
 export const tripsQuery = (orgId: string) =>
   queryOptions({

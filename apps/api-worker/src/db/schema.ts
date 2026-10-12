@@ -4,7 +4,7 @@
 // ../../migrations is the source of truth for the deployed shape. test/schema.test.ts checks
 // that every column here exists in the migrations so they cannot drift silently.
 
-import { index, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 export const accounts = sqliteTable('accounts', {
   id: text('id').primaryKey(),
@@ -53,6 +53,12 @@ export const organizations = sqliteTable('organizations', {
   status: text('status', { enum: ['active', 'suspended', 'deleted'] })
     .notNull()
     .default('active'),
+  // Slice 036 (migration 0003): settings edited on the console; D29 and D20 read them later.
+  timeZone: text('time_zone').notNull().default('Asia/Seoul'),
+  quietFrom: text('quiet_from').notNull().default('23:00'),
+  quietTo: text('quiet_to').notNull().default('06:30'),
+  digestAt: text('digest_at').notNull().default('19:00'),
+  wrapUpDays: integer('wrap_up_days').notNull().default(90),
 });
 
 export const memberships = sqliteTable(

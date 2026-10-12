@@ -7,19 +7,13 @@ import type { Currency, FeeLedger, FeeRow } from '@voysemble/contracts';
 import { type FormEvent, useEffect, useState } from 'react';
 import { Icons } from '../../app/shell/icons';
 import { ledger, ledgerTotals, plan } from '../../fixtures/sections';
-import { ApiError } from '../../lib/api-client';
+import { errorText } from '../../lib/errors';
 import { fees as feesApi, feesQuery, formatMoney, parseMoney, toMajor } from '../../lib/fees-api';
 import { orgsQuery, pickActiveOrg, tripsQuery } from '../../lib/session';
 import { strings } from '../../lib/strings';
 import { Card, formatKrw, Meter, SectionPage } from './SectionPage';
 
 const s = strings.billing;
-
-function errorText(e: unknown, fallback: string): string {
-  return e instanceof ApiError
-    ? `${fallback} (${strings.auth.reference(e.correlationId)})`
-    : fallback;
-}
 
 /** One traveler's row with an editable paid amount (slice 027). */
 function LedgerRowLive({ orgId, tripId, row }: { orgId: string; tripId: string; row: FeeRow }) {

@@ -573,6 +573,25 @@ export const strings = {
     wrapUpHint: 'Personal data is crypto-shredded when the window ends. 30 to 365 days.',
     members: 'Members',
     memberRule: 'Owners and organizers use this console. Leaders join by invite and use the app.',
+    liveSubtitle:
+      'Organization profile, language, notification rules, retention, members. Saved on the API.',
+    save: 'Save',
+    saving: 'Saving…',
+    saved: 'Saved.',
+    saveFailed: 'Could not save.',
+    ownerOnly: 'Only the owner changes these. Ask them if something is wrong.',
+    badClock: 'Use HH:mm.',
+    badWindow: 'Between 30 and 365 days.',
+    timezoneHint: 'IANA zone, e.g. Asia/Seoul or Europe/Rome. Trips carry their own.',
+    you: 'you',
+    noMembers: 'No one else yet. Leaders appear here when they redeem their invite code.',
+    membersLoadFailed: 'Could not load the members.',
+    loadFailed: 'Could not load the organization.',
+    loading: 'Loading…',
+    role: { owner: 'Owner', organizer: 'Organizer', leader: 'Leader', member: 'Member' } as Record<
+      string,
+      string
+    >,
   },
   placeholder: {
     title: (section: string) => `${section} is not built yet`,

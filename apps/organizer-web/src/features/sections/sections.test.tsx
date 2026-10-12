@@ -1281,3 +1281,93 @@ describe('niceMax', () => {
     expect(niceMax([120])).toBe(150);
   });
 });
+
+describe('Settings on the API (slice 036)', () => {
+  const PROFILE = {
+    ...ORG,
+    settings: {
+      timeZone: 'Asia/Seoul',
+      quietHours: { from: '23:00', to: '06:30' },
+      guardianDigestAt: '19:00',
+      wrapUpDays: 90,
+    },
+  };
+  const MEMBERS = {
+    members: [
+      {
+        accountId: '44444444-4444-4444-8444-444444444444',
+        email: 'nate@example.com',
+        role: 'owner',
+        joinedAt: '2026-10-11T00:00:00.000Z',
+        you: true,
+      },
+      {
+        accountId: '55555555-5555-4555-8555-555555555555',
+        email: 'kim@example.com',
+        role: 'leader',
+        joinedAt: '2026-10-12T00:00:00.000Z',
+        you: false,
+      },
+    ],
+  };
+
+  it('loads the profile and members, saves the profile card, and reports Saved.', async () => {
+    stubApi({
+      'GET /v1/orgs': () => ({ organizations: [ORG] }),
+      [`GET /v1/orgs/${ORG.id}`]: () => PROFILE,
+      [`GET /v1/orgs/${ORG.id}/members`]: () => MEMBERS,
+      [`PATCH /v1/orgs/${ORG.id}`]: () => ({
+        ...PROFILE,
+        name: 'Seoul Arts High School',
+        settings: { ...PROFILE.settings, timeZone: 'Europe/Rome' },
+      }),
+    });
+    renderWithQuery(<SettingsPage />);
+    await screen.findByText('Live');
+    const name = (await screen.findByLabelText('Name')) as HTMLInputElement;
+    expect(name.value).toBe('Seoul Arts High');
+    const owner = await screen.findByTestId('member-owner');
+    expect(owner.textContent).toContain('nate@example.com');
+    expect(owner.textContent).toContain('you');
+    expect(screen.getByTestId('member-leader').textContent).toContain('Leader');
+    fireEvent.change(name, { target: { value: 'Seoul Arts High School' } });
+    fireEvent.change(screen.getByLabelText(/^Time zone/), { target: { value: 'Europe/Rome' } });
+    fireEvent.submit(screen.getByRole('form', { name: 'Organization' }));
+    await waitFor(() =>
+      expect(screen.getByTestId('settings-profile-status').textContent).toBe('Saved.'),
+    );
+    const patch = vi.mocked(fetch).mock.calls.find(([, init]) => init?.method === 'PATCH');
+    expect(JSON.parse(String(patch?.[1]?.body))).toEqual({
+      name: 'Seoul Arts High School',
+      defaultLocale: 'ko',
+      settings: { timeZone: 'Europe/Rome' },
+    });
+    // The server's answer flows back into the inputs without a remount.
+    await waitFor(() =>
+      expect((screen.getByLabelText(/^Time zone/) as HTMLInputElement).value).toBe('Europe/Rome'),
+    );
+    // The retention window is checked on the client before any call.
+    fireEvent.change(screen.getByLabelText(/^Wrap-up window/), {
+      target: { value: '10' },
+    });
+    fireEvent.submit(screen.getByRole('form', { name: 'Retention' }));
+    expect(screen.getByTestId('settings-retention-status').textContent).toBe(
+      'Between 30 and 365 days.',
+    );
+  });
+
+  it('an organizer sees the values with Save disabled', async () => {
+    stubApi({
+      'GET /v1/orgs': () => ({ organizations: [{ ...ORG, role: 'organizer' }] }),
+      [`GET /v1/orgs/${ORG.id}`]: () => ({ ...PROFILE, role: 'organizer' }),
+      [`GET /v1/orgs/${ORG.id}/members`]: () => MEMBERS,
+    });
+    renderWithQuery(<SettingsPage />);
+    // The fixture flashes while the organization loads; wait for the live chip.
+    await screen.findByText('Live');
+    const saves = await screen.findAllByRole('button', { name: 'Save' });
+    expect(saves).toHaveLength(3);
+    for (const b of saves) expect((b as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByTestId('settings-profile-status').textContent).toContain('Only the owner');
+  });
+});

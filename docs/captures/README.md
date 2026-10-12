@@ -144,3 +144,9 @@ Produced by `e2e/reports.spec.ts`.
 fixture's concert day with the day chips and the leader's "Propose a change" and "Propose an event
 for this day". `android/plan-propose-dark.png` and `ios/plan-propose-dark.png`: the proposal form
 for a new event, filled as a leader would. All land here through the CI `captures` job.
+
+## Slice 036 (2026-10-12): live Settings
+
+`web/desktop-1440/settings-live.png`, `web/laptop-1280/settings-live.png`: Settings on the API after
+the owner renamed the organization, moved the quiet hours and the wrap-up window ("Saved." on each
+card) with the members card showing the owner as you. Produced by `e2e/settings.spec.ts`. The earlier `settings.png` (the sample page) is no longer produced: a signed-in account always has the live page.

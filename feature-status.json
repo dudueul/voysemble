@@ -62,7 +62,7 @@
     "web.preparation": "simulated",
     "web.reports": "working",
     "web.billing": "working",
-    "web.settings": "simulated",
+    "web.settings": "working",
     "web.responsive-layout": "working",
     "mobile.headcount": "working",
     "mobile.bulletin": "working",

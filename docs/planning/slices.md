@@ -1048,7 +1048,7 @@ Not done: sockets and push; the organizer's audited read on incident; leader mod
 
 ## Slice 034: live report and the Safety missing list
 
-Status: done 2026-10-12. Commit: see git log (`feat(reports): the trip report and the Safety missing list from existing facts (slice 034)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: 8a8e0e9 (`feat(reports): the trip report and the Safety missing list from existing facts (slice 034)`). CI: run 38242752462 green (web, mobile, ios); captures committed as 66e5bf7 (web `reports-live.png`, `safety-missing-live.png` at desktop-1440 and laptop-1280).
 Spec: D25 (missing list on the console from the latest closed head count), D16/D14 (acks and head counts as the report's sources), D23 (fee totals). Details: `docs/engineering/reports.md`.
 
 | Gate | Command | Result |
@@ -1087,3 +1087,25 @@ Built:
 - Docs: itinerary doc section, captures README, mobile README, feature flags `mobile.plan` (new, working) and `mobile.proposals.ios` (working).
 
 Not done: the Memories tab (still a placeholder on both phones); choosing the kind of an added event; Korean strings on the phones.
+
+## Slice 036: live Settings
+
+Status: done 2026-10-12. Commit: see git log (`feat(settings): organization settings and members on the API and the console (slice 036)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D29 (quiet hours, guardian digest hour), D20 (wrap-up window), D21 (members and roles). Details: `docs/engineering/identity-and-roster.md` ("Organization settings and members").
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 25 files, 69 tests (adds `organization-settings.test.ts`: 1) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | adds the live Settings case |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e` | `settings.spec.ts` new; capture `settings-live.png` |
+
+No phone change (D31: web captures only).
+
+Built:
+- Contracts `organization.ts`: `QuietHours`, `OrganizationSettings` (+ defaults), `OrganizationProfile`, `UpdateOrganizationRequest`, `OrgMember`, `OrgMemberList`.
+- Worker: migration `0003_organization_settings.sql` and the schema columns; routes `GET /v1/orgs/{orgId}`, `PATCH /v1/orgs/{orgId}` (owner, Intl zone check), `GET /v1/orgs/{orgId}/members` (organizer).
+- Console: `orgProfileQuery`, `orgMembersQuery`, `org.update`; `lib/errors.ts` (`errorText`, shared with Billing); the live Settings page (three Save cards, owner gate, members), strings; unit test; e2e with capture.
+- Docs: identity doc section, ledger (incl. the CI record for slice 034), captures README, feature flag `web.settings` working.
+
+Not done: inviting an organizer by email (D21 says owners and organizers use the console; today a second organizer has no way in), Korean console strings, the lanes and the shred that read these settings.

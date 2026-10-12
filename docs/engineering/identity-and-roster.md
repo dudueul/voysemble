@@ -230,6 +230,50 @@ refetch after each action; a removal closes the card.
   "Code not issued"; removing Lee, Hana asks about her one bound guardian, removes both, leaves
   three rows and "2 travelers · 1 guardians · 0 leaders". Capture `people-actions.png`.
 
+## Organization settings and members (slice 036, D29, D20, D21)
+
+The Settings page was the last sample-only console page. Organization rows (D1) gain the
+settings the console edits; the notification lanes (D29) and the crypto-shred (D20) read them
+when they are built, so until then they are stored facts with the decisions' defaults.
+
+### Storage (migration 0003)
+
+`organizations.time_zone` (default `Asia/Seoul`), `quiet_from` / `quiet_to` (`23:00` / `06:30`),
+`digest_at` (`19:00`), `wrap_up_days` (90). The Drizzle schema mirrors them.
+
+| Route | Minimum role | Behaviour |
+|---|---|---|
+| `GET /v1/orgs/{orgId}` | member | `OrganizationProfile`: the organization, the caller's role, `settings { timeZone, quietHours { from, to }, guardianDigestAt, wrapUpDays }`. |
+| `PATCH /v1/orgs/{orgId}` | owner | `UpdateOrganizationRequest`: any subset of `name`, `defaultLocale`, `settings` (partial). The zone is validated with `Intl` (400), clocks are `HH:mm` (400), the window is 30–365 (400). Answers the profile. |
+| `GET /v1/orgs/{orgId}/members` | organizer | `OrgMemberList`: every membership with the account's email, role, join date and `you` on the caller's row; owners first, then organizers, leaders, members. |
+
+A stranger and an unknown organization are the same 403 (no existence leak), as elsewhere.
+
+### Console
+
+`orgProfileQuery`, `orgMembersQuery`, `org.update`. The page is live once the account has an
+organization: three cards with one Save each (profile: name, default language, time zone;
+notification rules: quiet hours and the guardian digest hour; retention: the wrap-up window), a
+status line per card ("Saved." or the failure with its reference), inputs that follow the
+server after a save without remounting, and the owner gate (organizers see the values and a
+hint, Save disabled). The clock and window checks run on the client before the call. A rename
+invalidates the organization list so the shell's name follows. The members card lists the
+accounts with the role chip and "you".
+
+### Facts established by tests (slice 036)
+
+- Worker (`organization-settings.test.ts`): a new organization carries the defaults; the owner
+  changes name, language and settings in one PATCH and the list reads the new name; an empty
+  PATCH answers the profile unchanged; unknown zone, bad clock, window outside 30–365 and a blank
+  name are 400; a leader who joined by invite reads the profile but is 403 on PATCH and on
+  members; a stranger is 403 on all three and on an unknown id; anonymous is 401; the member
+  list puts the owner first with `you` on the caller's row.
+- Console unit: the live page loads the profile and members, a profile save PATCHes name,
+  language and zone and reports "Saved."; the fixture page still shows the sample chip. Browser
+  (`settings.spec.ts`): the owner renames, moves the quiet hours and the digest, a window of 10
+  is refused on the client, 120 saves, the members card shows the owner as you, and everything
+  survives a reload. Capture `settings-live.png`.
+
 ## Open items
 
 - Deep links from timeline entries; CSV export of the roster. Care notes: `docs/engineering/care-notes.md` (slice 030). Device revocation: `docs/engineering/device-revocation.md` (slice 031).

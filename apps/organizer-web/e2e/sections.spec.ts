@@ -56,11 +56,7 @@ const SECTIONS: {
     nav: 'Billing',
     fact: async (p) => expect(p.getByTestId('ledger-table').locator('tbody tr')).toHaveCount(6),
   },
-  {
-    path: '/settings',
-    nav: 'Settings',
-    fact: async (p) => expect(p.getByTestId('member-list').getByRole('listitem')).toHaveCount(3),
-  },
+  // Settings is live once the account has an organization (slice 036): settings.spec.ts covers it.
 ];
 
 test.beforeEach(async ({ page }) => {
