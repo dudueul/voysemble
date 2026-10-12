@@ -138,7 +138,8 @@ describe('sample sections', () => {
   }
 
   it('People: filters narrow the table and guardians show their traveler', () => {
-    render(<PeoplePage />);
+    stubApi({});
+    renderWithQuery(<PeoplePage />);
     const table = screen.getByTestId('people-table');
     expect(within(table).getAllByRole('row')).toHaveLength(1 + 19);
     fireEvent.click(screen.getByRole('button', { name: 'Guardians' }));
@@ -147,6 +148,69 @@ describe('sample sections', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Bus A' }));
     expect(within(table).getAllByRole('row')).toHaveLength(1 + 2);
     expect(text(screen.getByTestId('people-joined'))).toBe('61');
+  });
+
+  it('People: live roster from the API with invite status, guardian binding, group chips', async () => {
+    const base = `/v1/orgs/${ORG.id}/trips/${TRIP.id}`;
+    const row = (p: Record<string, unknown>) => ({
+      tripId: TRIP.id,
+      groupName: null,
+      guardianOf: null,
+      accountId: null,
+      createdAt: '2026-10-11T00:00:00.000Z',
+      invite: 'none',
+      lastAckAt: null,
+      ...p,
+    });
+    stubApi({
+      'GET /v1/orgs': () => ({ organizations: [ORG] }),
+      [`GET /v1/orgs/${ORG.id}/trips`]: () => ({ trips: [TRIP] }),
+      [`GET ${base}/roster`]: () => ({
+        participations: [
+          row({
+            id: 'p1',
+            role: 'traveler',
+            displayName: 'Minji Park',
+            groupName: 'Bus A',
+            invite: 'joined',
+            accountId: 'a1',
+            lastAckAt: new Date(Date.now() - 5 * 60_000).toISOString(),
+          }),
+          row({
+            id: 'p2',
+            role: 'guardian',
+            displayName: 'Sora Park',
+            groupName: 'Bus A',
+            guardianOf: 'p1',
+            invite: 'issued',
+          }),
+          row({
+            id: 'p3',
+            role: 'traveler',
+            displayName: 'Juho Kim',
+            groupName: 'Bus B',
+            invite: 'expired',
+          }),
+        ],
+      }),
+    });
+    renderWithQuery(<PeoplePage />);
+    await waitFor(() => expect(screen.getByTestId('person-p1')).toBeTruthy());
+    expect(screen.getByText('Live')).toBeTruthy();
+    expect(screen.queryByText('Sample data')).toBeNull();
+    expect(text(screen.getByTestId('people-joined'))).toBe('1');
+    expect(text(screen.getByTestId('people-groups'))).toBe('2');
+    expect(text(screen.getByTestId('people-not-joined'))).toBe('2');
+    const table = screen.getByTestId('people-table');
+    expect(text(screen.getByTestId('person-p1'))).toContain('Joined');
+    expect(text(screen.getByTestId('person-p1'))).toContain('5 min ago');
+    expect(text(screen.getByTestId('person-p2'))).toContain('Invited');
+    expect(text(screen.getByTestId('person-p2'))).toContain('guardian of Minji Park');
+    expect(text(screen.getByTestId('person-p3'))).toContain('Code expired');
+    expect(within(table).queryByRole('button', { name: /Reveal care note/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Bus B' }));
+    expect(within(table).getAllByRole('row')).toHaveLength(1 + 1);
+    expect(screen.getByText('Showing 1 of 3 people.')).toBeTruthy();
   });
 
   it('Communication: real announcements with ack counts, unacked names on demand, publish', async () => {

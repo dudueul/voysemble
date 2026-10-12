@@ -58,8 +58,24 @@ export const RosterImportResponse = z
   .openapi('RosterImportResponse');
 export type RosterImportResponse = z.infer<typeof RosterImportResponse>;
 
+/**
+ * Where a roster row stands on its way into the trip (slice 023, People page): `joined` once an
+ * account redeemed its code; `issued` while an unredeemed, unrevoked code is still valid;
+ * `expired` when every open code has passed its expiry; `none` before any code was issued.
+ */
+export const InviteStatus = z.enum(['none', 'issued', 'expired', 'joined']).openapi('InviteStatus');
+export type InviteStatus = z.infer<typeof InviteStatus>;
+
+/** A roster row as the People page reads it: the participation plus two computed facts. */
+export const RosterEntry = Participation.extend({
+  invite: InviteStatus,
+  /** Server receipt time of this person's latest acknowledgment; null if they never acked. */
+  lastAckAt: Timestamp.nullable(),
+}).openapi('RosterEntry');
+export type RosterEntry = z.infer<typeof RosterEntry>;
+
 export const RosterResponse = z
-  .object({ participations: z.array(Participation) })
+  .object({ participations: z.array(RosterEntry) })
   .openapi('RosterResponse');
 export type RosterResponse = z.infer<typeof RosterResponse>;
 

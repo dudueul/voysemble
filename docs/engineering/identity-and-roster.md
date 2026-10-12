@@ -108,8 +108,56 @@ In `wrangler dev`, magic-link emails land in the local KV namespace; read them w
 - Browser E2E runs against `wrangler dev` with the fixture mailbox and reads magic links from
   `/v1/dev/mailbox`, which exists only in the local environment.
 
+## People page on the API (slice 023)
+
+The console's People page reads the roster of the active organization's first trip and renders
+it live (the "Live" chip replaces "Sample data"); without an organization or a trip the fixture
+stays. Exercised by `apps/api-worker/test/roster-invites.test.ts` ("roster entries for the
+People page"), `apps/organizer-web/src/lib/people-model.test.ts`, the live case in
+`sections.test.tsx`, and `apps/organizer-web/e2e/people.spec.ts`.
+
+### Roster entries
+
+`GET .../roster` now returns `RosterEntry` rows: the participation plus two computed facts.
+
+| Field | Source | Values |
+|---|---|---|
+| `invite` | `inviteStatusOf(accountId, codes, now)` in `routes/roster.ts`, over the trip's `invite_codes` rows in D1 (one query by trip id, no bound-parameter list: D1 caps parameters per statement) | `joined` once an account redeemed the code; `issued` while an unredeemed, unrevoked code is still valid; `expired` when every open code has passed its expiry; `none` before any code |
+| `lastAckAt` | `OrgDurableObject.listRosterWithAcks`: a correlated `MAX(received_at)` over `acks` per participation | server receipt time of the latest acknowledgment, or null |
+
+Callers of the roster that only need participations (dashboard, setup checklist) keep working:
+an entry is a participation with two more fields.
+
+### Console
+
+`lib/people-model.ts` (`buildPeople`) maps entries to rows (join status `joined`, `invited`,
+`expired`, `pending`; the guardian's traveler name resolved from the same list; `hasCareNote`
+always false until D27) and totals (travelers, guardians, leaders, joined, not joined) plus the
+distinct group names for the filter chips. `PeoplePage` renders one table for both modes:
+role and group filters, "Last ack" relative to the real clock in live mode (the frozen fixture
+clock in sample mode), a dash in the care-note column with a tooltip saying D27 is a later
+slice, and "Issue invites" as a link to the setup checklist, the one place codes are issued
+(D26). Loading, failed and empty states replace the table and keep the frame.
+
+### Facts established by tests
+
+- Worker: after import every row is `none` with no ack; after issuing codes every row is
+  `issued`; after Minji redeems and acknowledges an announcement her row is `joined` with her
+  account id and a timestamp while the others stay `issued` with null; `inviteStatusOf` prefers
+  a live code over expired ones and ignores redeemed and revoked codes.
+- Console unit: the model maps the four statuses, resolves the guardian binding, never invents a
+  care note, and counts; the live page shows "Live" and not "Sample data", the three tiles,
+  "Joined", "Invited", "Code expired", "5 min ago", "guardian of Minji Park", no reveal button,
+  and the Bus B filter narrows to one row with "Showing 1 of 3 people."; the fixture page still
+  filters as before.
+- Browser (desktop 1440, laptop 1280): with a trip and the sample CSV the page is live with
+  "3 travelers · 2 guardians · 0 leaders", joined 0, groups 2, not joined 5, five "Code not
+  issued" rows and the guardian binding; issuing codes and reloading shows five "Invited";
+  Guardians then Bus B filters narrow to Hana Mom; the invite action links to `/setup`.
+  Capture `people-live.png`.
+
 ## Open items
 
-- Invite revocation endpoint; roster row editing and removal.
+- Invite revocation endpoint; roster row editing and removal; per-person card and timeline (D17); care notes (D27).
 - Invite email delivery (guardian contact) and invite revocation endpoint.
 - Organizer-facing web screens for onboarding checklist (D26) are slice 007 candidates.

@@ -4,12 +4,14 @@
 // organizer; leaders can read the roster, members cannot.
 
 import {
+  type Announcement,
   type IssueInvitesResponse,
   type RedeemInviteResponse,
   type RosterImportResponse,
   RosterResponse,
 } from '@voysemble/contracts';
 import { describe, expect, it } from 'vitest';
+import { inviteStatusOf } from '../src/routes/roster';
 import { api, createOrg, createTrip, json, SAMPLE_CSV, signIn } from './helpers';
 
 async function setup() {
@@ -241,5 +243,70 @@ describe('GET /v1/me/participations', () => {
     );
     expect(none.participations).toEqual([]);
     expect((await api(null).get('/v1/me/participations')).status).toBe(401);
+  });
+});
+
+describe('roster entries for the People page (slice 023)', () => {
+  it('carry invite status none -> issued -> joined and the latest ack time', async () => {
+    const { nate, org, trip, body } = await setup();
+    const base = `/v1/orgs/${org.id}/trips/${trip.id}`;
+    const before = RosterResponse.parse(await json(await api(nate).get(`${base}/roster`)));
+    expect(before.participations).toHaveLength(5);
+    expect(before.participations.map((p) => p.invite)).toEqual([
+      'none',
+      'none',
+      'none',
+      'none',
+      'none',
+    ]);
+    expect(before.participations.every((p) => p.lastAckAt === null)).toBe(true);
+
+    const issued = await json<IssueInvitesResponse>(await api(nate).post(`${base}/invites`));
+    const after = RosterResponse.parse(await json(await api(nate).get(`${base}/roster`)));
+    expect(after.participations.every((p) => p.invite === 'issued')).toBe(true);
+
+    const minji = body.participations.find((p) => p.displayName === 'Minji Park');
+    const code = issued.invites.find((i) => i.participationId === minji?.id)?.code ?? '';
+    const traveler = await signIn('minji-people@example.com');
+    expect((await api(traveler).post('/v1/invites/redeem', { code })).status).toBe(200);
+    const a = await json<Announcement>(
+      await api(nate).post(`${base}/announcements`, {
+        title: 'Bus',
+        body: 'Lobby 07:15.',
+        requiresAck: true,
+        sharedWithGuardians: false,
+      }),
+    );
+    expect(
+      (
+        await api(traveler).post(`${base}/announcements/${a.id}/ack`, {
+          ackedAtDevice: '2026-12-31T06:30:00.000Z',
+        })
+      ).status,
+    ).toBe(200);
+
+    const joined = RosterResponse.parse(await json(await api(nate).get(`${base}/roster`)));
+    const row = joined.participations.find((p) => p.id === minji?.id);
+    expect(row?.invite).toBe('joined');
+    expect(row?.accountId).toBe(traveler.accountId);
+    expect(row?.lastAckAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    // Everyone else is still waiting on their code and has never acknowledged.
+    for (const p of joined.participations.filter((p) => p.id !== minji?.id)) {
+      expect(p.invite).toBe('issued');
+      expect(p.lastAckAt).toBeNull();
+    }
+  });
+
+  it('inviteStatusOf: a live code wins over expired ones; redeemed and revoked codes do not count', () => {
+    const now = '2026-10-12T00:00:00.000Z';
+    const live = { expiresAt: '2026-11-11T00:00:00.000Z', redeemedAt: null, revokedAt: null };
+    const old = { expiresAt: '2026-09-01T00:00:00.000Z', redeemedAt: null, revokedAt: null };
+    const revoked = { ...live, revokedAt: '2026-10-01T00:00:00.000Z' };
+    const redeemed = { ...live, redeemedAt: '2026-10-01T00:00:00.000Z' };
+    expect(inviteStatusOf('acct', [], now)).toBe('joined');
+    expect(inviteStatusOf(null, [], now)).toBe('none');
+    expect(inviteStatusOf(null, [old, live], now)).toBe('issued');
+    expect(inviteStatusOf(null, [old], now)).toBe('expired');
+    expect(inviteStatusOf(null, [revoked, redeemed], now)).toBe('none');
   });
 });

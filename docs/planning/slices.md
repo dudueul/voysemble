@@ -754,3 +754,30 @@ why the commit-back exists; Swift compiles only in CI, so the capture harness is
 
 Not done: captures of the live (API-backed) Android and iOS states (the fixtures are captured; live
 states need a mocked API in the screenshot tests), tablet captures for the apps.
+
+## Slice 023: People page on the API
+
+Status: done 2026-10-12. Commit: see git log (`feat(people): live roster ...`). CI: pending at commit time; the run id is recorded in a follow-up docs commit once verified.
+Spec: D12 (codes bound to rows, roles from the invite), D21 (accounts and participations), D26 (codes issued from the checklist), D27 (care notes stay out until their slice). Details: `docs/engineering/identity-and-roster.md` (slice 023 section).
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 15 files, 49 tests (roster-invites.test.ts grows by 2) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 12 files, 66 tests (people-model: 2; live People page: 1) |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e` | adds `people.spec.ts` (desktop, laptop); see the CI row |
+
+Facts established by tests: see the engineering doc.
+
+Built:
+- Contracts: `InviteStatus`, `RosterEntry` (participation + `invite` + `lastAckAt`); `RosterResponse` returns
+  entries. Worker: `OrgDurableObject.listRosterWithAcks`, `inviteStatusOf`, the roster list route computes both
+  facts (codes fetched by trip id).
+- Console: `lib/people-model.ts`, `PeoplePage` live with one table for both modes, "Live" chip, loading /
+  failed / empty states, `chip--expired`, "Issue invites" linking to the checklist; captures `people-live.png`
+  at desktop and laptop (D31).
+
+Deviations found while building: none of note; the fixture test needed the query client it did not need before.
+
+Not done: per-person card and timeline, invite revocation, roster editing, care notes (D27), the phone roster
+for leaders.

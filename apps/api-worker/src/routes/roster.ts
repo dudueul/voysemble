@@ -13,11 +13,13 @@
 import { createRoute, type OpenAPIHono } from '@hono/zod-openapi';
 import {
   AddLeaderRequest,
+  type InviteStatus,
   type IssuedInvite,
   IssueInvitesResponse,
   Participation,
   RedeemInviteRequest,
   RedeemInviteResponse,
+  type RosterEntry,
   RosterImportRequest,
   RosterImportResponse,
   RosterResponse,
@@ -68,6 +70,8 @@ const listRosterRoute = createRoute({
   path: '/v1/orgs/{orgId}/trips/{tripId}/roster',
   tags: ['roster'],
   summary: 'Roster of a trip (owner, organizer, leader)',
+  description:
+    'Each row carries its invite status (none, issued, expired, joined) computed from the invite codes and the account binding, and the receipt time of the person’s latest acknowledgment.',
   security: SESSION_SECURITY,
   request: { params: TripParams },
   responses: {
@@ -145,6 +149,22 @@ const redeemRoute = createRoute({
   },
 });
 
+/**
+ * Invite status of one roster row from its account binding and its codes (slice 023). Redeemed
+ * and revoked codes do not count; a live (unexpired) open code wins over expired ones.
+ */
+export function inviteStatusOf(
+  accountId: string | null,
+  codes: { expiresAt: string; redeemedAt: string | null; revokedAt: string | null }[],
+  now: string,
+): InviteStatus {
+  if (accountId) return 'joined';
+  const open = codes.filter((c) => !c.redeemedAt && !c.revokedAt);
+  if (open.some((c) => !isPast(c.expiresAt, now))) return 'issued';
+  if (open.length > 0) return 'expired';
+  return 'none';
+}
+
 /** Maps parsed CSV rows to roster inputs; rejects rows without a name. */
 function rowsToRoster(csv: string): {
   rows: RosterRowInput[];
@@ -193,7 +213,30 @@ export function mountRosterRoutes(app: OpenAPIHono<AppEnv>): void {
     await requireOrgRole(c.env, auth, orgId, 'leader');
     const org = await orgObject(c.env, orgId);
     if (!(await org.getTrip(tripId))) throw new HTTPException(404, { message: 'Trip not found.' });
-    return c.json({ participations: await org.listRoster(tripId) }, 200);
+    const roster = await org.listRosterWithAcks(tripId);
+    // Codes by trip (one query, no bound-parameter list): D1 caps parameters per statement.
+    const codes = await db(c.env.DB)
+      .select({
+        participationId: inviteCodes.participationId,
+        expiresAt: inviteCodes.expiresAt,
+        redeemedAt: inviteCodes.redeemedAt,
+        revokedAt: inviteCodes.revokedAt,
+      })
+      .from(inviteCodes)
+      .where(eq(inviteCodes.tripId, tripId))
+      .all();
+    const byRow = new Map<string, typeof codes>();
+    for (const code of codes) {
+      const list = byRow.get(code.participationId) ?? [];
+      list.push(code);
+      byRow.set(code.participationId, list);
+    }
+    const now = nowIso();
+    const participations: RosterEntry[] = roster.map((p) => ({
+      ...p,
+      invite: inviteStatusOf(p.accountId, byRow.get(p.id) ?? [], now),
+    }));
+    return c.json({ participations }, 200);
   });
 
   app.openapi(addLeaderRoute, async (c) => {

@@ -762,6 +762,25 @@ export class OrgDurableObject extends DurableObject<Env> {
       .map((r) => this.participationFromRow(r));
   }
 
+  /**
+   * Roster rows with each person's latest acknowledgment (server receipt time) for the People
+   * page (slice 023). One correlated subquery per row over `acks`; rosters are at most a few
+   * hundred rows.
+   */
+  async listRosterWithAcks(
+    tripId: string,
+  ): Promise<(Participation & { lastAckAt: string | null })[]> {
+    this.requireOrg();
+    return this.ctx.storage.sql
+      .exec<ParticipationRow & { last_ack_at: string | null }>(
+        `SELECT p.*, (SELECT MAX(a.received_at) FROM acks a WHERE a.participation_id = p.id) AS last_ack_at
+         FROM participations p WHERE p.trip_id = ? ORDER BY p.group_name, p.role, p.display_name`,
+        tripId,
+      )
+      .toArray()
+      .map((r) => ({ ...this.participationFromRow(r), lastAckAt: r.last_ack_at }));
+  }
+
   async getParticipation(participationId: string): Promise<Participation | null> {
     this.requireOrg();
     const r = this.ctx.storage.sql

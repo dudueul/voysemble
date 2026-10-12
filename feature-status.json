@@ -53,7 +53,7 @@
     "web.setup-checklist": "working",
     "onboarding.first-run": "working",
     "roster.add-leader": "working",
-    "web.people": "simulated",
+    "web.people": "working",
     "web.communication": "working",
     "web.safety": "simulated",
     "web.journey-graph": "simulated",
@@ -100,6 +100,7 @@
     "mobile.today.live-announcement": "working",
     "mobile.bulletin.revision-lines": "working",
     "web.public-site": "working",
-    "web.public-site.legal-drafts": "working"
+    "web.public-site.legal-drafts": "working",
+    "roster.invite-status": "working"
   }
 }

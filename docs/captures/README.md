@@ -63,3 +63,8 @@ D31: from this slice on, every client slice records captures per device class.
 `bulletin-light.png`, `incidents-light.png`, `window-open.png`, `sign-in.png`, `invite.png` from
 `mobile/ios-app/VoysembleTests/CaptureTests.swift` on the CI simulator; `android/*.png` from the
 Roborazzi tests. Both land here through the `captures` job.
+
+## Slice 023 (2026-10-12): People page on the API
+
+`web/desktop-1440/people-live.png`, `web/laptop-1280/people-live.png`: the live roster after invite
+codes were issued (five "Invited" rows, guardian bindings, group chips). Produced by `e2e/people.spec.ts`.

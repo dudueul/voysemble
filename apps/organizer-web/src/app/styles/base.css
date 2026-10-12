@@ -1423,6 +1423,11 @@ fieldset.filters {
   color: var(--vy-danger);
 }
 
+.chip--expired {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
 .chip--fee-paid {
   background: color-mix(in srgb, var(--vy-success) 14%, transparent);
   color: var(--vy-success);
