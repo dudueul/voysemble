@@ -681,6 +681,18 @@ type NotificationRow = {
   digest_outcome: 'emailed' | 'skipped' | null;
 };
 
+/** One person with packing left (slice 056): their own list, or their traveler's for a guardian. */
+export type PackingReminderTarget = {
+  participationId: string;
+  role: 'traveler' | 'leader' | 'guardian';
+  displayName: string;
+  /** The traveler's name when the row is a guardian's; null for a traveler's or leader's own list. */
+  forTraveler: string | null;
+  packed: number;
+  total: number;
+  missing: string[];
+};
+
 /** One guardian's (or anyone's) digest-lane rows due by now, grouped for one email (slice 054). */
 export type DueDigest = {
   tripId: string;
@@ -4300,6 +4312,132 @@ export class OrgDurableObject extends DurableObject<Env> {
       }
     });
     return counts;
+  }
+
+  /**
+   * One event with a body per recipient (slice 056: the packing reminder names each person's
+   * own items), addressed by participation, idempotent on (participation, kind, ref): a row that
+   * exists is not written again, so a cron may call this every ten minutes. Lanes and delivery
+   * times as in `notify`; rows share `now` so the log reads them as one event.
+   */
+  async notifyRows(input: {
+    tripId: string;
+    kind: NotificationKind;
+    title: string;
+    refType: Notification['refType'];
+    refId: string;
+    rows: { participationId: string; body: string }[];
+    now: string;
+    timeZone: string;
+    quietHours: QuietHours;
+    digestAt: string;
+  }): Promise<{ written: number; skipped: number } | { notFound: true }> {
+    this.requireOrg();
+    if (!(await this.getTrip(input.tripId))) return { notFound: true };
+    const sql = this.ctx.storage.sql;
+    const roster = new Map(
+      sql
+        .exec<ParticipationRow>('SELECT * FROM participations WHERE trip_id = ?', input.tripId)
+        .toArray()
+        .map((p) => [p.id, p] as const),
+    );
+    let written = 0;
+    let skipped = 0;
+    this.ctx.storage.transactionSync(() => {
+      for (const row of input.rows) {
+        const p = roster.get(row.participationId);
+        const role = p?.role as AudienceRole | undefined;
+        if (!p || (role !== 'traveler' && role !== 'leader' && role !== 'guardian')) {
+          skipped += 1;
+          continue;
+        }
+        const lane = laneFor(role, input.kind, {});
+        if (!lane) {
+          skipped += 1;
+          continue;
+        }
+        const exists = sql
+          .exec<{ n: number }>(
+            'SELECT COUNT(*) AS n FROM notifications WHERE trip_id = ? AND participation_id = ? AND kind = ? AND ref_id = ?',
+            input.tripId,
+            p.id,
+            input.kind,
+            input.refId,
+          )
+          .one().n;
+        if (exists > 0) {
+          skipped += 1;
+          continue;
+        }
+        sql.exec(
+          `INSERT INTO notifications (id, trip_id, participation_id, lane, kind, title, body, ref_type, ref_id, created_at, deliver_at, read_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
+          crypto.randomUUID(),
+          input.tripId,
+          p.id,
+          lane,
+          input.kind,
+          input.title,
+          row.body,
+          input.refType,
+          input.refId,
+          input.now,
+          deliverAt(lane, input.now, input.timeZone, input.quietHours, input.digestAt),
+        );
+        written += 1;
+      }
+    });
+    return { written, skipped };
+  }
+
+  /**
+   * Who still has packing to do (slice 056): every traveler and leader whose own list over the
+   * current items is not complete, with the names of what is missing, and the guardians bound
+   * to those travelers. Empty while the trip has no items.
+   */
+  async packingReminderTargets(tripId: string): Promise<PackingReminderTarget[]> {
+    this.requireOrg();
+    const items = this.packingItemsOf(tripId);
+    if (items.length === 0) return [];
+    const sql = this.ctx.storage.sql;
+    const roster = sql
+      .exec<ParticipationRow>('SELECT * FROM participations WHERE trip_id = ?', tripId)
+      .toArray();
+    const itemIds = new Set(items.map((i) => i.id));
+    const ticks = sql
+      .exec<PackingTickRow>('SELECT * FROM packing_ticks WHERE trip_id = ?', tripId)
+      .toArray()
+      .filter((t) => itemIds.has(t.item_id));
+    const out: PackingReminderTarget[] = [];
+    const packers = roster.filter((p) => p.role === 'traveler' || p.role === 'leader');
+    for (const p of packers) {
+      const done = new Set(ticks.filter((t) => t.participation_id === p.id).map((t) => t.item_id));
+      const missing = items.filter((i) => !done.has(i.id)).map((i) => i.name);
+      if (missing.length === 0) continue;
+      out.push({
+        participationId: p.id,
+        role: p.role as 'traveler' | 'leader',
+        displayName: p.display_name,
+        forTraveler: null,
+        packed: items.length - missing.length,
+        total: items.length,
+        missing,
+      });
+      if (p.role === 'traveler') {
+        for (const g of roster.filter((r) => r.role === 'guardian' && r.guardian_of === p.id)) {
+          out.push({
+            participationId: g.id,
+            role: 'guardian',
+            displayName: g.display_name,
+            forTraveler: p.display_name,
+            packed: items.length - missing.length,
+            total: items.length,
+            missing,
+          });
+        }
+      }
+    }
+    return out;
   }
 
   /** The caller's inbox: what has been delivered by `now`, newest first, with the unread count. */

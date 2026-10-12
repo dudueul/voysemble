@@ -378,6 +378,7 @@ internal val EN: Map<Txt, String> = mapOf(
     INBOX_CHANNEL_PRIORITY to "Head-count calls, incident updates and required announcements; through quiet hours.",
     INBOX_CHANNEL_NORMAL to "Announcements and plan updates; after quiet hours.",
     INBOX_CHANNEL_DIGEST to "The once-a-day summary.",
+    INBOX_KIND_PACKING to "Packing",
 )
 
 internal val KO: Map<Txt, String> = mapOf(
@@ -749,4 +750,5 @@ internal val KO: Map<Txt, String> = mapOf(
     INBOX_CHANNEL_PRIORITY to "인원 점검 호출, 사고 상황, 확인이 필요한 공지. 방해 금지 시간에도 전달됩니다.",
     INBOX_CHANNEL_NORMAL to "공지와 일정 변경. 방해 금지 시간이 끝난 뒤 전달됩니다.",
     INBOX_CHANNEL_DIGEST to "하루 한 번의 요약.",
+    INBOX_KIND_PACKING to "준비물",
 )

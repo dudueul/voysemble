@@ -43,6 +43,7 @@
     "documents.requirements": "working",
     "travel.bookings": "working",
     "packing.checklist": "working",
+    "packing.reminders": "working",
     "travel.driver-links": "working",
     "documents.scans": "working",
     "auth.reauth": "working",

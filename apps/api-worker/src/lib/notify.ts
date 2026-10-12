@@ -16,7 +16,7 @@ export type NotifyInput = {
   kind: NotificationKind;
   title: string;
   body: string;
-  refType: 'announcement' | 'headcount' | 'incident' | 'proposal';
+  refType: 'announcement' | 'headcount' | 'incident' | 'proposal' | 'packing';
   refId: string;
   flags?: LaneFlags;
   audience: {

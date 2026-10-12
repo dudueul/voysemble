@@ -551,6 +551,7 @@ export const en = {
       headcount_call: 'head-count call',
       incident_status: 'incident status',
       proposal_decided: 'proposal decided',
+      packing_reminder: 'packing reminder',
     },
     pushNote:
       'Phones read their inbox from the API; push delivery through the stores is not set up yet, so a notification shows when the app opens.',

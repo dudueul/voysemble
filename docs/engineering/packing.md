@@ -1,4 +1,4 @@
-# Packing checklist (D38, slice 048)
+# Packing checklist (D38, slices 048 and 056)
 
 The organizer writes the list once on the console; every traveler ticks it on their phone before
 the trip; leaders and the organizer read how far along everyone is. A tick is a tier 1 fact
@@ -58,6 +58,13 @@ and the guardian's Today capture with the card.
 
 ## Facts established by tests
 
+- Reminders (`packing-reminders.test.ts`): no items, nobody; before 09:00 and on another
+  morning, nothing; the morning three days before writes one row each for Minji (one item left),
+  Hana (never joined; the row waits), Kim (the leader's own two), Sora (for Minji) and Hana's
+  guardian (for Hana), none for Juho who packed everything; the bodies name the items; a second
+  run writes nothing; the log reads one event with five normal-lane rows; the lane rule, the
+  calendar rule and the words in both languages.
+
 - Worker (`packing.test.ts`): the empty list over the roster's three travelers; two items read
   unpacked by a traveler; her tick moves the counts and her progress; her guardian reads her list
   and ticks for her, which makes her ready; a leader packs for himself without moving the
@@ -75,7 +82,21 @@ and the guardian's Today capture with the card.
   screenshots (a tap ticks the adapter). The guardian's Today capture carries the card.
 - iOS: sample and unreachable facts; the captures.
 
+## Reminders (slice 056)
+
+On the mornings three days and one day before the trip starts (the trip zone's date, from 09:00),
+the cron's `runPackingReminders` (`lib/packing-reminders.ts`) asks each trip's object who still
+has packing left (`packingReminderTargets`: every traveler and leader whose own list over the
+current items is not complete, with the missing names, and the guardians bound to those
+travelers) and writes one normal-lane `packing_reminder` per person through `notifyRows`:
+"Packing: 3 days to go" / "Packing: the trip starts tomorrow", the body "1 of 2 still to pack: EU
+plug adapter" (a guardian's: "Minji Park's list: …"; at most three names), in the organization's
+language. Once per person and morning (the reference `packing:<startsOn>:<daysLeft>` is checked
+before the write), so the ten-minute cron repeats safely; a trip without items reminds nobody; a
+traveler who packed everything hears nothing. The phones' inbox shows it as a Packing row; the
+organizer's log as one event with its normal-lane count.
+
 ## Not done
 
-Reminders ("3 travelers have not started packing") in the notification lanes (D29); the leader's
-per-traveler view on the phone; who-ticked on the console; per-group items.
+Reminders with a target the organizer sets (the mornings are fixed); the leader's per-traveler
+view on the phone; who-ticked on the console; per-group items.

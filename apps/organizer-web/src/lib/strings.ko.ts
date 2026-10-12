@@ -542,6 +542,7 @@ export const ko: Strings = {
       headcount_call: '인원 점검 호출',
       incident_status: '사고 상태',
       proposal_decided: '제안 결정',
+      packing_reminder: '준비물 알림',
     },
     pushNote:
       '휴대폰은 API에서 받은편지함을 읽습니다. 스토어 푸시 전달은 아직 설정되지 않아 앱을 열 때 알림이 표시됩니다.',

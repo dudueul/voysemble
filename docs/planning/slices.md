@@ -1463,7 +1463,7 @@ Not done: push delivery (FCM, APNs); the phones' inbox screen; the guardian dige
 
 ## Slice 053: the phones' inbox and the Android lane channels
 
-Status: done 2026-10-12. Commit: see git log (`feat(mobile): the notification inbox on both phones and the Android lane channels (slice 053)`, `7e51fc4`). CI: run 38280896774 red on `mobile` only (`web` and `ios` green, so the Swift side, the core JVM facts and the console held first time): two Android view-model tests asserted the state before the first answer (`InboxViewModelTest.live_loads_my_inbox…` and the unchanged `PlanViewModelTest.live_builds_the_plan…`), and the mock answered first on that runner: with the Unconfined main dispatcher the answer resumes on the engine's thread, so "empty until the first answer" is a race, not a fact. The fix commit (`fix(android): never assert the state before the first answer`) removes the three such lines (Plan, Packing, Inbox); the verifying run is recorded there.
+Status: done 2026-10-12. Commit: see git log (`feat(mobile): the notification inbox on both phones and the Android lane channels (slice 053)`, `7e51fc4`). CI: run 38280896774 red on `mobile` only (`web` and `ios` green, so the Swift side, the core JVM facts and the console held first time): two Android view-model tests asserted the state before the first answer (`InboxViewModelTest.live_loads_my_inbox…` and the unchanged `PlanViewModelTest.live_builds_the_plan…`), and the mock answered first on that runner: with the Unconfined main dispatcher the answer resumes on the engine's thread, so "empty until the first answer" is a race, not a fact. The fix commit (`fix(android): never assert the state before the first answer`, `3a7c240`) removes the three such lines (Plan, Packing, Inbox); verified by run 38282274947 green (web, mobile, ios), 2026-10-12 17:19 UTC; captures commit `dbf0dae` carries `android/inbox-light.png`, `android/inbox-all-read-dark.png`, `ios/inbox-light.png`, `ios/inbox-all-read-dark.png` and the updated `today-light.png` on both.
 Spec: D29 (notification rules; amended), D31 (captures), D32 (iOS glass chips). Details: `docs/engineering/notifications.md` (Phones).
 
 | Gate | Command | Result |
@@ -1485,7 +1485,7 @@ Not done: push delivery (the channels are its Android half); opening the referen
 
 ## Slice 054: the guardian digest email and its cron
 
-Status: done 2026-10-12. Commit: see git log (`feat(notifications): the guardian digest email from a ten-minute cron (slice 054)`, `201f8e4`). CI: run 38281948740, pending at the time of the Android fix commit (its `mobile` job carries the 053 race until the fix); the result is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: see git log (`feat(notifications): the guardian digest email from a ten-minute cron (slice 054)`, `201f8e4`). CI: run 38281948740 green (web incl. `digest.test.ts` and `notifications.spec.ts`, mobile, ios), 2026-10-12 17:16 UTC (the `mobile` job still carried the 053 race and happened to win it; the fix landed in the next commit); captures commit `5e30b7f` carries the updated `notifications-log.png` for both desktop projects.
 Spec: D29 (notification rules; amended), D11 (plain-text email, KO/EN), ADR-0007 (EmailPort). Details: `docs/engineering/notifications.md` (The guardian digest email).
 
 | Gate | Command | Result |
@@ -1528,3 +1528,27 @@ Built:
 Lessons: a model that invents an event id must not sink the whole answer, so unknown ids are dropped before the contract validates the rest; the fixture itinerary's Breakfast is done, and the apply carries each event's own status, so the unit case expects `done` for it.
 
 Not done: the drafts explained to travelers (the revision announcement carries the diff, not the reason); a disruption that spans days; decisions on proposals from this page.
+
+## Slice 056: packing reminders in the lanes
+
+Status: done 2026-10-12. Commit: see git log (`feat(packing): reminders in the normal lane on the mornings before the trip (slice 056)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D38 (packing; amended), D29 (lanes), D31. Details: `docs/engineering/packing.md` (Reminders), `notifications.md` (events table).
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 37 files, 103 tests (adds `packing-reminders.test.ts`: 2) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 17 files, 111 tests (the strings parity covers the new kind) |
+| Core JVM tests | `./gradlew :core:jvmTest` (CI `mobile` job) | `InboxModelTest` pins the new kind; `L10nTest` the new key |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+No capture change: the reminder is a row in the phones' inbox (the Packing kind) and a line in the console's log.
+
+Built:
+- Contracts: `NotificationKind` gains `packing_reminder`, `refType` gains `packing`.
+- Worker: `laneFor` (normal for travelers, leaders and the guardians of the named travelers); OrgDurableObject `notifyRows` (one event, a body per recipient, idempotent on participation, kind and reference) and `packingReminderTargets` (who has packing left, with the missing names, and their guardians); `lib/packing-reminders.ts` (`runPackingReminders`, `daysUntil`, `reminderTitle`, `reminderBody`, the mornings D-3 and D-1 from 09:00 in the trip's zone, words in the organization's language); `index.ts` runs it from the cron beside the digest.
+- Console: the log's kind label EN/KO. Phones: `InboxKind.PACKING_REMINDER` with its label in both languages.
+- Docs: `packing.md` section and facts, `notifications.md` lanes and events tables, D38 amendment, ledger, feature flag `packing.reminders` working.
+
+Lesson: the sample roster carries two guardians (Sora for Minji, Hana's guardian for Hana), so a count of "everyone with packing left" is five, not four; a reminder for someone who has not joined still goes in (it waits in their inbox), which is the behaviour wanted for a guardian who joins late.
+
+Not done: a reminder schedule the organizer sets; a nudge from the organizer to one traveler ("Remind") from the Preparation page; the leader's per-traveler view on the phone.

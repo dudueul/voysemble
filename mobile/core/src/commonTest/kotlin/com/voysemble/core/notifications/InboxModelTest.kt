@@ -61,6 +61,10 @@ class InboxModelTest {
         assertEquals(Lane.NORMAL, item.lane)
         assertEquals(InboxKind.ANNOUNCEMENT, item.kind)
         assertEquals("Normal · Announcement · 05:52", item.meta())
+        // Slice 056: the packing reminder is its own kind.
+        val reminder = inboxItemOf(dto.notifications[0].copy(kind = "packing_reminder", title = "Packing: 3 days to go"), clock)
+        assertEquals(InboxKind.PACKING_REMINDER, reminder.kind)
+        assertEquals("Priority · Packing · 05:52", reminder.meta())
     }
 
     @Test

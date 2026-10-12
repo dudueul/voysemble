@@ -13,17 +13,19 @@ export type NotificationKind =
   | 'itinerary_revision'
   | 'headcount_call'
   | 'incident_status'
-  | 'proposal_decided';
+  | 'proposal_decided'
+  | 'packing_reminder';
 export type AudienceRole = 'traveler' | 'leader' | 'guardian';
 
 export type LaneFlags = { requiresAck?: boolean; sharedWithGuardians?: boolean };
 
 /**
  * D29 by role. Guardians: an incident's status is priority; an announcement shared with them is
- * normal, an itinerary revision shared with them rides the digest; nothing else. Travelers: a
- * required-ack announcement and a head-count call are priority, other announcements and
- * revisions normal; incidents and proposals are not theirs. Leaders: head counts, incidents and
- * decided proposals are priority; announcements and revisions normal.
+ * normal, an itinerary revision shared with them rides the digest; a packing reminder for their
+ * traveler (slice 056) is normal; nothing else. Travelers: a required-ack announcement and a
+ * head-count call are priority, other announcements, revisions and packing reminders normal;
+ * incidents and proposals are not theirs. Leaders: head counts, incidents and decided proposals
+ * are priority; announcements, revisions and their own packing reminder normal.
  */
 export function laneFor(
   role: AudienceRole,
@@ -33,6 +35,8 @@ export function laneFor(
   switch (role) {
     case 'guardian':
       if (kind === 'incident_status') return 'priority';
+      // Slice 056: the reminder is addressed to the guardians of the travelers it names.
+      if (kind === 'packing_reminder') return 'normal';
       if (!flags.sharedWithGuardians) return null;
       if (kind === 'announcement') return 'normal';
       if (kind === 'itinerary_revision') return 'digest';
@@ -40,7 +44,7 @@ export function laneFor(
     case 'traveler':
       if (kind === 'headcount_call') return 'priority';
       if (kind === 'announcement') return flags.requiresAck ? 'priority' : 'normal';
-      if (kind === 'itinerary_revision') return 'normal';
+      if (kind === 'itinerary_revision' || kind === 'packing_reminder') return 'normal';
       return null;
     case 'leader':
       if (kind === 'headcount_call' || kind === 'incident_status' || kind === 'proposal_decided') {
