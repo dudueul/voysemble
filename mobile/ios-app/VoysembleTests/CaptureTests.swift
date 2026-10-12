@@ -76,6 +76,12 @@ final class CaptureTests: XCTestCase {
         try capture(NavigationStack { ChatsView(model: thread) }, name: "chats-thread-dark", scheme: .dark)
     }
 
+    func testMemories() throws {
+        // Slice 044 (D18): the leader's view of the fixture pool with the review queue, and a guardian's album.
+        try capture(NavigationStack { MemoriesView(model: MemoriesModel()) }, name: "memories-light")
+        try capture(NavigationStack { MemoriesView(model: MemoriesModel(sampleRole: "guardian")) }, name: "memories-guardian-dark", scheme: .dark)
+    }
+
     func testPlan() throws {
         // Slice 035: the fixture plan on its concert day with the leader's affordances.
         try capture(NavigationStack { PlanView(model: PlanModel()) }, name: "plan-day")

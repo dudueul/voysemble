@@ -9,6 +9,8 @@ import com.voysemble.core.api.CareNoteDto
 import com.voysemble.core.chat.ChatChannel
 import com.voysemble.core.chat.ChatMessage
 import com.voysemble.core.chat.ChatThread
+import com.voysemble.core.memories.MemoriesFeed
+import com.voysemble.core.memories.Memory
 import com.voysemble.core.announcements.AnnouncementFeed
 import com.voysemble.core.announcements.AnnouncementItem
 import com.voysemble.core.api.GuardianCountDto
@@ -278,6 +280,18 @@ public object KoreaConcertTourFixture {
             ChatMessage("m2", "traveler:t1", "Kim Daeun", "leader", "Yes, the desk keeps them until checkout. Bring it on the last day.", "06:33", mine = false),
             ChatMessage("m3", "traveler:t1", "Minji Park", "traveler", "Thank you!", "06:34", mine = true),
             ChatMessage("m4", "traveler:t1", "Kim Daeun", "leader", "We leave at 07:15, be in the lobby.", "06:41", mine = false),
+        ),
+    )
+
+    /** The sample pool as leader Kim sees it (D18, slice 044): one flagged, one in the album. */
+    public fun memories(): MemoriesFeed = MemoriesFeed(
+        photos = listOf(
+            Memory("ph1", "Juho Kim", mine = false, day = 4, status = "flagged", flag = "nudity", taggedNames = emptyList(), wholeGroup = false, thumbnailPath = "", contentPath = ""),
+            Memory("ph2", "Minji Park", mine = false, day = 4, status = "approved", flag = null, taggedNames = listOf("Minji Park"), wholeGroup = false, thumbnailPath = "", contentPath = ""),
+            Memory("ph3", "Kim Daeun", mine = true, day = 4, status = "approved", flag = null, taggedNames = emptyList(), wholeGroup = true, thumbnailPath = "", contentPath = ""),
+            Memory("ph4", "Sua Lim", mine = false, day = 3, status = "pool", flag = null, taggedNames = emptyList(), wholeGroup = false, thumbnailPath = "", contentPath = ""),
+            Memory("ph5", "Juho Kim", mine = false, day = 3, status = "pool", flag = null, taggedNames = emptyList(), wholeGroup = false, thumbnailPath = "", contentPath = ""),
+            Memory("ph6", "Kim Daeun", mine = true, day = 2, status = "pool", flag = null, taggedNames = emptyList(), wholeGroup = false, thumbnailPath = "", contentPath = ""),
         ),
     )
 

@@ -67,6 +67,27 @@ counts approved photos, whole-group ones and tagged ones, and lists them with th
 and who approved. The page polls every 30 seconds so a phone's upload shows. Evidence:
 `web/<project>/media-live.png`.
 
+## Phones (slice 044, Memories tab)
+
+Both apps replace the Memories placeholder with the tab: the pool as a three-column grid
+(uploader and trip day under each thumbnail, "In the album" chip with the tags), the review
+queue for leaders (flag reason, Approve, Remove), "Add photos" through the system picker (Android
+`PickMultipleVisualMedia`, iOS `PhotosPicker`: no permission prompt, up to five at once), "Album:
+whole group" on a pool photo for leaders (per-person tags stay on the console), "Delete my photo"
+on one's own and Delete on any for leaders, and the guardian's album-only view. Thumbnails come
+through the client with the bearer token (`ApiClient.photoBytes`) and are decoded on the device
+(`AndroidImages.decode`, `UIImage(data:)`); the grid never holds a URL. The upload thumbnail is
+made on the device (D34): Android samples and scales with `BitmapFactory` in the original's
+format; iOS re-encodes the picked image as JPEG (which also leaves EXIF behind) and draws the
+thumbnail with `UIGraphicsImageRenderer`. Rules in core `memories/MemoriesModel.kt` (`queue`,
+`pool`, `album`, `canReviewPhotos`, `canUploadPhotos`, `canDelete`, `caption`, `albumLabel`,
+`summary`), wire types in `api/Media.kt`, the calls in `ApiClient` (`listPhotos`, `photoBytes`,
+`uploadPhoto` as multipart, `reviewPhoto`, `albumPhoto`, `deletePhoto`), `Data` ↔ `ByteArray` in
+`iosMain/.../DataBridge.kt`. Strings `MEM_*` in both languages. Sample mode shows the fixture
+pool as the leader (one flagged, two in the album) with tinted placeholders. Evidence:
+`android/memories-light.png`, `android/memories-guardian-dark.png`, `ios/memories-light.png`,
+`ios/memories-guardian-dark.png`.
+
 ## Facts established by tests
 
 - Stripping: type from magic bytes; JPEG keeps JFIF, tables and the scan byte for byte and loses
@@ -87,11 +108,19 @@ and who approved. The page polls every 30 seconds so a phone's upload shows. Evi
 - AI port: the one-word answer maps to a flag; junk and errors map to none; the fixture marker.
 - Console unit: the live page lists pool, queue and album, approves with `{decision: 'clear'}`,
   tags with the participation ids, deletes; an upload posts multipart with the file and its time.
-- Browser: two uploads (one flagged), approve, tag Minji, delete; the thumbnail is 320 px wide and
-  smaller than the original.
+- Browser: two uploads (one flagged), approve, tag Minji, delete; the thumbnail is 320 px wide.
+- Core (`MediaTest`, `MemoriesModelTest`): the list decodes with and without an album; an upload
+  is multipart with both renditions and the time under their field names, with the bearer token;
+  bytes, review, album and delete hit their routes; a wire photo becomes a memory (the flag only
+  while flagged), the three sections, the role rules, captions and labels in both languages, the
+  summary per role, upsert and without.
+- Android (`MemoriesViewModelTest`): sample mode for a leader and a guardian; live lists, fetches
+  the thumbnails with the token, uploads as multipart and lands the photo first, clears a flag out
+  of the queue, deletes; unreachable marks offline and an upload says so.
+- iOS (`LiveModelsTests.testMemoriesSampleAndUnreachable`): the same for the Swift model.
 
 ## Not done
 
-Phones (slice 044: the Memories tab, upload with the platform picker, leader review); downloads
+A full-screen viewer and per-person tags on the phones; downloads
 and the wrap-up export (D20); the per-organization DEK keyring (ADR-0005) in place of `MEDIA_KEY`;
 a size budget per trip; video.

@@ -10,11 +10,17 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.delete
+import io.ktor.client.request.forms.MultiPartFormDataContent
+import io.ktor.client.request.forms.formData
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
+import io.ktor.client.request.url
+import io.ktor.http.Headers
+import io.ktor.http.HttpHeaders
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.client.statement.HttpResponse
@@ -299,6 +305,92 @@ public class ApiClient(
         }
 
     /** POST /v1/auth/magic-link. Always 202; the server never reveals whether the address exists. */
+    /* ---------- Photos (D18, slice 044) ---------- */
+
+    /** GET .../media: what the signed-in participant may see (ADR-0009), newest first. */
+    public suspend fun listPhotos(orgId: String, tripId: String, correlationId: String? = null): ApiResult<PhotoListDto> =
+        call(correlationId) {
+            http.get {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "orgs", orgId, "trips", tripId, "media") }
+                common(correlationId)
+            }
+        }
+
+    /** The bytes behind a photo's `thumbnailUrl` or `contentUrl` (an API path), with the bearer token. */
+    public suspend fun photoBytes(apiPath: String, correlationId: String? = null): ApiResult<ByteArray> =
+        call(correlationId) {
+            http.get {
+                url("https://${config.host}$apiPath")
+                common(correlationId)
+            }
+        }
+
+    /** POST .../media as multipart: the original, the device-made thumbnail (D34), the taken-at time. */
+    public suspend fun uploadPhoto(orgId: String, tripId: String, upload: PhotoUpload, correlationId: String? = null): ApiResult<PhotoDto> =
+        call(correlationId) {
+            val ext = when (upload.contentType) { "image/png" -> "png"; "image/webp" -> "webp"; else -> "jpg" }
+            http.post {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "orgs", orgId, "trips", tripId, "media") }
+                common(correlationId)
+                setBody(
+                    MultiPartFormDataContent(
+                        formData {
+                            append(
+                                "original",
+                                upload.original,
+                                Headers.build {
+                                    append(HttpHeaders.ContentType, upload.contentType)
+                                    append(HttpHeaders.ContentDisposition, "filename=\"photo.$ext\"")
+                                },
+                            )
+                            upload.thumbnail?.let { thumb ->
+                                append(
+                                    "thumbnail",
+                                    thumb,
+                                    Headers.build {
+                                        append(HttpHeaders.ContentType, upload.contentType)
+                                        append(HttpHeaders.ContentDisposition, "filename=\"thumbnail.$ext\"")
+                                    },
+                                )
+                            }
+                            upload.takenAt?.let { append("takenAt", it) }
+                        },
+                    ),
+                )
+            }
+        }
+
+    /** POST .../media/{id}/review: a leader clears the flag ("clear") or removes the photo ("remove"). */
+    public suspend fun reviewPhoto(orgId: String, tripId: String, photoId: String, decision: String, correlationId: String? = null): ApiResult<PhotoDto> =
+        call(correlationId) {
+            http.post {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "orgs", orgId, "trips", tripId, "media", photoId, "review") }
+                common(correlationId)
+                contentType(ContentType.Application.Json)
+                setBody(ReviewPhotoRequestDto(decision))
+            }
+        }
+
+    /** PUT .../media/{id}/album: into the guardian album with its tags (travelers, or the whole group). */
+    public suspend fun albumPhoto(orgId: String, tripId: String, photoId: String, tags: AlbumPhotoRequestDto, correlationId: String? = null): ApiResult<PhotoDto> =
+        call(correlationId) {
+            http.put {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "orgs", orgId, "trips", tripId, "media", photoId, "album") }
+                common(correlationId)
+                contentType(ContentType.Application.Json)
+                setBody(tags)
+            }
+        }
+
+    /** DELETE .../media/{id}: the uploader's own photo, or any for an organizer. */
+    public suspend fun deletePhoto(orgId: String, tripId: String, photoId: String, correlationId: String? = null): ApiResult<DeletePhotoResponseDto> =
+        call(correlationId) {
+            http.delete {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "orgs", orgId, "trips", tripId, "media", photoId) }
+                common(correlationId)
+            }
+        }
+
     public suspend fun requestMagicLink(email: String, locale: String): ApiResult<MagicLinkAcceptedDto> =
         call(null) {
             http.post {

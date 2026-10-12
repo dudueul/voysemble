@@ -1254,3 +1254,25 @@ Built:
 - Docs: `media.md`, decision D34, captures README, ledger, feature flags `media.private-upload`, `media.guardian-album`, `ai.image-moderation-flags`, `web.media` working.
 
 Not done: the phones (slice 044); downloads and the wrap-up export; the per-organization keyring in place of `MEDIA_KEY`; a size budget per trip; video.
+
+## Slice 044: the Memories tab on both phones
+
+Status: done 2026-10-12. Commit: see git log (`feat(mobile): the Memories tab on both phones (slice 044)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D18 (photos), D34 (media pipeline, device-made thumbnails), ADR-0009 (visibility), D31 (device captures), D32 (glass on chips and the picker button). Details: `docs/engineering/media.md` ("Phones").
+
+| Gate | Command | Result |
+|---|---|---|
+| Core JVM tests | `mobile/gradlew -p mobile :core:jvmTest -Pvoysemble.android=false` | 80 tests (adds `MediaTest`: 3, `MemoriesModelTest`: 4) |
+| Android unit + screenshots | CI `mobile` job | `MemoriesViewModelTest` (3); `memories-light.png`, `memories-guardian-dark.png` |
+| iOS | CI `ios` job | `LiveModelsTests.testMemoriesSampleAndUnreachable`; `CaptureTests.testMemories` (`memories-light.png`, `memories-guardian-dark.png`) |
+| Lint + headers | `pnpm lint`, `pnpm check:headers` | clean |
+
+No web change (the console side is slice 043).
+
+Built:
+- Core: `api/Media.kt` (the photo wire types, `PhotoUpload`), `ApiClient.listPhotos/photoBytes/uploadPhoto (multipart)/reviewPhoto/albumPhoto/deletePhoto`, `memories/MemoriesModel.kt` (`Memory`, `MemoriesFeed`, sections, role rules, labels, summary), the fixture pool, `iosMain` `DataBridge.kt` (`NSData` ↔ `ByteArray`), 39 `MEM_*` strings in both languages.
+- Android: `memories/MemoriesViewModel.kt` (list, thumbnails through the client, picker uploads with device-made thumbnails, review, album, delete; the graphics injected), `AndroidImages.kt`, `MemoriesScreen.kt` (grid, queue, add button, guardian view), the tab wired in `AppNavigation`, screenshot and view-model tests.
+- iOS: `Memories/MemoriesView.swift` (`MemoriesModel` + view, `PhotosPicker`, `UIGraphicsImageRenderer` thumbnails), the tab wired in `TodayView`, capture and model tests.
+- Docs: media.md phones section, captures README, mobile README, ledger, feature flag `mobile.memories` working.
+
+Not done: a full-screen viewer; per-person tags from the phone; background upload and retry from an outbox; HEIC originals (the picker hands over JPEG on iOS; Android sends what the picker gives, the server refuses types it does not know).

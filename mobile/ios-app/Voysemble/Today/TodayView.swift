@@ -17,6 +17,8 @@ struct TodayView: View {
     @StateObject private var chats: ChatsModel
     // Slice 035: the Plan tab shares the same client and trip.
     @StateObject private var plan: PlanModel
+    // Slice 044 (D18): the Memories tab, live on a trip.
+    @StateObject private var memories: MemoriesModel
     @State private var proposing: ProposalTarget?
 
     init(model: TodayModel) {
@@ -30,6 +32,7 @@ struct TodayView: View {
         // Slice 033 (D22): fixed chat channels; live when signed in on a trip, the fixture otherwise.
         _chats = StateObject(wrappedValue: ChatsModel(api: model.api, trip: model.trip))
         _plan = StateObject(wrappedValue: PlanModel(api: model.api, trip: model.trip))
+        _memories = StateObject(wrappedValue: MemoriesModel(api: model.api, trip: model.trip))
     }
 
     var body: some View {
@@ -41,7 +44,8 @@ struct TodayView: View {
                 .tabItem { Label(tr(.tabBulletin), systemImage: "bell") }.tag(MainTab.bulletin)
             NavigationStack { ChatsView(model: chats) }
                 .tabItem { Label(tr(.tabChats), systemImage: "bubble.left") }.tag(MainTab.chats)
-            placeholder(tr(.tabMemories)).tabItem { Label(tr(.tabMemories), systemImage: "photo.on.rectangle") }.tag(MainTab.memories)
+            NavigationStack { MemoriesView(model: memories) }
+                .tabItem { Label(tr(.tabMemories), systemImage: "photo.on.rectangle") }.tag(MainTab.memories)
         }
         .tint(Color(argb: Tokens.Color.Light.brand))
         .voyTabBarMinimizes()
@@ -150,12 +154,6 @@ struct TodayView: View {
         .background(RoundedRectangle(cornerRadius: 12).fill(Color(argb: Tokens.Color.Light.warning).opacity(0.14)))
     }
 
-    private func placeholder(_ name: String) -> some View {
-        VStack(spacing: 8) {
-            Text(tr1(.commonNotBuilt, name)).font(.headline)
-            Text(tr(.commonNotBuiltStatus)).foregroundStyle(.secondary)
-        }
-    }
 }
 
 private struct UpNextCard: View {

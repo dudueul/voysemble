@@ -39,6 +39,8 @@ import com.voysemble.app.headcount.HeadcountViewModel
 import com.voysemble.app.incidents.IncidentsRoute
 import com.voysemble.app.incidents.IncidentsViewModel
 import com.voysemble.app.plan.PlanRoute
+import com.voysemble.app.memories.MemoriesRoute
+import com.voysemble.app.memories.MemoriesViewModel
 import com.voysemble.app.plan.PlanViewModel
 import com.voysemble.app.session.AppGraph
 import com.voysemble.app.session.PendingLink
@@ -153,7 +155,13 @@ fun AppScreens(trip: ActiveTrip?, onSignOut: () -> Unit) {
                 }
                 ChatsRoute(vm)
             }
-            else -> TabHost(today) { NotBuilt(todayState.tab.name.lowercase().replaceFirstChar { it.uppercase() }) }
+            MainTab.MEMORIES -> TabHost(today) {
+                // Slice 044 (D18): the trip pool, the leader's review queue, the guardian album; live on a trip.
+                val vm: MemoriesViewModel = viewModel(key = "memories-${trip?.tripId ?: "sample"}") {
+                    if (trip == null) MemoriesViewModel() else MemoriesViewModel(api = AppGraph.apiClient, trip = trip)
+                }
+                MemoriesRoute(vm)
+            }
         }
     }
 }
@@ -168,9 +176,3 @@ private fun TabHost(today: TodayViewModel, content: @Composable () -> Unit) {
     ) { padding -> Box(Modifier.fillMaxSize().padding(padding)) { content() } }
 }
 
-@Composable
-private fun NotBuilt(name: String) {
-    Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-        Text(trf(Txt.COMMON_NOT_BUILT, name) + " " + tr(Txt.COMMON_NOT_BUILT_STATUS), style = MaterialTheme.typography.bodyLarge)
-    }
-}

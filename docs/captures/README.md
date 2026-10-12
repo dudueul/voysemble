@@ -189,3 +189,10 @@ console).
 uploads from the console (one flagged by the fixture moderation and approved, one tagged with Minji
 for the guardian album): the pool with browser-made thumbnails, the empty review queue, the album
 counts and list. Produced by `apps/organizer-web/e2e/media.spec.ts`. Phones follow in slice 044.
+
+## Slice 044 (2026-10-12): the Memories tab
+
+`android/memories-light.png`, `android/memories-guardian-dark.png` (Roborazzi) and `ios/memories-light.png`,
+`ios/memories-guardian-dark.png` (CaptureTests): the leader's view of the sample pool (review queue,
+grid with album chips, "Add photos") and a guardian's album-only view. Produced by
+`MemoriesScreenshotTest` and `CaptureTests.testMemories`.

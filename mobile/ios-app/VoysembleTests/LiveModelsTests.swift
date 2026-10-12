@@ -225,6 +225,31 @@ final class LiveModelsTests: XCTestCase {
         XCTAssertFalse(TodayModel(api: unreachableClient(), trip: guardian).canPropose)
     }
 
+    func testMemoriesSampleAndUnreachable() async {
+        // Slice 044 (D18): sample mode is the leader's view of the fixture; a guardian sees the album only.
+        let sample = MemoriesModel()
+        XCTAssertFalse(sample.live)
+        XCTAssertEqual(sample.queue.count, 1)
+        XCTAssertEqual(sample.pool.count, 5)
+        XCTAssertTrue(sample.canReview)
+        XCTAssertTrue(sample.canUpload)
+        let guardian = MemoriesModel(sampleRole: "guardian")
+        XCTAssertFalse(guardian.canUpload)
+        XCTAssertEqual(guardian.album.count, 2)
+        XCTAssertEqual(guardian.summary, "2 approved photos of your traveler")
+        await sample.upload([(original: Data([1, 2, 3]), thumbnail: nil)])
+        XCTAssertEqual(sample.notice, "1 uploaded.")
+        // Live and unreachable: empty, honest, offline.
+        let live = MemoriesModel(api: unreachableClient(), trip: trip)
+        XCTAssertTrue(live.live)
+        XCTAssertEqual(live.pool.count, 0)
+        await live.refresh()
+        XCTAssertTrue(live.feed.offline)
+        XCTAssertEqual(live.error, "Offline. Showing the last photos.")
+        await live.upload([(original: Data([1, 2, 3]), thumbnail: Data([4]))])
+        XCTAssertEqual(live.notice, "Offline. The photo stays on your phone; try again with a connection.")
+    }
+
     func testClocksFormatWireTimes() {
         XCTAssertEqual(Clocks.localTime("not a date"), "not a date")
         let hhmm = Clocks.localTime("2026-12-31T06:30:00.000Z")
