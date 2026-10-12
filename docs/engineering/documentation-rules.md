@@ -18,5 +18,5 @@ Founder directive: document details everywhere.
     `docs/captures/public/`); Android at 412x915 light and dark (Roborazzi,
     `docs/captures/android/`); iOS at 393x852 (XCTest `CaptureTests`, `docs/captures/ios/`).
     CI's `captures` job commits them back to the branch (`[skip ci]`), so pull before pushing and
-    never stage `docs/captures/` from a workstation (`git add -A -- . ':!docs/captures'`); local
+    never stage capture PNGs from a workstation (`git add -A -- . ':!docs/captures/**/*.png'`); local
     runs only preview. The slice entry links the captures.

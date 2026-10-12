@@ -13,7 +13,9 @@ evidence for the visual-acceptance gate (doc 01 §18.4, §24.4), compared by a r
 | `android/*.png` | CI `mobile` job (Roborazzi) | 412x915 |
 | `ios/*.png` | CI `ios` job (`CaptureTests.swift`, UIWindow + `drawHierarchy`) | 393x852 at 2x |
 
-Since slice 022 (D31) the CI `captures` job commits every job's PNGs back to the branch as
+PNG captures are never staged from a workstation or the authoring sandbox (`git add -A -- . ':!docs/captures/**/*.png'`):
+CI's PNGs are canonical and local runs only preview them, which keeps the branch free of binary
+conflicts. Since slice 022 (D31) the CI `captures` job commits every job's PNGs back to the branch as
 `chore(captures): record device captures for <sha> [skip ci]`, so this folder is the current state of
 every client after each green push to `next`. Android and iOS captures therefore appear here one CI run
 after the slice that added them.
@@ -79,3 +81,9 @@ links. Both land here through the CI `captures` job.
 
 `web/desktop-1440/people-person.png`, `web/laptop-1280/people-person.png`: Sora's card beside the live
 roster (guardian link, placeholders, empty timeline). Produced by `e2e/people.spec.ts`.
+
+## Slice 027 (2026-10-12): live fee ledger
+
+`web/desktop-1440/billing-live.png`, `web/laptop-1280/billing-live.png`: the ledger after a fee was set,
+one payment saved and a bank CSV imported (1 paid, 1 partial, 1 unpaid). Produced by `e2e/billing.spec.ts`.
+`android/today-guardian.png` and `ios/today-guardian.png` now carry the balance line.
