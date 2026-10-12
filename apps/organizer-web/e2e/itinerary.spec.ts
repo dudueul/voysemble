@@ -96,6 +96,23 @@ test('live itinerary: add, edit, publish, persist (slice 017)', async ({ page },
   await expect(page.getByTestId('revision')).toHaveText('Revision 1');
   await expect(page.getByRole('button', { name: '09:00 Group check-in' })).toBeVisible();
   await expect(page.getByTestId('itinerary-notice')).toHaveCount(0);
+
+  // Slice 020: revision 2 with a change on a current day notifies travelers with the diff.
+  await page.getByRole('button', { name: '09:00 Group check-in' }).click();
+  await page.getByLabel('Start').fill('08:30');
+  await page.getByLabel('Note for travelers (optional)').fill('Please be early.');
+  await expect(page.getByTestId('drafts')).toHaveText('1 unpublished change');
+  await page.getByRole('button', { name: 'Publish changes' }).click();
+  await expect(page.getByTestId('revision')).toHaveText('Revision 2');
+  await expect(page.getByTestId('publish-status')).toHaveText(
+    'Revision 2 published · 1 change · travelers notified',
+  );
+  await page.goto('/communication');
+  const rev = page.getByTestId('announcement-list').getByRole('listitem').first();
+  await expect(rev.getByTestId(/^revision-chip-/)).toHaveText('Itinerary update · revision 2');
+  await expect(rev).toContainText('Day 1 · Group check-in · 09:00 → 08:30');
+  await expect(rev).toContainText('Please be early.');
+  await expect(rev.getByTestId(/^ack-/)).toHaveText('0/0');
 });
 
 test('leader proposal: filed from the phone, accepted on the console (slice 018)', async ({

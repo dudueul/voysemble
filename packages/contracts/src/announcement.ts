@@ -28,7 +28,8 @@ export const AnnouncementTranslation = z
   .object({
     locale: z.enum(['ko', 'en']),
     body: AnnouncementBody,
-    provider: z.enum(['machine', 'edited']),
+    /** `system`: both languages composed from fixed templates (never paraphrased). */
+    provider: z.enum(['machine', 'edited', 'system']),
     /** Display name of the bilingual staff member who replaced the machine text. */
     editedBy: z.string().nullable(),
   })
@@ -39,6 +40,44 @@ export const EditTranslationRequest = z
   .object({ body: AnnouncementBody })
   .openapi('EditTranslationRequest');
 export type EditTranslationRequest = z.infer<typeof EditTranslationRequest>;
+
+/** `announcement`: written by staff. `itinerary_revision`: opened by the server at publish (D19). */
+export const AnnouncementKind = z
+  .enum(['announcement', 'itinerary_revision'])
+  .openapi('AnnouncementKind');
+export type AnnouncementKind = z.infer<typeof AnnouncementKind>;
+
+/** One line of an itinerary diff, enough for a phone to render "Day 4 · Colosseum · 09:00 → 08:30". */
+export const RevisionChange = z
+  .object({
+    kind: z.enum(['added', 'changed', 'removed']),
+    eventId: z.string(),
+    date: z.string(),
+    /** Day number within the trip, 1-based. */
+    day: z.number().int(),
+    title: z.string(),
+    /** Start time after the change (or before it, for a removal). */
+    start: z.string(),
+    /** Field names that differ for `changed`; empty otherwise. */
+    fields: z.array(z.string()),
+    /** Previous start for a `changed` whose start moved; null otherwise. */
+    previousStart: z.string().nullable(),
+  })
+  .openapi('RevisionChange');
+export type RevisionChange = z.infer<typeof RevisionChange>;
+
+export const RevisionSummary = z
+  .object({
+    revision: z.number().int(),
+    fromRevision: z.number().int(),
+    added: z.number().int(),
+    changed: z.number().int(),
+    removed: z.number().int(),
+    /** Ordered by date then start; capped at 50 lines on the wire. */
+    changes: z.array(RevisionChange),
+  })
+  .openapi('RevisionSummary');
+export type RevisionSummary = z.infer<typeof RevisionSummary>;
 
 export const Announcement = z
   .object({
@@ -57,6 +96,9 @@ export const Announcement = z
     myAck: z.enum(['unacknowledged', 'acknowledged']),
     /** Null when no translation exists (provider unavailable or same-language readers only). */
     translation: AnnouncementTranslation.nullable(),
+    kind: AnnouncementKind,
+    /** The diff behind an `itinerary_revision` announcement; null for ordinary ones. */
+    revision: RevisionSummary.nullable(),
   })
   .openapi('Announcement');
 export type Announcement = z.infer<typeof Announcement>;

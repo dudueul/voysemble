@@ -1,6 +1,6 @@
 {
   "$comment": "working = verified backend integration + tests; simulated = deterministic fixture with UI label; deferred = designed, not presented as available. Update in the same commit as the feature. Behavioural rules per feature: docs/decisions/ADR-0009-roles-visibility-offline-semantics.md.",
-  "updatedAt": "2026-10-11",
+  "updatedAt": "2026-10-12",
   "features": {
     "api.health": "working",
     "api.openapi": "working",
@@ -16,7 +16,7 @@
     "billing.stripe": "deferred",
     "admin.job-repair": "deferred",
     "ai.ingest-suggestions": "deferred",
-    "ai.broadcast-translation": "deferred",
+    "ai.broadcast-translation": "working",
     "ai.image-moderation-flags": "deferred",
     "web.shell": "working",
     "web.command-center": "working",
@@ -27,10 +27,10 @@
     "onboarding.roster-import": "working",
     "onboarding.invite-codes": "working",
     "guardian.status-view": "deferred",
-    "headcount.missing-list": "deferred",
+    "headcount.missing-list": "working",
     "location.meeting-windows": "deferred",
     "incident.person-timeline": "deferred",
-    "incident.card": "deferred",
+    "incident.card": "working",
     "media.guardian-album": "deferred",
     "itinerary.change-proposals": "working",
     "itinerary.disruption-ai": "deferred",
@@ -94,6 +94,10 @@
     "mobile.session.secure-store": "working",
     "me.participations": "working",
     "mobile.auth.app-links": "working",
-    "mobile.auth.apple-google": "deferred"
+    "mobile.auth.apple-google": "deferred",
+    "itinerary.revision-diff": "working",
+    "announcements.system-revision": "working",
+    "mobile.today.live-announcement": "working",
+    "mobile.bulletin.revision-lines": "working"
   }
 }

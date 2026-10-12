@@ -6,11 +6,13 @@
 // removal count as unpublished until revision 2, after which the traveler sees the new state.
 
 import type {
+  Announcement,
   IssueInvitesResponse,
   Itinerary,
   ItineraryEvent,
   ItineraryProposal,
   ProposalList,
+  PublishItineraryResponse,
   RosterImportResponse,
 } from '@voysemble/contracts';
 import { describe, expect, it } from 'vitest';
@@ -91,13 +93,22 @@ describe('itinerary', () => {
 
     // Stale expected revision, then the real publish.
     expect((await api(nate).post(`${base}/publish`, { expectedRevision: 3 })).status).toBe(409);
-    const rev1 = await json<Itinerary>(
+    const first = await json<PublishItineraryResponse>(
       await api(nate).post(`${base}/publish`, { expectedRevision: 0 }),
     );
+    const rev1 = first.itinerary;
     expect(rev1.revision).toBe(1);
     expect(rev1.publishedAt).not.toBeNull();
     expect(rev1.unpublished).toBe(0);
     expect(rev1.events.every((e) => e.published)).toBe(true);
+    expect(first.announcementId).toBeNull(); // the first publish is the plan, not a change
+    expect(first.diff).toMatchObject({
+      revision: 1,
+      fromRevision: 0,
+      added: 2,
+      changed: 0,
+      removed: 0,
+    });
     expect((await api(nate).post(`${base}/publish`, { expectedRevision: 1 })).status).toBe(409); // nothing to publish
 
     const forMinji = await json<Itinerary>(await api(minji).get(base));
@@ -118,10 +129,18 @@ describe('itinerary', () => {
     const stillRev1 = await json<Itinerary>(await api(kim).get(base));
     expect(stillRev1.events.map((e) => e.title)).toEqual(['Colosseum guided tour', 'Lunch']);
 
-    const rev2 = await json<Itinerary>(
-      await api(nate).post(`${base}/publish`, { expectedRevision: 1 }),
+    const secondPublish = await json<PublishItineraryResponse>(
+      await api(nate).post(`${base}/publish`, { expectedRevision: 1, notify: false }),
     );
+    const rev2 = secondPublish.itinerary;
     expect(rev2.revision).toBe(2);
+    expect(secondPublish.announcementId).toBeNull(); // published quietly
+    expect(secondPublish.diff).toMatchObject({
+      revision: 2,
+      fromRevision: 1,
+      changed: 1,
+      removed: 1,
+    });
     const afterKim = await json<Itinerary>(await api(kim).get(base));
     expect(afterKim.revision).toBe(2);
     expect(afterKim.events.map((e) => [e.title, e.start])).toEqual([
@@ -314,5 +333,147 @@ describe('itinerary', () => {
       'accepted',
       'accepted',
     ]);
+  });
+
+  it('revision announcement: diff with required ack and guardian copy; silent for past days (slice 020)', async () => {
+    const nate = await signIn('nate-rev@example.com');
+    const org = await createOrg(nate); // defaultLocale ko → Korean primary body, English translation
+    const trip = await createTrip(nate, org.id);
+    const base = `/v1/orgs/${org.id}/trips/${trip.id}/itinerary`;
+    await api(nate).post(`/v1/orgs/${org.id}/trips/${trip.id}/roster/import`, { csv: SAMPLE_CSV });
+    const issued = await json<IssueInvitesResponse>(
+      await api(nate).post(`/v1/orgs/${org.id}/trips/${trip.id}/invites`),
+    );
+    const codeFor = (n: string) => issued.invites.find((i) => i.displayName === n)?.code ?? '';
+    const minji = await signIn('minji-rev@example.com');
+    await api(minji).post('/v1/invites/redeem', { code: codeFor('Minji Park') });
+    const sora = await signIn('sora-rev@example.com');
+    await api(sora).post('/v1/invites/redeem', { code: codeFor('Sora Park') });
+
+    // Two events far in the future (the sample trip dates are in the past relative to "today"
+    // only if the clock passed them; use the trip's own last day so the rule is stable).
+    const lastDay = trip.endsOn;
+    const a = crypto.randomUUID();
+    const b = crypto.randomUUID();
+    await api(nate).put(`${base}/events/${a}`, {
+      ...EVENT,
+      date: lastDay,
+      title: 'Colosseum guided tour',
+    });
+    await api(nate).put(`${base}/events/${b}`, {
+      ...EVENT,
+      date: lastDay,
+      title: 'Lunch',
+      start: '12:00',
+      end: null,
+      order: 2,
+    });
+    await api(nate).post(`${base}/publish`, { expectedRevision: 0 });
+
+    // Revision 2: move one, remove one, add one, with an organizer note → one announcement.
+    await api(nate).put(`${base}/events/${a}`, {
+      ...EVENT,
+      date: lastDay,
+      title: 'Colosseum guided tour',
+      start: '08:30',
+    });
+    await api(nate).delete(`${base}/events/${b}`);
+    const c = crypto.randomUUID();
+    await api(nate).put(`${base}/events/${c}`, {
+      ...EVENT,
+      date: lastDay,
+      title: 'Gelato stop',
+      kind: 'free',
+      start: '11:15',
+      end: '11:45',
+      order: 3,
+    });
+    const pub = await json<PublishItineraryResponse>(
+      await api(nate).post(`${base}/publish`, {
+        expectedRevision: 1,
+        note: 'Guide asked for an earlier start.',
+      }),
+    );
+    expect(pub.diff).toMatchObject({
+      revision: 2,
+      fromRevision: 1,
+      added: 1,
+      changed: 1,
+      removed: 1,
+    });
+    expect(pub.diff.changes.map((ch) => [ch.kind, ch.title, ch.previousStart])).toEqual([
+      ['changed', 'Colosseum guided tour', '09:00'],
+      ['added', 'Gelato stop', null],
+      ['removed', 'Lunch', null],
+    ]);
+    expect(pub.announcementId).not.toBeNull();
+
+    const forMinji = await json<{ announcements: Announcement[] }>(
+      await api(minji).get(`/v1/orgs/${org.id}/trips/${trip.id}/announcements`),
+    );
+    const ann = forMinji.announcements.find((x) => x.id === pub.announcementId) as Announcement;
+    expect(ann.kind).toBe('itinerary_revision');
+    expect(ann.requiresAck).toBe(true);
+    expect(ann.sharedWithGuardians).toBe(true);
+    expect(ann.authorName).toBe('Organizer');
+    expect(ann.title).toBe('일정 변경 안내');
+    expect(ann.body).toContain('일정이 변경되었습니다: 변경 3건.');
+    expect(ann.body).toContain('Colosseum guided tour 09:00에서 08:30로 변경되었습니다.');
+    expect(ann.body).toContain('Gelato stop 11:15에 추가되었습니다.');
+    expect(ann.body).toContain('Lunch 일정이 취소되었습니다.');
+    expect(ann.body).toContain('주최자 메모: Guide asked for an earlier start.');
+    expect(ann.translation).toMatchObject({ locale: 'en', provider: 'system' });
+    expect(ann.translation?.body).toContain('The itinerary was updated: 3 changes.');
+    expect(ann.translation?.body).toContain('Colosseum guided tour now 08:30 (was 09:00).');
+    expect(ann.revision).toMatchObject({
+      revision: 2,
+      fromRevision: 1,
+      added: 1,
+      changed: 1,
+      removed: 1,
+    });
+    expect(ann.revision?.changes).toHaveLength(3);
+    expect(ann.ackTotal).toBe(3); // travelers only on this roster (no leader added)
+
+    // The guardian gets the same card (shared), and acks work as for any announcement.
+    const forSora = await json<{ announcements: Announcement[] }>(
+      await api(sora).get(`/v1/orgs/${org.id}/trips/${trip.id}/announcements`),
+    );
+    expect(forSora.announcements.map((x) => x.id)).toContain(pub.announcementId);
+    const ack = await api(minji).post(
+      `/v1/orgs/${org.id}/trips/${trip.id}/announcements/${pub.announcementId}/ack`,
+      { ackedAtDevice: new Date().toISOString() },
+    );
+    expect(ack.status).toBe(200);
+
+    // A past-day-only change publishes silently; so does a quiet publish of a current change.
+    const past = crypto.randomUUID();
+    await api(nate).put(`${base}/events/${past}`, {
+      ...EVENT,
+      date: '2000-01-01',
+      title: 'Long ago',
+    });
+    const silent = await json<PublishItineraryResponse>(
+      await api(nate).post(`${base}/publish`, { expectedRevision: 2 }),
+    );
+    expect(silent.diff.added).toBe(1);
+    expect(silent.announcementId).toBeNull();
+    await api(nate).put(`${base}/events/${c}`, {
+      ...EVENT,
+      date: lastDay,
+      title: 'Gelato stop',
+      kind: 'free',
+      start: '11:30',
+      end: '11:45',
+      order: 3,
+    });
+    const quiet = await json<PublishItineraryResponse>(
+      await api(nate).post(`${base}/publish`, { expectedRevision: 3, notify: false }),
+    );
+    expect(quiet.announcementId).toBeNull();
+    const all = await json<{ announcements: Announcement[] }>(
+      await api(nate).get(`/v1/orgs/${org.id}/trips/${trip.id}/announcements`),
+    );
+    expect(all.announcements.filter((x) => x.kind === 'itinerary_revision')).toHaveLength(1);
   });
 });

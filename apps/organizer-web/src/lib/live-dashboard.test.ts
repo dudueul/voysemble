@@ -162,6 +162,8 @@ describe('live dashboard mapping', () => {
           ackCount: 1,
           myAck: 'unacknowledged',
           translation: null,
+          kind: 'announcement',
+          revision: null,
         },
         {
           id: 'a2',
@@ -176,6 +178,8 @@ describe('live dashboard mapping', () => {
           ackCount: 0,
           myAck: 'unacknowledged',
           translation: null,
+          kind: 'announcement',
+          revision: null,
         },
       ],
       headcounts: [session({})],

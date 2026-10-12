@@ -16,10 +16,14 @@ import {
   ItineraryProposal,
   ProposalList,
   PublishItineraryRequest,
+  PublishItineraryResponse,
   z,
 } from '@voysemble/contracts';
+import { eq } from 'drizzle-orm';
 import { HTTPException } from 'hono/http-exception';
 import { type OrgAccess, requireAuth, requireOrgRole } from '../auth/middleware';
+import { db } from '../db/client';
+import { organizations } from '../db/schema';
 import type { AppEnv } from '../env';
 import { orgObject } from '../org/client';
 import { ERROR_RESPONSES, SESSION_SECURITY } from './openapi-common';
@@ -93,7 +97,10 @@ const publishRoute = createRoute({
     body: { content: { 'application/json': { schema: PublishItineraryRequest } } },
   },
   responses: {
-    200: { description: 'Published.', content: { 'application/json': { schema: Itinerary } } },
+    200: {
+      description: 'Published, with the diff and the announcement it opened (if any).',
+      content: { 'application/json': { schema: PublishItineraryResponse } },
+    },
     400: ERROR_RESPONSES[400],
     401: ERROR_RESPONSES[401],
     403: ERROR_RESPONSES[403],
@@ -166,6 +173,20 @@ const decideProposalRoute = createRoute({
   },
 });
 
+/** Today's calendar date in a zone, YYYY-MM-DD. */
+function todayIn(timeZone: string, now = new Date()): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(now);
+  } catch {
+    return now.toISOString().slice(0, 10);
+  }
+}
+
 function isWriter(access: OrgAccess): boolean {
   return access.role === 'owner' || access.role === 'organizer';
 }
@@ -212,11 +233,22 @@ export function mountItineraryRoutes(app: OpenAPIHono<AppEnv>): void {
     const body = c.req.valid('json');
     await requireOrgRole(c.env, auth, orgId, 'organizer');
     const org = await orgObject(c.env, orgId);
+    const trip = await org.getTrip(tripId);
+    if (!trip) throw new HTTPException(404, { message: 'Trip not found.' });
     const me = await org.participationForAccount(tripId, auth.accountId);
+    const organization = await db(c.env.DB).query.organizations.findFirst({
+      where: eq(organizations.id, orgId),
+    });
     const result = await org.publishItinerary(
       tripId,
       body.expectedRevision,
       me?.displayName ?? 'Organizer',
+      {
+        notify: body.notify,
+        note: body.note,
+        today: todayIn(trip.timezone),
+        locale: organization?.defaultLocale === 'en' ? 'en' : 'ko',
+      },
     );
     if ('notFound' in result) throw new HTTPException(404, { message: 'Trip not found.' });
     if ('conflict' in result) {
@@ -227,7 +259,7 @@ export function mountItineraryRoutes(app: OpenAPIHono<AppEnv>): void {
     if ('nothing' in result) {
       throw new HTTPException(409, { message: 'Nothing to publish.' });
     }
-    return c.json(result.itinerary, 200);
+    return c.json(result, 200);
   });
 
   app.openapi(createProposalRoute, async (c) => {

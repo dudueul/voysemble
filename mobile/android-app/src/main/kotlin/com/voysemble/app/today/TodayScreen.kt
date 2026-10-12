@@ -78,7 +78,7 @@ fun TodayRoute(vm: TodayViewModel, onOpenHeadcount: () -> Unit = {}, onOpenWindo
     }
     TodayScreen(
         state = state,
-        onAcknowledge = vm::acknowledge,
+        onAcknowledge = { vm.acknowledge(it) },
         onSelectTab = vm::selectTab,
         onOpenHeadcount = onOpenHeadcount,
         onOpenWindow = onOpenWindow,

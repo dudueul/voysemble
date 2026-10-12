@@ -4,7 +4,13 @@
 
 import type { ItineraryEvent as ApiEvent, Itinerary as ApiItinerary } from '@voysemble/contracts';
 import { describe, expect, it } from 'vitest';
-import { describePatch, fromApiEvent, fromApiItinerary, toApiInput } from './itinerary-api';
+import {
+  changeLines,
+  describePatch,
+  fromApiEvent,
+  fromApiItinerary,
+  toApiInput,
+} from './itinerary-api';
 
 const apiEvent: ApiEvent = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -77,5 +83,64 @@ describe('itinerary API mapping', () => {
     );
     expect(describePatch({ end: null })).toBe('end: —');
     expect(describePatch({})).toBe('');
+  });
+
+  it('renders change lines for a revision summary', () => {
+    expect(
+      changeLines({
+        revision: 2,
+        fromRevision: 1,
+        added: 1,
+        changed: 1,
+        removed: 1,
+        changes: [
+          {
+            kind: 'changed',
+            eventId: 'a',
+            date: '2026-12-31',
+            day: 4,
+            title: 'Colosseum',
+            start: '08:30',
+            fields: ['start'],
+            previousStart: '09:00',
+          },
+          {
+            kind: 'added',
+            eventId: 'b',
+            date: '2026-12-31',
+            day: 4,
+            title: 'Gelato',
+            start: '11:15',
+            fields: [],
+            previousStart: null,
+          },
+          {
+            kind: 'removed',
+            eventId: 'c',
+            date: '2027-01-01',
+            day: 5,
+            title: 'Lunch',
+            start: '12:00',
+            fields: [],
+            previousStart: null,
+          },
+          {
+            kind: 'changed',
+            eventId: 'd',
+            date: '2027-01-01',
+            day: 5,
+            title: 'Bus',
+            start: '08:00',
+            fields: ['place', 'note'],
+            previousStart: null,
+          },
+        ],
+      }),
+    ).toEqual([
+      'Day 4 · Colosseum · 09:00 → 08:30',
+      'Day 4 · Gelato · added 11:15',
+      'Day 5 · Lunch · removed',
+      'Day 5 · Bus · place, note changed',
+    ]);
   });
 });

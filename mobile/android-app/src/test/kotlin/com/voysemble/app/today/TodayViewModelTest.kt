@@ -43,6 +43,13 @@ class TodayViewModelTest {
          ],"unpublished":0}
     """.trimIndent()
 
+    private val announcementsJson = """
+        {"announcements":[
+          {"id":"r2","tripId":"trip_1","title":"Itinerary updated","body":"The itinerary was updated: 1 change.","requiresAck":true,"sharedWithGuardians":true,"authorName":"Organizer","publishedAt":"2026-12-30T22:10:00.000Z","ackTotal":4,"ackCount":1,"myAck":"unacknowledged","translation":null,"kind":"itinerary_revision","revision":{"revision":2,"fromRevision":1,"added":0,"changed":1,"removed":0,"changes":[]}},
+          {"id":"a1","tripId":"trip_1","title":"Old","body":"x","requiresAck":true,"sharedWithGuardians":false,"authorName":"Organizer","publishedAt":"2026-12-29T10:00:00.000Z","ackTotal":4,"ackCount":4,"myAck":"acknowledged","translation":null,"kind":"announcement","revision":null}
+        ]}
+    """.trimIndent()
+
     @Before fun main() = Dispatchers.setMain(UnconfinedTestDispatcher())
     @After fun reset() = Dispatchers.resetMain()
 
@@ -64,7 +71,14 @@ class TodayViewModelTest {
 
     @Test
     fun live_builds_today_from_the_published_itinerary() = runTest {
-        val engine = MockEngine { respond(itineraryJson, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json")) }
+        val acks = mutableListOf<String>()
+        val engine = MockEngine { req ->
+            when {
+                req.url.encodedPath.endsWith("/ack") -> { acks += req.url.encodedPath; respond("""{"announcementId":"r2","participationId":"p","created":true,"ackedAtDevice":"x","receivedAt":"y"}""", HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json")) }
+                req.url.encodedPath.endsWith("/announcements") -> respond(announcementsJson, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+                else -> respond(itineraryJson, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+            }
+        }
         val vm = TodayViewModel(
             api = ApiClient(ApiClientConfig("h", "t") { "tok" }, engine),
             trip = trip,
@@ -82,6 +96,13 @@ class TodayViewModelTest {
         assertEquals(listOf("Breakfast", "Depart"), s.snapshot.events.map { it.title })
         assertEquals("e1", s.snapshot.upNext?.id) // breakfast ends 08:15, still on at 08:00
         assertEquals(0, s.snapshot.minutesSinceSync)
+        // Slice 020: the latest unacknowledged required-ack announcement rides on Today; ack posts once.
+        assertEquals("r2", s.snapshot.announcement?.id)
+        assertEquals(AckState.UNACKNOWLEDGED, s.snapshot.announcement?.ack)
+        vm.acknowledge("r2").join()
+        assertEquals(listOf("/v1/orgs/org_1/trips/trip_1/announcements/r2/ack"), acks)
+        assertEquals(AckState.ACKNOWLEDGED, vm.state.value.snapshot.announcement?.ack)
+        assertEquals(2, vm.state.value.snapshot.announcement?.acknowledgedCount)
     }
 
     @Test

@@ -112,6 +112,12 @@ function LiveEditor({
   const ref = useRef(editor);
   const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const [notice, setNotice] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  // D19: notify by default; "publish quietly" for typo fixes. Read at publish time through refs.
+  const [notify, setNotify] = useState(true);
+  const [note, setNote] = useState('');
+  const publishOptions = useRef({ notify: true, note: '' });
+  publishOptions.current = { notify, note };
 
   const apply = useCallback((next: EditorState) => {
     ref.current = next;
@@ -172,13 +178,32 @@ function LiveEditor({
         void (async () => {
           await flush();
           try {
+            const opts = publishOptions.current;
             const published = await itineraryApi.publish(
               orgId,
               tripId,
               ref.current.itinerary.revision,
+              {
+                notify: opts.notify,
+                note: opts.note.trim() || null,
+              },
             );
-            apply(editorReducer(ref.current, { type: 'publish', revision: published.revision }));
+            apply(
+              editorReducer(ref.current, {
+                type: 'publish',
+                revision: published.itinerary.revision,
+              }),
+            );
             setNotice(null);
+            setNote('');
+            const n = published.diff.added + published.diff.changed + published.diff.removed;
+            setStatus(
+              strings.itinerary.published(
+                published.itinerary.revision,
+                n,
+                published.announcementId !== null,
+              ),
+            );
           } catch (err) {
             setNotice(err instanceof ApiError ? err.message : strings.itinerary.publishFailed);
             if (err instanceof ApiError && err.status === 409) await reload();
@@ -239,7 +264,28 @@ function LiveEditor({
         editor,
         dispatch,
         notice,
+        status,
         proposals: <ProposalsPanel orgId={orgId} tripId={tripId} onApplied={() => void reload()} />,
+        publishControls: (
+          <span className="publish-controls">
+            <label className="radio">
+              <input
+                type="checkbox"
+                checked={notify}
+                onChange={(e) => setNotify(e.target.checked)}
+              />{' '}
+              {strings.itinerary.notify}
+            </label>
+            <input
+              className="field__input field__input--inline"
+              aria-label={strings.itinerary.publishNote}
+              placeholder={strings.itinerary.publishNote}
+              maxLength={500}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+          </span>
+        ),
       }}
     />
   );

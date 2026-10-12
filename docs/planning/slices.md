@@ -645,3 +645,47 @@ Built:
 
 Not done: real fingerprints and team id (deploy-time vars), claiming every preview host (only `next`),
 Apple/Google native sign-in.
+
+## Slice 020: revision diff with required ack
+
+Status: done 2026-10-12. Commit: see git log (`feat(itinerary): revision diff ...`). CI: pending at commit time; the run id is recorded in a follow-up docs commit once verified.
+Spec: D19 (everyone gets the diff with a required ack, guardians a safe summary), D16 (ack duty), D13 (guardian visibility). Details: `docs/engineering/itinerary.md` (slice 020 section) and `docs/engineering/announcements.md`.
+
+Design settled in the interview before building: keep building features before deploying; the diff rides on
+the existing announcement (kind `itinerary_revision`, required ack, guardian copy, fixed EN/KO template
+text, never AI-paraphrased); revision 1 and past-day-only diffs stay silent; the organizer can publish
+quietly; phones render inline change lines in Bulletin and the live Today card on Android.
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 15 files, 47 tests (itinerary.test.ts grows to 3) |
+| Core JVM tests | `cd mobile && ./gradlew :core:jvmTest -Pvoysemble.android=false` | 41 tests (AnnouncementsSyncTest adds the revision mapping) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 11 files, 63 tests (changeLines, revision chip, scoped ack rows) |
+| Lint + typecheck | `pnpm lint`, `pnpm typecheck` | see the commit's CI row |
+| Android + iOS | CI `mobile` and `ios` jobs | BulletinScreenshotTest pins chip + line; TodayViewModelTest adds the live announcement and ack case |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e` | itinerary live case extended with revision 2 + Communication check; see the CI row |
+
+Facts established by tests: see the engineering doc.
+
+Built:
+- Contracts: `AnnouncementKind`, `RevisionChange`, `RevisionSummary`; `Announcement.kind` and `.revision`;
+  `AnnouncementTranslation.provider` gains `system`; `PublishItineraryRequest.notify` and `.note`;
+  `PublishItineraryResponse { itinerary, announcementId, diff }`.
+- OrgDO schema v9 (`itinerary_revisions.diff`, `announcements.kind`, `announcements.revision`);
+  `diffRevisions`, `composeRevisionBody`; `publishItinerary` stores the diff and opens the announcement under
+  the notify / revision ≥ 2 / non-empty / today-or-later rule; the publish route decides "today" in the
+  trip's zone and the body locale from the organization's default locale.
+- Console: notify checkbox and note on the live editor, publish status line, revision chip + change lines on
+  Communication; captures `itinerary-live.png`, `communication-live.png` refreshed.
+- Core: `RevisionSummaryDto`, `changeLinesOf`, `AnnouncementItem.isRevision`; fixture gains a revision item.
+  Android: Bulletin chip + lines; Today takes the announcement card from the live feed and posts acks.
+  iOS: Bulletin chip + lines from the fixture.
+
+Deviations found while building:
+- Biome reformatting wrapped the `publishItinerary` signature mid-edit; anchored text edits were redone by
+  range. Two unit tests that matched "Who has not?" page-wide now scope to one announcement.
+- Stale flags fixed in `feature-status.json`: `incident.card`, `headcount.missing-list`,
+  `ai.broadcast-translation` were built in slices 012–015 but still read `deferred`.
+
+Not done: the side-by-side revision history page, iOS live Today and announcements, nudge pushes for
+unacknowledged revisions (notification lanes), disruption drafts.

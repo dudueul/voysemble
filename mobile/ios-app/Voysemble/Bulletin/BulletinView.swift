@@ -23,8 +23,17 @@ struct BulletinView: View {
             ForEach(model.feed.items, id: \.id) { a in
                 VStack(alignment: .leading, spacing: 6) {
                     Text("\(a.author) · \(a.publishedAt)").font(.caption).foregroundStyle(.secondary)
+                    if a.isRevision {
+                        Label("Itinerary update · rev \(a.revisionNumber.map { "\($0)" } ?? "?")", systemImage: "calendar").font(.caption.bold()).foregroundStyle(.blue)
+                    }
                     Text(a.title).font(.headline)
                     Text(a.body)
+                    if !a.changeLines.isEmpty {
+                        VStack(alignment: .leading, spacing: 2) {
+                            ForEach(Array(a.changeLines.prefix(10)), id: \.self) { line in Text("• \(line)").font(.subheadline) }
+                            if a.changeLines.count > 10 { Text("and \(a.changeLines.count - 10) more").font(.caption).foregroundStyle(.secondary) }
+                        }
+                    }
                     if let t = a.machineTranslation {
                         VStack(alignment: .leading, spacing: 2) {
                             Label(a.translationLabel ?? "Machine translation", systemImage: "character.book.closed").font(.caption).foregroundStyle(.secondary)

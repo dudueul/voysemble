@@ -11,6 +11,7 @@ import { FROZEN_NOW } from '../../fixtures/korea-concert-tour';
 import { channels } from '../../fixtures/sections';
 import { ApiError } from '../../lib/api-client';
 import { relativeTo } from '../../lib/format';
+import { changeLines } from '../../lib/itinerary-api';
 import {
   ackStatusQuery,
   announcements as announcementsApi,
@@ -63,7 +64,19 @@ function AnnouncementRow({ orgId, tripId, a }: { orgId: string; tripId: string; 
           })}
         </span>
       </div>
-      <p className="ann__body">{a.body}</p>
+      {a.kind === 'itinerary_revision' && a.revision ? (
+        <span className="chip chip--scheduled" data-testid={`revision-chip-${a.id}`}>
+          {s.revisionChip(a.revision.revision)}
+        </span>
+      ) : null}
+      <p className="ann__body ann__body--pre">{a.body}</p>
+      {a.kind === 'itinerary_revision' && a.revision && a.revision.changes.length > 0 ? (
+        <ul className="ann__changes" data-testid={`changes-${a.id}`}>
+          {changeLines(a.revision).map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      ) : null}
       {a.translation ? (
         <div className="ann__translation" data-testid={`translation-${a.id}`}>
           <span className="muted small">

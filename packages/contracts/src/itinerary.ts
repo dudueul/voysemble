@@ -6,6 +6,7 @@
 // the day's zone; the server never converts them (doc 01 §13.5).
 
 import { z } from '@hono/zod-openapi';
+import { RevisionSummary } from './announcement';
 import { CalendarDate, Id, Timestamp } from './common';
 import { TimeZone } from './trip';
 
@@ -76,9 +77,26 @@ export const PublishItineraryRequest = z
   .object({
     /** The revision the editor was looking at; a mismatch is a 409 (someone published first). */
     expectedRevision: z.number().int().min(0),
+    /**
+     * Open a required-ack announcement with the diff (D19). Ignored for revision 1 and for diffs
+     * that touch only past days. Default on; "publish quietly" sends false.
+     */
+    notify: z.boolean().default(true),
+    /** Organizer's note appended to the announcement body, in their own words. */
+    note: z.string().trim().max(500).nullable().default(null),
   })
   .openapi('PublishItineraryRequest');
 export type PublishItineraryRequest = z.infer<typeof PublishItineraryRequest>;
+
+export const PublishItineraryResponse = z
+  .object({
+    itinerary: Itinerary,
+    /** The announcement opened for this revision, or null (quiet, revision 1, nothing current). */
+    announcementId: z.uuid().nullable(),
+    diff: RevisionSummary,
+  })
+  .openapi('PublishItineraryResponse');
+export type PublishItineraryResponse = z.infer<typeof PublishItineraryResponse>;
 
 /* ---------- Leader change proposals (D24, slice 018) ---------- */
 

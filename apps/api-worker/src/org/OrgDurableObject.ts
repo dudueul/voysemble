@@ -25,6 +25,8 @@ import type {
   ItineraryEventInput,
   ItineraryProposal,
   Participation,
+  RevisionChange,
+  RevisionSummary,
   Trip,
   TripRole,
 } from '@voysemble/contracts';
@@ -219,6 +221,15 @@ const MIGRATIONS: { version: number; sql: string }[] = [
       CREATE INDEX IF NOT EXISTS itinerary_proposals_trip_idx ON itinerary_proposals(trip_id, status, proposed_at);
     `,
   },
+  {
+    // Slice 020: revision diffs and the system announcements that carry them (D19).
+    version: 9,
+    sql: `
+      ALTER TABLE itinerary_revisions ADD COLUMN diff TEXT;
+      ALTER TABLE announcements ADD COLUMN kind TEXT NOT NULL DEFAULT 'announcement';
+      ALTER TABLE announcements ADD COLUMN revision INTEGER;
+    `,
+  },
 ];
 
 type ProposalRow = {
@@ -262,7 +273,122 @@ type RevisionRow = {
   published_at: string;
   published_by_name: string;
   snapshot: string;
+  diff: string | null;
 };
+
+const DIFF_FIELDS = [
+  'date',
+  'start',
+  'end',
+  'title',
+  'place',
+  'kind',
+  'status',
+  'note',
+  'pax',
+] as const;
+
+/** Added, removed, and changed events between two snapshots, ordered by date then start. */
+export function diffRevisions(
+  previous: ItineraryEvent[],
+  next: ItineraryEvent[],
+  dayOf: (date: string) => number,
+): Omit<RevisionSummary, 'revision' | 'fromRevision'> {
+  const before = new Map(previous.map((e) => [e.id, e]));
+  const after = new Map(next.map((e) => [e.id, e]));
+  const changes: RevisionChange[] = [];
+  for (const e of next) {
+    const was = before.get(e.id);
+    if (!was) {
+      changes.push({
+        kind: 'added',
+        eventId: e.id,
+        date: e.date,
+        day: dayOf(e.date),
+        title: e.title,
+        start: e.start,
+        fields: [],
+        previousStart: null,
+      });
+      continue;
+    }
+    const fields = DIFF_FIELDS.filter((f) => (was[f] ?? null) !== (e[f] ?? null));
+    if (fields.length > 0) {
+      changes.push({
+        kind: 'changed',
+        eventId: e.id,
+        date: e.date,
+        day: dayOf(e.date),
+        title: e.title,
+        start: e.start,
+        fields: [...fields],
+        previousStart: was.start !== e.start ? was.start : null,
+      });
+    }
+  }
+  for (const e of previous) {
+    if (!after.has(e.id)) {
+      changes.push({
+        kind: 'removed',
+        eventId: e.id,
+        date: e.date,
+        day: dayOf(e.date),
+        title: e.title,
+        start: e.start,
+        fields: [],
+        previousStart: null,
+      });
+    }
+  }
+  changes.sort((a, b) => a.date.localeCompare(b.date) || a.start.localeCompare(b.start));
+  return {
+    added: changes.filter((c) => c.kind === 'added').length,
+    changed: changes.filter((c) => c.kind === 'changed').length,
+    removed: changes.filter((c) => c.kind === 'removed').length,
+    changes: changes.slice(0, 50),
+  };
+}
+
+/** Fixed EN and KO sentences for the revision announcement (D19); never paraphrased by AI. */
+export function composeRevisionBody(
+  summary: Omit<RevisionSummary, 'revision' | 'fromRevision'>,
+  note: string | null,
+): { title: { en: string; ko: string }; en: string; ko: string } {
+  const n = summary.added + summary.changed + summary.removed;
+  const lineEn = (c: RevisionChange): string => {
+    const where = `Day ${c.day}`;
+    if (c.kind === 'added') return `${where}: ${c.title} added at ${c.start}.`;
+    if (c.kind === 'removed') return `${where}: ${c.title} removed.`;
+    return c.previousStart
+      ? `${where}: ${c.title} now ${c.start} (was ${c.previousStart}).`
+      : `${where}: ${c.title} changed (${c.fields.join(', ')}).`;
+  };
+  const lineKo = (c: RevisionChange): string => {
+    const where = `${c.day}일차`;
+    if (c.kind === 'added') return `${where}: ${c.title} ${c.start}에 추가되었습니다.`;
+    if (c.kind === 'removed') return `${where}: ${c.title} 일정이 취소되었습니다.`;
+    return c.previousStart
+      ? `${where}: ${c.title} ${c.previousStart}에서 ${c.start}로 변경되었습니다.`
+      : `${where}: ${c.title} 내용이 변경되었습니다 (${c.fields.join(', ')}).`;
+  };
+  const shown = summary.changes.slice(0, 10);
+  const more = n - shown.length;
+  const en = [
+    `The itinerary was updated: ${n} change${n === 1 ? '' : 's'}.`,
+    ...shown.map(lineEn),
+    ...(more > 0 ? [`And ${more} more.`] : []),
+    ...(note ? [`Note from the organizer: ${note}`] : []),
+    'Please tap "Got it" so your leader knows you have seen this.',
+  ].join('\n');
+  const ko = [
+    `일정이 변경되었습니다: 변경 ${n}건.`,
+    ...shown.map(lineKo),
+    ...(more > 0 ? [`그 외 ${more}건.`] : []),
+    ...(note ? [`주최자 메모: ${note}`] : []),
+    '확인하셨으면 "확인" 버튼을 눌러 주세요.',
+  ].join('\n');
+  return { title: { en: 'Itinerary updated', ko: '일정 변경 안내' }, en, ko };
+}
 
 /** An `add` proposal must carry every field the draft row needs. */
 function isCompleteEvent(patch: ItineraryProposal['patch']): patch is ItineraryEventInput {
@@ -396,12 +522,14 @@ type AnnouncementRow = {
   translated_locale: string | null;
   translation_provider: string | null;
   translation_edited_by: string | null;
+  kind: string;
+  revision: number | null;
 };
 
 export type TranslationInput = {
   locale: 'ko' | 'en';
   body: string;
-  provider: 'machine' | 'edited';
+  provider: 'machine' | 'edited' | 'system';
   editedBy: string | null;
 };
 
@@ -756,10 +884,37 @@ export class OrgDurableObject extends DurableObject<Env> {
           ? {
               locale: r.translated_locale as 'ko' | 'en',
               body: r.translated_body,
-              provider: r.translation_provider as 'machine' | 'edited',
+              provider: r.translation_provider as 'machine' | 'edited' | 'system',
               editedBy: r.translation_edited_by,
             }
           : null,
+      kind: r.kind === 'itinerary_revision' ? 'itinerary_revision' : 'announcement',
+      revision:
+        r.kind === 'itinerary_revision' && r.revision !== null
+          ? this.revisionSummary(r.trip_id, r.revision)
+          : null,
+    };
+  }
+
+  /** The stored diff of a revision, or an empty summary when none was recorded. */
+  private revisionSummary(tripId: string, revision: number): RevisionSummary {
+    const row = this.ctx.storage.sql
+      .exec<RevisionRow>(
+        'SELECT * FROM itinerary_revisions WHERE trip_id = ? AND revision = ?',
+        tripId,
+        revision,
+      )
+      .toArray()[0];
+    const stored = row?.diff
+      ? (JSON.parse(row.diff) as Omit<RevisionSummary, 'revision' | 'fromRevision'>)
+      : null;
+    return {
+      revision,
+      fromRevision: Math.max(0, revision - 1),
+      added: stored?.added ?? 0,
+      changed: stored?.changed ?? 0,
+      removed: stored?.removed ?? 0,
+      changes: stored?.changes ?? [],
     };
   }
 
@@ -773,6 +928,8 @@ export class OrgDurableObject extends DurableObject<Env> {
     authorName: string;
     /** Computed by the Worker through the AI port before the row exists; null = none. */
     translation: TranslationInput | null;
+    kind?: 'announcement' | 'itinerary_revision';
+    revision?: number | null;
   }): Promise<Announcement> {
     this.requireOrg();
     if (!(await this.getTrip(input.tripId))) throw new Error('trip not found');
@@ -790,12 +947,14 @@ export class OrgDurableObject extends DurableObject<Env> {
       translated_locale: input.translation?.locale ?? null,
       translation_provider: input.translation?.provider ?? null,
       translation_edited_by: input.translation?.editedBy ?? null,
+      kind: input.kind ?? 'announcement',
+      revision: input.revision ?? null,
     };
     this.ctx.storage.sql.exec(
       `INSERT INTO announcements
         (id, trip_id, title, body, requires_ack, shared_with_guardians, author_participation_id, author_name, published_at,
-         translated_body, translated_locale, translation_provider, translation_edited_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         translated_body, translated_locale, translation_provider, translation_edited_by, kind, revision)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       row.id,
       row.trip_id,
       row.title,
@@ -809,6 +968,8 @@ export class OrgDurableObject extends DurableObject<Env> {
       row.translated_locale,
       row.translation_provider,
       row.translation_edited_by,
+      row.kind,
+      row.revision,
     );
     return this.announcementFromRow(row, input.authorParticipationId);
   }
@@ -1500,8 +1661,20 @@ export class OrgDurableObject extends DurableObject<Env> {
     tripId: string,
     expectedRevision: number,
     byName: string,
+    options: {
+      /** Open the required-ack announcement (D19) when the diff touches `today` or later. */
+      notify: boolean;
+      note: string | null;
+      /** Today's calendar date in the trip's zone, decided by the Worker. */
+      today: string;
+      /** The organization's default locale picks the primary body; the other is the translation. */
+      locale: 'ko' | 'en';
+    } = { notify: false, note: null, today: '0000-00-00', locale: 'en' },
   ): Promise<
-    { itinerary: Itinerary } | { conflict: number } | { notFound: true } | { nothing: true }
+    | { itinerary: Itinerary; announcementId: string | null; diff: RevisionSummary }
+    | { conflict: number }
+    | { notFound: true }
+    | { nothing: true }
   > {
     this.requireOrg();
     const current = await this.getItinerary(tripId, 'draft');
@@ -1510,20 +1683,58 @@ export class OrgDurableObject extends DurableObject<Env> {
     if (current.unpublished === 0 && current.revision > 0) return { nothing: true };
     const next = current.revision + 1;
     const published = current.events.map((e) => ({ ...e, published: true }));
+    const previous = this.latestRevision(tripId);
+    const previousEvents: ItineraryEvent[] = previous
+      ? (JSON.parse(previous.snapshot) as ItineraryEvent[])
+      : [];
+    const dayIndex = new Map(current.days.map((d, i) => [d.date, i + 1]));
+    const summary = diffRevisions(previousEvents, published, (date) => dayIndex.get(date) ?? 0);
     const sql = this.ctx.storage.sql;
     this.ctx.storage.transactionSync(() => {
       sql.exec(
-        'INSERT INTO itinerary_revisions (trip_id, revision, published_at, published_by_name, snapshot) VALUES (?, ?, ?, ?, ?)',
+        'INSERT INTO itinerary_revisions (trip_id, revision, published_at, published_by_name, snapshot, diff) VALUES (?, ?, ?, ?, ?, ?)',
         tripId,
         next,
         nowIso(),
         byName,
         JSON.stringify(published),
+        JSON.stringify(summary),
       );
       sql.exec('UPDATE itinerary_events SET published = 1 WHERE trip_id = ?', tripId);
     });
+    // D19: everyone gets the diff with a required ack. Not for the first publish (the plan itself),
+    // not when the organizer publishes quietly, and not when only past days changed.
+    const touchesCurrentDays = summary.changes.some((c) => c.date >= options.today);
+    let announcementId: string | null = null;
+    if (options.notify && next >= 2 && summary.changes.length > 0 && touchesCurrentDays) {
+      const body = composeRevisionBody(summary, options.note);
+      const primary = options.locale === 'ko' ? body.ko : body.en;
+      const other = options.locale === 'ko' ? body.en : body.ko;
+      const created = await this.createAnnouncement({
+        tripId,
+        title: options.locale === 'ko' ? body.title.ko : body.title.en,
+        body: primary,
+        requiresAck: true,
+        sharedWithGuardians: true,
+        authorParticipationId: null,
+        authorName: byName,
+        translation: {
+          locale: options.locale === 'ko' ? 'en' : 'ko',
+          body: other,
+          provider: 'system',
+          editedBy: null,
+        },
+        kind: 'itinerary_revision',
+        revision: next,
+      });
+      announcementId = created.id;
+    }
     const itinerary = await this.getItinerary(tripId, 'draft');
-    return { itinerary: itinerary as Itinerary };
+    return {
+      itinerary: itinerary as Itinerary,
+      announcementId,
+      diff: { revision: next, fromRevision: next - 1, ...summary },
+    };
   }
 
   /* ---------- Leader change proposals (slice 018) ---------- */

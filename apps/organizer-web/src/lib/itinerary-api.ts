@@ -9,6 +9,8 @@ import type {
   ItineraryEventInput,
   ItineraryProposal,
   ProposalList,
+  PublishItineraryResponse,
+  RevisionSummary,
 } from '@voysemble/contracts';
 import { type Itinerary, type ItineraryEvent, itineraryFixture } from '../fixtures/itinerary';
 import { api } from './api-client';
@@ -94,14 +96,36 @@ export const itineraryApi = {
     api<undefined>(`/v1/orgs/${orgId}/trips/${tripId}/itinerary/events/${id}`, {
       method: 'DELETE',
     }),
-  publish: async (orgId: string, tripId: string, expectedRevision: number) =>
-    fromApiItinerary(
-      await api<ApiItinerary>(`/v1/orgs/${orgId}/trips/${tripId}/itinerary/publish`, {
-        method: 'POST',
-        body: { expectedRevision },
-      }),
-    ),
+  /** Publish; `notify` opens the required-ack revision announcement (D19), `note` rides in its body. */
+  publish: async (
+    orgId: string,
+    tripId: string,
+    expectedRevision: number,
+    options: { notify: boolean; note: string | null } = { notify: true, note: null },
+  ): Promise<{ itinerary: Itinerary; announcementId: string | null; diff: RevisionSummary }> => {
+    const r = await api<PublishItineraryResponse>(
+      `/v1/orgs/${orgId}/trips/${tripId}/itinerary/publish`,
+      { method: 'POST', body: { expectedRevision, notify: options.notify, note: options.note } },
+    );
+    return {
+      itinerary: fromApiItinerary(r.itinerary),
+      announcementId: r.announcementId,
+      diff: r.diff,
+    };
+  },
 };
+
+/** "Day 4 · Colosseum guided tour · 09:00 → 08:30" lines for a revision summary. */
+export function changeLines(summary: RevisionSummary): string[] {
+  return summary.changes.map((c) => {
+    const head = `Day ${c.day} · ${c.title}`;
+    if (c.kind === 'added') return `${head} · added ${c.start}`;
+    if (c.kind === 'removed') return `${head} · removed`;
+    return c.previousStart
+      ? `${head} · ${c.previousStart} → ${c.start}`
+      : `${head} · ${c.fields.join(', ')} changed`;
+  });
+}
 
 /* ---------- Leader change proposals (slice 018) ---------- */
 

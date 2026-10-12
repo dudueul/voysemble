@@ -26,7 +26,15 @@ public data class AnnouncementItem(
     val translationLocale: String? = null,
     /** Set when a bilingual staff member replaced the machine text (label "edited by"). */
     val translationEditedBy: String? = null,
+    /** "announcement" or "itinerary_revision" (slice 020, D19). */
+    val kind: String = "announcement",
+    /** The published revision an `itinerary_revision` announcement carries. */
+    val revisionNumber: Int? = null,
+    /** Rendered diff lines ("Day 4 · Colosseum · 09:00 → 08:30"); empty for ordinary items. */
+    val changeLines: List<String> = emptyList(),
 ) {
+    public val isRevision: Boolean get() = kind == "itinerary_revision"
+
     /** Label shown above the translation block, in the reader's UI language (EN strings for now). */
     public val translationLabel: String?
         get() = machineTranslation?.let {

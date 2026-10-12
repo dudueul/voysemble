@@ -76,4 +76,25 @@ class AnnouncementsSyncTest {
         assertEquals(listOf("a9"), replay.feed.outbox)
         assertEquals("""{"ackedAtDevice":"2026-12-31T05:50:00.000Z"}""", body)
     }
+
+    @Test
+    fun revision_announcement_maps_to_change_lines() = runTest {
+        val json = """
+            {"announcements":[
+              {"id":"r2","tripId":"t","title":"Itinerary updated","body":"The itinerary was updated: 3 changes.","requiresAck":true,"sharedWithGuardians":true,"authorName":"Organizer","publishedAt":"2026-12-30T22:10:00.000Z","ackTotal":4,"ackCount":0,"myAck":"unacknowledged","translation":null,"kind":"itinerary_revision",
+               "revision":{"revision":2,"fromRevision":1,"added":1,"changed":1,"removed":1,"changes":[
+                 {"kind":"changed","eventId":"a","date":"2026-12-31","day":4,"title":"Colosseum","start":"08:30","fields":["start"],"previousStart":"09:00"},
+                 {"kind":"added","eventId":"b","date":"2026-12-31","day":4,"title":"Gelato stop","start":"11:15","fields":[],"previousStart":null},
+                 {"kind":"removed","eventId":"c","date":"2027-01-01","day":5,"title":"Lunch","start":"12:00","fields":[],"previousStart":null}]}}
+            ]}
+        """.trimIndent()
+        val engine = MockEngine { respond(json, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json")) }
+        val ok = assertIs<ApiResult.Ok<AnnouncementListDto>>(ApiClient(config, engine).listAnnouncements("o", "t"))
+        val merged = mergeAnnouncements(AnnouncementFeed(emptyList(), emptyList(), false), ok.value.announcements) { it.substring(11, 16) }
+        val item = merged.items.single()
+        assertEquals(true, item.isRevision)
+        assertEquals(2, item.revisionNumber)
+        assertEquals(listOf("Day 4 · Colosseum · 09:00 → 08:30", "Day 4 · Gelato stop · added 11:15", "Day 5 · Lunch · removed"), item.changeLines)
+        assertEquals(AckState.UNACKNOWLEDGED, item.ack)
+    }
 }

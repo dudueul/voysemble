@@ -168,6 +168,7 @@ export const strings = {
     noTripSubtitle: 'Announcements go to the active trip',
     noTrip: 'Create an organization and a trip first.',
     empty: 'No announcements yet. Publish the first one below.',
+    revisionChip: (n: number) => `Itinerary update · revision ${n}`,
     whoHasNot: 'Who has not?',
     everyoneAcked: 'Everyone acknowledged.',
     statusFailed: 'Could not load the list.',
@@ -439,6 +440,12 @@ export const strings = {
     proposedBy: (by: string, when: string) => `${by} · ${when}`,
     proposalDecided: (status: string, by: string) => `${status} by ${by}`,
     decideFailed: 'Could not decide the proposal.',
+    notify: 'Notify travelers (acknowledgment required)',
+    publishNote: 'Note for travelers (optional)',
+    published: (revision: number, changes: number, notified: boolean) =>
+      `Revision ${revision} published · ${changes} change${changes === 1 ? '' : 's'}${
+        notified ? ' · travelers notified' : ' · quiet'
+      }`,
     saveFailed: 'A change could not be saved. It will be retried on your next edit.',
     publishFailed: 'Publishing failed. Reload and try again.',
   },

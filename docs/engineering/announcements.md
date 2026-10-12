@@ -37,7 +37,17 @@ Communication page: announcements list for the active organization's first trip,
 `requiresAck` and `sharedWithGuardians`, ack meter per item, "Who has not?" loads the unacked
 names on demand. Channels remain a fixture with their own "Sample data" chip (D22, chat slice).
 
+## System announcements: itinerary revisions (slice 020)
+
+Schema version 9 adds `kind` (`announcement` | `itinerary_revision`) and `revision` to
+`announcements`. A publish of revision 2 or later that touches today or a later day opens one
+required-ack, guardian-shared announcement of kind `itinerary_revision` whose `revision` field
+carries the structured `RevisionSummary` (read from `itinerary_revisions.diff`). The body is
+fixed EN/KO template text; the other language is stored as a translation with
+`provider: system`. Rules, templates, and rendering: `docs/engineering/itinerary.md`
+(slice 020 section).
+
 ## Not yet
 
-Machine translation of the body (Workers AI, D16), scheduled nudge pushes, revision diffs as
-announcements (D19), per-announcement audience beyond the guardian flag.
+Scheduled nudge pushes, per-announcement audience beyond the guardian flag. Machine translation
+of the body landed in slice 015 (`docs/engineering/translation.md`).

@@ -105,8 +105,108 @@ Clearing a field from the phone is therefore not possible this slice; the consol
 - Android: live propose posts the edit with the new start and note and lands on "sent"; a 403
   reads as the safe message; sample mode reports sent without a call.
 
+## Revision diff with required ack (slice 020, D19)
+
+Every publish from revision 2 on is compared with the previous snapshot and, unless the
+organizer publishes quietly, announced to the trip with a required ack. The announcement is the
+vehicle (D16 ack duty, escalation list, guardian copy) so nothing new had to be built on the
+phone for delivery; only the rendering of the structured change lines is new.
+
+### Storage (schema version 9)
+
+| Change | Purpose |
+|---|---|
+| `itinerary_revisions.diff` (JSON, nullable) | The `RevisionSummary` computed at publish time: counts of added, changed, removed events and up to 50 `RevisionChange` lines. Revision 1 stores every event as "added". Rows published before this slice have `NULL` and read back as no changes. |
+| `announcements.kind` (`announcement` \| `itinerary_revision`, default `announcement`) | Marks the system announcement so clients can render the chip and change lines. |
+| `announcements.revision` (nullable integer) | The revision the announcement describes; the summary is read from the revision row on every list call, never copied. |
+
+### The diff (`diffRevisions`)
+
+Events are matched by id. An id only in the new snapshot is `added`, only in the old one is
+`removed`, and in both with a different `date`, `start`, `end`, `title`, `place`, `kind`,
+`status`, `note`, or `pax` is `changed` with the list of differing `fields` and `previousStart`
+when the start moved. Lines are ordered by date then start and capped at 50; the counts are
+not capped. `day` is the 1-based day number within the trip (0 when the date fell outside the
+trip's days).
+
+### The announcement rule
+
+`POST .../itinerary/publish` now takes `{ expectedRevision, notify = true, note = null }` and
+returns `{ itinerary, announcementId, diff }`. The Worker decides "today" in the trip's time
+zone and passes the organization's default locale. The announcement opens only when all of
+these hold:
+
+1. `notify` is true (the organizer can untick "Notify travelers" for a quiet publish, typically
+   a typo fix);
+2. the new revision is 2 or later (revision 1 is the plan itself, not a change);
+3. the diff has at least one change;
+4. at least one change is dated today or later in the trip's zone. A diff that only touches past
+   days (cleaning up yesterday) is stored for the history view but stays silent.
+
+When it opens, `createAnnouncement` is called with `requiresAck: true`,
+`sharedWithGuardians: true` (D13: the guardian sees the same safe summary), `authorName` =
+the publishing organizer, `kind: itinerary_revision`, and `revision` = the new number. The
+primary body is in the organization's default locale and the other language rides as the
+translation with `provider: 'system'` (the translation editor treats it like an edited text,
+never re-translates it). The text is fixed template sentences from `composeRevisionBody`;
+Workers AI is never asked to paraphrase a change of plan.
+
+| Case | English line | Korean line |
+|---|---|---|
+| start moved | `Day 4: Colosseum guided tour now 08:30 (was 09:00).` | `4일차: Colosseum guided tour 09:00에서 08:30로 변경되었습니다.` |
+| other field(s) | `Day 4: Colosseum guided tour changed (place, note).` | `4일차: Colosseum guided tour 내용이 변경되었습니다 (place, note).` |
+| added | `Day 5: Aperitivo added at 18:30.` | `5일차: Aperitivo 18:30에 추가되었습니다.` |
+| removed | `Day 5: Free time removed.` | `5일차: Free time 일정이 취소되었습니다.` |
+
+The body opens with "The itinerary was updated: N changes." / "일정이 변경되었습니다: 변경 N건.",
+lists at most 10 lines then "And N more." / "그 외 N건.", appends "Note from the organizer: …" /
+"주최자 메모: …" when a note was given, and closes with the ack prompt. Titles are "Itinerary
+updated" / "일정 변경 안내".
+
+### Console
+
+The live editor gains a "Notify travelers" checkbox (on by default) and a "Note for travelers
+(optional)" field next to Publish. After a publish the status line reads
+"Revision 2 published · 1 change · travelers notified", or "· quiet" when no announcement
+opened (notify off, revision 1, no changes, or past days only).
+Communication renders a revision announcement with an "Itinerary update · revision N" chip, the
+body with its line breaks, and the structured lines from the summary
+("Day 1 · Group check-in · 09:00 → 08:30", "· added 11:15", "· removed", "· place, note
+changed") so the organizer sees the same list travelers see. The ack meter and "Who has not?"
+work unchanged because it is an ordinary required-ack announcement.
+
+### Phone
+
+Core `AnnouncementDto` carries `kind` and `revision` (`RevisionSummaryDto`); `changeLinesOf`
+renders the same lines as the console; `mergeAnnouncements` maps them onto `AnnouncementItem`
+(`kind`, `revisionNumber`, `changeLines`, `isRevision`). Bulletin (Android and iOS) shows the
+chip "Itinerary update · rev N" and the lines as a bulleted list, collapsing after 10. Android
+Today now takes its announcement card from the live feed: the latest required-ack announcement,
+unacknowledged first, so a revision lands on the first screen the traveler opens; "Got it"
+posts the ack through `ApiClient.ackAnnouncement` and the card flips to acknowledged. iOS Today
+keeps its fixture card.
+
+### Facts established by tests (slice 020)
+
+- Worker: with a Korean organization, moving one event, editing another's place and note, and
+  adding a third at revision 2 opens one announcement with a KO body of three numbered lines and
+  the organizer's note, an EN translation with `provider: system`, `kind: itinerary_revision`,
+  `revision: 2`, `requiresAck`, `sharedWithGuardians`; a guardian lists it; a traveler's ack
+  counts; a revision that only changes a past day opens nothing; `notify: false` opens nothing
+  while the revision still advances and the diff is returned.
+- Console unit: `changeLines` spells out moved, added, removed and field-only changes; a
+  revision item renders the chip and lines; "Who has not?" and the waiting count are scoped
+  per announcement.
+- Browser: publishing revision 2 with the start moved to 08:30 and a note reads "Revision 2
+  published · 1 change · travelers notified"; Communication shows the chip, the line
+  "Day 1 · Group check-in · 09:00 → 08:30", the note, and 0/0 acks (no travelers yet).
+- Core: a server revision announcement maps to `isRevision`, `revisionNumber`, and three lines.
+- Android: Bulletin screenshot test pins the chip and the first line; Today picks the
+  unacknowledged required-ack announcement from the live feed and "Got it" posts to the ack
+  route.
+
 ## Not done
 
-Day labels, proposing from iOS, add and remove proposals from the phone, the revision diff view
-with required ack (D19), disruption drafts (D19 AI), iOS live Today, announcements and head
-counts on the live Today.
+Day labels, proposing from iOS, add and remove proposals from the phone, the side-by-side
+revision history view in the console (the stored diffs make it a read-only page), disruption
+drafts (D19 AI), iOS live Today and iOS live announcements, head counts on the live Today.

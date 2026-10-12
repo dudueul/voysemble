@@ -28,7 +28,44 @@ public data class AnnouncementDto(
     val myAck: String,
     /** Server-side KO<->EN translation (slice 015); null when none exists. */
     val translation: AnnouncementTranslationDto? = null,
+    /** "announcement" | "itinerary_revision" (slice 020). */
+    val kind: String = "announcement",
+    /** The diff behind an itinerary_revision announcement; null otherwise. */
+    val revision: RevisionSummaryDto? = null,
 )
+
+@Serializable
+public data class RevisionChangeDto(
+    /** added | changed | removed */
+    val kind: String,
+    val eventId: String,
+    val date: String,
+    val day: Int,
+    val title: String,
+    val start: String,
+    val fields: List<String> = emptyList(),
+    val previousStart: String? = null,
+)
+
+@Serializable
+public data class RevisionSummaryDto(
+    val revision: Int,
+    val fromRevision: Int,
+    val added: Int,
+    val changed: Int,
+    val removed: Int,
+    val changes: List<RevisionChangeDto> = emptyList(),
+)
+
+/** Same wording as the console: "Day 4 · Colosseum · 09:00 → 08:30". */
+public fun changeLinesOf(summary: RevisionSummaryDto): List<String> = summary.changes.map { c ->
+    val head = "Day ${c.day} · ${c.title}"
+    when (c.kind) {
+        "added" -> "$head · added ${c.start}"
+        "removed" -> "$head · removed"
+        else -> if (c.previousStart != null) "$head · ${c.previousStart} → ${c.start}" else "$head · ${c.fields.joinToString(", ")} changed"
+    }
+}
 
 @Serializable
 public data class AnnouncementTranslationDto(
@@ -78,6 +115,9 @@ public fun mergeAnnouncements(
             machineTranslation = dto.translation?.body,
             translationLocale = dto.translation?.locale,
             translationEditedBy = dto.translation?.takeIf { it.provider == "edited" }?.editedBy,
+            kind = dto.kind,
+            revisionNumber = dto.revision?.revision,
+            changeLines = dto.revision?.let { changeLinesOf(it) } ?: emptyList(),
             author = dto.authorName,
             publishedAt = clock(dto.publishedAt),
             requiresAck = dto.requiresAck,

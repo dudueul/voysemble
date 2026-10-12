@@ -12,9 +12,13 @@ import com.voysemble.core.api.ApiResult
 import com.voysemble.core.api.CreateProposalRequestDto
 import com.voysemble.core.api.ProposalPatchDto
 import com.voysemble.core.fixtures.KoreaConcertTourFixture
+import com.voysemble.core.api.AnnouncementDto
 import com.voysemble.core.session.ActiveTrip
+import com.voysemble.core.today.AckState
+import com.voysemble.core.today.TodayAnnouncement
 import com.voysemble.core.today.TodaySnapshot
 import com.voysemble.core.today.acknowledgeAnnouncement
+import com.voysemble.core.today.confirmAcknowledgment
 import com.voysemble.core.today.todaySnapshotOf
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -59,8 +63,17 @@ class TodayViewModel(
     /** The first itinerary fetch (live mode); completed at once in sample mode. Tests await it. */
     val ready: Job = if (_state.value.live) refresh() else Job().also { it.complete() }
 
-    fun acknowledge(announcementId: String) {
+    /** Local first (PENDING); in live mode one ack POST confirms it (the bulletin outbox replays the rest). */
+    fun acknowledge(announcementId: String): Job {
         _state.update { it.copy(snapshot = it.snapshot.acknowledgeAnnouncement(announcementId)) }
+        val a = api ?: return Job().also { it.complete() }
+        val t = trip ?: return Job().also { it.complete() }
+        return viewModelScope.launch {
+            when (a.ackAnnouncement(t.organizationId, t.tripId, announcementId, java.time.Instant.now().toString())) {
+                is ApiResult.Ok -> _state.update { it.copy(snapshot = it.snapshot.confirmAcknowledgment(announcementId)) }
+                else -> Unit // stays PENDING; the Bulletin tab's outbox replay sends it later
+            }
+        }
     }
 
     fun selectTab(tab: MainTab) {
@@ -107,9 +120,17 @@ class TodayViewModel(
             when (val r = a.getItinerary(t.organizationId, t.tripId)) {
                 is ApiResult.Ok -> {
                     val zone = r.value.days.firstOrNull()?.timeZone ?: "UTC"
+                    // D19/D16: the latest required-ack announcement rides on Today; unacknowledged first.
+                    val latest = when (val list = a.listAnnouncements(t.organizationId, t.tripId)) {
+                        is ApiResult.Ok -> list.value.announcements.filter { it.requiresAck }
+                            .sortedWith(compareBy({ it.myAck == "acknowledged" }, { it.publishedAt }))
+                            .let { items -> items.firstOrNull { it.myAck != "acknowledged" } ?: items.maxByOrNull { it.publishedAt } }
+                        else -> null
+                    }
                     _state.update {
                         it.copy(
-                            snapshot = todaySnapshotOf(r.value, deviceDate(zone), deviceClock(zone), minutesSinceSync = 0),
+                            snapshot = todaySnapshotOf(r.value, deviceDate(zone), deviceClock(zone), minutesSinceSync = 0)
+                                .copy(announcement = latest?.let(::toTodayAnnouncement)),
                             syncing = false,
                         )
                     }
@@ -119,6 +140,17 @@ class TodayViewModel(
             }
         }
     }
+
+    private fun toTodayAnnouncement(dto: AnnouncementDto): TodayAnnouncement = TodayAnnouncement(
+        id = dto.id,
+        title = dto.title,
+        body = dto.body,
+        author = dto.authorName,
+        publishedAt = try { HH_MM.withZone(ZoneId.systemDefault()).format(java.time.Instant.parse(dto.publishedAt)) } catch (_: Exception) { dto.publishedAt },
+        acknowledgedCount = dto.ackCount,
+        totalCount = dto.ackTotal,
+        ack = if (dto.myAck == "acknowledged") AckState.ACKNOWLEDGED else AckState.UNACKNOWLEDGED,
+    )
 
     companion object {
         private val HH_MM: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")

@@ -21,6 +21,10 @@ export type ItineraryViewState =
       notice?: string | null;
       /** Live editors render the leader proposals panel above the grid (slice 018). */
       proposals?: ReactNode;
+      /** Live editors add the notify checkbox and note next to Publish (slice 020). */
+      publishControls?: ReactNode;
+      /** "Revision n published · 3 changes · travelers notified" after a live publish. */
+      status?: string | null;
     };
 
 export function ItineraryView({ state }: { state: ItineraryViewState }) {
@@ -83,6 +87,7 @@ export function ItineraryView({ state }: { state: ItineraryViewState }) {
           )}
           <span data-testid="revision">{strings.itinerary.revision(it.revision)}</span>
           <span data-testid="drafts">{strings.itinerary.drafts(drafts)}</span>
+          {state.publishControls ?? null}
           <button
             type="button"
             className="btn btn--primary"
@@ -100,6 +105,11 @@ export function ItineraryView({ state }: { state: ItineraryViewState }) {
           <Icons.alert />
           {state.notice}
         </div>
+      ) : null}
+      {state.status ? (
+        <p className="muted small" role="status" data-testid="publish-status">
+          {state.status}
+        </p>
       ) : null}
 
       {state.proposals ?? null}

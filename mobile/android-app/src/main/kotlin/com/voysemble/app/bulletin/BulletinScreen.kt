@@ -121,9 +121,21 @@ private fun AnnouncementRow(a: AnnouncementItem, onAcknowledge: (String) -> Unit
             if (a.sharedWithGuardians) LabelChip("Parents", c.info, AppIcons.People)
         }
         Spacer(Modifier.height(6.dp))
+        if (a.isRevision) {
+            LabelChip("Itinerary update · rev ${a.revisionNumber ?: "?"}", c.info, AppIcons.Plan)
+            Spacer(Modifier.height(4.dp))
+        }
         Text(a.title, style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(2.dp))
         Text(a.body, style = MaterialTheme.typography.bodyLarge)
+        if (a.changeLines.isNotEmpty()) {
+            // D19: the diff, line by line; a full re-plan collapses after ten lines.
+            Spacer(Modifier.height(6.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                a.changeLines.take(10).forEach { line -> Text("• $line", style = MaterialTheme.typography.bodyMedium) }
+                if (a.changeLines.size > 10) Text("and ${a.changeLines.size - 10} more", style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
+            }
+        }
         a.machineTranslation?.let { t ->
             Spacer(Modifier.height(8.dp))
             Column(

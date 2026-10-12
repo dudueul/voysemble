@@ -58,8 +58,38 @@ const ANN = {
     provider: 'machine',
     editedBy: null,
   },
+  kind: 'announcement',
+  revision: null,
 };
 
+const REV = {
+  ...ANN,
+  id: '88888888-8888-4888-8888-888888888888',
+  title: 'Itinerary updated',
+  body: 'The itinerary was updated: 1 change.\nDay 4: Colosseum now 08:30 (was 09:00).',
+  authorName: 'Organizer',
+  translation: null,
+  kind: 'itinerary_revision',
+  revision: {
+    revision: 2,
+    fromRevision: 1,
+    added: 0,
+    changed: 1,
+    removed: 0,
+    changes: [
+      {
+        kind: 'changed',
+        eventId: 'e',
+        date: '2026-12-31',
+        day: 4,
+        title: 'Colosseum',
+        start: '08:30',
+        fields: ['start'],
+        previousStart: '09:00',
+      },
+    ],
+  },
+};
 /** Fetch stub keyed by "METHOD path"; unknown paths answer 404 envelopes. */
 function stubApi(routes: Record<string, () => unknown>) {
   vi.stubGlobal(
@@ -124,7 +154,9 @@ describe('sample sections', () => {
     stubApi({
       'GET /v1/orgs': () => ({ organizations: [ORG] }),
       [`GET /v1/orgs/${ORG.id}/trips`]: () => ({ trips: [TRIP] }),
-      [`GET /v1/orgs/${ORG.id}/trips/${TRIP.id}/announcements`]: () => ({ announcements: [ANN] }),
+      [`GET /v1/orgs/${ORG.id}/trips/${TRIP.id}/announcements`]: () => ({
+        announcements: [ANN, REV],
+      }),
       [`GET /v1/orgs/${ORG.id}/trips/${TRIP.id}/announcements/${ANN.id}/acks`]: () => ({
         announcementId: ANN.id,
         acked: [],
@@ -140,13 +172,23 @@ describe('sample sections', () => {
     });
     renderWithQuery(<CommunicationPage />);
     await waitFor(() => expect(text(screen.getByTestId(`ack-${ANN.id}`))).toBe('36/38'));
+    expect(text(screen.getByTestId(`revision-chip-${REV.id}`))).toBe(
+      'Itinerary update · revision 2',
+    );
+    expect(text(screen.getByTestId(`changes-${REV.id}`))).toContain(
+      'Day 4 · Colosseum · 09:00 → 08:30',
+    );
     const tr = screen.getByTestId(`translation-${ANN.id}`);
     expect(text(tr)).toContain('Machine translation · 한국어');
     expect(text(tr)).toContain('로비. 버스는 07:15에 출발합니다.');
     expect(text(screen.getByRole('heading', { level: 1 }).parentElement)).toContain(
-      '1 announcement still waiting',
+      '2 announcements still waiting',
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Who has not?' }));
+    fireEvent.click(
+      within(screen.getByTestId(`announcement-${ANN.id}`)).getByRole('button', {
+        name: 'Who has not?',
+      }),
+    );
     await waitFor(() =>
       expect(text(screen.getByTestId(`unacked-${ANN.id}`))).toContain('Seojun Choi, Jiwoo Han'),
     );

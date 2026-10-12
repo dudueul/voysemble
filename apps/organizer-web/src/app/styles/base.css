@@ -2239,3 +2239,19 @@ fieldset.filters {
   gap: 8px;
   flex: 1 1 260px;
 }
+
+/* Slice 020: revision announcements and publish controls */
+.ann__body--pre {
+  white-space: pre-line;
+}
+.ann__changes {
+  margin: 4px 0 6px;
+  padding-left: 18px;
+  font-size: 0.9rem;
+}
+.publish-controls {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}

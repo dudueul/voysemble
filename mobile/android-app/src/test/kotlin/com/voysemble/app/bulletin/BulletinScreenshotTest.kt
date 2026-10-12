@@ -36,6 +36,8 @@ class BulletinScreenshotTest {
         compose.onNodeWithText("1 update needs your acknowledgment").assertExists()
         // Two of the three announcements carry a translation.
         compose.onAllNodesWithText("Machine translation · 한국어").assertCountEquals(2)
+        compose.onNodeWithText("Itinerary update · rev 7").assertExists()
+        compose.onNodeWithText("• Day 4 · Colosseum guided tour · 09:00 → 08:30").assertExists()
         compose.onRoot().captureRoboImage("$OUT/bulletin-light.png")
     }
 
