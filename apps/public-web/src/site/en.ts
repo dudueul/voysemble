@@ -204,6 +204,22 @@ export const en: SiteContent = {
               alt: 'The billing page: the trip license and the traveler fee ledger with paid, unpaid and refunded rows.',
             },
           },
+          {
+            id: 'settings',
+            title: 'Settings that match the decisions',
+            summary:
+              'Quiet hours and the guardian digest hour, the wrap-up window before a trip’s data is shredded, the organization’s language and time zone, and who is on the console. Each saved on the API, each starting from the decision’s default.',
+            details: [
+              'Only the owner changes them; organizers see the values and a hint. The member list shows every account with its role.',
+              'Required-ack announcements and head-count calls cross quiet hours; everything else waits for morning.',
+            ],
+            decision: ['D29', 'D20', 'D21'],
+            who: ['organizer'],
+            capture: {
+              file: 'settings-live',
+              alt: 'The Settings page: organization profile, notification rules, retention window and the members list, saved on the API.',
+            },
+          },
         ],
       },
       {
@@ -224,6 +240,19 @@ export const en: SiteContent = {
             who: ['traveler', 'leader', 'guardian'],
           },
           {
+            id: 'plan',
+            title: 'The whole plan in a pocket',
+            summary:
+              'Every day of the published itinerary on the phone, one day at a time, with the organizer’s labels. Leaders propose from any event: a new time, a removal, or a new event for the day.',
+            details: [
+              'The day picker opens on today; before departure it opens on day one.',
+              'An add proposal carries the whole event, so the organizer accepts it with one tap and publishes as usual.',
+              'Travelers and guardians read; leaders propose; the organizer decides on the console.',
+            ],
+            decision: ['D24'],
+            who: ['traveler', 'leader', 'guardian'],
+          },
+          {
             id: 'headcount',
             title: 'Head counts that close on the bus',
             summary:
@@ -233,9 +262,14 @@ export const en: SiteContent = {
               'One leader per group per head count, so there are no conflicts to resolve when the bus gets signal back.',
               'If someone is still missing at close, the head count closes with the names, the console tile turns amber, and an incident card opens by itself.',
               'The console shows every group’s latest count, short counts in amber, and the “checked in” total for the whole trip.',
+              'The console’s Safety page lists who is missing right now, per group, from the latest closed count.',
             ],
             decision: ['D14', 'D25'],
             who: ['leader', 'organizer', 'guardian'],
+            capture: {
+              file: 'safety-missing-live',
+              alt: 'The Safety page’s missing list: Bus A closed at 06:58 by Kim with one traveler missing, and the marks a leader can set.',
+            },
           },
           {
             id: 'announcements',
@@ -336,6 +370,10 @@ export const en: SiteContent = {
             ],
             decision: ['D22'],
             who: ['organizer', 'leader', 'traveler', 'guardian'],
+            capture: {
+              file: 'communication-chat',
+              alt: 'Communication: the guardian’s channel with the organizer, the thread and the composer.',
+            },
           },
           {
             id: 'disruption',
@@ -383,15 +421,16 @@ export const en: SiteContent = {
             id: 'reports',
             title: 'Reports and the person timeline',
             summary:
-              'Acknowledgment rates per announcement, head count duration per group, delays per day, incidents and how long they took to resolve. The same evidence the organizer used during the trip, summarized after it.',
+              'Acknowledgment rate per day, minutes to close the head count, open incidents and fees collected, derived from the facts the service already holds. The same evidence the organizer used during the trip, summarized after it.',
             details: [
               'Charts with a table view for every number, so a report to the school board or the parents’ association is a screenshot away.',
+              'A CSV export with a stable header, one row per trip day, for the spreadsheet the treasurer already keeps.',
             ],
             decision: ['D17'],
             who: ['organizer'],
             capture: {
-              file: 'reports',
-              alt: 'The Reports page with acknowledgment, head count and delay charts and a table view.',
+              file: 'reports-live',
+              alt: 'The live Reports page after one closed head count and one announcement: four tiles and two day charts.',
             },
           },
           {
@@ -421,78 +460,48 @@ export const en: SiteContent = {
     ],
   },
   phones: {
+    title: 'The phones, as they are',
+    lead: 'Real captures from the apps’ own test runs, not drawings: iPhone on iOS 26 with Liquid Glass and Android, in English and Korean.',
     caption:
-      'Illustrations drawn from the apps’ own screens and sample data (Korea Concert Tour, day 4 in Rome). Names are synthetic.',
-    today: {
-      screen: 'Today',
-      trip: 'Korea Concert Tour',
-      day: 'Day 4 · Thursday, Dec 31 · Rome',
-      now: '07:12',
-      live: 'Live',
-      upNext: 'Up next',
-      events: [
-        { time: '07:30', title: 'Breakfast', place: 'Hotel de la Ville, restaurant' },
-        {
-          time: '07:30',
-          title: 'Meet in the hotel lobby',
-          place: 'Moved from 07:00 by the tour leader',
-          status: 'Moved',
-        },
-        { time: '08:00', title: 'Bus A and Bus B depart', place: 'Via Sistina stop' },
-        { time: '09:00', title: 'Colosseum guided tour', place: 'Colosseum, main entrance' },
-        {
-          time: '17:30',
-          title: 'New Year concert rehearsal',
-          place: 'Venue access delayed 30 min',
-          status: 'Delayed',
-        },
-      ],
-      announcementTitle: 'Departure moved to 07:30',
-      announcementBody: 'Please bring your concert attire. Breakfast is open from 06:30.',
-      announcementMeta: 'Tour leader · 06:30 · 32 of 38 acknowledged',
-      gotIt: 'Got it',
-      headcount: 'Head count',
-      groups: [
-        { label: 'Bus A', count: '18 / 20' },
-        { label: 'Bus B', count: '16 / 18' },
-      ],
-    },
-    headcount: {
-      screen: 'Head count',
-      group: 'Bus A',
-      openedBy: 'Opened by Kim Daeun · 06:50',
-      present: '18 of 20 present',
-      missingTitle: 'Missing',
-      missing: [
-        {
-          name: 'Dohyun Kang',
-          room: 'Room 412',
-          lastAck: 'Last ack 06:47',
-          window: 'Outside window',
-        },
-        { name: 'Eunwoo Shin', room: 'Room 408', lastAck: 'No ack today', window: 'Stale' },
-      ],
-      actions: ['Call', 'Push: come to Bus A', 'Excused'],
-      close: 'Close head count',
-      pending: 'Closes offline · Pending sync until the server confirms',
-    },
-    bulletin: {
-      screen: 'Bulletin',
-      revisionChip: 'Itinerary update · rev 7',
-      revisionTitle: 'Itinerary updated',
-      lines: [
-        'Day 4 · Colosseum guided tour · 09:00 → 08:30',
-        'Day 4 · Gelato stop · added 11:15',
-        'Day 5 · Lunch · removed',
-      ],
-      acked: 'Acknowledged · 38 of 38',
-      itemTitle: 'Departure moved to 07:30',
-      itemBody: 'Please bring your concert attire. Breakfast is open from 06:30.',
-      translationLabel: 'Machine translation · 한국어',
-      translation: '공연 의상을 꼭 챙겨 주세요. 아침 식사는 06:30부터입니다.',
-      requiresAck: 'Requires acknowledgment · 32 of 38',
-      gotIt: 'Got it',
-    },
+      'Captured by the apps’ test suites on the iOS simulator and an Android emulator (Korea Concert Tour, day 4 in Rome). Names are synthetic.',
+    shots: [
+      {
+        platform: 'ios',
+        file: 'today-light',
+        alt: 'Today on iPhone: the up-next card with the meeting point, the announcement to acknowledge, the head count per group, the glass tab bar.',
+        label: 'Today on iPhone',
+      },
+      {
+        platform: 'ios',
+        file: 'plan-day',
+        alt: 'The Plan tab on iPhone: day pills, the concert day’s events, and the leader’s “Propose a change” on each.',
+        label: 'The Plan tab',
+      },
+      {
+        platform: 'android',
+        file: 'plan-day',
+        alt: 'The Plan tab on Android with the same day picker and events.',
+        label: 'The Plan tab on Android',
+      },
+      {
+        platform: 'ios',
+        file: 'today-ko',
+        alt: 'Today on iPhone in Korean.',
+        label: 'Today, in Korean',
+      },
+      {
+        platform: 'android',
+        file: 'headcount-open',
+        alt: 'An open head count on Android: Bus A, the missing list on top, one tap per name.',
+        label: 'Head count on Android',
+      },
+      {
+        platform: 'ios',
+        file: 'chats-thread-dark',
+        alt: 'A chat thread on iPhone in dark mode with a message pending.',
+        label: 'Chats, dark mode',
+      },
+    ],
   },
   trust: {
     title: 'Privacy by design, because the travelers are minors',
@@ -538,7 +547,7 @@ export const en: SiteContent = {
     items: [
       {
         title: 'Native iOS and Android',
-        body: 'SwiftUI and Jetpack Compose on a shared Kotlin core. No web view, no JavaScript runtime in the app, background work the OS trusts.',
+        body: 'SwiftUI and Jetpack Compose on a shared Kotlin core. No web view, no JavaScript runtime in the app, background work the OS trusts. On iOS 26 the controls take Liquid Glass; older phones keep the flat look.',
       },
       {
         title: 'Offline first',
@@ -550,7 +559,7 @@ export const en: SiteContent = {
       },
       {
         title: 'Korean and English',
-        body: 'Every screen in both. Announcements translated by machine and labelled as such, with the original always shown.',
+        body: 'Every screen in both: the console follows the account’s language with a one-tap switch, the phones follow the device. Announcements translated by machine and labelled as such, with the original always shown.',
       },
       {
         title: 'Sign in without passwords',

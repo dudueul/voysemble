@@ -38,9 +38,11 @@ Pages: `/`, `/ko/`, `/privacy/`, `/terms/`, `/ko/privacy/`, `/ko/terms/`, `/404.
   language) as primary, "Open the console" (`https://app.voysemble.com/`) as secondary. Store
   badges wait for the listings.
 - Visuals: real console captures (hero: command center; features: roster step, invite codes,
-  itinerary with a proposal, communication with acks, safety with incidents, media, reports,
-  billing) in browser frames, and three phone screens (Today, Head count, Bulletin) drawn in
-  HTML and CSS from the apps' own strings and sample data, captioned as illustrations.
+  itinerary with a proposal, communication with acks and the guardian chat, safety with incidents
+  and the missing list, media, the live reports, billing, settings) in browser frames, and, since
+  slice 040, real phone captures from the apps' own test runs (D31) in device frames: iPhone on
+  iOS 26 with Liquid Glass and Android, in English and Korean. Until slice 040 the phones were
+  drawn in HTML and CSS from the apps' strings, because no phone captures existed yet.
 - Legal: draft privacy and terms in both languages, marked as drafts, linked from the footer,
   at the URLs the store listings will use. Mailboxes named on the pages: `hello@`, `privacy@`,
   `legal@` at voysemble.com; all three need forwarding rules on the founder's side.
@@ -53,10 +55,12 @@ Pages: `/`, `/ko/`, `/privacy/`, `/terms/`, `/ko/privacy/`, `/ko/terms/`, `/404.
 
 Hero (headline, lead, two calls to action, four proof chips, the command center capture) ·
 Roles (organizer on the PC console; leader, traveler, guardian on the phone; four bullets each)
-· Phones (Today, Head count, Bulletin frames) · Features: before the trip (first run, roster,
-itinerary editor, care notes and documents, sealed links, fees), on the trip (Today, head counts,
-announcements, revision notices, proposals, meeting windows, incidents, photos, chat, disruption
-replanning, notifications, lost device), after the trip (reports, retention, templates) ·
+· Phones (six real captures in device frames: Today and the Plan tab on iPhone, the Plan tab and a
+head count on Android, Today in Korean, a dark chat thread) · Features: before the trip (first
+run, roster, itinerary editor, care notes and documents, sealed links, fees, settings), on the trip
+(Today, the Plan tab, head counts with the console's missing list, announcements, revision
+notices, proposals, meeting windows, incidents, photos, chat, disruption replanning,
+notifications, lost device), after the trip (live reports, retention, templates) ·
 Privacy by design (eight rules) · Platform (six) · Pricing (trip license, fee ledger, seat plans)
 · FAQ (ten) · Call to action · Footer (product, legal, language, mailbox).
 

@@ -38,8 +38,15 @@ const ctx: RenderContext = {
     media: '/img/me.png',
     reports: '/img/re.png',
     billing: '/img/bi.png',
+    'settings-live': '/img/st.png',
+    'reports-live': '/img/rl.png',
+    'safety-missing-live': '/img/sm.png',
+    'communication-chat': '/img/cc2.png',
     og: '/img/og.png',
   },
+  phoneImages: Object.fromEntries(
+    en.phones.shots.map((s) => [`${s.platform}/${s.file}`, `/img/${s.platform}-${s.file}.png`]),
+  ),
   analyticsToken: null,
   buildId: 'test',
   updated: '2026-10-12',
@@ -62,8 +69,7 @@ function shape(c: SiteContent) {
     faq: c.faq.items.length,
     includes: c.pricing.plan.includes.length,
     proof: c.hero.proof.length,
-    phoneEvents: c.phones.today.events.length,
-    phoneLines: c.phones.bulletin.lines.length,
+    shots: c.phones.shots.map((s) => `${s.platform}/${s.file}`),
   };
 }
 
@@ -80,6 +86,11 @@ describe('content model', () => {
       }
     }
     expect(existsSync(join(captures, 'command-center.png'))).toBe(true);
+    // The phone gallery (slice 040) shows the apps' own captures.
+    for (const shot of en.phones.shots) {
+      const file = join(captures, '..', '..', shot.platform, `${shot.file}.png`);
+      expect(existsSync(file), `${shot.platform}/${shot.file}`).toBe(true);
+    }
   });
 
   it('every feature names at least one decision and one role', () => {

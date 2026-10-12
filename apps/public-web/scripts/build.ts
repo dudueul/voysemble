@@ -17,7 +17,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { en } from '../src/site/en.ts';
 import { ko } from '../src/site/ko.ts';
-import { type CaptureName, SITE, type SiteContent } from '../src/site/model.ts';
+import { type CaptureName, type PhoneShot, SITE, type SiteContent } from '../src/site/model.ts';
 import {
   type RenderContext,
   renderLanding,
@@ -42,6 +42,14 @@ export function capturesUsed(contents: SiteContent[]): CaptureName[] {
       for (const f of g.features) if (f.capture) names.add(f.capture.file);
   }
   return [...names].sort();
+}
+
+/** Every phone capture the gallery shows (both locales show the same ones). */
+export function phoneShotsUsed(contents: SiteContent[]): PhoneShot[] {
+  const seen = new Map<string, PhoneShot>();
+  for (const c of contents)
+    for (const shot of c.phones.shots) seen.set(`${shot.platform}/${shot.file}`, shot);
+  return [...seen.values()];
 }
 
 function hashOf(buf: Buffer | string): string {
@@ -85,6 +93,17 @@ export function build(): { pages: string[]; assets: string[] } {
     images[name] = href;
     assets.push(href);
   }
+  // Phone captures (slice 040): the apps' own test runs, from docs/captures/ios and /android.
+  const phoneImages: Record<string, string> = {};
+  for (const shot of phoneShotsUsed([en, ko])) {
+    const src = join(repo, 'docs', 'captures', shot.platform, `${shot.file}.png`);
+    if (!existsSync(src)) throw new Error(`phone capture missing: ${src}`);
+    const buf = readFileSync(src);
+    const href = `/img/${shot.platform}-${shot.file}.${hashOf(buf)}.png`;
+    write(join(dist, href), buf);
+    phoneImages[`${shot.platform}/${shot.file}`] = href;
+    assets.push(href);
+  }
   // Open Graph card: the committed 1200x630 card (scripts/og-card.ts); the hero capture otherwise.
   const ogSrc = join(root, 'src/assets/og.png');
   if (existsSync(ogSrc)) {
@@ -96,7 +115,16 @@ export function build(): { pages: string[]; assets: string[] } {
     images.og = images['command-center'];
   }
 
-  const ctx: RenderContext = { siteUrl, cssHref, jsHref, images, analyticsToken, buildId, updated };
+  const ctx: RenderContext = {
+    siteUrl,
+    cssHref,
+    jsHref,
+    images,
+    phoneImages,
+    analyticsToken,
+    buildId,
+    updated,
+  };
   const pages: string[] = [];
   const page = (path: string, html: string) => {
     write(join(dist, path), html);

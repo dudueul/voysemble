@@ -9,7 +9,7 @@ import {
   type CaptureName,
   type Locale,
   localePrefix,
-  type PhoneFrames,
+  type PhoneShot,
   pilotHref,
   type RoleId,
   SITE,
@@ -23,6 +23,8 @@ export interface RenderContext {
   jsHref: string;
   /** Hashed public paths of the captures and the Open Graph image. */
   images: Record<CaptureName | 'og', string>;
+  /** Hashed public paths of the phone captures, keyed `${platform}/${file}` (slice 040). */
+  phoneImages: Record<string, string>;
   /** Cloudflare Web Analytics site token; the beacon is omitted when null. */
   analyticsToken: string | null;
   buildId: string;
@@ -204,78 +206,23 @@ function roles(c: SiteContent): string {
   </section>`;
 }
 
-function phoneToday(p: PhoneFrames['today']): string {
-  return `<div class="phone" data-phone="today">
-      <div class="phone__status" aria-hidden="true"><span>${esc(p.now)}</span><span>●●●</span></div>
-      <div class="phone__screen">
-        <header class="phone__header"><div><p class="phone__kicker">${esc(p.trip)}</p><p class="phone__title">${esc(p.screen)}</p><p class="phone__sub">${esc(p.day)}</p></div><span class="pill pill--live">${esc(p.live)}</span></header>
-        <p class="phone__label">${esc(p.upNext)}</p>
-        <ul class="phone__events">${p.events
-          .map(
-            (e) =>
-              `<li><span class="phone__time">${esc(e.time)}</span><span class="phone__event"><strong>${esc(e.title)}</strong><small>${esc(e.place)}</small></span>${
-                e.status ? `<span class="pill pill--warn">${esc(e.status)}</span>` : ''
-              }</li>`,
-          )
-          .join('')}</ul>
-        <div class="phone__card phone__card--ack">
-          <strong>${esc(p.announcementTitle)}</strong>
-          <p>${esc(p.announcementBody)}</p>
-          <small>${esc(p.announcementMeta)}</small>
-          <span class="phone__btn">${esc(p.gotIt)}</span>
-        </div>
-        <p class="phone__label">${esc(p.headcount)}</p>
-        <ul class="phone__groups">${p.groups.map((g) => `<li><span>${esc(g.label)}</span><strong>${esc(g.count)}</strong></li>`).join('')}</ul>
-      </div>
-    </div>`;
+/** A phone capture in a device frame; portrait 393x852 on iOS, 412x915 on Android. */
+function phoneFrame(shot: PhoneShot, src: string): string {
+  const [w, h] = shot.platform === 'ios' ? [393, 852] : [412, 915];
+  return `<figure class="shot shot--${shot.platform}">
+      <div class="shot__frame"><img src="${esc(src)}" alt="${esc(shot.alt)}" width="${w}" height="${h}" loading="lazy"></div>
+      <figcaption class="shot__label">${esc(shot.label)}</figcaption>
+    </figure>`;
 }
 
-function phoneHeadcount(p: PhoneFrames['headcount']): string {
-  return `<div class="phone" data-phone="headcount">
-      <div class="phone__status" aria-hidden="true"><span>06:58</span><span>●●○</span></div>
-      <div class="phone__screen">
-        <header class="phone__header"><div><p class="phone__kicker">${esc(p.screen)}</p><p class="phone__title">${esc(p.group)}</p><p class="phone__sub">${esc(p.openedBy)}</p></div></header>
-        <p class="phone__big">${esc(p.present)}</p>
-        <p class="phone__label phone__label--danger">${esc(p.missingTitle)}</p>
-        <ul class="phone__missing">${p.missing
-          .map(
-            (m) =>
-              `<li><strong>${esc(m.name)}</strong><small>${esc(m.room)} · ${esc(m.lastAck)}</small><span class="pill pill--stale">${esc(m.window)}</span></li>`,
-          )
-          .join('')}</ul>
-        <div class="phone__actions">${p.actions.map((a) => `<span class="phone__btn phone__btn--ghost">${esc(a)}</span>`).join('')}</div>
-        <span class="phone__btn phone__btn--wide">${esc(p.close)}</span>
-        <p class="phone__note">${esc(p.pending)}</p>
-      </div>
-    </div>`;
-}
-
-function phoneBulletin(p: PhoneFrames['bulletin']): string {
-  return `<div class="phone" data-phone="bulletin">
-      <div class="phone__status" aria-hidden="true"><span>22:14</span><span>●●●</span></div>
-      <div class="phone__screen">
-        <header class="phone__header"><div><p class="phone__title">${esc(p.screen)}</p></div></header>
-        <div class="phone__card">
-          <span class="pill pill--brand">${esc(p.revisionChip)}</span>
-          <strong>${esc(p.revisionTitle)}</strong>
-          <ul class="phone__lines">${p.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>
-          <small class="phone__ok">${esc(p.acked)}</small>
-        </div>
-        <div class="phone__card phone__card--ack">
-          <strong>${esc(p.itemTitle)}</strong>
-          <p>${esc(p.itemBody)}</p>
-          <div class="phone__translation"><small>${esc(p.translationLabel)}</small><p>${esc(p.translation)}</p></div>
-          <small>${esc(p.requiresAck)}</small>
-          <span class="phone__btn">${esc(p.gotIt)}</span>
-        </div>
-      </div>
-    </div>`;
-}
-
-function phones(c: SiteContent): string {
-  return `<section class="section section--phones" id="phones" aria-label="${esc(c.phones.today.screen)}">
+function phones(c: SiteContent, ctx: RenderContext): string {
+  return `<section class="section section--phones" id="phones" aria-labelledby="phones-title">
     <div class="wrap">
-      <div class="phones">${phoneToday(c.phones.today)}${phoneHeadcount(c.phones.headcount)}${phoneBulletin(c.phones.bulletin)}</div>
+      <h2 id="phones-title" class="section__title">${esc(c.phones.title)}</h2>
+      <p class="section__lead">${esc(c.phones.lead)}</p>
+      <div class="shots">${c.phones.shots
+        .map((shot) => phoneFrame(shot, ctx.phoneImages[`${shot.platform}/${shot.file}`] ?? ''))
+        .join('')}</div>
       <p class="section__note small muted">${esc(c.phones.caption)}</p>
     </div>
   </section>`;
@@ -411,7 +358,7 @@ export function renderLanding(c: SiteContent, ctx: RenderContext): string {
     <main id="main">
       ${hero(c, ctx)}
       ${roles(c)}
-      ${phones(c)}
+      ${phones(c, ctx)}
       ${features(c, ctx)}
       ${trust(c)}
       ${platform(c)}

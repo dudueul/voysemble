@@ -167,3 +167,9 @@ the top-bar toggle switched the console to Korean. Produced by `e2e/locale.spec.
 `android/today-ko.png`, `android/plan-day-ko.png` (Roborazzi) and `ios/today-ko.png`, `ios/plan-day-ko.png`
 (CaptureTests): Today and the Plan tab with the app's language set to Korean; the sample trip's own
 names stay as they are. All land here through the CI `captures` job.
+
+## Slice 040 (2026-10-12): the public site shows the phones
+
+`public/desktop-1440/landing-en.png`, `landing-ko.png` and the `*-top.png` first viewports re-render with the
+phone gallery (six real captures from `ios/` and `android/` in device frames) and the new feature cards.
+Produced by `apps/public-web/e2e/landing.spec.ts`.

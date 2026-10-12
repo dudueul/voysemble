@@ -487,218 +487,61 @@ ul {
   padding-bottom: 48px;
 }
 
-.phones {
+/* Real phone captures in device frames (slice 040): portrait, three up, two on a tablet, one on a phone. */
+.shots {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 28px;
+  gap: 28px 24px;
   justify-items: center;
+  margin-top: 28px;
 }
 
-.phone {
+.shot {
+  margin: 0;
   width: 100%;
-  max-width: 330px;
+  max-width: 300px;
+  text-align: center;
+}
+
+.shot__frame {
   border: 10px solid var(--vy-color-brand-night);
-  border-radius: 40px;
+  border-radius: 44px;
   background: var(--vy-color-brand-night);
   box-shadow: 0 30px 60px -30px rgba(15, 23, 42, 0.6);
   overflow: hidden;
 }
 
-.phone__status {
-  display: flex;
-  justify-content: space-between;
-  padding: 8px 18px 4px;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 700;
+.shot--android .shot__frame {
+  border-radius: 28px;
 }
 
-.phone__screen {
-  background: var(--vy-bg);
-  border-radius: 30px;
-  padding: 14px;
-  min-height: 560px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  font-size: 13px;
-}
-
-.phone__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-.phone__kicker {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--vy-text-muted);
-}
-
-.phone__title {
-  font-size: 20px;
-  font-weight: 800;
-  line-height: 1.2;
-}
-
-.phone__sub {
-  font-size: 12px;
-  color: var(--vy-text-muted);
-}
-
-.phone__label {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--vy-text-muted);
-  margin-top: 4px;
-}
-
-.phone__label--danger {
-  color: var(--vy-danger);
-}
-
-.phone__events,
-.phone__missing,
-.phone__groups {
-  display: grid;
-  gap: 6px;
-}
-
-.phone__events li,
-.phone__missing li,
-.phone__groups li {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: var(--vy-radius-control);
-  background: var(--vy-surface);
-  border: 1px solid var(--vy-border);
-}
-
-.phone__time {
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  min-width: 42px;
-}
-
-.phone__event {
-  display: grid;
-  flex: 1;
-  min-width: 0;
-}
-
-.phone__event small,
-.phone__missing small {
-  color: var(--vy-text-muted);
-  font-size: 11px;
-}
-
-.phone__missing li {
-  display: grid;
-  grid-template-columns: 1fr auto;
-}
-
-.phone__missing small {
-  grid-column: 1;
-}
-
-.phone__missing .pill {
-  grid-row: 1 / span 2;
-}
-
-.phone__groups li {
-  justify-content: space-between;
-}
-
-.phone__card {
-  display: grid;
-  gap: 6px;
-  padding: 12px;
-  border-radius: var(--vy-radius-card);
-  background: var(--vy-surface);
-  border: 1px solid var(--vy-border);
-}
-
-.phone__card--ack {
-  border-color: #bfdbfe;
-  background: #eff6ff;
-}
-
-.phone__card small {
-  color: var(--vy-text-muted);
-  font-size: 11px;
-}
-
-.phone__card .pill {
-  justify-self: start;
-}
-
-.phone__lines {
-  display: grid;
-  gap: 4px;
-  padding-left: 14px;
-  list-style: disc;
-  color: var(--vy-text-muted);
-  font-size: 12px;
-}
-
-.phone__ok {
-  color: var(--vy-success);
-  font-weight: 700;
-}
-
-.phone__translation {
-  padding: 8px 10px;
-  border-radius: var(--vy-radius-control);
-  background: var(--vy-color-neutral-100);
-}
-
-.phone__btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 34px;
-  padding: 6px 14px;
-  border-radius: var(--vy-radius-control);
-  background: var(--vy-action);
-  color: var(--vy-on-action);
-  font-weight: 700;
-  justify-self: start;
-}
-
-.phone__btn--ghost {
-  background: var(--vy-surface);
-  color: var(--vy-text);
-  border: 1px solid var(--vy-border);
-  font-size: 12px;
-  padding: 4px 10px;
-}
-
-.phone__btn--wide {
-  justify-content: center;
+.shot__frame img {
+  display: block;
   width: 100%;
+  height: auto;
+  border-radius: 34px;
 }
 
-.phone__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+.shot--android .shot__frame img {
+  border-radius: 18px;
 }
 
-.phone__big {
-  font-size: 26px;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-}
-
-.phone__note {
-  font-size: 11px;
+.shot__label {
+  margin-top: 10px;
+  font-size: 13px;
   color: var(--vy-text-muted);
+}
+
+@media (max-width: 1024px) {
+  .shots {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .shots {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* pricing */
@@ -871,10 +714,6 @@ ul {
 
   .grid--3 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .phones {
-    grid-template-columns: 1fr;
   }
 
   .site-footer__grid {

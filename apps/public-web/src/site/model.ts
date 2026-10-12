@@ -40,7 +40,38 @@ export type CaptureName =
   | 'people'
   | 'media'
   | 'reports'
-  | 'billing';
+  | 'billing'
+  | 'settings-live'
+  | 'reports-live'
+  | 'safety-missing-live'
+  | 'communication-chat';
+
+/** Phone captures (docs/captures/ios, docs/captures/android) the gallery shows, by file name. */
+export type PhoneCaptureName =
+  | 'today-light'
+  | 'plan-day'
+  | 'today-ko'
+  | 'plan-day-ko'
+  | 'headcount-open'
+  | 'chats-thread-dark'
+  | 'window-open'
+  | 'bulletin-light';
+
+export interface PhoneShot {
+  platform: 'ios' | 'android';
+  file: PhoneCaptureName;
+  alt: string;
+  /** The short line under the frame. */
+  label: string;
+}
+
+/** Real captures from the apps' test runs (D31), shown in device frames (slice 040). */
+export interface PhoneGallery {
+  title: string;
+  lead: string;
+  caption: string;
+  shots: PhoneShot[];
+}
 
 export interface Phase {
   id: string;
@@ -65,50 +96,6 @@ export interface Stat {
 export interface FaqItem {
   q: string;
   a: string;
-}
-
-/** Strings drawn on the three phone frames (illustrations built from the product's own words). */
-export interface PhoneFrames {
-  caption: string;
-  today: {
-    screen: string;
-    trip: string;
-    day: string;
-    now: string;
-    live: string;
-    upNext: string;
-    events: { time: string; title: string; place: string; status?: string }[];
-    announcementTitle: string;
-    announcementBody: string;
-    announcementMeta: string;
-    gotIt: string;
-    headcount: string;
-    groups: { label: string; count: string }[];
-  };
-  headcount: {
-    screen: string;
-    group: string;
-    openedBy: string;
-    present: string;
-    missingTitle: string;
-    missing: { name: string; room: string; lastAck: string; window: string }[];
-    actions: string[];
-    close: string;
-    pending: string;
-  };
-  bulletin: {
-    screen: string;
-    revisionChip: string;
-    revisionTitle: string;
-    lines: string[];
-    acked: string;
-    itemTitle: string;
-    itemBody: string;
-    translationLabel: string;
-    translation: string;
-    requiresAck: string;
-    gotIt: string;
-  };
 }
 
 export interface SiteContent {
@@ -143,7 +130,7 @@ export interface SiteContent {
   };
   roles: { title: string; lead: string; items: Role[]; widen: string };
   phases: { title: string; lead: string; groups: Phase[] };
-  phones: PhoneFrames;
+  phones: PhoneGallery;
   trust: { title: string; lead: string; items: { title: string; body: string }[] };
   platform: { title: string; lead: string; items: { title: string; body: string }[] };
   pricing: {

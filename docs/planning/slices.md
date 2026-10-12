@@ -1151,7 +1151,7 @@ Not done: Korean on the phones; locale-aware date formatting.
 
 ## Slice 039: Korean on the phones
 
-Status: done 2026-10-12. Commit: see git log (`feat(mobile): Korean on both phones from one shared string table (slice 039)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commits `d968eb2` (`feat(mobile): Korean on both phones from one shared string table (slice 039)`) and the fix `04faa8f` (`fix(mobile): accessibility keys without digits so Swift sees them`). CI: run 38250641731 red on `ios` only (Swift could not see the eight `*_A11Y` keys: Kotlin/Native renders a digit inside an enum case with another capitalisation, and the compiler's fallback overloads turned one unknown case into a cascade of errors in PlanView; `web` and `mobile` green); the fix renamed them `*_SPOKEN`, verified by run 38251401825 green at `04faa8f` (web incl. E2E, mobile incl. the Korean screenshots, ios incl. `CaptureTests.testKorean` on the iOS 26 simulator), 2026-10-12 13:00 UTC; captures committed as `8fcc58d` (`ios/today-ko.png`, `ios/plan-day-ko.png`, `android/today-ko.png`, `android/plan-day-ko.png`).
 Spec: founder rule (KO/EN only), D31 (device captures). Details: `docs/engineering/mobile-i18n.md`.
 
 | Gate | Command | Result |

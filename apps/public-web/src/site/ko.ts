@@ -201,6 +201,22 @@ export const ko: SiteContent = {
               alt: '청구 페이지: 여행 라이선스와 납부·미납·환불 행이 있는 참가자 회비 장부.',
             },
           },
+          {
+            id: 'settings',
+            title: '결정 그대로의 설정',
+            summary:
+              '방해 금지 시간과 보호자 요약 발송 시각, 여행 데이터가 파기되기 전의 마무리 기간, 조직의 언어와 시간대, 그리고 콘솔을 쓰는 사람. 모두 API에 저장되고, 모두 결정의 기본값에서 시작합니다.',
+            details: [
+              '소유자만 바꿀 수 있고, 운영자는 값과 안내만 봅니다. 구성원 목록은 모든 계정을 역할과 함께 보여 줍니다.',
+              '확인 필수 공지와 인원 점검 호출은 방해 금지 시간을 넘어가고, 나머지는 아침까지 기다립니다.',
+            ],
+            decision: ['D29', 'D20', 'D21'],
+            who: ['organizer'],
+            capture: {
+              file: 'settings-live',
+              alt: '설정 페이지: 조직 프로필, 알림 규칙, 보관 기간, 구성원 목록이 API에 저장된 모습.',
+            },
+          },
         ],
       },
       {
@@ -221,6 +237,19 @@ export const ko: SiteContent = {
             who: ['traveler', 'leader', 'guardian'],
           },
           {
+            id: 'plan',
+            title: '주머니 속의 전체 일정',
+            summary:
+              '배포된 일정의 모든 날을 휴대폰에서 하루씩, 주최자가 붙인 이름 그대로. 인솔자는 어느 일정에서든 제안합니다: 새 시각, 삭제, 또는 그날의 새 일정.',
+            details: [
+              '날짜 선택은 오늘에서 열리고, 출발 전에는 첫날에서 열립니다.',
+              '추가 제안은 일정 전체를 담고 있어 주최자가 한 번의 탭으로 수락하고 평소처럼 배포합니다.',
+              '참가자와 보호자는 읽고, 인솔자는 제안하고, 주최자는 콘솔에서 결정합니다.',
+            ],
+            decision: ['D24'],
+            who: ['traveler', 'leader', 'guardian'],
+          },
+          {
             id: 'headcount',
             title: '버스 안에서 마감되는 인원 점검',
             summary:
@@ -230,9 +259,14 @@ export const ko: SiteContent = {
               '인원 점검마다 조당 인솔자 한 명이므로 버스가 다시 신호를 잡아도 풀어야 할 충돌이 없습니다.',
               '마감 시점에 누군가 여전히 없으면 이름과 함께 마감되고, 콘솔 타일이 주황색으로 바뀌며, 사건 카드가 자동으로 열립니다.',
               '콘솔은 모든 조의 최신 집계를, 부족한 조는 주황색으로, 여행 전체의 “확인 완료” 합계와 함께 보여 줍니다.',
+              '콘솔의 안전 페이지는 가장 최근 마감된 점검을 바탕으로 지금 누락된 사람을 조별로 보여 줍니다.',
             ],
             decision: ['D14', 'D25'],
             who: ['leader', 'organizer', 'guardian'],
+            capture: {
+              file: 'safety-missing-live',
+              alt: '안전 페이지의 누락자 명단: 김 인솔자가 06:58에 마감한 A버스, 누락 1명, 인솔자가 표시할 수 있는 상태들.',
+            },
           },
           {
             id: 'announcements',
@@ -333,6 +367,10 @@ export const ko: SiteContent = {
             ],
             decision: ['D22'],
             who: ['organizer', 'leader', 'traveler', 'guardian'],
+            capture: {
+              file: 'communication-chat',
+              alt: '커뮤니케이션: 보호자와 주최자의 채널, 대화 내용과 입력창.',
+            },
           },
           {
             id: 'disruption',
@@ -380,15 +418,16 @@ export const ko: SiteContent = {
             id: 'reports',
             title: '보고서와 인물별 타임라인',
             summary:
-              '공지별 확인 응답률, 조별 인원 점검 소요 시간, 날짜별 지연, 사건과 해결까지 걸린 시간. 여행 중 주최자가 쓴 바로 그 근거를 여행 뒤에 요약합니다.',
+              '날짜별 확인 응답률, 인원 점검 마감까지 걸린 분, 열린 사건과 수납된 회비. 서비스가 이미 가진 사실에서 나옵니다. 여행 중 주최자가 쓴 바로 그 근거를 여행 뒤에 요약합니다.',
             details: [
               '모든 숫자에 표 보기가 있는 차트. 학교 운영위원회나 학부모회에 낼 보고서는 스크린샷 한 장 거리입니다.',
+              '헤더가 고정된 CSV 내보내기, 여행 하루에 한 행. 회계 담당자가 이미 쓰는 스프레드시트에 바로 들어갑니다.',
             ],
             decision: ['D17'],
             who: ['organizer'],
             capture: {
-              file: 'reports',
-              alt: '확인 응답, 인원 점검, 지연 차트와 표 보기가 있는 보고서 페이지.',
+              file: 'reports-live',
+              alt: '인원 점검 한 번과 공지 하나 뒤의 실시간 보고서 페이지: 타일 네 개와 날짜별 차트 두 개.',
             },
           },
           {
@@ -418,73 +457,48 @@ export const ko: SiteContent = {
     ],
   },
   phones: {
+    title: '휴대폰 화면, 있는 그대로',
+    lead: '그림이 아니라 앱의 테스트가 직접 찍은 화면입니다. Liquid Glass의 iOS 26 iPhone과 Android, 한국어와 영어로.',
     caption:
-      '앱의 실제 화면과 샘플 데이터(Korea Concert Tour, 로마 4일차)에서 그린 일러스트입니다. 이름은 가상입니다.',
-    today: {
-      screen: '오늘',
-      trip: 'Korea Concert Tour',
-      day: '4일차 · 12월 31일 목요일 · 로마',
-      now: '07:12',
-      live: '실시간',
-      upNext: '다음 순서',
-      events: [
-        { time: '07:30', title: '아침 식사', place: 'Hotel de la Ville 레스토랑' },
-        {
-          time: '07:30',
-          title: '호텔 로비 집결',
-          place: '인솔자가 07:00에서 변경',
-          status: '변경',
-        },
-        { time: '08:00', title: 'A버스·B버스 출발', place: 'Via Sistina 정류장' },
-        { time: '09:00', title: '콜로세움 가이드 투어', place: '콜로세움 정문' },
-        {
-          time: '17:30',
-          title: '신년 음악회 리허설',
-          place: '공연장 입장 30분 지연',
-          status: '지연',
-        },
-      ],
-      announcementTitle: '출발 07:30으로 변경',
-      announcementBody: '공연 의상을 꼭 챙겨 주세요. 아침 식사는 06:30부터입니다.',
-      announcementMeta: '인솔자 · 06:30 · 38명 중 32명 확인',
-      gotIt: '확인',
-      headcount: '인원 점검',
-      groups: [
-        { label: 'A버스', count: '18 / 20' },
-        { label: 'B버스', count: '16 / 18' },
-      ],
-    },
-    headcount: {
-      screen: '인원 점검',
-      group: 'A버스',
-      openedBy: '김다은 인솔자 · 06:50 시작',
-      present: '20명 중 18명 출석',
-      missingTitle: '미확인',
-      missing: [
-        { name: '강도현', room: '412호', lastAck: '마지막 확인 06:47', window: '집결 창 밖' },
-        { name: '신은우', room: '408호', lastAck: '오늘 확인 없음', window: '오래된 위치' },
-      ],
-      actions: ['전화', '푸시: A버스로 오세요', '사유 있음'],
-      close: '인원 점검 마감',
-      pending: '오프라인에서도 마감 · 서버 확인 전까지 “동기화 대기”',
-    },
-    bulletin: {
-      screen: '게시판',
-      revisionChip: '일정 변경 · 리비전 7',
-      revisionTitle: '일정 변경 안내',
-      lines: [
-        '4일차 · 콜로세움 가이드 투어 · 09:00 → 08:30',
-        '4일차 · 젤라토 · 11:15 추가',
-        '5일차 · 점심 · 취소',
-      ],
-      acked: '확인 완료 · 38명 중 38명',
-      itemTitle: 'Departure moved to 07:30',
-      itemBody: 'Please bring your concert attire. Breakfast is open from 06:30.',
-      translationLabel: '기계 번역 · 한국어',
-      translation: '공연 의상을 꼭 챙겨 주세요. 아침 식사는 06:30부터입니다.',
-      requiresAck: '확인 필요 · 38명 중 32명',
-      gotIt: '확인',
-    },
+      '앱의 테스트 스위트가 iOS 시뮬레이터와 Android 에뮬레이터에서 찍었습니다 (Korea Concert Tour, 로마 4일차). 이름은 가상입니다.',
+    shots: [
+      {
+        platform: 'ios',
+        file: 'today-light',
+        alt: 'iPhone의 오늘 화면: 집합 지점이 있는 다음 일정 카드, 확인이 필요한 공지, 조별 인원 점검, 유리 질감의 탭 바.',
+        label: 'iPhone의 오늘',
+      },
+      {
+        platform: 'ios',
+        file: 'plan-day',
+        alt: 'iPhone의 일정 탭: 날짜 알약 버튼, 공연 당일의 일정, 각 일정의 “변경 제안”.',
+        label: '일정 탭',
+      },
+      {
+        platform: 'android',
+        file: 'plan-day',
+        alt: '같은 날짜 선택과 일정이 있는 Android의 일정 탭.',
+        label: 'Android의 일정 탭',
+      },
+      {
+        platform: 'ios',
+        file: 'today-ko',
+        alt: '한국어로 보이는 iPhone의 오늘 화면.',
+        label: '오늘, 한국어',
+      },
+      {
+        platform: 'android',
+        file: 'headcount-open',
+        alt: 'Android의 열린 인원 점검: A버스, 맨 위의 미확인 명단, 이름당 한 번의 탭.',
+        label: 'Android의 인원 점검',
+      },
+      {
+        platform: 'ios',
+        file: 'chats-thread-dark',
+        alt: '보내는 중인 메시지가 있는 iPhone 다크 모드의 대화.',
+        label: '대화, 다크 모드',
+      },
+    ],
   },
   trust: {
     title: '참가자가 미성년자이기에, 설계부터 개인정보 보호',
@@ -530,7 +544,7 @@ export const ko: SiteContent = {
     items: [
       {
         title: 'iOS·Android 네이티브',
-        body: '공유 Kotlin 코어 위의 SwiftUI와 Jetpack Compose. 웹뷰도, 앱 안의 JavaScript 런타임도 없고, OS가 신뢰하는 백그라운드 작업.',
+        body: '공유 Kotlin 코어 위의 SwiftUI와 Jetpack Compose. 웹뷰도, 앱 안의 JavaScript 런타임도 없고, OS가 신뢰하는 백그라운드 작업. iOS 26에서는 컨트롤이 Liquid Glass를 입고, 이전 기기는 평면 디자인을 유지합니다.',
       },
       {
         title: '오프라인 우선',
@@ -542,7 +556,7 @@ export const ko: SiteContent = {
       },
       {
         title: '한국어와 영어',
-        body: '모든 화면이 두 언어로. 공지는 기계 번역되어 그렇게 표시되고, 원문은 항상 함께 보입니다.',
+        body: '모든 화면이 두 언어로. 콘솔은 계정의 언어를 따르고 한 번의 탭으로 바꿀 수 있으며, 휴대폰은 기기 언어를 따릅니다. 공지는 기계 번역되어 그렇게 표시되고, 원문은 항상 함께 보입니다.',
       },
       {
         title: '비밀번호 없는 로그인',

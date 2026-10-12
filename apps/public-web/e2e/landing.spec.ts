@@ -53,6 +53,15 @@ test('English landing: metadata, sections, captures, calls to action', async ({ 
   expect(await hero.evaluate((img) => (img as HTMLImageElement).naturalWidth)).toBeGreaterThan(
     1000,
   );
+  // The phone gallery (slice 040): every shot is a real image that decoded.
+  const shots = page.locator('#phones .shot img');
+  await expect(shots).toHaveCount(en.phones.shots.length);
+  for (let i = 0; i < en.phones.shots.length; i++) {
+    await shots.nth(i).scrollIntoViewIfNeeded();
+    expect(
+      await shots.nth(i).evaluate((img) => (img as HTMLImageElement).naturalWidth),
+    ).toBeGreaterThan(300);
+  }
   // Calls to action.
   await expect(page.locator('[data-cta=pilot]')).toHaveAttribute('href', pilotHref('en'));
   await expect(page.locator('[data-cta=console]')).toHaveAttribute(
