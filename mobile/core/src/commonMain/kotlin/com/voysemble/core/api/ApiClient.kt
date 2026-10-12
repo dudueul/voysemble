@@ -255,6 +255,17 @@ public class ApiClient(
             }
         }
 
+    /** POST .../incidents: a card opened by hand from the phone (slice 073). */
+    public suspend fun openIncident(orgId: String, tripId: String, body: OpenIncidentRequestDto, correlationId: String? = null): ApiResult<IncidentDto> =
+        call(correlationId) {
+            http.post {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "orgs", orgId, "trips", tripId, "incidents") }
+                common(correlationId)
+                contentType(ContentType.Application.Json)
+                setBody(body)
+            }
+        }
+
     /** POST .../incidents/{id}/confirm: the leader's answer (D17). */
     public suspend fun confirmIncident(
         orgId: String,

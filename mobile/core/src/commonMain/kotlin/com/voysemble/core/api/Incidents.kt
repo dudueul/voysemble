@@ -56,6 +56,23 @@ public data class IncidentListDto(val incidents: List<IncidentDto>)
 @Serializable
 public data class ConfirmIncidentRequestDto(val status: String, val note: String?)
 
+/** Slice 073: a card the leader opens by hand (POST .../incidents), naming travelers of their group. */
+@Serializable
+public data class OpenIncidentRequestDto(val title: String, val participationIds: List<String>)
+
+/**
+ * The travelers a leader may name on a card they open: their own group's (a whole-trip leader
+ * every traveler), by name. `groupName` is the leader's group, read off their own roster row.
+ */
+public fun openableTravelers(roster: List<ParticipationDto>, groupName: String?): List<ParticipationDto> =
+    roster
+        .filter { it.role == "traveler" && (groupName == null || it.groupName == groupName) }
+        .sortedBy { it.displayName }
+
+/** A card the device opened before the server answered (sample mode keeps it as is). */
+public fun localIncidentCard(id: String, title: String, people: List<String>, openedBy: String, atDevice: String): IncidentCard =
+    IncidentCard(id = id, title = title, status = IncidentStatus.OPEN, people = people, openedAt = atDevice, openedBy = openedBy, confirmations = emptyList(), guardianMessage = null)
+
 public fun ConfirmationStatus.wireName(): String = when (this) {
     ConfirmationStatus.WITH_GROUP -> "with_group"
     ConfirmationStatus.NOT_WITH_GROUP -> "not_with_group"

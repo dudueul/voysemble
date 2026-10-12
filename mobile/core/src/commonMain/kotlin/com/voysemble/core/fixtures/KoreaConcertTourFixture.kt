@@ -52,6 +52,7 @@ import com.voysemble.core.today.TodaySnapshot
 import com.voysemble.core.window.MeetingWindow
 import com.voysemble.core.window.WindowMember
 import com.voysemble.core.window.WindowState
+import com.voysemble.core.api.ParticipationDto
 
 public object KoreaConcertTourFixture {
     public const val TRIP_NAME: String = "Korea Concert Tour"
@@ -282,6 +283,13 @@ public object KoreaConcertTourFixture {
         ChatChannel("trip", "trip", "Everyone on the trip", "38 travelers · 2 leaders · the organizer", 0, "Breakfast moved to 06:30, lobby. Bus leaves 07:15.", "05:40"),
         ChatChannel("group:Bus A", "group", "Bus A", "20 travelers · 1 leader", 3, "Who has the charger?", "06:05"),
         ChatChannel("traveler:t1", "traveler", "Your leaders", "with Kim Daeun", 1, "We leave at 07:15, be in the lobby.", "06:41"),
+    )
+
+    /** Slice 073: Bus A's travelers as the sample leader may name them on a card opened by hand. */
+    public fun rosterForIncidents(): List<ParticipationDto> = listOf(
+        ParticipationDto(id = "t1", tripId = "trip_sample", role = "traveler", displayName = "Minji Park", groupName = "Bus A", createdAt = "2026-10-11T00:00:00.000Z"),
+        ParticipationDto(id = "t2", tripId = "trip_sample", role = "traveler", displayName = "Juho Kim", groupName = "Bus A", createdAt = "2026-10-11T00:00:00.000Z"),
+        ParticipationDto(id = "t3", tripId = "trip_sample", role = "traveler", displayName = "Seojun Choi", groupName = "Bus A", createdAt = "2026-10-11T00:00:00.000Z"),
     )
 
     /** The "Your leaders" thread as Minji sees it. */

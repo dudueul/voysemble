@@ -69,6 +69,13 @@ final class CaptureTests: XCTestCase {
 
     func testIncidents() throws {
         try capture(NavigationStack { IncidentsView(model: IncidentsModel()) }, name: "incidents-light")
+        // Slice 073: the form a leader fills to open a card by hand, with Bus A's travelers.
+        try capture(
+            NavigationStack {
+                NewIncidentForm(travelers: KoreaConcertTourFixture.shared.rosterForIncidents(), error: nil, onOpen: { _, _ in })
+                    .navigationTitle(tr(.incNew))
+            },
+            name: "incidents-new")
     }
 
     func testMeetingWindow() throws {

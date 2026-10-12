@@ -2,6 +2,8 @@
 // Facts: sample mode shows the fixture and records an answer locally with the device clock; live
 // mode lists on start, posts an answer and moves it from pending into the trail; an unreachable
 // server keeps the answer pending and marks the feed offline, and a later refresh replays it.
+// Slice 073: a leader loads their group's travelers and opens a card; the server's card lands
+// through the refresh; sample mode keeps a local card.
 
 package com.voysemble.app.incidents
 
@@ -79,6 +81,50 @@ class IncidentsViewModelTest {
         assertNull(c.pending)
         assertEquals(ConfirmationStatus.NOT_WITH_GROUP, c.confirmations[0].status)
         assertEquals("06:20", c.confirmations[0].at)
+    }
+
+    @Test
+    fun a_leader_opens_a_card_naming_travelers_of_their_group() = runTest {
+        val roster = """{"participations":[
+            {"id":"p-kim","tripId":"trip_1","role":"leader","displayName":"Kim","groupName":"Bus A","guardianOf":null,"accountId":"a","createdAt":"x","invite":"joined","lastAckAt":null,"hasCareNote":false},
+            {"id":"p2","tripId":"trip_1","role":"traveler","displayName":"Juho Kim","groupName":"Bus A","guardianOf":null,"accountId":null,"createdAt":"x","invite":"none","lastAckAt":null,"hasCareNote":false},
+            {"id":"p3","tripId":"trip_1","role":"traveler","displayName":"Hana Lee","groupName":"Bus B","guardianOf":null,"accountId":null,"createdAt":"x","invite":"none","lastAckAt":null,"hasCareNote":false},
+            {"id":"p9","tripId":"trip_1","role":"guardian","displayName":"Sora Park","groupName":"Bus A","guardianOf":"p2","accountId":null,"createdAt":"x","invite":"none","lastAckAt":null,"hasCareNote":false}
+        ]}"""
+        val manual = card.replace("\"id\":\"i1\"", "\"id\":\"i2\"").replace("Head count closed with 1 missing (Bus A, 06:58)", "Juho feels sick").replace("\"kind\":\"headcount_missing\"", "\"kind\":\"manual\"")
+        val posts = mutableListOf<String>()
+        val engine = MockEngine { req ->
+            val path = req.url.encodedPath
+            val json = headersOf(HttpHeaders.ContentType, "application/json")
+            when {
+                path.endsWith("/roster") -> respond(roster, HttpStatusCode.OK, json)
+                req.method == HttpMethod.Post -> {
+                    posts += (req.body as TextContent).text
+                    assertEquals("/v1/orgs/org_1/trips/trip_1/incidents", path)
+                    respond(manual, HttpStatusCode.Created, json)
+                }
+                else -> respond(if (posts.isEmpty()) listJson else """{"incidents":[$manual,$card]}""", HttpStatusCode.OK, json)
+            }
+        }
+        val vm = IncidentsViewModel(ApiClient(ApiClientConfig("h", "t") { "tok" }, engine), trip, deviceClock = { "06:20" })
+        vm.ready.join()
+        assertTrue(vm.canOpen)
+        vm.loadTravelers().join()
+        // Bus A's travelers only: Juho, not Hana (Bus B), not the guardian, not the leader.
+        assertEquals(listOf("Juho Kim"), vm.state.value.travelers?.map { it.displayName })
+        vm.openIncident("  Juho feels sick ", listOf("p2")).join()
+        assertEquals(listOf("""{"title":"Juho feels sick","participationIds":["p2"]}"""), posts)
+        assertEquals(listOf("i2", "i1"), vm.state.value.feed.cards.map { it.id })
+        assertNull(vm.state.value.openError)
+        // Sample mode: the fixture's travelers and a local card on top.
+        val sample = IncidentsViewModel(deviceClock = { "07:12" })
+        sample.loadTravelers()
+        assertEquals(listOf("Minji Park", "Juho Kim", "Seojun Choi"), sample.state.value.travelers?.map { it.displayName })
+        sample.openIncident("Lost passport", listOf("t1"))
+        val local = sample.state.value.feed.cards.first()
+        assertEquals("Lost passport", local.title)
+        assertEquals(listOf("Minji Park"), local.people)
+        assertEquals("07:12", local.openedAt)
     }
 
     @Test

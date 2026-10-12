@@ -44,16 +44,37 @@ import com.voysemble.app.ui.VyCard
 import com.voysemble.core.incidents.ConfirmationStatus
 import com.voysemble.core.incidents.IncidentCard
 import com.voysemble.core.incidents.labelOf
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 
 @Composable
 fun IncidentsRoute(vm: IncidentsViewModel, onBack: () -> Unit) {
     val state by vm.state.collectAsStateWithLifecycle()
-    IncidentsScreen(state = state, onConfirm = { id, status -> vm.confirm(id, status, null) }, onBack = onBack)
+    IncidentsScreen(
+        state = state,
+        onConfirm = { id, status -> vm.confirm(id, status, null) },
+        onBack = onBack,
+        canOpen = vm.canOpen,
+        onLoadTravelers = { vm.loadTravelers() },
+        onOpen = { title, ids -> vm.openIncident(title, ids) },
+    )
 }
 
 @Composable
-fun IncidentsScreen(state: IncidentsUiState, onConfirm: (String, ConfirmationStatus) -> Unit, onBack: () -> Unit) {
+fun IncidentsScreen(
+    state: IncidentsUiState,
+    onConfirm: (String, ConfirmationStatus) -> Unit,
+    onBack: () -> Unit,
+    /** Slice 073: "New incident" in the header for a leader; the sheet names travelers of their group. */
+    canOpen: Boolean = false,
+    onLoadTravelers: () -> Unit = {},
+    onOpen: (title: String, participationIds: List<String>) -> Unit = { _, _ -> },
+) {
     val c = LocalVoysembleColors.current
+    var composing by remember { mutableStateOf(false) }
+    if (composing) NewIncidentSheet(state.travelers, state.openError, onOpen) { composing = false }
     val open = state.feed.cards.filter { it.isOpen }
     val closed = state.feed.cards.filter { !it.isOpen }
     Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
@@ -75,6 +96,12 @@ fun IncidentsScreen(state: IncidentsUiState, onConfirm: (String, ConfirmationSta
                     }
                 }
             }
+            if (canOpen) {
+                item {
+                    TextButton(onClick = { onLoadTravelers(); composing = true }, contentPadding = PaddingValues(0.dp)) { Text(tr(Txt.INC_NEW)) }
+                }
+            }
+            state.openError?.let { message -> item { Text(message, style = MaterialTheme.typography.bodyMedium, color = c.danger) } }
             state.error?.let { message -> item { Text(message, style = MaterialTheme.typography.bodyMedium, color = c.danger) } }
             if (open.isEmpty() && closed.isEmpty() && !state.syncing) {
                 item { Text(tr(Txt.INC_NONE), style = MaterialTheme.typography.bodyMedium, color = c.textMuted) }

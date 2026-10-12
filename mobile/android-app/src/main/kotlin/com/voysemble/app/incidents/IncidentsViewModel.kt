@@ -31,8 +31,20 @@ import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import com.voysemble.core.api.OpenIncidentRequestDto
+import com.voysemble.core.api.ParticipationDto
+import com.voysemble.core.api.localIncidentCard
+import com.voysemble.core.api.openableTravelers
 
-data class IncidentsUiState(val feed: IncidentFeed, val live: Boolean, val syncing: Boolean = false, val error: String? = null)
+data class IncidentsUiState(
+    val feed: IncidentFeed,
+    val live: Boolean,
+    val syncing: Boolean = false,
+    val error: String? = null,
+    /** Slice 073: the travelers a leader may name on a card opened by hand; null until asked. */
+    val travelers: List<ParticipationDto>? = null,
+    val openError: String? = null,
+)
 
 class IncidentsViewModel(
     private val api: ApiClient? = null,
@@ -47,6 +59,54 @@ class IncidentsViewModel(
 
     /** The first fetch (live mode); completed at once in sample mode. Tests await it. */
     val ready: Job = if (_state.value.live) refresh() else Job().also { it.complete() }
+
+    /** Slice 073: a leader opens a card by hand; the sample lets anyone try it. */
+    val canOpen: Boolean = trip == null || trip.role == "leader"
+
+    /** The roster's travelers of the leader's group (every traveler for a whole-trip leader); the fixture's in sample mode. */
+    fun loadTravelers(): Job {
+        val a = api
+        val t = trip
+        if (a == null || t == null) {
+            _state.update { it.copy(travelers = KoreaConcertTourFixture.rosterForIncidents()) }
+            return Job().also { it.complete() }
+        }
+        return viewModelScope.launch {
+            when (val r = a.listRoster(t.organizationId, t.tripId)) {
+                is ApiResult.Ok -> {
+                    val mine = r.value.participations.firstOrNull { it.id == t.participationId }?.groupName
+                    _state.update { it.copy(travelers = openableTravelers(r.value.participations, mine), openError = null) }
+                }
+                is ApiResult.Failed -> _state.update { it.copy(openError = trf(Txt.INC_NEW_FAILED, r.error.code)) }
+                is ApiResult.Unreachable -> _state.update { it.copy(openError = tr(Txt.COMMON_OFFLINE)) }
+            }
+        }
+    }
+
+    /** Open a card naming travelers: the server's card lands through a refresh; sample mode keeps a local one. */
+    fun openIncident(title: String, participationIds: List<String>): Job {
+        val text = title.trim()
+        if (text.isEmpty() || participationIds.isEmpty()) return Job().also { it.complete() }
+        val a = api
+        val t = trip
+        if (a == null || t == null) {
+            val names = (_state.value.travelers ?: emptyList()).filter { it.id in participationIds }.map { it.displayName }
+            _state.update {
+                it.copy(feed = it.feed.copy(cards = listOf(localIncidentCard("local-${participationIds.joinToString("-")}", text, names, "Kim Daeun", deviceClock())) + it.feed.cards))
+            }
+            return Job().also { it.complete() }
+        }
+        return viewModelScope.launch {
+            when (val r = a.openIncident(t.organizationId, t.tripId, OpenIncidentRequestDto(text, participationIds))) {
+                is ApiResult.Ok -> {
+                    _state.update { it.copy(openError = null) }
+                    refresh().join()
+                }
+                is ApiResult.Failed -> _state.update { it.copy(openError = trf(Txt.INC_NEW_FAILED, r.error.code)) }
+                is ApiResult.Unreachable -> _state.update { it.copy(openError = tr(Txt.COMMON_OFFLINE)) }
+            }
+        }
+    }
 
     /** Local first (pending), then one send; a failed send leaves the answer pending for the next refresh. */
     fun confirm(id: String, status: ConfirmationStatus, note: String?): Job {

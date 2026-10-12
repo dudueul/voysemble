@@ -36,7 +36,7 @@ API, and wires the organizer console's Safety page to those cards. Exercised by
 | Route | Who | Behaviour |
 |---|---|---|
 | `GET /v1/orgs/{orgId}/trips/{tripId}/incidents` | staff | Cards, open first. |
-| `POST /v1/orgs/{orgId}/trips/{tripId}/incidents` (slice 068) | owner, organizer | `OpenIncidentRequest { title (1..160), participationIds (1..50) }`: a card opened by hand, kind `manual`, open, no head count, opened by "Owner" / "Organizer"; every id must be a traveler of the trip (a guardian, a leader or an unknown id is 404); the leaders of the named travelers' groups and their guardians get "Incident opened: <names>" at once (D29). 201 with the card. |
+| `POST /v1/orgs/{orgId}/trips/{tripId}/incidents` (slice 068) | owner, organizer; a leader for their group (slice 073) | `OpenIncidentRequest { title (1..160), participationIds (1..50) }`: a card opened by hand, kind `manual`, open, no head count, opened by "Owner" / "Organizer"; every id must be a traveler of the trip (a guardian, a leader or an unknown id is 404); the leaders of the named travelers' groups and their guardians get "Incident opened: <names>" at once (D29). 201 with the card. A leader (slice 073) names travelers of their own group only (a whole-trip leader any traveler; 403 otherwise), and the card is opened by their name. |
 | `POST /v1/orgs/{orgId}/trips/{tripId}/incidents/{incidentId}/resolve` | staff | `{ note }`; returns the resolved card. |
 
 ## Console (Safety page)
@@ -57,6 +57,15 @@ list with "What happened" and the roster's travelers as checkboxes ("Minji Park 
 `web/<project>/safety-manual-incident.png`.
 
 ## Mobile
+
+Slice 073 (D17): the Incidents screen carries "New incident" for a leader (and in sample mode):
+a sheet with what happened and the travelers of the leader's group as checkboxes (the roster
+read through `listRoster`, filtered by `openableTravelers(roster, myGroup)` in the core, the
+leader's group read off their own row); "Open incident" posts the card (`ApiClient.openIncident`)
+and the screen refreshes so the server's card leads the list; sample mode keeps a local card
+(`localIncidentCard`). Android `NewIncidentForm` / `NewIncidentSheet`, iOS `NewIncidentForm` in a
+sheet from the toolbar. Evidence: `android/incidents-new.png`, `ios/incidents-new.png`.
+
 
 `SyncHeadcountResponseDto.incidentId` and `HeadcountPushResult.incidentId` carry the card id to
 the device; the Android close bar already reads "Closed with N missing · incident opened".
@@ -134,5 +143,5 @@ otherwise), reachable from Today next to "Open head count". iOS `IncidentsView` 
 ## Not done
 
 Push delivery of the guardian message (D29 lane); a guardian-facing screen on the phone beyond
-the Today card; a manual card from the leader's phone (the console opens them, slice 068); a
+the Today card; a
 note at opening (the title carries it).

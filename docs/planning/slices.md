@@ -1819,7 +1819,7 @@ Not done: a manual card from the leader's phone; a note at opening; closing the 
 
 ## Slice 069: the account's own name
 
-Status: done 2026-10-12. Commit: see git log (`feat(accounts): the organizer's own name on everything they do (slice 069)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: caada97 (`feat(accounts): the organizer's own name on everything they do (slice 069)`). CI: run 38298648629 green (web, mobile, ios); captures recorded by CI in 7a4bb97.
 Spec: D21 (owners and organizers on the console), D13 (what travelers and guardians read), D17/D22/D23/D27 (where the name shows). Details: `docs/engineering/identity-and-roster.md` (The account's own name).
 
 | Gate | Command | Result |
@@ -1838,7 +1838,7 @@ Not done: the name on the phones' own account (participations carry theirs); a n
 
 ## Slice 070: the room of today's stay on the head count rows
 
-Status: done 2026-10-12. Commit: see git log (`feat(headcounts): the roster carries the room of today's stay, so a leader counts by room (slice 070)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: 2bfb7a0 (`feat(headcounts): the roster carries the room of today's stay, so a leader counts by room (slice 070)`). CI: run 38299069600 green (web, mobile, ios); captures recorded by CI in 05f42d1.
 Spec: D41 (rooming), D25 (head counts), D13. Details: `docs/engineering/headcounts.md` (The room on the row), `travel.md`.
 
 | Gate | Command | Result |
@@ -1858,7 +1858,7 @@ Not done: the room on the Today tab's hotel line; the room on the console's miss
 
 ## Slice 071: the roster as a CSV file
 
-Status: done 2026-10-12. Commit: see git log (`feat(roster): export the roster as a CSV file from the People page (slice 071)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: c9e2216 (`feat(roster): export the roster as a CSV file from the People page (slice 071)`). CI: run 38299480068 green (web, mobile, ios); captures recorded by CI in 397d4f9.
 Spec: D12 (the roster), D13 (no contact of anyone leaves), D27. Details: `docs/engineering/identity-and-roster.md` (The roster as a file).
 
 | Gate | Command | Result |
@@ -1893,3 +1893,27 @@ Built:
 - Docs: `public-web.md` sections and the refresh note; ledger 068 (CI record) and 072; feature flag `public-web.features-current` working.
 
 Not done: a feature page per role; the console captures in Korean on the Korean page (the captures are English); store badges.
+
+## Slice 073: a leader opens an incident card from the phone
+
+Status: done 2026-10-12. Commit: see git log (`feat(mobile): a leader opens an incident card from the phone, naming travelers of their group (slice 073)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D17 (incidents; amended in 068), D14 (leaders and their groups), D31. Details: `docs/engineering/incidents.md` (route row, Mobile).
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 40 files, 115 passed (`incidents.test.ts`: Kim's card by her name, Hana outside her group 403, a traveler and a guardian 403, Sora reads both cards about Minji) |
+| Core JVM tests | `./gradlew :core:jvmTest` (CI `mobile` job) | `L10nTest` the seven new keys |
+| Android tests + captures | `./gradlew :android-app:testDebugUnitTest` / `recordRoborazziDebug` (CI `mobile` job) | `IncidentsViewModelTest` +1 (the group's travelers, the POST, the refreshed list; sample mode's local card); `IncidentsScreenshotTest.incidents_new_card_form` (`incidents-new.png`) |
+| iOS tests + captures | `xcodebuild test` (CI `ios` job) | `LiveModelsTests.testIncidentsLiveMarksOfflineWhenUnreachable` gains the open flow; `CaptureTests.testIncidents` captures `incidents-new` |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+Gradle and Xcode do not run in this workspace; the CI `mobile` and `ios` jobs verify the Kotlin and Swift, desk-checked here.
+
+Built:
+- Worker: the open route admits a trip leader (their own group's travelers; a whole-trip leader any), opened by the leader's name; `incidents.test.ts` gains the leader's card and the refusals.
+- Core: `OpenIncidentRequestDto`, `ApiClient.openIncident`, `openableTravelers`, `localIncidentCard`, the fixture's `rosterForIncidents`, strings `INC_NEW*` in both languages.
+- Android: `IncidentsViewModel.canOpen`, `loadTravelers`, `openIncident`, `IncidentsUiState.travelers` / `openError`; `incidents/NewIncident.kt` (the form and the sheet); the screen's "New incident"; tests and the capture.
+- iOS: `IncidentsModel.canOpen`, `travelers`, `loadTravelers`, `openIncident`; the toolbar button, the sheet and `NewIncidentForm`; the tests and the capture.
+- Docs: `incidents.md` route row and Mobile paragraph, not-done; captures README; ledger 069 (CI record) and 073; feature flag `incidents.manual-phone` working.
+
+Not done: a note at opening; opening from the head count's missing list in one tap; a traveler's own "I need help" card.

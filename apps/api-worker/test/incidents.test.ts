@@ -7,7 +7,8 @@
 // (409 before any confirmation; leaders cannot send); the guardian lists only their traveler's
 // card, projected, with the message; a resolved card takes no confirmation. Slice 068: the
 // organizer opens a card by hand naming travelers; leaders and guardians hear it; a leader,
-// a guardian id, an unknown id and a blank title are refused; the flow continues as usual.
+// a guardian id, an unknown id and a blank title are refused; the flow continues as usual. Slice
+// 073: a leader opens one from the phone for travelers of their group, by their own name.
 
 import type {
   Incident,
@@ -245,10 +246,26 @@ describe('manual incidents (slice 068)', () => {
       openedByName: 'Owner',
     });
     expect(opened.people.map((p) => p.displayName)).toEqual(['Minji Park']);
-    // A leader cannot open one; a guardian or an unknown id is not a traveler; blank is 400.
+    // Slice 073: Kim (Bus A's leader) opens one naming Minji (Bus A), by her own name; Hana (Bus
+    // B) is outside her group; a traveler and a guardian cannot open one at all.
+    const byKim = await json<Incident>(
+      await api(t.kim).post(t.base, { title: 'Minji feels sick', participationIds: [minjiId] }),
+    );
+    expect(byKim).toMatchObject({ kind: 'manual', status: 'open', openedByName: 'Kim' });
     expect(
-      (await api(t.kim).post(t.base, { title: 'x', participationIds: [minjiId] })).status,
+      (await api(t.kim).post(t.base, { title: 'x', participationIds: [t.byName('Lee, Hana')] }))
+        .status,
     ).toBe(403);
+    expect(
+      (await api(t.minji).post(t.base, { title: 'x', participationIds: [minjiId] })).status,
+    ).toBe(403);
+    expect(
+      (await api(t.sora).post(t.base, { title: 'x', participationIds: [minjiId] })).status,
+    ).toBe(403);
+    expect((await api(t.nate).post(`${t.base}/${byKim.id}/resolve`, { note: null })).status).toBe(
+      200,
+    );
+    // A guardian or an unknown id is not a traveler; blank is 400.
     expect(
       (await api(t.nate).post(t.base, { title: 'x', participationIds: [t.byName('Sora Park')] }))
         .status,
@@ -280,8 +297,10 @@ describe('manual incidents (slice 068)', () => {
     ]);
     expect(await inbox(t.minji)).toEqual([]);
     const forSora = await json<IncidentList>(await api(t.sora).get(t.base));
-    expect(forSora.incidents.map((i) => [i.id, i.title])).toEqual([
-      [opened.id, 'Status update about Minji Park'],
+    // Both cards about Minji, the open one first, each as a status update (slice 073: Kim's too).
+    expect(forSora.incidents.map((i) => [i.id, i.title, i.status])).toEqual([
+      [opened.id, 'Status update about Minji Park', 'open'],
+      [byKim.id, 'Status update about Minji Park', 'resolved'],
     ]);
     // The rest is the head count card's flow: Kim confirms, the organizer messages and resolves.
     expect(

@@ -32,9 +32,10 @@ const openRoute = createRoute({
   method: 'post',
   path: '/v1/orgs/{orgId}/trips/{tripId}/incidents',
   tags: ['incidents'],
-  summary: 'Open an incident card by hand, naming travelers (owner, organizer)',
+  summary:
+    'Open an incident card by hand, naming travelers (owner, organizer, a leader for their group)',
   description:
-    'Slice 068 (D17). For anything the head count did not catch: a lost passport, a sick traveler. The card is open, kind `manual`, opened by the organizer; the leaders of the named travelers\' groups and their guardians hear "Incident opened" at once; the rest of the flow is the head count card\'s (a leader confirms, the organizer sends the guardian message, resolves). A guardian, a leader or an unknown id is 404.',
+    'Slice 068 (D17). For anything the head count did not catch: a lost passport, a sick traveler. The card is open, kind `manual`, opened by the organizer; the leaders of the named travelers\' groups and their guardians hear "Incident opened" at once; the rest of the flow is the head count card\'s (a leader confirms, the organizer sends the guardian message, resolves). A guardian, a leader or an unknown id is 404. Slice 073: a trip leader opens one from the phone too, naming travelers of their group only (a whole-trip leader any traveler); the card is opened by their name.',
   security: SESSION_SECURITY,
   request: {
     params: TripParams,
@@ -149,9 +150,24 @@ export function mountIncidentRoutes(app: OpenAPIHono<AppEnv>): void {
     const auth = requireAuth(c);
     const { orgId, tripId } = c.req.valid('param');
     const body = c.req.valid('json');
-    const access = await requireOrgRole(c.env, auth, orgId, 'organizer');
+    const access = await requireOrgRole(c.env, auth, orgId, 'member');
     const org = await orgObject(c.env, orgId);
-    const byName = organizerName(auth, access);
+    if (!(await org.getTrip(tripId))) throw new HTTPException(404, { message: 'Trip not found.' });
+    const me = await org.participationForAccount(tripId, auth.accountId);
+    if (!isStaff(access, me?.role)) {
+      throw new HTTPException(403, { message: 'Only organizers and trip leaders open incidents.' });
+    }
+    // Slice 073: a leader names travelers of their own group (a whole-trip leader any traveler).
+    if (me?.role === 'leader' && me.groupName !== null) {
+      const roster = await org.listRoster(tripId);
+      const outside = body.participationIds.find(
+        (id) => roster.find((p) => p.id === id)?.groupName !== me.groupName,
+      );
+      if (outside) {
+        throw new HTTPException(403, { message: 'A leader names travelers of their own group.' });
+      }
+    }
+    const byName = me?.displayName ?? organizerName(auth, access);
     const r = await org.openManualIncident({
       tripId,
       title: body.title,

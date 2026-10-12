@@ -10,9 +10,14 @@ final class IncidentsModel: ObservableObject {
     @Published private(set) var feed: IncidentFeed
     @Published private(set) var syncing = false
     @Published private(set) var error: String?
+    /// Slice 073: the travelers a leader may name on a card opened by hand; nil until asked.
+    @Published private(set) var travelers: [ParticipationDto]?
+    @Published private(set) var openError: String?
     let api: ApiClient?
     let trip: ActiveTrip?
     var live: Bool { api != nil && trip != nil }
+    /// Slice 073: a leader opens a card by hand; the sample lets anyone try it.
+    var canOpen: Bool { trip == nil || trip?.role == "leader" }
     private let deviceClock: () -> String
 
     /// Live (slice 024) with the client and the active trip: the feed from the API, answers
@@ -60,6 +65,53 @@ final class IncidentsModel: ObservableObject {
         }
     }
 
+    /// Slice 073: the roster's travelers of the leader's group (every traveler for a whole-trip leader); the fixture's in sample mode.
+    func loadTravelers() async {
+        guard let api, let trip else {
+            travelers = KoreaConcertTourFixture.shared.rosterForIncidents()
+            return
+        }
+        do {
+            let r = try await api.listRoster(orgId: trip.organizationId, tripId: trip.tripId, correlationId: nil)
+            if let roster = (r as? ApiResultOk<RosterResponseDto>)?.value {
+                let mine = roster.participations.first(where: { $0.id == trip.participationId })?.groupName
+                travelers = IncidentsKt.openableTravelers(roster: roster.participations, groupName: mine)
+                openError = nil
+            } else if let failed = r as? ApiResultFailed {
+                openError = tr1(.incNewFailed, failed.error.code)
+            } else {
+                openError = tr(.commonOffline)
+            }
+        } catch {
+            openError = tr(.commonOffline)
+        }
+    }
+
+    /// Slice 073: open a card naming travelers; the server's card lands through a refresh, sample mode keeps a local one.
+    func openIncident(title: String, participationIds: [String]) async {
+        let text = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty, !participationIds.isEmpty else { return }
+        guard let api, let trip else {
+            let names = (travelers ?? []).filter { participationIds.contains($0.id) }.map { $0.displayName }
+            let card = IncidentsKt.localIncidentCard(id: "local-\(participationIds.joined(separator: "-"))", title: text, people: names, openedBy: "Kim Daeun", atDevice: deviceClock())
+            feed = IncidentFeed(cards: [card] + feed.cards, offline: feed.offline)
+            return
+        }
+        do {
+            let r = try await api.openIncident(orgId: trip.organizationId, tripId: trip.tripId, body: OpenIncidentRequestDto(title: text, participationIds: participationIds), correlationId: nil)
+            if r is ApiResultOk<IncidentDto> {
+                openError = nil
+                await refresh()
+            } else if let failed = r as? ApiResultFailed {
+                openError = tr1(.incNewFailed, failed.error.code)
+            } else {
+                openError = tr(.commonOffline)
+            }
+        } catch {
+            openError = tr(.commonOffline)
+        }
+    }
+
     private func send(_ id: String) async {
         guard let api, let trip, let pending = feed.cards.first(where: { $0.id == id })?.pending else { return }
         do {
@@ -83,6 +135,8 @@ final class IncidentsModel: ObservableObject {
 
 struct IncidentsView: View {
     @ObservedObject var model: IncidentsModel
+    // Slice 073: the sheet a leader fills to open a card by hand.
+    @State private var composing = false
 
     var body: some View {
         let open = model.feed.cards.filter { $0.isOpen }
@@ -106,6 +160,26 @@ struct IncidentsView: View {
             }
         }
         .navigationTitle(tr(.incEyebrow))
+        .toolbar {
+            if model.canOpen {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(tr(.incNew)) {
+                        composing = true
+                        Task { await model.loadTravelers() }
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $composing) {
+            NavigationStack {
+                NewIncidentForm(travelers: model.travelers, error: model.openError) { title, ids in
+                    composing = false
+                    Task { await model.openIncident(title: title, participationIds: ids) }
+                }
+                .navigationTitle(tr(.incNew))
+                .navigationBarTitleDisplayMode(.inline)
+            }
+        }
         .task { await model.refresh() }
         .refreshable { await model.refresh() }
     }
@@ -146,5 +220,49 @@ struct IncidentsView: View {
             }
         }
         .padding(.vertical, 4)
+    }
+}
+
+/// Slice 073: what happened and the travelers of the leader's group as toggles; its own view so a
+/// capture renders it without a sheet.
+struct NewIncidentForm: View {
+    let travelers: [ParticipationDto]?
+    let error: String?
+    let onOpen: (String, [String]) -> Void
+    @State private var title = ""
+    @State private var chosen: Set<String> = []
+
+    var body: some View {
+        Form {
+            Section {
+                Text(tr(.incNewHint)).font(.subheadline).foregroundStyle(.secondary)
+                TextField(tr(.incNewTitle), text: $title, axis: .vertical).lineLimit(1...3)
+            }
+            Section(tr(.incNewPeople)) {
+                if let travelers {
+                    if travelers.isEmpty { Text(tr(.incNone)).foregroundStyle(.secondary) }
+                    ForEach(travelers, id: \.id) { p in
+                        Toggle(isOn: Binding(
+                            get: { chosen.contains(p.id) },
+                            set: { on in if on { chosen.insert(p.id) } else { chosen.remove(p.id) } }
+                        )) {
+                            HStack(spacing: 6) {
+                                Text(p.displayName)
+                                if let group = p.groupName { Text("· \(group)").foregroundStyle(.secondary) }
+                            }
+                        }
+                        .accessibilityLabel(tr1(.incNewPersonSpoken, p.displayName))
+                    }
+                } else {
+                    Text(tr(.commonSyncing)).foregroundStyle(.secondary)
+                }
+            }
+            if let error { Text(error).foregroundStyle(.red) }
+            Section {
+                Button(tr(.incNewOpen)) { onOpen(title, Array(chosen)) }
+                    .voyButton(prominent: true)
+                    .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || chosen.isEmpty)
+            }
+        }
     }
 }

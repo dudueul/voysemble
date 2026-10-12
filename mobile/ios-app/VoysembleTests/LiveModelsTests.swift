@@ -94,6 +94,17 @@ final class LiveModelsTests: XCTestCase {
         await model.refresh()
         XCTAssertTrue(model.feed.offline)
         XCTAssertNil(model.error)
+        // Slice 073: a leader may open a card; unreachable says offline; sample mode keeps a local card.
+        XCTAssertTrue(model.canOpen)
+        await model.loadTravelers()
+        XCTAssertEqual(model.openError, "Offline")
+        let sample = IncidentsModel(deviceClock: { "07:12" })
+        await sample.loadTravelers()
+        XCTAssertEqual(sample.travelers?.map { $0.displayName }, ["Minji Park", "Juho Kim", "Seojun Choi"])
+        await sample.openIncident(title: "Lost passport", participationIds: ["t1"])
+        XCTAssertEqual(sample.feed.cards.first?.title, "Lost passport")
+        XCTAssertEqual(sample.feed.cards.first?.people, ["Minji Park"])
+        XCTAssertEqual(sample.feed.cards.first?.openedAt, "07:12")
     }
 
     func testMeetingWindowLiveStartsEmptyAndSaysOfflineWhenUnreachable() async {
