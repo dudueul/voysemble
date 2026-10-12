@@ -8,6 +8,9 @@ evidence for the visual-acceptance gate (doc 01 §18.4, §24.4), compared by a r
 |---|---|---|
 | `web/desktop-1440/*.png` | `pnpm --filter @voysemble/organizer-web test:e2e` | 1440x960 |
 | `web/laptop-1280/*.png` | same | 1280x800 |
+| `web/tablet-1024/*.png`, `web/phone-390/*.png` | same (responsive spec) | 1024x768, 390x844 |
+| `public/<project>/*.png` | `pnpm --filter @voysemble/public-web test:e2e` | the same four viewports |
+| `android/*.png` | CI `mobile` job (Roborazzi) | 412x915 |
 
 Mobile captures (390x844 iOS, 412x915 Android) arrive with the P1 mobile slices.
 
@@ -40,3 +43,12 @@ against `wrangler dev`, with the ack meter and unacked names from the API.
 
 `android/sign-in.png`, `android/sign-in-awaiting-dark.png`, `android/invite.png` from the CI
 `mobile` job (`android-captures` artifact).
+
+## Slice 021 (2026-10-12): public site, four viewports
+
+`public/desktop-1440/`, `public/laptop-1280/`, `public/tablet-1024/`, `public/phone-390/`:
+`landing-en-top.png`, `landing-ko-top.png`, `privacy-en-top.png` (the first viewport at each size);
+`public/desktop-1440/landing-en.png` and `landing-ko.png` are the full pages (one record each, since
+a full page is megabytes). Produced by `apps/public-web/e2e/landing.spec.ts` against the
+assets-only Worker under `wrangler dev`.
+D31: from this slice on, every client slice records captures per device class.

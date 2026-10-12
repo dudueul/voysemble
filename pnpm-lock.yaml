@@ -182,6 +182,28 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@types/node@26.6.5)(happy-dom@20.14.6)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1))
 
+  apps/public-web:
+    dependencies:
+      '@voysemble/design-tokens':
+        specifier: workspace:*
+        version: link:../../packages/design-tokens
+    devDependencies:
+      '@playwright/test':
+        specifier: 'catalog:'
+        version: 1.56.1
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.6.5
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@types/node@26.6.5)(happy-dom@20.14.6)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1))
+      wrangler:
+        specifier: 'catalog:'
+        version: 4.149.0(@types/node@26.6.5)
+
   packages/contracts:
     dependencies:
       '@hono/zod-openapi':

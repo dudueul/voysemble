@@ -1,0 +1,30 @@
+// Copyright 2026- At Day. All rights reserved.
+//
+// Public site: an assets-only Worker (no `main`) serving the built static pages per ADR-0008.
+// `html_handling: auto-trailing-slash` serves /ko/index.html at /ko/ and redirects /ko to /ko/;
+// `not_found_handling: 404-page` serves dist/404.html with a 404 status for unknown paths.
+// `<build>` placeholders are substituted by CI, never by hand.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "voysemble-www",
+  "compatibility_date": "2026-09-01",
+  "assets": {
+    "directory": "./dist",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page"
+  },
+  "env": {
+    "preview": {
+      "routes": [{ "pattern": "www.__BUILD_ID__.dev.voysemble.cfd", "custom_domain": true }]
+    },
+    "staging": {
+      "routes": [{ "pattern": "www.staging.dev.voysemble.cfd", "custom_domain": true }]
+    },
+    "production": {
+      "routes": [
+        { "pattern": "voysemble.com", "custom_domain": true },
+        { "pattern": "www.voysemble.com", "custom_domain": true }
+      ]
+    }
+  }
+}

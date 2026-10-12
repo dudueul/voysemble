@@ -98,6 +98,8 @@
     "itinerary.revision-diff": "working",
     "announcements.system-revision": "working",
     "mobile.today.live-announcement": "working",
-    "mobile.bulletin.revision-lines": "working"
+    "mobile.bulletin.revision-lines": "working",
+    "web.public-site": "working",
+    "web.public-site.legal-drafts": "working"
   }
 }

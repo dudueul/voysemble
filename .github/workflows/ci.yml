@@ -22,11 +22,17 @@ jobs:
       - run: pnpm check:headers
       - run: pnpm --filter @voysemble/organizer-web exec playwright install --with-deps chromium
       - run: pnpm --filter @voysemble/organizer-web test:e2e
+      # Public site (apps/public-web): built by its own script, served by the assets-only Worker.
+      - run: pnpm --filter @voysemble/public-web test:e2e
+        env:
+          BUILD_ID: ${{ github.sha }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: web-captures
-          path: docs/captures/web
+          path: |
+            docs/captures/web
+            docs/captures/public
           if-no-files-found: ignore
   mobile:
     # GitHub Ubuntu runners ship the Android SDK and can reach Google Maven, so the full build
