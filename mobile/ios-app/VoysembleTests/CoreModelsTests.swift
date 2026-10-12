@@ -23,13 +23,24 @@ final class CoreModelsTests: XCTestCase {
 
     func testMeetingWindowOptInFromSwift() {
         let model = MeetingWindowModel(now: "10:52")
-        XCTAssertFalse(model.window.selfOptedIn)
-        XCTAssertEqual(model.window.minutesLeftAt(now: "10:52"), 28)
+        XCTAssertEqual(model.window?.selfOptedIn, false)
+        XCTAssertEqual(model.window?.minutesLeftAt(now: "10:52"), 28)
         model.setSharing(true)
-        XCTAssertTrue(model.window.selfOptedIn)
-        XCTAssertEqual(model.window.count(state: WindowState.uncertain), 2)
+        XCTAssertEqual(model.window?.selfOptedIn, true)
+        XCTAssertEqual(model.window?.count(state: WindowState.uncertain), 2)
         model.setSharing(false)
-        XCTAssertEqual(model.window.me?.state, WindowState.optedOut)
+        XCTAssertEqual(model.window?.me?.state, WindowState.optedOut)
+    }
+
+    func testWindowJudgementFromSwift() {
+        // Slice 029: the device rule and the wire names reachable from Swift (top-level, no enum extensions).
+        XCTAssertEqual(WindowRulesKt.judgeWindowState(distanceMeters: KotlinDouble(double: 50), accuracyMeters: 20, radiusMeters: 200), "inside")
+        XCTAssertEqual(WindowRulesKt.judgeWindowState(distanceMeters: KotlinDouble(double: 250), accuracyMeters: 20, radiusMeters: 200), "outside")
+        XCTAssertEqual(WindowRulesKt.judgeWindowState(distanceMeters: nil, accuracyMeters: 20, radiusMeters: 200), "uncertain")
+        XCTAssertEqual(WindowRulesKt.wireNameOf(state: WindowState.optedOut), "opted_out")
+        XCTAssertEqual(WindowRulesKt.windowStateOf(wire: "stale"), WindowState.stale)
+        let fixture = KoreaConcertTourFixture.shared.meetingWindow()
+        XCTAssertEqual(fixture.withSelfState(state: WindowState.inside).me?.state, WindowState.inside)
     }
 
     func testBulletinAcknowledgeQueuesOnce() {

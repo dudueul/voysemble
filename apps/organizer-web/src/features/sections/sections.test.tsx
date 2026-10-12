@@ -518,6 +518,152 @@ describe('sample sections', () => {
     ).toBeTruthy();
   });
 
+  it('Safety: live meeting window with member states, then closed from the console', async () => {
+    const WIN = {
+      id: '88888888-8888-4888-8888-888888888888',
+      tripId: TRIP.id,
+      label: 'Colosseum regroup',
+      place: 'Colosseum, main entrance',
+      radiusMeters: 200,
+      startsAt: '2026-12-31T09:45:00.000Z',
+      endsAt: '2026-12-31T10:20:00.000Z',
+      groups: ['Bus A'],
+      openedByName: 'Kim',
+      openedAt: '2026-12-31T09:40:00.000Z',
+      closedAt: null,
+      status: 'open',
+      center: { lat: 41.8902, lng: 12.4922 },
+      members: [
+        {
+          participationId: 'p1',
+          displayName: 'Minji Park',
+          groupName: 'Bus A',
+          state: 'inside',
+          reportedAt: '2026-12-31T09:50:00.000Z',
+        },
+        {
+          participationId: 'p2',
+          displayName: 'Juho Kim',
+          groupName: 'Bus A',
+          state: 'outside',
+          reportedAt: '2026-12-31T09:51:00.000Z',
+        },
+        {
+          participationId: 'p3',
+          displayName: 'Hana Lee',
+          groupName: 'Bus A',
+          state: 'opted_out',
+          reportedAt: null,
+        },
+      ],
+      counts: { inside: 1, outside: 1, uncertain: 0, stale: 0, optedOut: 1, total: 3 },
+    };
+    let closed = false;
+    stubApi({
+      'GET /v1/orgs': () => ({ organizations: [ORG] }),
+      [`GET /v1/orgs/${ORG.id}/trips`]: () => ({ trips: [TRIP] }),
+      [`GET /v1/orgs/${ORG.id}/trips/${TRIP.id}/incidents`]: () => ({ incidents: [] }),
+      [`GET /v1/orgs/${ORG.id}/trips/${TRIP.id}/windows`]: () => ({
+        windows: closed
+          ? [{ ...WIN, status: 'closed', closedAt: WIN.endsAt, center: null }]
+          : [WIN],
+      }),
+      [`POST /v1/orgs/${ORG.id}/trips/${TRIP.id}/windows/${WIN.id}/close`]: () => {
+        closed = true;
+        return { ...WIN, status: 'closed', closedAt: WIN.endsAt, center: null };
+      },
+    });
+    renderWithQuery(<SafetyPage />);
+    // The fixture card carries the same label while the org loads; wait for the live chip.
+    await screen.findByTestId('window-status');
+    expect(text(screen.getByText('Meeting window: Colosseum regroup'))).toBeTruthy();
+    expect(text(screen.getByTestId('window-status'))).toBe('Open');
+    expect(screen.getAllByText('Live').length).toBeGreaterThan(0);
+    expect(text(screen.getByTestId('win-inside'))).toBe('1');
+    expect(text(screen.getByTestId('win-outside'))).toBe('1');
+    expect(text(screen.getByTestId('win-opted_out'))).toBe('1');
+    const members = within(screen.getByTestId('window-members')).getAllByRole('listitem');
+    expect(members).toHaveLength(3);
+    expect(text(members[0] ?? null)).toContain('Minji Park');
+    expect(text(members[0] ?? null)).toContain('Inside');
+    expect(text(members[2] ?? null)).toContain('not reported yet');
+    // Two spots drawn (the opted-out member is not), each titled with the name and state.
+    const pins = Array.from(document.querySelectorAll('.map__pin title')).map((t) => t.textContent);
+    expect(pins).toEqual(['Minji Park: Inside', 'Juho Kim: Outside']);
+    fireEvent.click(screen.getByRole('button', { name: 'Close window' }));
+    await screen.findByTestId('no-window');
+    expect(text(screen.getByTestId('earlier-windows'))).toContain('Colosseum regroup');
+    expect(text(screen.getByTestId('earlier-windows'))).toContain('Closed');
+  });
+
+  it('Safety: opening a window from the console posts the meeting point once', async () => {
+    const posted: unknown[] = [];
+    let opened = false;
+    const WIN = {
+      id: '99999999-9999-4999-8999-999999999999',
+      tripId: TRIP.id,
+      label: 'Hotel lobby',
+      place: 'Hotel Roma lobby',
+      radiusMeters: 50,
+      startsAt: '2026-12-31T09:45:00.000Z',
+      endsAt: '2026-12-31T10:20:00.000Z',
+      groups: [],
+      openedByName: 'Organizer',
+      openedAt: '2026-12-31T09:40:00.000Z',
+      closedAt: null,
+      status: 'open',
+      center: { lat: 41.9, lng: 12.5 },
+      members: [],
+      counts: { inside: 0, outside: 0, uncertain: 0, stale: 0, optedOut: 0, total: 0 },
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const key = `${init?.method ?? 'GET'} ${String(input)}`;
+        if (key === 'GET /v1/orgs') return Response.json({ organizations: [ORG] });
+        if (key === `GET /v1/orgs/${ORG.id}/trips`) return Response.json({ trips: [TRIP] });
+        if (key === `GET /v1/orgs/${ORG.id}/trips/${TRIP.id}/incidents`)
+          return Response.json({ incidents: [] });
+        if (key === `GET /v1/orgs/${ORG.id}/trips/${TRIP.id}/windows`)
+          return Response.json({ windows: opened ? [WIN] : [] });
+        if (key === `POST /v1/orgs/${ORG.id}/trips/${TRIP.id}/windows`) {
+          posted.push(JSON.parse(String(init?.body)));
+          opened = true;
+          return Response.json(WIN, { status: 201 });
+        }
+        return Response.json(
+          { error: { code: 'NOT_FOUND', message: key, correlationId: 't' } },
+          { status: 404 },
+        );
+      }),
+    );
+    renderWithQuery(<SafetyPage />);
+    const form = await screen.findByRole('form', { name: 'Open a window' });
+    fireEvent.change(within(form).getByLabelText('Label'), { target: { value: 'Hotel lobby' } });
+    fireEvent.change(within(form).getByLabelText('Place'), {
+      target: { value: 'Hotel Roma lobby' },
+    });
+    fireEvent.change(within(form).getByLabelText('Radius (m)'), { target: { value: '50' } });
+    fireEvent.change(within(form).getByLabelText('Meeting point latitude'), {
+      target: { value: '41.9' },
+    });
+    fireEvent.change(within(form).getByLabelText('Meeting point longitude'), {
+      target: { value: '12.5' },
+    });
+    fireEvent.submit(form);
+    await screen.findByText('Meeting window: Hotel lobby');
+    expect(posted).toHaveLength(1);
+    expect(posted[0]).toMatchObject({
+      label: 'Hotel lobby',
+      place: 'Hotel Roma lobby',
+      radiusMeters: 50,
+      groups: [],
+      center: { lat: 41.9, lng: 12.5 },
+    });
+    const body = posted[0] as { startsAt: string; endsAt: string };
+    expect(new Date(body.endsAt).getTime() - new Date(body.startsAt).getTime()).toBe(45 * 60_000);
+  });
+
   it('Safety: real incidents list open first and resolve with a note', async () => {
     const INC = {
       id: '55555555-5555-4555-8555-555555555555',
@@ -550,6 +696,7 @@ describe('sample sections', () => {
     stubApi({
       'GET /v1/orgs': () => ({ organizations: [ORG] }),
       [`GET /v1/orgs/${ORG.id}/trips`]: () => ({ trips: [TRIP] }),
+      [`GET /v1/orgs/${ORG.id}/trips/${TRIP.id}/windows`]: () => ({ windows: [] }),
       [`GET /v1/orgs/${ORG.id}/trips/${TRIP.id}/incidents`]: () => ({
         incidents: resolved
           ? [
@@ -589,6 +736,7 @@ describe('sample sections', () => {
     });
     renderWithQuery(<SafetyPage />);
     const card = await screen.findByTestId(`incident-${INC.id}`);
+    await screen.findByTestId('no-window');
     expect(text(card)).toContain('Juho Kim');
     expect(text(card)).toContain('Open');
     expect(text(screen.getByRole('heading', { level: 1 }).parentElement)).toContain(

@@ -69,6 +69,32 @@ final class LiveModelsTests: XCTestCase {
         XCTAssertNil(model.error)
     }
 
+    func testMeetingWindowLiveStartsEmptyAndSaysOfflineWhenUnreachable() async {
+        // Slice 029: live starts without a window (no fixture), and an unreachable server says so safely.
+        let model = MeetingWindowModel(api: unreachableClient(), trip: trip, locationSource: FakeLocationSource(fix: nil))
+        XCTAssertTrue(model.live)
+        XCTAssertNil(model.window)
+        await model.refresh()
+        XCTAssertNil(model.window)
+        XCTAssertEqual(model.error, "Offline. The window needs one connection.")
+        XCTAssertFalse(model.syncing)
+        // Without a window there is nothing to report; the switch never reaches the network.
+        model.setSharing(true)
+        await model.report()
+        XCTAssertNil(model.window)
+    }
+
+    func testMeetingWindowSampleModeFlipsTheFixtureAndNeverSyncs() async {
+        let model = MeetingWindowModel()
+        XCTAssertFalse(model.live)
+        XCTAssertEqual(model.window?.me?.state, WindowState.optedOut)
+        model.setSharing(true)
+        XCTAssertEqual(model.window?.me?.state, WindowState.uncertain)
+        await model.refresh()
+        XCTAssertNil(model.error)
+        XCTAssertNil(MeetingWindowModel(window: nil).window)
+    }
+
     func testClocksFormatWireTimes() {
         XCTAssertEqual(Clocks.localTime("not a date"), "not a date")
         let hhmm = Clocks.localTime("2026-12-31T06:30:00.000Z")
@@ -77,4 +103,11 @@ final class LiveModelsTests: XCTestCase {
         XCTAssertEqual(Clocks.date(in: "Europe/Rome").count, 10)
         XCTAssertEqual(Clocks.time(in: "Asia/Seoul").count, 5)
     }
+}
+
+/// A location source for tests: the fix it was given, never the hardware.
+private struct FakeLocationSource: DeviceLocationSource {
+    let stored: LocationFix?
+    init(fix: LocationFix?) { stored = fix }
+    func fix() async -> LocationFix? { stored }
 }

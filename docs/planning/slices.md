@@ -864,7 +864,7 @@ Not done: deep links from entries to the announcement, head count or incident; c
 
 ## Slice 027: traveler fee ledger
 
-Status: done 2026-10-12. Commit: see git log (`feat(fees): traveler fee ledger ...`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: see git log (`feat(fees): traveler fee ledger ...`). CI: run 38199495526 red on the `web` job only (`billing.spec.ts`: the "Saved Minji Park." note vanished because the ledger row was keyed on the paid amount and remounted on the refetch; `mobile` and `ios` green). Fixed in the slice 029 commit (row keyed by person, input synced by effect); verified by that commit's run.
 Spec: D23 (fees as a ledger, organizer-only billing, guardians see their balance, no card data). Details: `docs/engineering/fees.md`.
 
 | Gate | Command | Result |
@@ -893,7 +893,7 @@ Not done: Stripe for the organizer's license, per-traveler Checkout links, ledge
 
 ## Slice 028: roster editing and invite revocation
 
-Status: done 2026-10-12. Commit: see git log (`feat(roster): edit, revoke code, remove ...`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: see git log (`feat(roster): edit, revoke code, remove ...`). CI: run 38200045724, `mobile` and `ios` green (captures recorded), `web` red on the same pre-existing `billing.spec.ts` race as slice 027 (people.spec.ts and every other spec green: 71 passed); fixed in the slice 029 commit.
 Spec: D12 (roster as the source of truth, codes bound to rows), D28 named for joined rows. Details: `docs/engineering/identity-and-roster.md` (slice 028 section).
 
 | Gate | Command | Result |
@@ -914,3 +914,31 @@ Built:
 - Docs: roster doc section, captures README, feature flags (`roster.edit`, `roster.remove`, `invites.revoke`).
 
 Not done: revoking devices of joined rows (D28), roster CSV export, editing a guardian's binding.
+
+## Slice 029: meeting windows, live
+
+Status: done 2026-10-12. Commit: see git log (`feat(windows): meeting windows on the API, console and phones (slice 029)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D15 (no ambient tracking: windows, opt-in per window, states only, point erased at close), D13 (guardians never see it), D31 (captures). Details: `docs/engineering/meeting-windows.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 19 files, 57 tests (adds `windows.test.ts`: 8) |
+| Core JVM tests | `./gradlew :core:jvmTest -Pvoysemble.android=false` | green (adds `WindowRulesTest`: 4) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 14 files, 77 tests (adds `window-schematic.test.ts`: 3, Safety live window and open-form cases) |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e` | `safety-windows.spec.ts` new; `headcounts.spec.ts` locator tightened; `billing.spec.ts` race fixed in the component; capture `safety-window-live.png` |
+| Android unit + screenshots | CI `mobile` job | `MeetingWindowViewModelTest` (6), `window-none.png` |
+| iOS unit + captures | CI `ios` job | `LiveModelsTests` (+2), `CoreModelsTests` (+1), `window-sharing-dark.png`, `window-none.png` |
+
+Facts established by tests: see the engineering doc.
+
+Built:
+- Contracts `window.ts` (states, `OpenWindowRequest`, `MeetingWindow`, `ReportWindowStateRequest`, `windowStateOf`, `windowStatusOf`, `WINDOW_STALE_MS`); OrgDO schema v11 (`meeting_windows`, `meeting_window_members`), `openWindow`, `listWindows`, `closeWindow`, `reportWindowState`, lazy auto-stop; routes list, open, close, report (`routes/windows.ts`).
+- Core: `api/Windows.kt` DTOs, `ApiClient` window calls, `window/WindowRules.kt` (`LocationSource`, haversine, `judgeWindowState`, schematic offsets, `toMeetingWindow`, Swift-facing helpers).
+- Android: live `MeetingWindowViewModel` (one fix judged on the device, 60 s re-judge, opt-out), `AndroidLocationSource`, location permissions and the runtime prompt from the switch, "No window open" state, navigation wiring; tests.
+- iOS: live `MeetingWindowModel`, `DeviceLocationSource` + `CoreLocationSource`, `NSLocationWhenInUseUsageDescription`, Today wiring; tests and captures.
+- Console: `windowsQuery`, `windows.open/close`, Safety live window card (schematic map from states, counts, member list, close), open form, earlier windows, strings, styles; unit tests; e2e with capture.
+- Docs: `meeting-windows.md`, captures README, mobile README, build doc note, feature flags (`location.meeting-windows`, `mobile.meeting-window` working).
+
+Not done: leader "open a window" on the phone; a window per itinerary event; push when a window opens; Korean phone strings.
+

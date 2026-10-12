@@ -92,3 +92,12 @@ one payment saved and a bank CSV imported (1 paid, 1 partial, 1 unpaid). Produce
 
 `web/desktop-1440/people-actions.png`, `web/laptop-1280/people-actions.png`: Juho's card after a regroup
 and a revoked code ("Code not issued" in the row). Produced by `e2e/people.spec.ts`.
+
+## Slice 029 (2026-10-12): live meeting windows
+
+`web/desktop-1440/safety-window-live.png`, `web/laptop-1280/safety-window-live.png`: the live window card
+after Minji reported "inside" from the API (1 inside, 1 opted out, the member list, "Live" and "Open" chips,
+"Close window"). Produced by `e2e/safety-windows.spec.ts`. `android/window-none.png` (Roborazzi) and
+`ios/window-sharing-dark.png`, `ios/window-none.png` (CaptureTests): the switch on in dark mode and the
+"No window open" state. Both land here through the CI `captures` job.
+

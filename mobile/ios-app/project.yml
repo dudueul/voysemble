@@ -33,6 +33,9 @@ targets:
         UILaunchScreen: {}
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: false
+        # Meeting windows (D15, slice 029): one fix while the traveler shares inside an open window,
+        # judged on the phone; no background location.
+        NSLocationWhenInUseUsageDescription: Voysemble compares your position with the meeting point only while you share inside an open meeting window. Your position never leaves this phone; leaders see inside or outside.
         VYApiHostDebug: api.next.dev.voysemble.cfd
         VYApiHostRelease: api.voysemble.com
     preBuildScripts:

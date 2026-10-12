@@ -14,7 +14,9 @@ import type {
   Incident,
   IncidentList,
   IssueInvitesResponse,
+  MeetingWindow,
   MeResponse,
+  OpenWindowRequest,
   Organization,
   OrganizationList,
   Participation,
@@ -27,6 +29,7 @@ import type {
   Trip,
   TripList,
   UpdateParticipationRequest,
+  WindowList,
 } from '@voysemble/contracts';
 import { ApiError, api } from './api-client';
 
@@ -140,6 +143,25 @@ export const incidents = {
   /** Organizer action (D17): compose the guardian message from the latest leader confirmation. */
   sendGuardianMessage: (orgId: string, tripId: string, incidentId: string) =>
     api<Incident>(`/v1/orgs/${orgId}/trips/${tripId}/incidents/${incidentId}/guardian-message`, {
+      method: 'POST',
+    }),
+};
+
+/** Meeting windows (D15, slice 029): newest first; polled while the Safety page is open so states move. */
+export const windowsQuery = (orgId: string, tripId: string) =>
+  queryOptions({
+    queryKey: ['orgs', orgId, 'trips', tripId, 'windows'],
+    queryFn: async () =>
+      (await api<WindowList>(`/v1/orgs/${orgId}/trips/${tripId}/windows`)).windows,
+    refetchInterval: 30_000,
+  });
+
+export const windows = {
+  /** Staff open a window; the meeting point is the only coordinate the service keeps, while open. */
+  open: (orgId: string, tripId: string, body: OpenWindowRequest) =>
+    api<MeetingWindow>(`/v1/orgs/${orgId}/trips/${tripId}/windows`, { method: 'POST', body }),
+  close: (orgId: string, tripId: string, windowId: string) =>
+    api<MeetingWindow>(`/v1/orgs/${orgId}/trips/${tripId}/windows/${windowId}/close`, {
       method: 'POST',
     }),
 };

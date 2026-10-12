@@ -2,10 +2,13 @@
 //
 // Meeting window (atlas #7 map & radius, D15). Schematic map: the zone circle, members by state,
 // legend with counts. No tiles, no coordinates. The traveler's only control is the sharing switch
-// for this window; it stops automatically at the end time.
+// for this window; it stops automatically at the end time. Live (slice 029): the window comes
+// from the API, the switch asks for location permission once, and the chip reads "Live".
 
 package com.voysemble.app.window
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -34,6 +37,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -50,15 +54,40 @@ import com.voysemble.app.ui.VyCard
 import com.voysemble.core.window.MeetingWindow
 import com.voysemble.core.window.WindowState
 
+/** Live/sample status for the header chip and the error line; the default is the fixture. */
+data class WindowScreenStatus(val live: Boolean = false, val syncing: Boolean = false, val error: String? = null)
+
 @Composable
 fun MeetingWindowRoute(vm: MeetingWindowViewModel, onBack: () -> Unit) {
     val state by vm.state.collectAsStateWithLifecycle()
-    MeetingWindowScreen(window = state.window, now = state.now, onSharingChange = vm::setSharing, onBack = onBack)
+    val context = LocalContext.current
+    // The switch asks for location once; whatever the answer, the person chose to share, and a
+    // device without permission reports "uncertain" (never a position).
+    val permissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { vm.setSharing(true) }
+    MeetingWindowScreen(
+        window = state.window,
+        now = state.now,
+        status = WindowScreenStatus(live = state.live, syncing = state.syncing, error = state.error),
+        onSharingChange = { on ->
+            if (on && state.live && !hasLocationPermission(context)) permissions.launch(AndroidLocationSource.PERMISSIONS) else vm.setSharing(on)
+        },
+        onBack = onBack,
+    )
 }
 
 @Composable
-fun MeetingWindowScreen(window: MeetingWindow, now: String, onSharingChange: (Boolean) -> Unit, onBack: () -> Unit) {
+fun MeetingWindowScreen(
+    window: MeetingWindow?,
+    now: String,
+    onSharingChange: (Boolean) -> Unit,
+    onBack: () -> Unit,
+    status: WindowScreenStatus = WindowScreenStatus(),
+) {
     val c = LocalVoysembleColors.current
+    if (window == null) {
+        NoWindow(status, onBack)
+        return
+    }
     val open = window.isOpenAt(now)
     val minutesLeft = window.minutesLeftAt(now)
     LazyColumn(
@@ -72,8 +101,9 @@ fun MeetingWindowScreen(window: MeetingWindow, now: String, onSharingChange: (Bo
                 title = window.label,
                 subtitle = "${window.place} · ${window.radiusMeters} m zone · ${window.startsAt}–${window.endsAt}",
                 onBack = onBack,
-            ) { SampleDataChip() }
+            ) { StatusChip(status) }
         }
+        status.error?.let { item { Text(it, style = MaterialTheme.typography.bodyMedium, color = c.danger) } }
         item {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (open) LabelChip("Open · $minutesLeft min left", c.success, AppIcons.Clock) else LabelChip("Closed", c.textMuted, AppIcons.Clock)
@@ -110,6 +140,34 @@ fun MeetingWindowScreen(window: MeetingWindow, now: String, onSharingChange: (Bo
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun StatusChip(status: WindowScreenStatus) {
+    val c = LocalVoysembleColors.current
+    if (!status.live) SampleDataChip() else LabelChip(if (status.syncing) "Syncing" else "Live", c.info, AppIcons.Check)
+}
+
+/** Live mode without an open or scheduled window: the leader has not opened one for this trip. */
+@Composable
+private fun NoWindow(status: WindowScreenStatus, onBack: () -> Unit) {
+    val c = LocalVoysembleColors.current
+    Column(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        ScreenHeader(eyebrow = "Meeting window", title = "No window open", subtitle = null, onBack = onBack) { StatusChip(status) }
+        status.error?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = c.danger) }
+        VyCard {
+            Text("No meeting window is open right now.", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "When a leader opens one, it appears here with its time range and zone. Sharing is per window, only while it is open, and stops automatically.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = c.textMuted,
+            )
         }
     }
 }

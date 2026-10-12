@@ -54,7 +54,7 @@ test('head count closed with a missing traveler opens an incident the organizer 
     .textContent();
 
   await page.goto('/safety');
-  await expect(page.getByRole('status')).toContainText('No incidents');
+  await expect(page.getByRole('status').filter({ hasText: 'No incidents' })).toBeVisible();
 
   // Kim (leader) redeems in a second context and syncs a closed head count from "the phone".
   const ctx = await browser.newContext();

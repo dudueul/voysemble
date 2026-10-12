@@ -21,3 +21,4 @@ export * from './organization';
 export * from './person';
 export * from './roster';
 export * from './trip';
+export * from './window';

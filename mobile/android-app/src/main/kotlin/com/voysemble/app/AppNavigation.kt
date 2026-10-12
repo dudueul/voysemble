@@ -19,6 +19,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -37,6 +38,7 @@ import com.voysemble.app.session.SessionViewModel
 import com.voysemble.app.today.MainTab
 import com.voysemble.app.today.TodayRoute
 import com.voysemble.app.today.TodayViewModel
+import com.voysemble.app.window.AndroidLocationSource
 import com.voysemble.app.window.MeetingWindowRoute
 import com.voysemble.app.window.MeetingWindowViewModel
 import com.voysemble.core.session.ActiveTrip
@@ -103,7 +105,15 @@ fun AppScreens(trip: ActiveTrip?, onSignOut: () -> Unit) {
         }
         Screen.WINDOW -> {
             BackHandler { nav.back() }
-            val vm: MeetingWindowViewModel = viewModel()
+            // Live when signed in on a trip (slice 029): the window from the API, the fix judged on the device.
+            val appContext = LocalContext.current.applicationContext
+            val vm: MeetingWindowViewModel = viewModel(key = "window-${trip?.tripId ?: "sample"}") {
+                if (trip == null) {
+                    MeetingWindowViewModel()
+                } else {
+                    MeetingWindowViewModel(AppGraph.apiClient, trip, AndroidLocationSource(appContext), deviceClock = { MeetingWindowViewModel.deviceClockNow() })
+                }
+            }
             MeetingWindowRoute(vm, onBack = nav::back)
         }
         Screen.INCIDENTS -> {

@@ -137,8 +137,12 @@ Swift and the Kotlin framework (SKIE):
 - A Kotlin property named `self` is renamed; we use `me`.
 - Read a result payload as `(r as? ApiResultOk<T>)?.value` (optional chaining tolerates either
   import of the generic `value`); never call a Kotlin extension on a bridged enum from Swift (give
-  core a top-level function instead); `Int?` parameters take `KotlinInt(int:)`; prefer named-copy
-  helpers in core over `doCopy(...)` (slice 024, `docs/engineering/ios-live.md`).
+  core a top-level function instead); `Int?` parameters take `KotlinInt(int:)`, `Double?` take
+  `KotlinDouble(double:)`; prefer named-copy helpers in core over `doCopy(...)` (slice 024,
+  `docs/engineering/ios-live.md`).
+- A Kotlin `fun interface` with a suspend function is not something Swift implements comfortably
+  (completion-handler protocol). Give Swift its own small protocol over the core data types and keep
+  the rule in a core top-level function (`DeviceLocationSource` + `judgeWindowStateFor`, slice 029).
 
 Gradle:
 - Plugins are precompiled convention plugins in `build-logic` and `build-logic-android`; the Android one is only included when `voysemble.android=true`.

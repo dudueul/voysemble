@@ -4,7 +4,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Currency, FeeLedger, FeeRow } from '@voysemble/contracts';
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 import { Icons } from '../../app/shell/icons';
 import { ledger, ledgerTotals, plan } from '../../fixtures/sections';
 import { ApiError } from '../../lib/api-client';
@@ -26,6 +26,10 @@ function LedgerRowLive({ orgId, tripId, row }: { orgId: string; tripId: string; 
   const qc = useQueryClient();
   const [paid, setPaid] = useState(toMajor(row.paidMinor, row.currency));
   const [note, setNote] = useState<string | null>(null);
+  // The input follows the server (a save, a CSV import) without remounting the row, so the
+  // "Saved" note survives the refetch (CI run 38199495526 caught the remount race).
+  const server = toMajor(row.paidMinor, row.currency);
+  useEffect(() => setPaid(server), [server]);
   const save = useMutation({
     mutationFn: (paidMinor: number) =>
       feesApi.update(orgId, tripId, row.participationId, { paidMinor }),
@@ -282,12 +286,7 @@ function LiveLedger({
           </thead>
           <tbody>
             {ledger.rows.map((r) => (
-              <LedgerRowLive
-                key={`${r.participationId}-${r.paidMinor}-${r.refundedMinor}`}
-                orgId={orgId}
-                tripId={tripId}
-                row={r}
-              />
+              <LedgerRowLive key={r.participationId} orgId={orgId} tripId={tripId} row={r} />
             ))}
           </tbody>
         </table>

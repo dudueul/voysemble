@@ -44,4 +44,13 @@ class MeetingWindowScreenshotTest {
         compose.onNodeWithText("Uncertain 2").assertExists()
         compose.onRoot().captureRoboImage("$OUT/window-sharing-dark.png")
     }
+
+    @Test
+    fun window_none_light() {
+        // Slice 029: a trip without an open or scheduled window.
+        val vm = MeetingWindowViewModel(initial = null)
+        compose.setContent { VoysembleTheme(darkTheme = false) { MeetingWindowRoute(vm, onBack = {}) } }
+        compose.onNodeWithText("No meeting window is open right now.").assertExists()
+        compose.onRoot().captureRoboImage("$OUT/window-none.png")
+    }
 }

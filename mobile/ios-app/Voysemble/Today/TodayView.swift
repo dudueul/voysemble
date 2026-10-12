@@ -13,12 +13,16 @@ struct TodayView: View {
     @StateObject private var bulletin: BulletinModel
     @StateObject private var headcount: HeadcountModel
     @StateObject private var incidents: IncidentsModel
+    @StateObject private var window: MeetingWindowModel
 
     init(model: TodayModel) {
         _model = StateObject(wrappedValue: model)
         _bulletin = StateObject(wrappedValue: BulletinModel(api: model.api, trip: model.trip))
         _headcount = StateObject(wrappedValue: HeadcountModel(api: model.api, trip: model.trip))
         _incidents = StateObject(wrappedValue: IncidentsModel(api: model.api, trip: model.trip))
+        // Slice 029: the window reads the API and judges the device's fix in core; sample mode has no fix.
+        _window = StateObject(wrappedValue: MeetingWindowModel(
+            api: model.api, trip: model.trip, locationSource: model.trip == nil ? nil : CoreLocationSource()))
     }
 
     var body: some View {
@@ -52,7 +56,7 @@ struct TodayView: View {
                         HStack {
                             NavigationLink("Open head count") { HeadcountView(model: headcount) }
                             Spacer()
-                            NavigationLink("Meeting window") { MeetingWindowView(model: MeetingWindowModel()) }
+                            NavigationLink("Meeting window") { MeetingWindowView(model: window) }
                             Spacer()
                             NavigationLink("Incidents") { IncidentsView(model: incidents) }
                         }

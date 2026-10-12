@@ -20,7 +20,7 @@ Design tokens: `packages/design-tokens` generates `core/.../design/Tokens.kt` an
 | Head count (slice 009) | `android-app/.../headcount/HeadcountScreen.kt` | `ios-app/Voysemble/Headcount/HeadcountView.swift` | same, `headcount-*.png` |
 | Bulletin (slice 009) | `android-app/.../bulletin/BulletinScreen.kt` | `ios-app/Voysemble/Bulletin/BulletinView.swift` | same, `bulletin-*.png` |
 | Sign-in + invite (slice 011) | `android-app/.../auth/*Screen.kt` | `ios-app/Voysemble/Auth/SignInView.swift` | same, `sign-in*.png`, `invite.png` |
-| Meeting window (slice 009) | `android-app/.../window/MeetingWindowScreen.kt` | `ios-app/Voysemble/Window/MeetingWindowView.swift` | same, `window-*.png` |
+| Meeting window (slice 009, live since 029) | `android-app/.../window/MeetingWindowScreen.kt` + `AndroidLocationSource.kt` | `ios-app/Voysemble/Window/MeetingWindowView.swift` + `CoreLocationSource.swift` | same, `window-*.png`; `docs/engineering/meeting-windows.md` |
 | Today, guardian card (slice 025) | `today/TodayScreen.kt` (`GuardianStatusCard`) | `Today/TodayView.swift` (`GuardianStatusCard`) | `today-guardian.png` on both |
 | Incidents (slice 016) | `android-app/.../incidents/IncidentsScreen.kt` | `ios-app/Voysemble/Incidents/IncidentsView.swift` | same, `incidents-*.png` |
 

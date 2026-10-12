@@ -123,6 +123,46 @@ public class ApiClient(
             }
         }
 
+    /** GET .../windows: meeting windows of the trip (D15, slice 029). */
+    public suspend fun listWindows(orgId: String, tripId: String, correlationId: String? = null): ApiResult<WindowListDto> =
+        call(correlationId) {
+            http.get {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "orgs", orgId, "trips", tripId, "windows") }
+                common(correlationId)
+            }
+        }
+
+    /** POST .../windows: a leader opens a window; the meeting point travels once, at open. */
+    public suspend fun openWindow(orgId: String, tripId: String, body: OpenWindowRequestDto, correlationId: String? = null): ApiResult<MeetingWindowDto> =
+        call(correlationId) {
+            http.post {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "orgs", orgId, "trips", tripId, "windows") }
+                common(correlationId)
+                contentType(ContentType.Application.Json)
+                setBody(body)
+            }
+        }
+
+    /** PUT .../windows/{id}/me: the device's judged state, never a position. */
+    public suspend fun reportWindowState(orgId: String, tripId: String, windowId: String, state: String, correlationId: String? = null): ApiResult<ReportWindowStateResponseDto> =
+        call(correlationId) {
+            http.put {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "orgs", orgId, "trips", tripId, "windows", windowId, "me") }
+                common(correlationId)
+                contentType(ContentType.Application.Json)
+                setBody(ReportWindowStateRequestDto(state))
+            }
+        }
+
+    /** POST .../windows/{id}/close: a leader closes the window early. */
+    public suspend fun closeWindow(orgId: String, tripId: String, windowId: String, correlationId: String? = null): ApiResult<MeetingWindowDto> =
+        call(correlationId) {
+            http.post {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "orgs", orgId, "trips", tripId, "windows", windowId, "close") }
+                common(correlationId)
+            }
+        }
+
     /** GET .../guardian/status: the guardian's view of their traveler (D13, slice 025). */
     public suspend fun guardianStatus(orgId: String, tripId: String, correlationId: String? = null): ApiResult<GuardianStatusDto> =
         call(correlationId) {

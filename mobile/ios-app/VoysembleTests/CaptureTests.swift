@@ -46,6 +46,11 @@ final class CaptureTests: XCTestCase {
 
     func testMeetingWindow() throws {
         try capture(NavigationStack { MeetingWindowView(model: MeetingWindowModel()) }, name: "window-open")
+        // Slice 029: the switch on (sample mode flips the fixture) and a trip without a window.
+        let sharing = MeetingWindowModel()
+        sharing.setSharing(true)
+        try capture(NavigationStack { MeetingWindowView(model: sharing) }, name: "window-sharing-dark", scheme: .dark)
+        try capture(NavigationStack { MeetingWindowView(model: MeetingWindowModel(window: nil)) }, name: "window-none")
     }
 
     func testSignInAndInvite() throws {

@@ -31,7 +31,10 @@ import type {
   ItineraryEvent,
   ItineraryEventInput,
   ItineraryProposal,
+  MeetingWindow,
+  OpenWindowRequest,
   Participation,
+  ReportedWindowState,
   RevisionChange,
   RevisionSummary,
   TimelineEntry,
@@ -39,8 +42,10 @@ import type {
   Trip,
   TripRole,
   UpdateFeeRequest,
+  WindowMember,
+  WindowMemberState,
 } from '@voysemble/contracts';
-import { feeStatusOf } from '@voysemble/contracts';
+import { feeStatusOf, WINDOW_STALE_MS, windowStatusOf } from '@voysemble/contracts';
 import { nowIso } from '../lib/time';
 
 /** Versioned, idempotent schema steps. Append only; never edit an applied step. */
@@ -261,6 +266,38 @@ const MIGRATIONS: { version: number; sql: string }[] = [
       CREATE INDEX IF NOT EXISTS fees_trip_idx ON fees(trip_id);
     `,
   },
+  {
+    // Slice 029: meeting windows (D15). The meeting point (center) is the only coordinate pair
+    // the service holds, while the window is open; it is nulled at close. Members carry a state
+    // their own device judged, never a position (tier 1, ephemeral by design).
+    version: 11,
+    sql: `
+      CREATE TABLE IF NOT EXISTS meeting_windows (
+        id TEXT PRIMARY KEY,
+        trip_id TEXT NOT NULL REFERENCES trips(id),
+        label TEXT NOT NULL,
+        place TEXT NOT NULL,
+        radius_m INTEGER NOT NULL,
+        starts_at TEXT NOT NULL,
+        ends_at TEXT NOT NULL,
+        group_names TEXT NOT NULL,
+        opened_by_participation_id TEXT,
+        opened_by_name TEXT NOT NULL,
+        opened_at TEXT NOT NULL,
+        closed_at TEXT,
+        center_lat REAL,
+        center_lng REAL
+      );
+      CREATE INDEX IF NOT EXISTS meeting_windows_trip_idx ON meeting_windows(trip_id, opened_at);
+      CREATE TABLE IF NOT EXISTS meeting_window_members (
+        window_id TEXT NOT NULL REFERENCES meeting_windows(id),
+        participation_id TEXT NOT NULL REFERENCES participations(id),
+        state TEXT NOT NULL,
+        reported_at TEXT,
+        PRIMARY KEY (window_id, participation_id)
+      );
+    `,
+  },
 ];
 
 type ProposalRow = {
@@ -479,6 +516,31 @@ type FeeRowRecord = {
   note: string | null;
   updated_at: string;
   updated_by_name: string;
+  display_name: string;
+  group_name: string | null;
+};
+
+type WindowRow = {
+  id: string;
+  trip_id: string;
+  label: string;
+  place: string;
+  radius_m: number;
+  starts_at: string;
+  ends_at: string;
+  group_names: string;
+  opened_by_participation_id: string | null;
+  opened_by_name: string;
+  opened_at: string;
+  closed_at: string | null;
+  center_lat: number | null;
+  center_lng: number | null;
+};
+
+type WindowMemberRow = {
+  participation_id: string;
+  state: string;
+  reported_at: string | null;
   display_name: string;
   group_name: string | null;
 };
@@ -1727,6 +1789,228 @@ export class OrgDurableObject extends DurableObject<Env> {
       itineraryRevision: this.latestRevision(tripId)?.revision ?? 0,
       fee: this.feeForTraveler(traveler.id),
     };
+  }
+
+  /* ---------- Meeting windows (slice 029, D15) ---------- */
+
+  /** Lazy auto-stop: a window past its end is closed and its meeting point erased (D15). */
+  private autoStopWindows(tripId: string, now: string): void {
+    this.ctx.storage.sql.exec(
+      'UPDATE meeting_windows SET closed_at = ends_at, center_lat = NULL, center_lng = NULL WHERE trip_id = ? AND closed_at IS NULL AND ends_at <= ?',
+      tripId,
+      now,
+    );
+  }
+
+  private windowFromRow(
+    r: WindowRow,
+    viewer: { staff: boolean; participationId: string | null },
+    now: string,
+  ): MeetingWindow {
+    const status = windowStatusOf(r.starts_at, r.ends_at, r.closed_at, now);
+    const rows = this.ctx.storage.sql
+      .exec<WindowMemberRow>(
+        `SELECT m.participation_id, m.state, m.reported_at, p.display_name, p.group_name
+         FROM meeting_window_members m JOIN participations p ON p.id = m.participation_id
+         WHERE m.window_id = ? ORDER BY p.group_name, p.display_name`,
+        r.id,
+      )
+      .toArray();
+    const stale = (m: WindowMemberRow): boolean =>
+      status === 'open' &&
+      m.state !== 'opted_out' &&
+      (m.reported_at === null || Date.parse(now) - Date.parse(m.reported_at) > WINDOW_STALE_MS);
+    const members: WindowMember[] = rows.map((m) => ({
+      participationId: m.participation_id,
+      displayName: m.display_name,
+      groupName: m.group_name,
+      state: stale(m) ? 'stale' : (m.state as WindowMemberState),
+      reportedAt: m.reported_at,
+    }));
+    const count = (state: WindowMemberState) => members.filter((m) => m.state === state).length;
+    const isMember = members.some((m) => m.participationId === viewer.participationId);
+    return {
+      id: r.id,
+      tripId: r.trip_id,
+      label: r.label,
+      place: r.place,
+      radiusMeters: r.radius_m,
+      startsAt: r.starts_at,
+      endsAt: r.ends_at,
+      groups: JSON.parse(r.group_names) as string[],
+      openedByName: r.opened_by_name,
+      openedAt: r.opened_at,
+      closedAt: r.closed_at,
+      status,
+      center:
+        status === 'open' &&
+        (viewer.staff || isMember) &&
+        r.center_lat !== null &&
+        r.center_lng !== null
+          ? { lat: r.center_lat, lng: r.center_lng }
+          : null,
+      members: viewer.staff
+        ? members
+        : members.filter((m) => m.participationId === viewer.participationId),
+      counts: {
+        inside: count('inside'),
+        outside: count('outside'),
+        uncertain: count('uncertain'),
+        stale: count('stale'),
+        optedOut: count('opted_out'),
+        total: members.length,
+      },
+    };
+  }
+
+  /** Open a window for the travelers of the given groups (every traveler when none). */
+  async openWindow(
+    tripId: string,
+    input: OpenWindowRequest,
+    openedBy: { participationId: string | null; name: string },
+    now: string,
+  ): Promise<MeetingWindow | { invalid: string }> {
+    this.requireOrg();
+    if (input.endsAt <= input.startsAt) return { invalid: 'endsAt must be after startsAt.' };
+    if (input.endsAt <= now) return { invalid: 'The window would already be over.' };
+    const sql = this.ctx.storage.sql;
+    const id = crypto.randomUUID();
+    const travelers = sql
+      .exec<ParticipationRow>(
+        "SELECT * FROM participations WHERE trip_id = ? AND role = 'traveler'",
+        tripId,
+      )
+      .toArray()
+      .filter(
+        (t) =>
+          input.groups.length === 0 ||
+          (t.group_name !== null && input.groups.includes(t.group_name)),
+      );
+    this.ctx.storage.transactionSync(() => {
+      sql.exec(
+        `INSERT INTO meeting_windows (id, trip_id, label, place, radius_m, starts_at, ends_at, group_names, opened_by_participation_id, opened_by_name, opened_at, closed_at, center_lat, center_lng)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)`,
+        id,
+        tripId,
+        input.label,
+        input.place,
+        input.radiusMeters,
+        input.startsAt,
+        input.endsAt,
+        JSON.stringify(input.groups),
+        openedBy.participationId,
+        openedBy.name,
+        now,
+        input.center.lat,
+        input.center.lng,
+      );
+      for (const t of travelers) {
+        sql.exec(
+          "INSERT INTO meeting_window_members (window_id, participation_id, state, reported_at) VALUES (?, ?, 'opted_out', NULL)",
+          id,
+          t.id,
+        );
+      }
+    });
+    const row = sql
+      .exec<WindowRow>('SELECT * FROM meeting_windows WHERE id = ?', id)
+      .toArray()[0] as WindowRow;
+    return this.windowFromRow(row, { staff: true, participationId: null }, now);
+  }
+
+  /** Windows of a trip, newest first (at most 20), after the lazy auto-stop. */
+  async listWindows(
+    tripId: string,
+    viewer: { staff: boolean; participationId: string | null },
+    now: string,
+  ): Promise<MeetingWindow[]> {
+    this.requireOrg();
+    this.autoStopWindows(tripId, now);
+    return this.ctx.storage.sql
+      .exec<WindowRow>(
+        'SELECT * FROM meeting_windows WHERE trip_id = ? ORDER BY opened_at DESC LIMIT 20',
+        tripId,
+      )
+      .toArray()
+      .map((r) => this.windowFromRow(r, viewer, now));
+  }
+
+  /** Close a window early; the meeting point is erased with it. */
+  async closeWindow(
+    tripId: string,
+    windowId: string,
+    now: string,
+  ): Promise<MeetingWindow | { notFound: true }> {
+    this.requireOrg();
+    const sql = this.ctx.storage.sql;
+    const row = sql
+      .exec<WindowRow>(
+        'SELECT * FROM meeting_windows WHERE id = ? AND trip_id = ?',
+        windowId,
+        tripId,
+      )
+      .toArray()[0];
+    if (!row) return { notFound: true };
+    if (!row.closed_at) {
+      sql.exec(
+        'UPDATE meeting_windows SET closed_at = ?, center_lat = NULL, center_lng = NULL WHERE id = ?',
+        now,
+        windowId,
+      );
+    }
+    const after = sql
+      .exec<WindowRow>('SELECT * FROM meeting_windows WHERE id = ?', windowId)
+      .toArray()[0] as WindowRow;
+    return this.windowFromRow(after, { staff: true, participationId: null }, now);
+  }
+
+  /** A member's own report: a state the device judged, never a position. */
+  async reportWindowState(
+    tripId: string,
+    windowId: string,
+    participationId: string,
+    state: ReportedWindowState,
+    now: string,
+  ): Promise<
+    | {
+        state: WindowMemberState;
+        reportedAt: string | null;
+        windowStatus: 'scheduled' | 'open' | 'closed';
+      }
+    | { notFound: true }
+    | { notMember: true }
+    | { closed: true }
+  > {
+    this.requireOrg();
+    this.autoStopWindows(tripId, now);
+    const sql = this.ctx.storage.sql;
+    const row = sql
+      .exec<WindowRow>(
+        'SELECT * FROM meeting_windows WHERE id = ? AND trip_id = ?',
+        windowId,
+        tripId,
+      )
+      .toArray()[0];
+    if (!row) return { notFound: true };
+    const member = sql
+      .exec<{ participation_id: string }>(
+        'SELECT participation_id FROM meeting_window_members WHERE window_id = ? AND participation_id = ?',
+        windowId,
+        participationId,
+      )
+      .toArray()[0];
+    if (!member) return { notMember: true };
+    const status = windowStatusOf(row.starts_at, row.ends_at, row.closed_at, now);
+    if (status === 'closed') return { closed: true };
+    const reportedAt = state === 'opted_out' ? null : now;
+    sql.exec(
+      'UPDATE meeting_window_members SET state = ?, reported_at = ? WHERE window_id = ? AND participation_id = ?',
+      state,
+      reportedAt,
+      windowId,
+      participationId,
+    );
+    return { state, reportedAt, windowStatus: status };
   }
 
   /* ---------- Fee ledger (slice 027, D23) ---------- */
