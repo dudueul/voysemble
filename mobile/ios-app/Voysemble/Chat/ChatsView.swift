@@ -173,8 +173,8 @@ struct ChatsView: View {
                                     Text(ch.title).font(.headline)
                                     if ch.unread > 0 {
                                         Text("\(ch.unread) new").font(.caption2.weight(.semibold))
-                                            .padding(.horizontal, 6).padding(.vertical, 2)
-                                            .background(Capsule().fill(Color(argb: Tokens.Color.Light.action).opacity(0.14)))
+                                            .foregroundStyle(Color(argb: Tokens.Color.Light.action))
+                                            .voyChip(tint: Color(argb: Tokens.Color.Light.action))
                                     }
                                 }
                                 Text(ch.lastPreview ?? ch.subtitle).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
@@ -226,7 +226,7 @@ private struct ThreadView: View {
                     draft = ""
                     Task { await model.send(text) }
                 }
-                .buttonStyle(.borderedProminent)
+                .voyButton(prominent: true)
                 .disabled(draft.trimmingCharacters(in: .whitespaces).isEmpty)
             }
             .padding()

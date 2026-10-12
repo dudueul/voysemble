@@ -196,8 +196,12 @@ struct MeetingWindowView: View {
 
     /// "Live" / "Syncing" with the API; "Sample data" on the fixture, as on Android.
     private var statusChip: some View {
-        Text(model.live ? (model.syncing ? "Syncing" : "Live") : "Sample data")
-            .font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+        let (label, color): (String, UInt32) = model.live
+            ? (model.syncing ? ("Syncing", Tokens.Color.Light.warning) : ("Live", Tokens.Color.Light.success))
+            : ("Sample data", Tokens.Color.Light.pending)
+        return Text(label).font(.caption2.weight(.semibold))
+            .foregroundStyle(Color(argb: color))
+            .voyChip(tint: Color(argb: color))
     }
 
     private var noWindow: some View {

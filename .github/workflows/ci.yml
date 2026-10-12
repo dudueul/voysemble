@@ -66,8 +66,10 @@ jobs:
   ios:
     # iOS verification on a macOS runner: XcodeGen project, Gradle-built VoysembleCore framework
     # (SKIE), xcodebuild + XCTest on the simulator. No Android SDK here, so the Xcode pre-build
-    # script passes -Pvoysemble.android=false via VOYSEMBLE_ANDROID.
-    runs-on: macos-15
+    # script passes -Pvoysemble.android=false via VOYSEMBLE_ANDROID. macOS 26 (slice 037, D32):
+    # its default Xcode 26 carries the iOS 26 SDK and simulator, so Liquid Glass compiles
+    # (Swift 6.2) and the captures render it; macOS 15's Xcode 16.4 built the flat fallback.
+    runs-on: macos-26
     env:
       VOYSEMBLE_ANDROID: "false"
     steps:

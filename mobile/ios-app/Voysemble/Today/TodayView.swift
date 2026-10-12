@@ -44,6 +44,7 @@ struct TodayView: View {
             placeholder("Memories").tabItem { Label("Memories", systemImage: "photo.on.rectangle") }.tag(MainTab.memories)
         }
         .tint(Color(argb: Tokens.Color.Light.brand))
+        .voyTabBarMinimizes()
         .task { await model.refresh() }
     }
 
@@ -129,8 +130,7 @@ struct TodayView: View {
             : ("Sample data", Tokens.Color.Light.pending)
         return Text(label).font(.caption2.weight(.semibold))
             .foregroundStyle(Color(argb: color))
-            .padding(.horizontal, 10).padding(.vertical, 3)
-            .background(Capsule().fill(Color(argb: color).opacity(0.1)))
+            .voyChip(tint: Color(argb: color))
     }
 
     private func syncText(_ minutes: KotlinInt?) -> String {
@@ -175,28 +175,33 @@ private struct UpNextCard: View {
             }
             Label(event.place, systemImage: "mappin").font(.body)
             if let note = event.note { Text(note).font(.subheadline).opacity(0.85) }
-            Button {
-            } label: {
-                Label(event.isMeetingPoint ? "Meeting point" : "Directions", systemImage: "map")
-                    .padding(.horizontal, 14).padding(.vertical, 8)
-                    .background(RoundedRectangle(cornerRadius: 12).fill(.white.opacity(0.16)))
+            // D32: the buttons float over the colored card; glass on iOS 26, a translucent capsule before.
+            VoyGlassGroup {
+                HStack(spacing: 10) {
+                    Button {
+                    } label: {
+                        Label(event.isMeetingPoint ? "Meeting point" : "Directions", systemImage: "map")
+                    }
+                    .voyOverlayButton()
+                    if canPropose {
+                        Button {
+                            onPropose()
+                        } label: {
+                            Text(proposal?.sending == true ? "Sending proposal…"
+                                : proposal?.sent == true ? ProposalDraftKt.proposalSentMessage(kind: proposal?.kind ?? ProposalKind.edit)
+                                : "Propose a change")
+                                .font(.subheadline.weight(.semibold))
+                        }
+                        .voyOverlayButton()
+                        .disabled(proposal?.sending == true)
+                        if let p = proposal, !p.sending {
+                            Button("OK") { onDismiss() }.font(.subheadline.weight(.semibold)).voyOverlayButton()
+                        }
+                    }
+                }
             }
             .padding(.top, 4)
-            if canPropose {
-                HStack(spacing: 12) {
-                    Button {
-                        onPropose()
-                    } label: {
-                        Text(proposal?.sending == true ? "Sending proposal…"
-                            : proposal?.sent == true ? ProposalDraftKt.proposalSentMessage(kind: proposal?.kind ?? ProposalKind.edit)
-                            : "Propose a change")
-                            .font(.subheadline.weight(.semibold))
-                    }
-                    .disabled(proposal?.sending == true)
-                    if let p = proposal, !p.sending { Button("OK") { onDismiss() }.font(.subheadline.weight(.semibold)) }
-                }
-                if let error = proposal?.error { Text(error).font(.subheadline) }
-            }
+            if canPropose, let error = proposal?.error { Text(error).font(.subheadline) }
         }
         .foregroundStyle(Color(argb: Tokens.Color.Light.onAction))
         .padding(18)
@@ -394,8 +399,7 @@ struct StatusChip: View {
         }()
         Text(label).font(.caption2.weight(.semibold))
             .foregroundStyle(Color(argb: color))
-            .padding(.horizontal, 9).padding(.vertical, 3)
-            .background(Capsule().fill(Color(argb: color).opacity(0.12)))
+            .voyChip(tint: Color(argb: color))
     }
 }
 

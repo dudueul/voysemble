@@ -1109,3 +1109,21 @@ Built:
 - Docs: identity doc section, ledger (incl. the CI record for slice 034), captures README, feature flag `web.settings` working.
 
 Not done: inviting an organizer by email (D21 says owners and organizers use the console; today a second organizer has no way in), Korean console strings, the lanes and the shred that read these settings.
+
+## Slice 037: Liquid Glass on iOS
+
+Status: done 2026-10-12. Commit: see git log (`feat(ios): Liquid Glass for the control layer on iOS 26 (slice 037)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D32 (iOS Liquid Glass; founder request 2026-10-12). Details: `docs/engineering/ios-liquid-glass.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| iOS | CI `ios` job on `macos-26` (Xcode 26) | builds with Swift 6.2; `CaptureTests` re-renders every iOS capture with the glass look |
+| Android, web | CI `mobile`, `web` jobs | unchanged (no change outside iOS and the workflow) |
+| Lint + headers | `pnpm lint`, `pnpm check:headers` | clean |
+
+Built:
+- iOS: `Design/Glass.swift` (`voyChip`, `voyPill`, `voyOverlayButton`, `voyButton`, `voyTabBarMinimizes`, `VoyGlassGroup`, `OverlayCapsuleButtonStyle`) with the flat fallback under `#if compiler(>=6.2)` + `#available(iOS 26)`; Today (status and event chips, the up-next card's buttons as one glass group, the tab bar), Plan (status chip, the day picker as a glass group, the add button), Chats (unread badge, Send), Meeting window (status chip, now tinted like Today's).
+- CI: the `ios` job runs on `macos-26`.
+- Docs: decision D32, `ios-liquid-glass.md`, mobile README, captures README.
+
+Not done: glass on Android (Material 3 Expressive is a separate decision), a toolbar with actions, morphing between glass elements.

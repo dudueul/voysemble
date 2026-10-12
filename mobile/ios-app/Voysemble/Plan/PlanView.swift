@@ -143,8 +143,7 @@ struct PlanView: View {
             : ("Sample data", Tokens.Color.Light.pending)
         return Text(label).font(.caption2.weight(.semibold))
             .foregroundStyle(Color(argb: color))
-            .padding(.horizontal, 10).padding(.vertical, 3)
-            .background(Capsule().fill(Color(argb: color).opacity(0.1)))
+            .voyChip(tint: Color(argb: color))
     }
 
     private func syncText(_ minutes: KotlinInt?) -> String {
@@ -164,20 +163,21 @@ struct PlanView: View {
         .background(RoundedRectangle(cornerRadius: 12).fill(Color(argb: Tokens.Color.Light.warning).opacity(0.14)))
     }
 
+    /// D32: the day pills are one glass group on iOS 26 (interactive, the chosen day tinted); flat capsules before.
     private var dayChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(Array(model.plan.days.enumerated()), id: \.element.date) { i, day in
-                    let on = i == model.selected
-                    Button { model.selected = i } label: {
-                        Text("D\(day.dayNumber) · \(day.label)")
-                            .font(.subheadline.weight(.semibold))
-                            .padding(.horizontal, 12).padding(.vertical, 6)
-                            .background(Capsule().fill(on ? Color(argb: Tokens.Color.Light.action) : Color(argb: Tokens.Color.Light.surface)))
-                            .overlay(Capsule().stroke(Color(argb: Tokens.Color.Light.border)))
-                            .foregroundStyle(on ? Color(argb: Tokens.Color.Light.onAction) : .primary)
+            VoyGlassGroup {
+                HStack(spacing: 8) {
+                    ForEach(Array(model.plan.days.enumerated()), id: \.element.date) { i, day in
+                        let on = i == model.selected
+                        Button { model.selected = i } label: {
+                            Text("D\(day.dayNumber) · \(day.label)")
+                                .font(.subheadline.weight(.semibold))
+                                .voyPill(selected: on, tint: Color(argb: Tokens.Color.Light.action))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Open \(day.label), \(day.dateLabel)")
                     }
-                    .accessibilityLabel("Open \(day.label), \(day.dateLabel)")
                 }
             }
         }
@@ -194,7 +194,7 @@ struct PlanView: View {
             // The add affordance sits in the day header so a long day never hides it, as on Android.
             if model.canPropose {
                 Button("Propose an event") { proposing = ProposalTarget.forDay(day) }
-                    .buttonStyle(.bordered)
+                    .voyButton()
                     .disabled(model.proposal?.sending == true)
             }
         }

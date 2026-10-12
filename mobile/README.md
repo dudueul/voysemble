@@ -27,7 +27,7 @@ Design tokens: `packages/design-tokens` generates `core/.../design/Tokens.kt` an
 | Plan (slice 035; proposals from any event) | `android-app/.../plan/PlanScreen.kt` + `today/ProposeChange.kt` | `ios-app/Voysemble/Plan/PlanView.swift` + `Today/ProposeChange.swift` | same, `plan-*.png`; `docs/engineering/itinerary.md` |
 
 iOS evidence: `ios-app/VoysembleTests/CaptureTests.swift` writes `docs/captures/ios/*.png` on the CI
-simulator (slice 022). Live data on iOS (Today, Bulletin, Head count, Incidents): slice 024,
+simulator (slice 022; iOS 26 with Liquid Glass since slice 037, `docs/engineering/ios-liquid-glass.md`). Live data on iOS (Today, Bulletin, Head count, Incidents): slice 024,
 `docs/engineering/ios-live.md`.
 
 Shared rules and fixtures: `core/src/commonMain/kotlin/com/voysemble/core/today`, `.../fixtures`.

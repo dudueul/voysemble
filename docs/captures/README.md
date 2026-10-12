@@ -149,3 +149,9 @@ for a new event, filled as a leader would. All land here through the CI `capture
 `web/desktop-1440/settings-live.png`, `web/laptop-1280/settings-live.png`: Settings on the API after
 the owner renamed the organization, moved the quiet hours and the wrap-up window ("Saved." on each
 card) with the members card showing the owner as you. Produced by `e2e/settings.spec.ts`. The earlier `settings.png` (the sample page) is no longer produced: a signed-in account always has the live page.
+
+## Slice 037 (2026-10-12): Liquid Glass on iOS
+
+Every `ios/*.png` from this slice on is rendered on the iOS 26 simulator (CI on `macos-26`, Xcode 26)
+with the glass control layer of D32: chips, the Plan day picker, the up-next card's buttons and the
+tab bar. The pictures before this slice came from Xcode 16.4 on `macos-15` with the flat fallback.
