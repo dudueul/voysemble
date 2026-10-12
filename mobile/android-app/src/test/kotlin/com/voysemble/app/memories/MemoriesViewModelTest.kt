@@ -8,9 +8,9 @@ package com.voysemble.app.memories
 
 import com.voysemble.core.api.ApiClient
 import com.voysemble.core.api.ApiClientConfig
-import com.voysemble.core.memories.album()
-import com.voysemble.core.memories.pool()
-import com.voysemble.core.memories.queue()
+import com.voysemble.core.memories.album
+import com.voysemble.core.memories.pool
+import com.voysemble.core.memories.queue
 import com.voysemble.core.session.ActiveTrip
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
