@@ -5,10 +5,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { fromApiEvent } from '../../lib/itinerary-api';
 import { BillingPage } from './BillingPage';
 import { CommunicationPage } from './CommunicationPage';
 import { niceMax } from './charts';
-import { JourneyGraphPage } from './JourneyGraphPage';
+import { JourneyGraphPage, propagate } from './JourneyGraphPage';
 import { MediaPage } from './MediaPage';
 import { PeoplePage } from './PeoplePage';
 import { PreparationPage } from './PreparationPage';
@@ -2127,6 +2128,10 @@ describe('Journey graph on the API (slice 050)', () => {
       'GET /v1/orgs': () => ({ organizations: [ORG] }),
       [`GET /v1/orgs/${ORG.id}/trips`]: () => ({ trips: [TRIP] }),
       [`GET ${base}/itinerary`]: () => ITINERARY,
+      [`PUT ${base}/itinerary/events/aaaaaaaa-0000-4000-8000-000000000001`]: () =>
+        ITINERARY.events[0],
+      [`PUT ${base}/itinerary/events/aaaaaaaa-0000-4000-8000-000000000002`]: () =>
+        ITINERARY.events[1],
       [`GET ${base}/itinerary/proposals`]: () => ({
         proposals: [
           {
@@ -2173,5 +2178,57 @@ describe('Journey graph on the API (slice 050)', () => {
       'Kim Daeun: remove Breakfast',
     );
     expect(screen.getByRole('link', { name: 'Decide on the Itinerary page (1)' })).toBeTruthy();
+
+    // Disruption (slice 051): Breakfast slips 20 minutes; the bus is pushed, lunch keeps its time;
+    // applying PUTs the two moved events into the draft.
+    fireEvent.change(screen.getByLabelText('Event that slips'), {
+      target: { value: 'aaaaaaaa-0000-4000-8000-000000000001' },
+    });
+    fireEvent.change(screen.getByLabelText('Minutes late'), { target: { value: '20' } });
+    const lines = screen.getByTestId('propagation-live').textContent ?? '';
+    expect(lines).toContain('Breakfast: 09:00 → 09:20');
+    expect(lines).toContain('Bus to Colosseum: 10:10 → 10:20, pushed by the one before');
+    expect(lines).toContain('Lunch keeps 12:30: 130 min of slack absorb it');
+    fireEvent.click(screen.getByRole('button', { name: 'Apply to the draft' }));
+    await waitFor(() =>
+      expect(screen.getByTestId('disruption-status').textContent).toContain(
+        '2 events moved in the draft',
+      ),
+    );
+    const puts = vi
+      .mocked(fetch)
+      .mock.calls.filter(([, init]) => init?.method === 'PUT')
+      .map(([url, init]) => [String(url).split('/').pop(), JSON.parse(String(init?.body))]);
+    expect(
+      puts.map(([id, body]) => [
+        id,
+        (body as { start: string }).start,
+        (body as { end: string | null }).end,
+      ]),
+    ).toEqual([
+      ['aaaaaaaa-0000-4000-8000-000000000001', '09:20', '10:20'],
+      ['aaaaaaaa-0000-4000-8000-000000000002', '10:20', null],
+    ]);
+  });
+
+  it('propagate: a slip pushes what follows only as far as the slack runs out', () => {
+    const events = ITINERARY.events.map((e) =>
+      fromApiEvent(e as unknown as Parameters<typeof fromApiEvent>[0]),
+    );
+    const breakfast = propagate(events, '2026-12-28', 'aaaaaaaa-0000-4000-8000-000000000001', 20);
+    expect(breakfast.map((p) => [p.title, p.newStart, p.newEnd, p.moved, p.slackLeft])).toEqual([
+      ['Breakfast', '09:20', '10:20', true, 0],
+      ['Bus to Colosseum', '10:20', null, true, 0],
+      ['Lunch', '12:30', '13:30', false, 130],
+    ]);
+    const bus = propagate(events, '2026-12-28', 'aaaaaaaa-0000-4000-8000-000000000002', 200);
+    expect(bus.map((p) => [p.title, p.newStart, p.newEnd, p.moved])).toEqual([
+      ['Bus to Colosseum', '13:30', null, true],
+      ['Lunch', '13:30', '14:30', true],
+    ]);
+    const lunch = propagate(events, '2026-12-28', 'aaaaaaaa-0000-4000-8000-000000000003', 5);
+    expect(lunch).toHaveLength(1);
+    expect(propagate(events, '2026-12-28', 'nope', 5)).toEqual([]);
+    expect(propagate(events, '2026-12-28', 'aaaaaaaa-0000-4000-8000-000000000001', 0)).toEqual([]);
   });
 });

@@ -6,11 +6,14 @@
 // (slice 050) once the organization has a trip: the chain comes from the itinerary (the events
 // of the chosen day in start order, cancelled ones left out; slack is the gap between one event's
 // end and the next one's start), the day is today's in the trip's zone or `?day=`, and two cards
-// read off the tight connections and the leaders' pending proposals. The fixture otherwise.
+// read off the tight connections and the leaders' pending proposals. The disruption card
+// (slice 051, D19) answers "if this slips N minutes, what moves?" by pushing the events after
+// it only as far as their slack runs out, and applies the moves to the draft itinerary (the
+// Itinerary page publishes). The fixture otherwise.
 
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ItineraryProposal, Organization, Trip } from '@voysemble/contracts';
-import { useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 import { Icons } from '../../app/shell/icons';
 import type { ItineraryDay, ItineraryEvent } from '../../fixtures/itinerary';
 import {
@@ -92,9 +95,7 @@ export function graphOfDay(
   date: string,
   dayNumber: number,
 ): { nodes: GraphNode[]; edges: GraphEdge[] } {
-  const ordered = events
-    .filter((e) => e.date === date && e.status !== 'cancelled' && e.kind !== 'free')
-    .sort((a, b) => minutesOf(a.start) - minutesOf(b.start) || a.order - b.order);
+  const ordered = dayChain(events, date);
   const nodes: GraphNode[] = ordered.map((e) => ({
     id: e.id,
     kind: e.kind as NodeKind,
@@ -114,6 +115,69 @@ export function graphOfDay(
     if (slackMin <= RISK_SLACK_MIN && target && target.status === 'next') target.status = 'risk';
   }
   return { nodes, edges };
+}
+
+/** The day's chain in order: start, then the organizer's order; cancelled and free time left out. */
+export function dayChain(events: ItineraryEvent[], date: string): ItineraryEvent[] {
+  return events
+    .filter((e) => e.date === date && e.status !== 'cancelled' && e.kind !== 'free')
+    .sort((a, b) => minutesOf(a.start) - minutesOf(b.start) || a.order - b.order);
+}
+
+const hhmm = (m: number) => {
+  const c = Math.min(Math.max(0, m), 23 * 60 + 59);
+  return `${String(Math.floor(c / 60)).padStart(2, '0')}:${String(c % 60).padStart(2, '0')}`;
+};
+
+export type Propagated = {
+  id: string;
+  title: string;
+  start: string;
+  end: string | null;
+  newStart: string;
+  newEnd: string | null;
+  /** True for the slipped event and for every later one pushed by the one before it. */
+  moved: boolean;
+  /** Minutes of slack that absorbed the push (0 when the event moved). */
+  slackLeft: number;
+};
+
+/**
+ * D19: the slipped event starts `minutes` later (its length unchanged); each later event starts
+ * at its own time or when the one before it now ends, whichever is later. An open-ended event
+ * ends when it starts, for this purpose. Nothing before the slipped event moves.
+ */
+export function propagate(
+  events: ItineraryEvent[],
+  date: string,
+  eventId: string,
+  minutes: number,
+): Propagated[] {
+  const chain = dayChain(events, date);
+  const at = chain.findIndex((e) => e.id === eventId);
+  if (at < 0 || minutes <= 0) return [];
+  const out: Propagated[] = [];
+  let prevEnd = 0;
+  for (let k = at; k < chain.length; k++) {
+    const e = chain[k];
+    if (!e) continue;
+    const start = minutesOf(e.start);
+    const length = e.end ? Math.max(0, minutesOf(e.end) - start) : 0;
+    const newStart = k === at ? start + minutes : Math.max(start, prevEnd);
+    const newEnd = e.end ? newStart + length : null;
+    out.push({
+      id: e.id,
+      title: e.title,
+      start: e.start,
+      end: e.end ?? null,
+      newStart: hhmm(newStart),
+      newEnd: newEnd === null ? null : hhmm(newEnd),
+      moved: newStart !== start,
+      slackLeft: k === at || newStart !== start ? 0 : start - prevEnd,
+    });
+    prevEnd = newEnd ?? newStart;
+  }
+  return out;
 }
 
 export function JourneyGraphPage() {
@@ -146,6 +210,48 @@ function LiveJourney({ org, trip }: { org: Organization; trip: Trip }) {
   const tight = edges.filter((e) => e.slackMin <= TIGHT_SLACK_MIN);
   const risky = edges.filter((e) => e.slackMin <= RISK_SLACK_MIN).length;
   const pending = (proposals.data ?? []).filter((p) => p.status === 'pending');
+  // The disruption card (slice 051): which event slips, by how much, what that moves.
+  const qc = useQueryClient();
+  const chain = date ? dayChain(events, date) : [];
+  const [slipId, setSlipId] = useState<string>('');
+  const [minutes, setMinutes] = useState('20');
+  const [disruptionNote, setDisruptionNote] = useState<string | null>(null);
+  useEffect(() => {
+    if (!chain.some((e) => e.id === slipId)) setSlipId(chain[0]?.id ?? '');
+  }, [chain, slipId]);
+  const slipMinutes = Number.parseInt(minutes, 10);
+  const propagated =
+    date && slipId && Number.isFinite(slipMinutes) && slipMinutes > 0
+      ? propagate(events, date, slipId, slipMinutes)
+      : [];
+  const movedCount = propagated.filter((p) => p.moved).length;
+  const apply = useMutation({
+    mutationFn: async () => {
+      let n = 0;
+      for (const p of propagated.filter((x) => x.moved)) {
+        const e = events.find((x) => x.id === p.id);
+        if (!e) continue;
+        const { end: _end, ...rest } = e;
+        await itineraryApi.upsert(org.id, trip.id, {
+          ...rest,
+          start: p.newStart,
+          ...(p.newEnd ? { end: p.newEnd } : {}),
+        });
+        n += 1;
+      }
+      return n;
+    },
+    onSuccess: (n) => {
+      setDisruptionNote(s.applied(n));
+      void qc.invalidateQueries({ queryKey: ['orgs', org.id, 'trips', trip.id, 'itinerary'] });
+      void qc.invalidateQueries({ queryKey: ['itinerary', 'live', org.id, trip.id] });
+    },
+    onError: (e) => setDisruptionNote(errorText(e, s.applyFailed)),
+  });
+  const submitDisruption = (e: FormEvent) => {
+    e.preventDefault();
+    if (movedCount > 0) apply.mutate();
+  };
   const eventById = new Map(events.map((e) => [e.id, e]));
   /** "10:00 Breakfast": where the slack starts (the event's end, or its start when open-ended). */
   const fromLabel = (id: string) => {
@@ -206,6 +312,71 @@ function LiveJourney({ org, trip }: { org: Organization; trip: Trip }) {
         <Legend />
       </Card>
       <div className="grid">
+        <Card title={s.disruption} id="jg-disruption">
+          <form className="form" onSubmit={submitDisruption} aria-label={s.disruption} noValidate>
+            <div className="field__row">
+              <label className="field">
+                <span className="field__label">{s.slipsLabel}</span>
+                <select
+                  className="field__input"
+                  value={slipId}
+                  onChange={(e) => setSlipId(e.target.value)}
+                  disabled={chain.length === 0}
+                >
+                  {chain.map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {e.start} {e.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span className="field__label">{s.minutesLabel}</span>
+                <input
+                  className="field__input"
+                  type="number"
+                  min={1}
+                  max={600}
+                  value={minutes}
+                  onChange={(e) => setMinutes(e.target.value)}
+                />
+              </label>
+            </div>
+            {propagated.length > 0 ? (
+              <>
+                <p className="small">
+                  <strong>{s.propagationLive(propagated[0]?.title ?? '', slipMinutes)}</strong>
+                </p>
+                <ol className="list list--plain" data-testid="propagation-live">
+                  {propagated.map((p, i) => (
+                    <li key={p.id}>
+                      {i === 0
+                        ? s.propSlipped(p.title, p.start, p.newStart)
+                        : p.moved
+                          ? s.propMoved(p.title, p.start, p.newStart)
+                          : s.propKept(p.title, p.start, p.slackLeft)}
+                    </li>
+                  ))}
+                  {propagated.length === 1 ? <li className="muted">{s.propNone}</li> : null}
+                </ol>
+              </>
+            ) : (
+              <p className="muted small">{s.noEvents}</p>
+            )}
+            <div className="field__row field__row--tight">
+              <button
+                type="submit"
+                className="btn btn--primary btn--sm"
+                disabled={apply.isPending || movedCount === 0}
+              >
+                {apply.isPending ? s.applying : s.apply}
+              </button>
+              <span className="field__hint" role="status" data-testid="disruption-status">
+                {disruptionNote ?? ''}
+              </span>
+            </div>
+          </form>
+        </Card>
         <Card title={s.tight} id="jg-tight">
           {tight.length === 0 ? (
             <p className="muted small">{s.tightNone}</p>

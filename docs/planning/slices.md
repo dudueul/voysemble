@@ -1329,7 +1329,7 @@ Not done: bookings on the leader's phone; the sealed driver link and the printed
 
 ## Slice 047: bookings on the leader's phone
 
-Status: done 2026-10-12. Commit: see git log (`feat(mobile): the day's bookings on the Plan tab for leaders (slice 047)`, `08ceea5`). CI: run 38271876572 red on `mobile` only (`web` and `ios` green, so the Swift side and the core JVM facts held first time): two Android test facts, not the app. `PlanScreenshotTest.plan_day_light` asserted the bus row of the concert day without scrolling to it, and a lazy list composes only what shows; `PlanViewModelTest` pinned the exact count of travel requests and the state before the first answer. Both tests now scroll to what they assert and pin what matters (the bookings came after the itinerary; a traveler adds no travel request). The fix rides with slice 048; its run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: see git log (`feat(mobile): the day's bookings on the Plan tab for leaders (slice 047)`, `08ceea5`). CI: run 38271876572 red on `mobile` only (`web` and `ios` green, so the Swift side and the core JVM facts held first time): two Android test facts, not the app. `PlanScreenshotTest.plan_day_light` asserted the bus row of the concert day without scrolling to it, and a lazy list composes only what shows; `PlanViewModelTest` pinned the exact count of travel requests and the state before the first answer. Both tests now scroll to what they assert and pin what matters (the bookings came after the itinerary; a traveler adds no travel request). The fix rode with slice 048 and needed one more line (`14dd45f`, an import that was not one); verified by run 38275718107 green at `14dd45f` (web, mobile, ios), 2026-10-12 16:22 UTC; captures commit `798c5ca` carries `android/plan-arrival.png` and `ios/plan-arrival.png` (`plan-day.png` is unchanged above the fold).
 Spec: D37 (travel bookings; the driver contact never leaves the console), D13 (what guardians and phones never see), D31 (device captures). Details: `docs/engineering/travel.md` ("On the phones").
 
 | Gate | Command | Result |
@@ -1350,7 +1350,7 @@ Not done: a traveler's own seat or room; the sealed driver link; bookings in the
 
 ## Slice 048: the packing checklist
 
-Status: done 2026-10-12. Commit: see git log (`feat(packing): the checklist on the console and the phones (slice 048)`, `e3cef82`). CI: run 38274322563 red on `mobile` only at compile time (`TodayScreenshotTest.kt` imported `onAllNodes`, which is a member of the test rule, not a top-level function; the 047 fix had added it); `web` (incl. `preparation.spec.ts` with the packing steps) and `ios` (incl. `testPacking`) green. The one-line fix (`fix(android): onAllNodes is a member of the test rule, not an import`) follows; its run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: see git log (`feat(packing): the checklist on the console and the phones (slice 048)`, `e3cef82`). CI: run 38274322563 red on `mobile` only at compile time (`TodayScreenshotTest.kt` imported `onAllNodes`, which is a member of the test rule, not a top-level function; the 047 fix had added it); `web` (incl. `preparation.spec.ts` with the packing steps) and `ios` (incl. `testPacking`) green. The one-line fix (`fix(android): onAllNodes is a member of the test rule, not an import`, `14dd45f`) was verified by run 38275718107 green (web, mobile, ios); captures commit `798c5ca` carries `android/packing-light.png`, `android/packing-guardian-dark.png`, `android/today-guardian.png` (with the card), `ios/packing-light.png`, `ios/packing-guardian-dark.png`, `ios/today-guardian.png` and `preparation-packing.png` for both desktop projects.
 Spec: D38 (new: packing checklist), ADR-0001 (tier 1), D13 (guardians), D31 (device captures). Details: `docs/engineering/packing.md`.
 
 | Gate | Command | Result |
@@ -1374,7 +1374,7 @@ Not done: packing reminders in the notification lanes (D29); the leader's per-tr
 
 ## Slice 049: the driver's sealed link and the printed sheet
 
-Status: done 2026-10-12. Commit: see git log (`feat(travel): the driver's sealed link and the printed bus sheet (slice 049)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: see git log (`feat(travel): the driver's sealed link and the printed bus sheet (slice 049)`, `f425a69`). CI: run 38275660208 red on `mobile` only (the `onAllNodes` import of the 048 commit, fixed by `14dd45f`); `web` (the whole browser suite incl. `travel.spec.ts` with the driver sheet) and `ios` green, so the slice itself is verified; run 38275718107 at `14dd45f` green on all three; captures commit `798c5ca` carries `driver-sheet.png` and the updated `travel-live.png` for both desktop projects.
 Spec: D39 (new: the driver's sealed link), D27 (third parties get sealed links, never accounts), D13 (what leaves the console), D37 (bookings), slice 041 (rate limits), D31 (captures). Details: `docs/engineering/travel.md` ("The driver's sealed link").
 
 | Gate | Command | Result |
@@ -1415,3 +1415,23 @@ Built:
 - Docs: `journey-graph.md`, `command-center-live.md` section, decision D40, captures README, ledger, feature flags `web.journey-graph` and `web.command-center.movements` working.
 
 Not done: the disruption flow from the graph (D19); deciding proposals from this page; flights and buses from the bookings as graph nodes.
+
+## Slice 051: the disruption card on the journey graph
+
+Status: done 2026-10-12. Commit: see git log (`feat(console): the journey graph's disruption card moves the day's chain into the draft (slice 051)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D19 (disruption flow; amended), D40 (the chain and its slack), D31 (captures). Details: `docs/engineering/journey-graph.md` ("The disruption card").
+
+| Gate | Command | Result |
+|---|---|---|
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 16 files, 108 tests (adds the `propagate` facts and the apply flow) |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e -- journey-graph.spec.ts` | 2 passed (desktop-1440, laptop-1280); capture `journey-graph-disruption.png` |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+No API change (the itinerary's create-or-replace route carries the moves); no phone change.
+
+Built:
+- `JourneyGraphPage`: `dayChain`, `propagate` (the slip, the pushes, the slack that absorbs), the disruption card (the event that slips, the minutes late, the propagation list, "Apply to the draft" through `itineraryApi.upsert`, the status line); strings EN/KO.
+- Tests: unit (+2), the browser spec grows the disruption, the apply and the Itinerary page's draft count.
+- Docs: `journey-graph.md` section and facts, D19 amendment, captures README, ledger, feature flag `graph.proposal` working.
+
+Not done: Workers AI suggestions for a disruption (`itinerary.disruption-ai`); a disruption across days; publishing from the graph page.

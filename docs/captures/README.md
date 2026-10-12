@@ -241,3 +241,10 @@ Graph page on a trip day with three itinerary events, the ten-minute gap flagged
 chips, the tight-connections and proposals cards. `web/<project>/command-center-movements.png`:
 the command center with the same events in its next 48 hours. Produced by
 `apps/organizer-web/e2e/journey-graph.spec.ts`. No phone change.
+
+## Slice 051 (2026-10-12): the disruption card
+
+`web/desktop-1440/journey-graph-disruption.png`, `web/laptop-1280/journey-graph-disruption.png`:
+the Journey Graph page after Breakfast slipped twenty minutes and the moves were applied to the
+draft (the bus node at 10:20, the propagation list, the status line). Produced by
+`apps/organizer-web/e2e/journey-graph.spec.ts`. No phone change.

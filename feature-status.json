@@ -12,7 +12,7 @@
     "headcount.durable": "working",
     "sync.offline": "deferred",
     "media.private-upload": "working",
-    "graph.proposal": "deferred",
+    "graph.proposal": "working",
     "billing.stripe": "deferred",
     "admin.job-repair": "deferred",
     "ai.ingest-suggestions": "deferred",

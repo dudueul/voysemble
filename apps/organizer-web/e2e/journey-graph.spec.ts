@@ -2,7 +2,9 @@
 // Browser facts for slice 050: with a trip that is on today, the organizer's itinerary feeds the
 // journey graph (three events tomorrow, a ten-minute gap flagged at risk, the tight connection
 // read off) and the command center's next-48h movements. Captures journey-graph-live.png and
-// command-center-movements.png.
+// command-center-movements.png. Slice 051 (D19): Breakfast slips 20 minutes; the bus is pushed,
+// lunch keeps its time; applying moves the two events in the draft (the Itinerary page counts the
+// unpublished changes). Captures journey-graph-disruption.png.
 
 import { expect, type Page, test } from '@playwright/test';
 import { OUT, signInWithOrg } from './helpers';
@@ -81,10 +83,35 @@ test('journey graph and movements read the itinerary', async ({ page }, info) =>
   );
   await expect(page.getByText('No pending proposals from the leaders.')).toBeVisible();
   await page.mouse.move(0, 0);
+  // The form work scrolled the page; a full-page capture must start at the top (the header is sticky).
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({
     path: `${OUT}/${info.project.name}/journey-graph-live.png`,
     fullPage: true,
   });
+
+  // Disruption: Breakfast slips 20 minutes; apply the moves to the draft.
+  const disruption = page.getByRole('form', { name: 'Disruption' });
+  await disruption.getByLabel('Event that slips').selectOption({ label: '09:00 Breakfast' });
+  await disruption.getByLabel('Minutes late').fill('20');
+  const propagation = page.getByTestId('propagation-live');
+  await expect(propagation).toContainText('Breakfast: 09:00 → 09:20');
+  await expect(propagation).toContainText(
+    'Bus to Colosseum: 10:10 → 10:20, pushed by the one before',
+  );
+  await expect(propagation).toContainText('Lunch keeps 12:30: 130 min of slack absorb it');
+  await disruption.getByRole('button', { name: 'Apply to the draft' }).click();
+  await expect(page.getByTestId('disruption-status')).toContainText('2 events moved in the draft');
+  await expect(page.getByTestId(`node-${busId}`)).toContainText('10:20');
+  await page.mouse.move(0, 0);
+  // The form work scrolled the page; a full-page capture must start at the top (the header is sticky).
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({
+    path: `${OUT}/${info.project.name}/journey-graph-disruption.png`,
+    fullPage: true,
+  });
+  await page.goto('/itinerary');
+  await expect(page.getByTestId('drafts')).toContainText('unpublished change');
 
   // The command center's next 48 hours carry the same events.
   await page.goto('/');
@@ -94,6 +121,7 @@ test('journey graph and movements read the itinerary', async ({ page }, info) =>
     .or(page.locator('section').filter({ has: page.getByText('Next 48 hours') }));
   await expect(movements.first()).toContainText('Bus to Colosseum');
   await expect(movements.first()).toContainText('Breakfast');
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({
     path: `${OUT}/${info.project.name}/command-center-movements.png`,
     fullPage: true,

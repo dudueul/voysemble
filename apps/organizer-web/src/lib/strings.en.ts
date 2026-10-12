@@ -434,6 +434,20 @@ export const en = {
     proposalRemove: 'remove',
     proposalAdd: 'add',
     proposalChange: 'change',
+    slipsLabel: 'Event that slips',
+    minutesLabel: 'Minutes late',
+    propagationLive: (title: string, min: number) => `If ${title} slips ${min} minutes:`,
+    propSlipped: (title: string, from: string, to: string) => `${title}: ${from} → ${to}`,
+    propMoved: (title: string, from: string, to: string) =>
+      `${title}: ${from} → ${to}, pushed by the one before`,
+    propKept: (title: string, at: string, slack: number) =>
+      `${title} keeps ${at}: ${slack} min of slack absorb it`,
+    propNone: 'Nothing after it moves.',
+    apply: 'Apply to the draft',
+    applying: 'Applying…',
+    applied: (n: number) =>
+      `${n} event${n === 1 ? '' : 's'} moved in the draft. Publish from the Itinerary page so travelers see it.`,
+    applyFailed: 'Could not move the events.',
   },
   travel: {
     subtitle: 'Flights, hotels, and bus charters for the active trip.',

@@ -424,6 +424,20 @@ export const ko: Strings = {
     proposalRemove: '삭제',
     proposalAdd: '추가',
     proposalChange: '변경',
+    slipsLabel: '지연되는 일정',
+    minutesLabel: '지연 시간(분)',
+    propagationLive: (title: string, min: number) => `${title}이(가) ${min}분 늦어지면:`,
+    propSlipped: (title: string, from: string, to: string) => `${title}: ${from} → ${to}`,
+    propMoved: (title: string, from: string, to: string) =>
+      `${title}: ${from} → ${to}, 앞 일정에 밀림`,
+    propKept: (title: string, at: string, slack: number) =>
+      `${title}은(는) ${at} 유지: 여유 ${slack}분이 흡수`,
+    propNone: '그 뒤로는 움직이는 일정이 없습니다.',
+    apply: '초안에 적용',
+    applying: '적용하는 중…',
+    applied: (n: number) =>
+      `일정 ${n}건을 초안에서 옮겼습니다. 참가자에게 보이려면 일정 페이지에서 게시하세요.`,
+    applyFailed: '일정을 옮기지 못했습니다.',
   },
   travel: {
     subtitle: '활성 여행의 항공편, 호텔, 전세 버스.',

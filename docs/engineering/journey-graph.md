@@ -1,4 +1,4 @@
-# Journey graph (slice 050, D40)
+# Journey graph (slices 050 and 051, D40, D19)
 
 The console's Journey Graph page draws one day of the itinerary as a dependency chain: the day's
 events in start order as nodes (kind-coloured from the categorical palette,
@@ -20,6 +20,19 @@ The subtitle counts ("3 movements on Arrival · 1 tight connection"). The graph 
 title per node and a legend, so kind and state are never colour alone. Evidence:
 `web/<project>/journey-graph-live.png`.
 
+## The disruption card (slice 051, D19)
+
+"If this slips N minutes, what moves?" The organizer picks an event of the day and the minutes
+late; `propagate` answers: the slipped event starts later (its length unchanged); each later
+event starts at its own time or when the one before it now ends, whichever is later (an open-ended
+event ends when it starts, for this purpose); nothing before it moves. The list reads "Breakfast:
+09:00 → 09:20", "Bus to Colosseum: 10:10 → 10:20, pushed by the one before", "Lunch keeps 12:30:
+130 min of slack absorb it". "Apply to the draft" PUTs every moved event through
+`itineraryApi.upsert` (the itinerary's existing create-or-replace route), so the draft carries
+the moves as unpublished changes and the Itinerary page publishes them (D19: travelers get the
+revision announcement). The graph redraws from the draft at once. Evidence:
+`web/<project>/journey-graph-disruption.png`.
+
 ## Facts established by tests
 
 - Unit: the sample page still draws the fixture's ten nodes; the live page picks the first day
@@ -27,12 +40,19 @@ title per node and a legend, so kind and state are never colour alone. Evidence:
   leaves the cancelled walk out, reads the tight connection and the pending proposal, and
   switches days from the chips. `zonedToIso` (Rome winter and summer, Seoul, UTC) and
   `movementsFromItinerary` (cancelled out, free time as activity, whole group as the count).
+- Unit (slice 051): `propagate` pushes what follows only as far as the slack runs out (Breakfast
+  slips 20: the bus moves 10, lunch keeps its 130 minutes; the bus slips 200: lunch moves with it;
+  the last event moves alone; an unknown event or zero minutes is nothing); the card's apply PUTs
+  the two moved events with their new times and says so.
 - Browser (`journey-graph.spec.ts`): a trip that is on today; three events tomorrow through the
   itinerary API; the graph page on that day shows three nodes, the bus at risk, the subtitle and
-  the tight line; the command center's next 48 hours carry the same events; the captures.
+  the tight line; Breakfast slips 20 minutes, the propagation reads as above, applying moves the
+  bus node to 10:20 and the Itinerary page counts the unpublished changes; the command center's
+  next 48 hours carry the same events; the captures.
 
 ## Not done
 
-The disruption flow (D19: "what moves if this slips", a proposal into the draft from the graph);
-decisions on proposals from this page (the Itinerary page decides); flights and buses from the
-travel bookings as nodes (the itinerary carries them as events today).
+Workers AI suggestions for a disruption (`itinerary.disruption-ai`: which later events to cut
+or shorten); decisions on proposals from this page (the Itinerary page decides); flights and
+buses from the travel bookings as nodes (the itinerary carries them as events today); a
+disruption that spans days.
