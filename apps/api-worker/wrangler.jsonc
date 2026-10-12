@@ -33,6 +33,8 @@
   // Local-only fixture mailbox for the FixtureEmailPort (magic links land here in dev/tests).
   // Not inherited by named environments: preview/staging/production must bind a real transport.
   "kv_namespaces": [{ "binding": "DEV_MAILBOX", "id": "dev-mailbox-local" }],
+  // Photos (D18, slice 043): sealed originals and thumbnails, private (ADR-0002 R2 media).
+  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "voysemble-media-local" }],
   // Organizer console bundle. Asset-first: anything not under run_worker_first is served from
   // dist/ without invoking the Worker (free, cached). SPA fallback for client routes.
   "assets": {
@@ -58,6 +60,9 @@
         ]
       },
       "vars": { "ENV_NAME": "preview", "BUILD_ID": "__BUILD_ID__" },
+      // One bucket for every preview build: R2 names cannot carry the build placeholder (letters,
+      // digits, hyphens only); objects are keyed by organization and trip anyway.
+      "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "voysemble-media-preview" }],
       // Workers AI for announcement translation (ADR-0006). Through AI Gateway when AI_GATEWAY_ID
       // is set as a var or secret. Absent locally on purpose: tests and dev use the fixture port.
       "ai": { "binding": "AI" },
@@ -85,6 +90,7 @@
         ]
       },
       "vars": { "ENV_NAME": "staging", "BUILD_ID": "__BUILD_ID__" },
+      "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "voysemble-media-staging" }],
       // Workers AI for announcement translation (ADR-0006). Through AI Gateway when AI_GATEWAY_ID
       // is set as a var or secret. Absent locally on purpose: tests and dev use the fixture port.
       "ai": { "binding": "AI" },
@@ -112,6 +118,7 @@
         ]
       },
       "vars": { "ENV_NAME": "production", "BUILD_ID": "__BUILD_ID__" },
+      "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "voysemble-media-prod" }],
       // Workers AI for announcement translation (ADR-0006). Through AI Gateway when AI_GATEWAY_ID
       // is set as a var or secret. Absent locally on purpose: tests and dev use the fixture port.
       "ai": { "binding": "AI" },

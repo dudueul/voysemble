@@ -20,6 +20,7 @@ export const TimelineKind = z
     'care_update',
     'care_reveal',
     'devices_revoked',
+    'photo_tag',
   ])
   .openapi('TimelineKind');
 export type TimelineKind = z.infer<typeof TimelineKind>;
@@ -33,7 +34,10 @@ export const TimelineEntry = z
     detail: z.string().nullable(),
     /** What the entry points at, for a later deep link. */
     ref: z
-      .object({ type: z.enum(['announcement', 'headcount', 'incident']), id: z.string() })
+      .object({
+        type: z.enum(['announcement', 'headcount', 'incident', 'photo']),
+        id: z.string(),
+      })
       .nullable(),
   })
   .openapi('TimelineEntry');

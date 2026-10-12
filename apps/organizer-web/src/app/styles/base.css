@@ -1835,6 +1835,24 @@ fieldset.filters {
 }
 
 /* preparation */
+/* slice 043: the album tag panel under a pool photo */
+.checklist__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.thumb__fig .form {
+  gap: 6px;
+  padding-top: 4px;
+}
+
+.thumb__fig .missing__actions {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
 .checklist li {
   display: flex;
   align-items: center;

@@ -4,7 +4,8 @@
 // One instance per organization, addressed by `idFromName(organizationId)`.
 //
 // Owns: trips, participations (roster rows), and from later slices itineraries, announcements,
-// acks, head counts, incidents, photos metadata, ledger, org audit.
+// acks, head counts, incidents, photo metadata (slice 043; the bytes sit sealed in R2), ledger,
+// org audit.
 // Must not: hold cross-org data, talk to other orgs' objects, or run live traffic (TripLiveDO).
 // Invariants: every write goes through an RPC method below; schema changes are versioned in
 // MIGRATIONS and applied on wake; callers have already been authorized by the Worker.
@@ -41,6 +42,11 @@ import type {
   MeetingWindow,
   OpenWindowRequest,
   Participation,
+  Photo,
+  PhotoContentType,
+  PhotoFlag,
+  PhotoList,
+  PhotoUploaderRole,
   ReportedWindowState,
   RevealCareNoteResponse,
   RevisionChange,
@@ -384,6 +390,35 @@ const MIGRATIONS: { version: number; sql: string }[] = [
       );
     `,
   },
+  {
+    // Slice 043 (D18): photo metadata. The bytes live sealed in R2 (tier 3); this row is tier 1:
+    // who uploaded, when, the moderation flag and the leader's review, the album tags. Shredded
+    // with the trip (D20).
+    version: 15,
+    sql: `
+      CREATE TABLE IF NOT EXISTS photos (
+        id TEXT PRIMARY KEY,
+        trip_id TEXT NOT NULL REFERENCES trips(id),
+        uploader_key TEXT NOT NULL,
+        uploader_name TEXT NOT NULL,
+        uploader_role TEXT NOT NULL,
+        day INTEGER NOT NULL,
+        taken_at TEXT NOT NULL,
+        content_type TEXT NOT NULL,
+        bytes INTEGER NOT NULL,
+        thumb_bytes INTEGER NOT NULL,
+        flag TEXT,
+        reviewed_at TEXT,
+        reviewed_by_name TEXT,
+        album_at TEXT,
+        album_by_name TEXT,
+        album_group INTEGER NOT NULL DEFAULT 0,
+        album_tags TEXT NOT NULL DEFAULT '[]',
+        uploaded_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS photos_trip_idx ON photos(trip_id, uploaded_at);
+    `,
+  },
 ];
 
 type ChatMessageRow = {
@@ -415,6 +450,37 @@ type CareNoteRow = {
   updated_at: string;
   updated_by_name: string;
   updated_by_role: string;
+};
+
+type PhotoRow = {
+  id: string;
+  trip_id: string;
+  uploader_key: string;
+  uploader_name: string;
+  uploader_role: string;
+  day: number;
+  taken_at: string;
+  content_type: string;
+  bytes: number;
+  thumb_bytes: number;
+  flag: string | null;
+  reviewed_at: string | null;
+  reviewed_by_name: string | null;
+  album_at: string | null;
+  album_by_name: string | null;
+  album_group: number;
+  album_tags: string;
+  uploaded_at: string;
+};
+
+/** Who is looking at photos: a participation (phones) or an organizer account (console). */
+export type PhotoViewer = {
+  /** Participation id, or `acct:<accountId>` for an organizer without a participation. */
+  key: string;
+  name: string;
+  role: 'owner' | 'organizer' | 'leader' | 'traveler' | 'guardian';
+  /** For guardians: the traveler they are bound to. */
+  guardianOf: string | null;
 };
 
 type ProposalRow = {
@@ -2745,6 +2811,273 @@ export class OrgDurableObject extends DurableObject<Env> {
     };
   }
 
+  // ---- Photos (D18, slice 043) ---------------------------------------------------------------
+
+  private photoOf(r: PhotoRow, viewer: PhotoViewer, names: Map<string, string>): Photo {
+    const org = this.requireOrg();
+    const tags = JSON.parse(r.album_tags) as string[];
+    const flagged = r.flag !== null && r.reviewed_at === null;
+    const base = `/v1/orgs/${org}/trips/${r.trip_id}/media/${r.id}`;
+    return {
+      id: r.id,
+      tripId: r.trip_id,
+      uploaderName: r.uploader_name,
+      uploaderRole: r.uploader_role as PhotoUploaderRole,
+      mine: r.uploader_key === viewer.key,
+      day: r.day,
+      takenAt: r.taken_at,
+      contentType: r.content_type as PhotoContentType,
+      bytes: r.bytes,
+      thumbnailBytes: r.thumb_bytes,
+      status: flagged ? 'flagged' : r.album_at ? 'approved' : 'pool',
+      flag: r.flag as PhotoFlag | null,
+      reviewedByName: r.reviewed_by_name,
+      album: r.album_at
+        ? {
+            at: r.album_at,
+            byName: r.album_by_name ?? '',
+            wholeGroup: r.album_group === 1,
+            participationIds: tags,
+            taggedNames: tags.map((id) => names.get(id) ?? 'Removed from roster'),
+          }
+        : null,
+      uploadedAt: r.uploaded_at,
+      thumbnailUrl: `${base}/thumbnail`,
+      contentUrl: `${base}/content`,
+    };
+  }
+
+  /**
+   * ADR-0009: guardians see approved photos tagged with their traveler or the whole group and
+   * nothing flagged; a flagged photo waits for staff (owner, organizer, leader) and stays visible
+   * to its uploader; everything else in the pool is for every participant.
+   */
+  private photoVisibleTo(r: PhotoRow, viewer: PhotoViewer): boolean {
+    const flagged = r.flag !== null && r.reviewed_at === null;
+    if (viewer.role === 'guardian') {
+      if (!r.album_at || flagged) return false;
+      if (r.album_group === 1) return true;
+      return (
+        viewer.guardianOf !== null &&
+        (JSON.parse(r.album_tags) as string[]).includes(viewer.guardianOf)
+      );
+    }
+    if (flagged) return viewer.role !== 'traveler' || r.uploader_key === viewer.key;
+    return true;
+  }
+
+  private rosterNames(tripId: string): Map<string, string> {
+    const names = new Map<string, string>();
+    for (const r of this.ctx.storage.sql
+      .exec<{ id: string; display_name: string }>(
+        'SELECT id, display_name FROM participations WHERE trip_id = ?',
+        tripId,
+      )
+      .toArray()) {
+      names.set(r.id, r.display_name);
+    }
+    return names;
+  }
+
+  private photoRow(tripId: string, photoId: string): PhotoRow | null {
+    return (
+      this.ctx.storage.sql
+        .exec<PhotoRow>('SELECT * FROM photos WHERE id = ? AND trip_id = ?', photoId, tripId)
+        .toArray()[0] ?? null
+    );
+  }
+
+  /** Metadata of an upload whose bytes already sit sealed in R2; the flag comes from the AI port. */
+  async addPhoto(input: {
+    id: string;
+    tripId: string;
+    uploader: PhotoViewer;
+    day: number;
+    takenAt: string;
+    contentType: PhotoContentType;
+    bytes: number;
+    thumbnailBytes: number;
+    flag: PhotoFlag | null;
+    now: string;
+  }): Promise<Photo | { notFound: true }> {
+    this.requireOrg();
+    if (!(await this.getTrip(input.tripId))) return { notFound: true };
+    const row: PhotoRow = {
+      id: input.id,
+      trip_id: input.tripId,
+      uploader_key: input.uploader.key,
+      uploader_name: input.uploader.name,
+      uploader_role: input.uploader.role,
+      day: input.day,
+      taken_at: input.takenAt,
+      content_type: input.contentType,
+      bytes: input.bytes,
+      thumb_bytes: input.thumbnailBytes,
+      flag: input.flag,
+      reviewed_at: null,
+      reviewed_by_name: null,
+      album_at: null,
+      album_by_name: null,
+      album_group: 0,
+      album_tags: '[]',
+      uploaded_at: input.now,
+    };
+    this.ctx.storage.sql.exec(
+      `INSERT INTO photos (id, trip_id, uploader_key, uploader_name, uploader_role, day, taken_at, content_type, bytes, thumb_bytes, flag, uploaded_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      row.id,
+      row.trip_id,
+      row.uploader_key,
+      row.uploader_name,
+      row.uploader_role,
+      row.day,
+      row.taken_at,
+      row.content_type,
+      row.bytes,
+      row.thumb_bytes,
+      row.flag,
+      row.uploaded_at,
+    );
+    return this.photoOf(row, input.uploader, this.rosterNames(input.tripId));
+  }
+
+  /** Newest first, only what the viewer may see; the counts describe that same set. */
+  async listPhotos(tripId: string, viewer: PhotoViewer): Promise<PhotoList | { notFound: true }> {
+    this.requireOrg();
+    if (!(await this.getTrip(tripId))) return { notFound: true };
+    const names = this.rosterNames(tripId);
+    const photos = this.ctx.storage.sql
+      .exec<PhotoRow>(
+        'SELECT * FROM photos WHERE trip_id = ? ORDER BY uploaded_at DESC, id DESC',
+        tripId,
+      )
+      .toArray()
+      .filter((r) => this.photoVisibleTo(r, viewer))
+      .map((r) => this.photoOf(r, viewer, names));
+    return {
+      photos,
+      counts: {
+        pool: photos.filter((p) => p.status !== 'flagged').length,
+        flagged: photos.filter((p) => p.status === 'flagged').length,
+        approved: photos.filter((p) => p.status === 'approved').length,
+      },
+    };
+  }
+
+  /** One photo as the viewer sees it; an invisible one is not found (nothing to learn). */
+  async getPhoto(
+    tripId: string,
+    photoId: string,
+    viewer: PhotoViewer,
+  ): Promise<Photo | { notFound: true }> {
+    this.requireOrg();
+    const row = this.photoRow(tripId, photoId);
+    if (!row || !this.photoVisibleTo(row, viewer)) return { notFound: true };
+    return this.photoOf(row, viewer, this.rosterNames(tripId));
+  }
+
+  /** A leader clears the flag: the photo returns to the pool; the flag stays as history. */
+  async clearPhotoFlag(
+    tripId: string,
+    photoId: string,
+    by: PhotoViewer,
+    now: string,
+  ): Promise<Photo | { notFound: true } | { notFlagged: true }> {
+    this.requireOrg();
+    const row = this.photoRow(tripId, photoId);
+    if (!row) return { notFound: true };
+    if (row.flag === null || row.reviewed_at !== null) return { notFlagged: true };
+    this.ctx.storage.sql.exec(
+      'UPDATE photos SET reviewed_at = ?, reviewed_by_name = ? WHERE id = ?',
+      now,
+      by.name,
+      photoId,
+    );
+    return this.photoOf(
+      { ...row, reviewed_at: now, reviewed_by_name: by.name },
+      by,
+      this.rosterNames(tripId),
+    );
+  }
+
+  /** Into the guardian album with its tags (travelers of this trip, or the whole group). */
+  async setPhotoAlbum(
+    tripId: string,
+    photoId: string,
+    tags: { wholeGroup: boolean; participationIds: string[] },
+    by: PhotoViewer,
+    now: string,
+  ): Promise<Photo | { notFound: true } | { flagged: true } | { badTag: string }> {
+    this.requireOrg();
+    const row = this.photoRow(tripId, photoId);
+    if (!row) return { notFound: true };
+    if (row.flag !== null && row.reviewed_at === null) return { flagged: true };
+    const travelers = new Set(
+      this.ctx.storage.sql
+        .exec<{ id: string }>(
+          "SELECT id FROM participations WHERE trip_id = ? AND role = 'traveler'",
+          tripId,
+        )
+        .toArray()
+        .map((r) => r.id),
+    );
+    const ids = [...new Set(tags.participationIds)];
+    for (const id of ids) if (!travelers.has(id)) return { badTag: id };
+    const next: PhotoRow = {
+      ...row,
+      album_at: now,
+      album_by_name: by.name,
+      album_group: tags.wholeGroup ? 1 : 0,
+      album_tags: JSON.stringify(ids),
+    };
+    this.ctx.storage.sql.exec(
+      'UPDATE photos SET album_at = ?, album_by_name = ?, album_group = ?, album_tags = ? WHERE id = ?',
+      next.album_at,
+      next.album_by_name,
+      next.album_group,
+      next.album_tags,
+      photoId,
+    );
+    return this.photoOf(next, by, this.rosterNames(tripId));
+  }
+
+  async clearPhotoAlbum(
+    tripId: string,
+    photoId: string,
+    by: PhotoViewer,
+  ): Promise<Photo | { notFound: true }> {
+    this.requireOrg();
+    const row = this.photoRow(tripId, photoId);
+    if (!row) return { notFound: true };
+    this.ctx.storage.sql.exec(
+      "UPDATE photos SET album_at = NULL, album_by_name = NULL, album_group = 0, album_tags = '[]' WHERE id = ?",
+      photoId,
+    );
+    return this.photoOf(
+      { ...row, album_at: null, album_by_name: null, album_group: 0, album_tags: '[]' },
+      by,
+      this.rosterNames(tripId),
+    );
+  }
+
+  /** The row goes; the route shreds the R2 objects. Answers the row so the route can check who may. */
+  async deletePhoto(
+    tripId: string,
+    photoId: string,
+  ): Promise<{ deleted: true } | { notFound: true }> {
+    this.requireOrg();
+    const row = this.photoRow(tripId, photoId);
+    if (!row) return { notFound: true };
+    this.ctx.storage.sql.exec('DELETE FROM photos WHERE id = ?', photoId);
+    return { deleted: true };
+  }
+
+  /** The uploader key of a photo, for the delete rule (own photo or organizer). */
+  async photoUploaderKey(tripId: string, photoId: string): Promise<string | null> {
+    this.requireOrg();
+    return this.photoRow(tripId, photoId)?.uploader_key ?? null;
+  }
+
   async personTimeline(tripId: string, participationId: string): Promise<TimelineEntry[] | null> {
     this.requireOrg();
     const me = await this.getParticipation(participationId);
@@ -2792,6 +3125,22 @@ export class OrgDurableObject extends DurableObject<Env> {
         title: `Care note revealed by ${r.revealed_by_role} ${r.revealed_by_name}`,
         detail: null,
         ref: null,
+      });
+    }
+    // Photos (D18, slice 043): every album photo a leader tagged this person in.
+    for (const r of sql
+      .exec<PhotoRow>(
+        'SELECT * FROM photos WHERE trip_id = ? AND album_at IS NOT NULL AND instr(album_tags, ?) > 0',
+        tripId,
+        JSON.stringify(participationId),
+      )
+      .toArray()) {
+      entries.push({
+        kind: 'photo_tag',
+        at: r.album_at ?? r.uploaded_at,
+        title: `Tagged in an album photo by ${r.album_by_name ?? 'a leader'}`,
+        detail: `Day ${r.day}, uploaded by ${r.uploader_name}`,
+        ref: { type: 'photo', id: r.id },
       });
     }
     for (const r of sql

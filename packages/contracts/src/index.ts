@@ -19,6 +19,7 @@ export * from './headcount';
 export * from './health';
 export * from './incident';
 export * from './itinerary';
+export * from './media';
 export * from './organization';
 export * from './person';
 export * from './report';

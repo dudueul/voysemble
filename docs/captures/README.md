@@ -182,3 +182,10 @@ one accepted, one revoked). `web/desktop-1440/invitation-accepted.png`, `web/lap
 invitation-accepted.png`: the invitee's landing card after signing in through the emailed link.
 Produced by `apps/organizer-web/e2e/invitations.spec.ts`. No phone change (D21: organizers use the
 console).
+
+## Slice 043 (2026-10-12): photos on the console
+
+`web/desktop-1440/media-live.png`, `web/laptop-1280/media-live.png`: the live Media page after two
+uploads from the console (one flagged by the fixture moderation and approved, one tagged with Minji
+for the guardian album): the pool with browser-made thumbnails, the empty review queue, the album
+counts and list. Produced by `apps/organizer-web/e2e/media.spec.ts`. Phones follow in slice 044.

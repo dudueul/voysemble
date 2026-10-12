@@ -8,6 +8,7 @@ import { queryOptions } from '@tanstack/react-query';
 import type {
   AcceptInvitationResponse,
   AckStatus,
+  AlbumPhotoRequest,
   Announcement,
   AnnouncementList,
   CareNote,
@@ -16,6 +17,7 @@ import type {
   ChatMessage,
   ChatMessageList,
   CreateAnnouncementRequest,
+  DeletePhotoResponse,
   HeadcountList,
   Incident,
   IncidentList,
@@ -31,6 +33,8 @@ import type {
   OrgMemberList,
   Participation,
   PersonTimeline,
+  Photo,
+  PhotoList,
   RemoveParticipationResponse,
   RevealCareNoteResponse,
   RevokeDevicesResponse,
@@ -181,6 +185,36 @@ export const care = {
       `/v1/orgs/${orgId}/trips/${tripId}/people/${participationId}/care-note/reveal`,
       { method: 'POST' },
     ),
+};
+
+/** Photos (D18, slice 043): what the caller may see, newest first; polled while the page is open. */
+export const photosQuery = (orgId: string, tripId: string) =>
+  queryOptions({
+    queryKey: ['orgs', orgId, 'trips', tripId, 'media'],
+    queryFn: async () => api<PhotoList>(`/v1/orgs/${orgId}/trips/${tripId}/media`),
+    refetchInterval: 30_000,
+  });
+
+export const media = {
+  /** `original`, optional `thumbnail` (made on this device), optional `takenAt`. */
+  upload: (orgId: string, tripId: string, form: FormData) =>
+    api<Photo>(`/v1/orgs/${orgId}/trips/${tripId}/media`, { method: 'POST', form }),
+  review: (orgId: string, tripId: string, photoId: string, decision: 'clear' | 'remove') =>
+    api<Photo | DeletePhotoResponse>(`/v1/orgs/${orgId}/trips/${tripId}/media/${photoId}/review`, {
+      method: 'POST',
+      body: { decision },
+    }),
+  album: (orgId: string, tripId: string, photoId: string, tags: AlbumPhotoRequest) =>
+    api<Photo>(`/v1/orgs/${orgId}/trips/${tripId}/media/${photoId}/album`, {
+      method: 'PUT',
+      body: tags,
+    }),
+  unalbum: (orgId: string, tripId: string, photoId: string) =>
+    api<Photo>(`/v1/orgs/${orgId}/trips/${tripId}/media/${photoId}/album`, { method: 'DELETE' }),
+  remove: (orgId: string, tripId: string, photoId: string) =>
+    api<DeletePhotoResponse>(`/v1/orgs/${orgId}/trips/${tripId}/media/${photoId}`, {
+      method: 'DELETE',
+    }),
 };
 
 /** The trip report (slice 034): composed on the server from acks, head counts, incidents, fees. */

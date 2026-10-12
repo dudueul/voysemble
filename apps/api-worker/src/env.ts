@@ -21,6 +21,12 @@ export type Bindings = Env & {
    * environment, care-note writes and reveals answer 503.
    */
   CARE_NOTE_KEY?: string;
+  /**
+   * Photos (D18, slice 043): 32 bytes base64, `wrangler secret put MEDIA_KEY` per named
+   * environment; a fixed development key stands in locally; unset in a named environment, uploads
+   * and reads answer 503.
+   */
+  MEDIA_KEY?: string;
 };
 
 /** Who is calling, resolved from the session by auth/middleware.ts. */

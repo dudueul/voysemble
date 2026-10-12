@@ -46,17 +46,22 @@ const KNOWN: ReadonlySet<string> = new Set([
   'INTERNAL',
 ]);
 
+/** `body` is sent as JSON; `form` (slice 043, photo uploads) as multipart with the browser's boundary. */
 export async function api<T>(
   path: string,
-  init: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown } = {},
+  init: {
+    method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+    body?: unknown;
+    form?: FormData;
+  } = {},
 ): Promise<T> {
   let res: Response;
   try {
     res = await fetch(path, {
       method: init.method ?? 'GET',
       credentials: 'same-origin',
-      headers: init.body === undefined ? {} : { 'content-type': 'application/json' },
-      body: init.body === undefined ? null : JSON.stringify(init.body),
+      headers: init.body === undefined || init.form ? {} : { 'content-type': 'application/json' },
+      body: init.form ?? (init.body === undefined ? null : JSON.stringify(init.body)),
     });
   } catch {
     throw new ApiError(0, 'NETWORK', 'Network unavailable.', 'none');

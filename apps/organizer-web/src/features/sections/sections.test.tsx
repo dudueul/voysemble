@@ -1258,7 +1258,8 @@ describe('sample sections', () => {
   });
 
   it('Media: flagged photos sit in the queue, not the pool', () => {
-    render(<MediaPage />);
+    stubApi({});
+    renderWithQuery(<MediaPage />);
     expect(within(screen.getByTestId('media-queue')).getAllByRole('listitem')).toHaveLength(3);
     expect(within(screen.getByTestId('media-pool')).getAllByRole('figure')).toHaveLength(15);
   });
@@ -1434,5 +1435,188 @@ describe('Settings on the API (slice 036)', () => {
     const revoked = await screen.findByTestId('invitation-revoked');
     expect(revoked.textContent).toContain('Revoked');
     expect(screen.queryByRole('button', { name: /^Revoke the invitation/ })).toBeNull();
+  });
+});
+
+describe('Media on the API (slice 043)', () => {
+  const base = `/v1/orgs/${ORG.id}/trips/${TRIP.id}`;
+  const photo = (p: Partial<Record<string, unknown>> & { id: string }) => ({
+    tripId: TRIP.id,
+    uploaderName: 'Minji Park',
+    uploaderRole: 'traveler',
+    mine: false,
+    day: 4,
+    takenAt: '2026-12-29T00:30:00.000Z',
+    contentType: 'image/png',
+    bytes: 1200,
+    thumbnailBytes: 300,
+    status: 'pool',
+    flag: null,
+    reviewedByName: null,
+    album: null,
+    uploadedAt: '2026-12-29T00:31:00.000Z',
+    thumbnailUrl: `${base}/media/${p.id}/thumbnail`,
+    contentUrl: `${base}/media/${p.id}/content`,
+    ...p,
+  });
+  const ROSTER = {
+    participations: [
+      {
+        id: 'p1',
+        tripId: TRIP.id,
+        role: 'traveler',
+        displayName: 'Minji Park',
+        groupName: 'Bus A',
+        guardianOf: null,
+        accountId: 'a1',
+        createdAt: '2026-10-11T00:00:00.000Z',
+        invite: 'joined',
+        lastAckAt: null,
+      },
+      {
+        id: 'p2',
+        tripId: TRIP.id,
+        role: 'guardian',
+        displayName: 'Sora Park',
+        groupName: 'Bus A',
+        guardianOf: 'p1',
+        accountId: null,
+        createdAt: '2026-10-11T00:00:00.000Z',
+        invite: 'none',
+        lastAckAt: null,
+      },
+    ],
+  };
+
+  it('lists the pool, the queue and the album; approves, tags and deletes through the API', async () => {
+    let photos: Record<string, unknown>[] = [
+      photo({ id: 'ph1', status: 'flagged', flag: 'nudity', uploaderName: 'Juho Kim', day: 0 }),
+      photo({ id: 'ph2' }),
+      photo({
+        id: 'ph3',
+        status: 'approved',
+        album: {
+          at: '2026-12-29T01:00:00.000Z',
+          byName: 'Kim',
+          wholeGroup: true,
+          participationIds: [],
+          taggedNames: [],
+        },
+      }),
+    ];
+    const counts = () => ({
+      pool: photos.filter((p) => p.status !== 'flagged').length,
+      flagged: photos.filter((p) => p.status === 'flagged').length,
+      approved: photos.filter((p) => p.status === 'approved').length,
+    });
+    stubApi({
+      'GET /v1/orgs': () => ({ organizations: [ORG] }),
+      [`GET /v1/orgs/${ORG.id}/trips`]: () => ({ trips: [TRIP] }),
+      [`GET ${base}/roster`]: () => ROSTER,
+      [`GET ${base}/media`]: () => ({ photos, counts: counts() }),
+      [`POST ${base}/media/ph1/review`]: () => {
+        photos = photos.map((p) =>
+          p.id === 'ph1' ? { ...p, status: 'pool', reviewedByName: 'Owner' } : p,
+        );
+        return photos[0];
+      },
+      [`PUT ${base}/media/ph2/album`]: () => {
+        const album = {
+          at: '2026-12-29T02:00:00.000Z',
+          byName: 'Owner',
+          wholeGroup: false,
+          participationIds: ['p1'],
+          taggedNames: ['Minji Park'],
+        };
+        photos = photos.map((p) => (p.id === 'ph2' ? { ...p, status: 'approved', album } : p));
+        return photos[1];
+      },
+      [`DELETE ${base}/media/ph3`]: () => {
+        photos = photos.filter((p) => p.id !== 'ph3');
+        return { deleted: true, photoId: 'ph3' };
+      },
+    });
+    renderWithQuery(<MediaPage />);
+    await screen.findByText('Live');
+    await waitFor(() => expect(screen.getAllByTestId('media-flagged')).toHaveLength(1));
+    expect(text(screen.getByRole('heading', { level: 1 }).parentElement)).toContain(
+      '3 photos · 1 in the guardian album · 1 awaiting review',
+    );
+    expect(within(screen.getByTestId('media-pool')).getAllByRole('figure')).toHaveLength(2);
+    expect(screen.getByTestId('media-flagged').textContent).toContain('Possible nudity');
+    expect(screen.getByTestId('media-flagged').textContent).toContain('Outside the trip dates');
+    expect(text(screen.getByTestId('media-album-counts'))).toContain('1 approved photos');
+
+    // Approve the flagged one: it leaves the queue and joins the pool.
+    fireEvent.click(screen.getByRole('button', { name: 'Approve the photo by Juho Kim' }));
+    await waitFor(() => expect(screen.queryByTestId('media-flagged')).toBeNull());
+    expect(within(screen.getByTestId('media-pool')).getAllByRole('figure')).toHaveLength(3);
+    const review = vi
+      .mocked(fetch)
+      .mock.calls.find(([url]) => String(url).endsWith('/media/ph1/review'));
+    expect(JSON.parse(String(review?.[1]?.body))).toEqual({ decision: 'clear' });
+
+    // Tag Minji's photo with Minji: the PUT carries the ids; the album counts follow.
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Add the photo by Minji Park to the album' }),
+    );
+    const panel = screen.getByRole('form', { name: 'Album tags for the photo by Minji Park' });
+    const save = within(panel).getByRole('button', { name: 'Save to album' }) as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
+    fireEvent.click(within(panel).getByLabelText('Minji Park'));
+    expect(save.disabled).toBe(false);
+    fireEvent.submit(panel);
+    await waitFor(() =>
+      expect(text(screen.getByTestId('media-album-counts'))).toContain('2 approved photos'),
+    );
+    const put = vi.mocked(fetch).mock.calls.find(([, init]) => init?.method === 'PUT');
+    expect(JSON.parse(String(put?.[1]?.body))).toEqual({
+      wholeGroup: false,
+      participationIds: ['p1'],
+    });
+    expect(screen.getByTestId('media-album').textContent).toContain('Minji Park');
+    expect(screen.getByTestId('media-album').textContent).toContain('Whole group');
+
+    // Delete the group shot.
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Delete the photo by Minji Park' })[1] as HTMLElement,
+    );
+    await waitFor(() =>
+      expect(within(screen.getByTestId('media-pool')).getAllByRole('figure')).toHaveLength(2),
+    );
+    const del = vi.mocked(fetch).mock.calls.find(([, init]) => init?.method === 'DELETE');
+    expect(String(del?.[0])).toBe(`${base}/media/ph3`);
+  });
+
+  it('uploads through multipart with the file and the taken-at time', async () => {
+    stubApi({
+      'GET /v1/orgs': () => ({ organizations: [ORG] }),
+      [`GET /v1/orgs/${ORG.id}/trips`]: () => ({ trips: [TRIP] }),
+      [`GET ${base}/roster`]: () => ROSTER,
+      [`GET ${base}/media`]: () => ({ photos: [], counts: { pool: 0, flagged: 0, approved: 0 } }),
+      [`POST ${base}/media`]: () => photo({ id: 'ph9', mine: true, uploaderName: 'Owner' }),
+    });
+    renderWithQuery(<MediaPage />);
+    await screen.findByText('Live');
+    expect(
+      await screen.findByText(
+        'No photos yet. Upload the first, or wait for leaders and travelers.',
+      ),
+    ).toBeTruthy();
+    const file = new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], 'bus.png', {
+      type: 'image/png',
+      lastModified: Date.parse('2026-12-29T09:30:00Z'),
+    });
+    fireEvent.change(screen.getByTestId('photo-input'), { target: { files: [file] } });
+    await waitFor(() =>
+      expect(screen.getByTestId('media-status').textContent).toBe('1 photo uploaded.'),
+    );
+    const post = vi.mocked(fetch).mock.calls.find(([, init]) => init?.method === 'POST');
+    const form = post?.[1]?.body as FormData;
+    expect(form.get('original')).toBeInstanceOf(File);
+    expect((form.get('original') as File).name).toBe('bus.png');
+    expect(form.get('takenAt')).toBe('2026-12-29T09:30:00.000Z');
+    // jsdom has no canvas: the original goes alone and the server makes do (it is tiny).
+    expect(form.get('thumbnail')).toBeNull();
   });
 });

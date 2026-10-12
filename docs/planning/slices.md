@@ -1171,7 +1171,7 @@ Not done: a language switch inside the app; plural forms beyond the lines that n
 
 ## Slice 040: the public site shows the phones as they are
 
-Status: done 2026-10-12. Commit: see git log (`feat(public): real phone captures and the newest features on the landing (slice 040)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit `24da19f` (`feat(public): real phone captures and the newest features on the landing (slice 040)`). CI: run 38253291498 red on `web` only, from the slice 041 address limit under `wrangler dev` (71 browser specs failed at sign-in after the thirteenth; `mobile` and `ios` green; the public site's own unit tests, build and E2E green in the same job before the limit tripped); fixed by `1301472` and verified by run 38255867116 green (web incl. the whole browser suite, mobile, ios), 2026-10-12 13:38 UTC, whose captures commit `34a5b08` carries this slice's `public/*/landing-*.png`.
 Spec: D30 (public site content policy, amended: real phone captures), D31 (device captures). Details: `docs/engineering/public-web.md`.
 
 | Gate | Command | Result |
@@ -1191,7 +1191,7 @@ Not done: store badges (listings pending); a Korean-first hero capture (the hero
 
 ## Slice 041: rate limits on the public endpoints
 
-Status: done 2026-10-12. Commit `b4a7a9b` (`feat(auth): rate limits on magic links, verify and invite codes (slice 041)`) and the fix `fix(auth): loopback callers get no address limit` (see git log). CI: run 38252080198 red on `web` only (the browser suite: `wrangler dev` reports `127.0.0.1` as `cf-connecting-ip` for every request, so the twenty-link address limit tripped after thirteen sign-ins and every later spec failed at sign-in; `mobile` and `ios` green). The fix exempts loopback callers from the address limits (Cloudflare's edge never reports one); its run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit `b4a7a9b` (`feat(auth): rate limits on magic links, verify and invite codes (slice 041)`) and the fix `fix(auth): loopback callers get no address limit` (see git log). CI: run 38252080198 red on `web` only (the browser suite: `wrangler dev` reports `127.0.0.1` as `cf-connecting-ip` for every request, so the twenty-link address limit tripped after thirteen sign-ins and every later spec failed at sign-in; `mobile` and `ios` green). The fix exempts loopback callers from the address limits (Cloudflare's edge never reports one); verified by run 38255867116 green at `1301472` (web incl. the whole browser suite, mobile, ios), 2026-10-12 13:38 UTC.
 Spec: ADR-0001 (abuse of the public endpoints), the identity doc's open item. Details: `docs/engineering/rate-limits.md`.
 
 | Gate | Command | Result |
@@ -1211,7 +1211,7 @@ Not done: per-organization write limits; a refusal dashboard.
 
 ## Slice 042: organizer invitations by email
 
-Status: done 2026-10-12. Commit: see git log (`feat(org): organizer invitations by email (slice 042)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit `7007247` (`feat(org): organizer invitations by email (slice 042)`). **CI verified**: run 38255896028 green (web incl. `invitations.spec.ts`, mobile, ios), 2026-10-12 13:34 UTC; captures (`settings-invitations.png`, `invitation-accepted.png` at desktop-1440 and laptop-1280) committed as `32b32cc`.
 Spec: D33 (new), D21 (owners and organizers use the console), ADR-0007 (invitations), D31 (device captures). Details: `docs/engineering/identity-and-roster.md` ("Organizer invitations"), `docs/engineering/rate-limits.md`.
 
 | Gate | Command | Result |
@@ -1231,3 +1231,26 @@ Built:
 - Docs: identity doc section, rate-limits row, decision D33, captures README, ledger, feature flag `onboarding.organizer-invitations` working.
 
 Not done: ownership transfer and removing a member (an accepted organizer stays until that exists); inviting with a chosen language from the console (the organization's default is used); invitation reminders.
+
+## Slice 043: photos on the API and the console
+
+Status: done 2026-10-12. Commit: see git log (`feat(media): photos sealed in R2, moderation flags, the guardian album, and the live Media page (slice 043)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D18 (photos and moderation), D34 (new: the media pipeline), ADR-0009 (visibility), ADR-0001 (tier 3), D17 (timeline), D31 (device captures). Details: `docs/engineering/media.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 29 files, 84 tests (adds `image-strip.test.ts`: 4, `media.test.ts`: 2; `ai.test.ts` unchanged in count) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 15 files, 96 tests (adds the live Media list/review/album/delete case and the multipart upload case) |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e -- media.spec.ts` | 2 passed (desktop-1440, laptop-1280); capture `media-live.png` |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+No phone change yet (slice 044 brings the Memories tab; D31: web captures only here).
+
+Built:
+- Contracts `media.ts`: `Photo`, `PhotoList`, `PhotoFlag`, `PhotoStatus`, `PhotoAlbum`, `UploadPhotoForm`, `ReviewPhotoRequest`, `AlbumPhotoRequest`, `DeletePhotoResponse`, the size limits; `TimelineKind` gains `photo_tag` and refs `photo`.
+- Worker: R2 `MEDIA` in every environment; `lib/media-crypto.ts` (AES-256-GCM under `MEDIA_KEY`, dev key locally); `lib/image-strip.ts` (type from magic bytes; JPEG, PNG, WebP metadata removal); `ai/AiPort.ts` `moderateImage` (LLaVA one-word answer, the fixture's marker, disabled port); OrgDurableObject schema 15 `photos` with the viewer rules, album tags, review, delete, and the `photo_tag` timeline fact; `routes/media.ts` (upload as multipart, list, thumbnail and content bytes, review, album in and out, delete with shred).
+- Console: `api()` takes multipart; `photosQuery`, `media.upload/review/album/unalbum/remove`; `lib/thumbnail.ts` (browser-made thumbnail, D34); the live Media page (upload button, pool grid with staff actions and the tag panel, review queue, album card with counts and list, 30-second polling); strings EN/KO; styles for the tag panel.
+- Tests: worker (6 new), console unit (2 new, the sample case now under the query provider), browser (1 spec).
+- Docs: `media.md`, decision D34, captures README, ledger, feature flags `media.private-upload`, `media.guardian-album`, `ai.image-moderation-flags`, `web.media` working.
+
+Not done: the phones (slice 044); downloads and the wrap-up export; the per-organization keyring in place of `MEDIA_KEY`; a size budget per trip; video.
