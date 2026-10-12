@@ -381,3 +381,37 @@ describe('roster editing and invite revocation (slice 028)', () => {
     expect((await api(stranger).delete(`${base}/roster/${minjiId}`)).status).toBe(403);
   });
 });
+
+describe('the roster as a CSV file (slice 071)', () => {
+  it('lists every row in roster order with the guardian binding and no contact; leaders may fetch it', async () => {
+    const { nate, org, trip, body } = await setup();
+    const base = `/v1/orgs/${org.id}/trips/${trip.id}`;
+    await api(nate).post(`${base}/roster/leaders`, { displayName: 'Kim', groupName: 'Bus A' });
+    const res = await api(nate).get(`${base}/roster/export.csv`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('text/csv; charset=utf-8');
+    expect(res.headers.get('content-disposition')).toMatch(
+      /^attachment; filename="roster-korea-concert-tour-\d{4}-\d{2}-\d{2}\.csv"$/,
+    );
+    expect(res.headers.get('cache-control')).toBe('no-store');
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    expect([...bytes.slice(0, 3)]).toEqual([0xef, 0xbb, 0xbf]);
+    const text = new TextDecoder().decode(bytes);
+    const lines = text.split('\r\n');
+    expect(lines[0]).toBe('name,role,group,guardian_of,invite,last_ack,room,care_note');
+    const roster = await json<{ participations: { displayName: string }[] }>(
+      await api(nate).get(`${base}/roster`),
+    );
+    const firstField = (l: string) =>
+      l.startsWith('"') ? l.slice(1, l.indexOf('",')) : l.split(',')[0];
+    expect(lines.slice(1, roster.participations.length + 1).map(firstField)).toEqual(
+      roster.participations.map((p) => p.displayName),
+    );
+    expect(lines).toContain('Sora Park,guardian,Bus A,Minji Park,none,,,no');
+    expect(lines).toContain('Minji Park,traveler,Bus A,,none,,,no');
+    expect(lines).toContain('Kim,leader,Bus A,,none,,,no');
+    expect(text).not.toContain('sora@example.com');
+    expect(body.created).toBe(5);
+    expect((await api(null).get(`${base}/roster/export.csv`)).status).toBe(401);
+  });
+});

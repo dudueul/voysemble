@@ -231,6 +231,10 @@ describe('sample sections', () => {
     expect(text(screen.getByTestId('fee-p1'))).toBe('Paid');
     expect(text(screen.getByTestId('fee-p2'))).toBe('—');
     expect(text(screen.getByTestId('fee-p3'))).toBe('No fee');
+    // Slice 071: the roster's export link.
+    expect(screen.getByRole('link', { name: 'Export CSV' }).getAttribute('href')).toBe(
+      `${base}/roster/export.csv`,
+    );
     expect(screen.getByText('Live')).toBeTruthy();
     expect(screen.queryByText('Sample data')).toBeNull();
     expect(text(screen.getByTestId('people-joined'))).toBe('1');

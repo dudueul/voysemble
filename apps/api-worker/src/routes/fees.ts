@@ -21,7 +21,7 @@ import { HTTPException } from 'hono/http-exception';
 import { z } from 'zod';
 import { organizerName, requireAuth, requireOrgRole } from '../auth/middleware';
 import type { AppEnv } from '../env';
-import { CsvError, csvLine, parseCsv } from '../lib/csv';
+import { CsvError, csvLine, fileSlug, parseCsv } from '../lib/csv';
 import { localClock, nowIso } from '../lib/time';
 import { orgObject } from '../org/client';
 import { ERROR_RESPONSES, SESSION_SECURITY } from './openapi-common';
@@ -197,16 +197,6 @@ export function feeLedgerCsv(ledger: FeeLedger, roster: Participation[]): string
     );
   }
   return `\uFEFF${lines.join('\r\n')}\r\n`;
-}
-
-/** "Korea Concert Tour 2026" → "korea-concert-tour-2026"; "trip" when nothing survives. */
-export function fileSlug(name: string): string {
-  return (
-    name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '') || 'trip'
-  );
 }
 
 export function mountFeeRoutes(app: OpenAPIHono<AppEnv>): void {

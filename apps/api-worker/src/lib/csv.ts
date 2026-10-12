@@ -102,3 +102,13 @@ export function parseCsv(text: string): CsvParseResult {
 export function csvLine(fields: string[]): string {
   return fields.map((f) => (/[",\r\n]/.test(f) ? `"${f.replaceAll('"', '""')}"` : f)).join(',');
 }
+
+/** "Korea Concert Tour 2026" → "korea-concert-tour-2026"; "trip" when nothing survives (a file name). */
+export function fileSlug(name: string): string {
+  return (
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'trip'
+  );
+}

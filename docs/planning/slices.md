@@ -1855,3 +1855,22 @@ Built:
 - Docs: `headcounts.md` section and not-done, `travel.md`, ledger 067 (CI record), feature flag `headcount.rooms-today` working.
 
 Not done: the room on the Today tab's hotel line; the room on the console's missing list and the Safety page.
+
+## Slice 071: the roster as a CSV file
+
+Status: done 2026-10-12. Commit: see git log (`feat(roster): export the roster as a CSV file from the People page (slice 071)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D12 (the roster), D13 (no contact of anyone leaves), D27. Details: `docs/engineering/identity-and-roster.md` (The roster as a file).
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | `roster-invites.test.ts` +1 (headers, bytes, the rows in roster order, the guardian binding by name, no contact, anonymous 401); 17 tests in the three touched files locally |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 22 files, 135 tests (the People live case gains the link) |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e -- people.spec.ts` | 1 passed on desktop-1440 (the download's name and lines) |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+Built:
+- Worker: `fileSlug` moved to `lib/csv.ts` (the fee export imports it there); `routes/roster.ts` `rosterEntries` (the list and the export share it), `rosterCsv`, `GET .../roster/export.csv`; `roster-invites.test.ts` +1.
+- Console: the People page's "Export CSV" link in live mode; strings EN/KO; the People unit case; `people.spec.ts` (the download's name and lines).
+- Docs: `identity-and-roster.md` section, `reports.md` not-done, ledger, feature flag `people.roster-export` working.
+
+Not done: a filtered export (the page's filters stay on screen); the export in the organizer's language (English column names, for spreadsheets).

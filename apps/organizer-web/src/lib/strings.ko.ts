@@ -168,6 +168,7 @@ export const ko: Strings = {
     colFee: '참가비',
     feeNone: '요금 없음',
     feeDue: (amount: string) => `${amount} 미납`,
+    exportCsv: 'CSV 내보내기',
     status: {
       joined: '참여함',
       invited: '초대됨',

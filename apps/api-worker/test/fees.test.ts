@@ -18,7 +18,8 @@ import {
   type RosterImportResponse,
 } from '@voysemble/contracts';
 import { describe, expect, it } from 'vitest';
-import { feeLedgerCsv, fileSlug, toMinor } from '../src/routes/fees';
+import { fileSlug } from '../src/lib/csv';
+import { feeLedgerCsv, toMinor } from '../src/routes/fees';
 import { api, createOrg, createTrip, json, SAMPLE_CSV, signIn } from './helpers';
 
 async function setupTrip() {

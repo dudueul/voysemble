@@ -36,7 +36,7 @@ import { revokeSessions } from '../auth/service';
 import { db } from '../db/client';
 import { inviteCodes, memberships, organizations } from '../db/schema';
 import type { AppEnv } from '../env';
-import { CsvError, parseCsv } from '../lib/csv';
+import { CsvError, csvLine, fileSlug, parseCsv } from '../lib/csv';
 import { clientIp, enforceLimits } from '../lib/rate-limit';
 import { isPast, localClock, nowIso, plusSeconds, SECONDS } from '../lib/time';
 import { hashInviteCode, randomInviteCode } from '../lib/tokens';
@@ -92,6 +92,47 @@ const listRosterRoute = createRoute({
     500: ERROR_RESPONSES[500],
   },
 });
+
+const exportRosterRoute = createRoute({
+  method: 'get',
+  path: '/v1/orgs/{orgId}/trips/{tripId}/roster/export.csv',
+  tags: ['roster'],
+  summary: 'The roster as a CSV file (owner, organizer, leader)',
+  description:
+    'Slice 071. The rows of GET .../roster as a file, in roster order: name, role, group, guardian_of (the traveler a guardian is bound to), invite (none, issued, expired, joined), last_ack (RFC 3339 or empty), room (during a hotel stay), care_note (yes or no: whether a sealed note is on file, never its content). No contact of anyone. UTF-8 with a byte-order mark; an attachment named by the trip and the day in its zone; never cached.',
+  security: SESSION_SECURITY,
+  request: { params: TripParams },
+  responses: {
+    200: { description: 'The CSV file.', content: { 'text/csv': { schema: z.string() } } },
+    401: ERROR_RESPONSES[401],
+    403: ERROR_RESPONSES[403],
+    404: ERROR_RESPONSES[404],
+    500: ERROR_RESPONSES[500],
+  },
+});
+
+/** The roster's text (slice 071): a header, then every row in roster order. */
+export function rosterCsv(entries: RosterEntry[]): string {
+  const names = new Map(entries.map((e) => [e.id, e.displayName]));
+  const lines = [
+    csvLine(['name', 'role', 'group', 'guardian_of', 'invite', 'last_ack', 'room', 'care_note']),
+  ];
+  for (const e of entries) {
+    lines.push(
+      csvLine([
+        e.displayName,
+        e.role,
+        e.groupName ?? '',
+        e.guardianOf ? (names.get(e.guardianOf) ?? '') : '',
+        e.invite,
+        e.lastAckAt ?? '',
+        e.room ?? '',
+        e.hasCareNote ? 'yes' : 'no',
+      ]),
+    );
+  }
+  return `\uFEFF${lines.join('\r\n')}\r\n`;
+}
 
 const addLeaderRoute = createRoute({
   method: 'post',
@@ -290,6 +331,42 @@ const revokeDevicesRoute = createRoute({
   },
 });
 
+/** The People page's rows (slice 023) with the room of today's stay (slice 070); the export shares them. */
+async function rosterEntries(
+  env: Env,
+  org: Awaited<ReturnType<typeof orgObject>>,
+  tripId: string,
+  timezone: string,
+): Promise<RosterEntry[]> {
+  const roster = await org.listRosterWithAcks(tripId);
+  // Codes by trip (one query, no bound-parameter list): D1 caps parameters per statement.
+  const codes = await db(env.DB)
+    .select({
+      participationId: inviteCodes.participationId,
+      expiresAt: inviteCodes.expiresAt,
+      redeemedAt: inviteCodes.redeemedAt,
+      revokedAt: inviteCodes.revokedAt,
+    })
+    .from(inviteCodes)
+    .where(eq(inviteCodes.tripId, tripId))
+    .all();
+  const byRow = new Map<string, typeof codes>();
+  for (const code of codes) {
+    const list = byRow.get(code.participationId) ?? [];
+    list.push(code);
+    byRow.set(code.participationId, list);
+  }
+  const now = nowIso();
+  // Slice 070 (D41): the room of the stay that covers today in the trip's zone, when there is one.
+  const rooms = await org.roomsOn(tripId, localClock(now, timezone).date);
+  const participations: RosterEntry[] = roster.map((p) => ({
+    ...p,
+    invite: inviteStatusOf(p.accountId, byRow.get(p.id) ?? [], now),
+    ...(rooms[p.id] ? { room: rooms[p.id] } : {}),
+  }));
+  return participations;
+}
+
 export function mountRosterRoutes(app: OpenAPIHono<AppEnv>): void {
   app.openapi(importRoute, async (c) => {
     const auth = requireAuth(c);
@@ -310,33 +387,23 @@ export function mountRosterRoutes(app: OpenAPIHono<AppEnv>): void {
     const org = await orgObject(c.env, orgId);
     const trip = await org.getTrip(tripId);
     if (!trip) throw new HTTPException(404, { message: 'Trip not found.' });
-    const roster = await org.listRosterWithAcks(tripId);
-    // Codes by trip (one query, no bound-parameter list): D1 caps parameters per statement.
-    const codes = await db(c.env.DB)
-      .select({
-        participationId: inviteCodes.participationId,
-        expiresAt: inviteCodes.expiresAt,
-        redeemedAt: inviteCodes.redeemedAt,
-        revokedAt: inviteCodes.revokedAt,
-      })
-      .from(inviteCodes)
-      .where(eq(inviteCodes.tripId, tripId))
-      .all();
-    const byRow = new Map<string, typeof codes>();
-    for (const code of codes) {
-      const list = byRow.get(code.participationId) ?? [];
-      list.push(code);
-      byRow.set(code.participationId, list);
-    }
-    const now = nowIso();
-    // Slice 070 (D41): the room of the stay that covers today in the trip's zone, when there is one.
-    const rooms = await org.roomsOn(tripId, localClock(now, trip.timezone).date);
-    const participations: RosterEntry[] = roster.map((p) => ({
-      ...p,
-      invite: inviteStatusOf(p.accountId, byRow.get(p.id) ?? [], now),
-      ...(rooms[p.id] ? { room: rooms[p.id] } : {}),
-    }));
-    return c.json({ participations }, 200);
+    return c.json({ participations: await rosterEntries(c.env, org, tripId, trip.timezone) }, 200);
+  });
+
+  app.openapi(exportRosterRoute, async (c) => {
+    const auth = requireAuth(c);
+    const { orgId, tripId } = c.req.valid('param');
+    await requireOrgRole(c.env, auth, orgId, 'leader');
+    const org = await orgObject(c.env, orgId);
+    const trip = await org.getTrip(tripId);
+    if (!trip) throw new HTTPException(404, { message: 'Trip not found.' });
+    const csv = rosterCsv(await rosterEntries(c.env, org, tripId, trip.timezone));
+    const date = localClock(nowIso(), trip.timezone).date;
+    return c.body(csv, 200, {
+      'content-type': 'text/csv; charset=utf-8',
+      'content-disposition': `attachment; filename="roster-${fileSlug(trip.name)}-${date}.csv"`,
+      'cache-control': 'no-store',
+    });
   });
 
   app.openapi(addLeaderRoute, async (c) => {

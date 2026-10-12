@@ -167,6 +167,7 @@ export const en = {
     colFee: 'Fee',
     feeNone: 'No fee',
     feeDue: (amount: string) => `${amount} due`,
+    exportCsv: 'Export CSV',
     status: {
       joined: 'Joined',
       invited: 'Invited',

@@ -796,9 +796,21 @@ export function PeoplePage() {
   });
   // Invites are issued from the setup checklist (D26); the button is the same door in both modes.
   const action = (
-    <a className="btn btn--primary btn--sm" href="/setup">
-      <Icons.plus /> {s.invite}
-    </a>
+    <>
+      {org && trip ? (
+        // Slice 071: the roster as a file; a plain link, the session cookie travels.
+        <a
+          className="btn btn--ghost btn--sm"
+          href={`/v1/orgs/${org.id}/trips/${trip.id}/roster/export.csv`}
+          download
+        >
+          {s.exportCsv}
+        </a>
+      ) : null}
+      <a className="btn btn--primary btn--sm" href="/setup">
+        <Icons.plus /> {s.invite}
+      </a>
+    </>
   );
   if (!(org && trip)) {
     return <PeopleTable model={fixtureModel()} live={false} now={FROZEN_NOW} action={action} />;

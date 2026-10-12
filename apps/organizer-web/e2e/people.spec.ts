@@ -2,6 +2,7 @@
 // Browser facts + captures for the live People page (slice 023): the roster from the API with
 // invite status before and after codes are issued, guardian binding, group chips, filters.
 
+import { readFile } from 'node:fs/promises';
 import { expect, type Page, test } from '@playwright/test';
 import { OUT, signInWithOrg } from './helpers';
 
@@ -63,6 +64,19 @@ test('people: live roster, invite status, groups, filters', async ({ page }, inf
     page.getByTestId('people-table').locator('thead').getByText('Fee', { exact: true }),
   ).toBeVisible();
   await expect(page.getByText('No fee')).toHaveCount(3);
+  // Slice 071: the roster as a CSV file, every row with its binding and no contact.
+  const downloading = page.waitForEvent('download');
+  await page.getByRole('link', { name: 'Export CSV' }).click();
+  const file = await downloading;
+  expect(file.suggestedFilename()).toMatch(
+    /^roster-korea-concert-tour-2026-\d{4}-\d{2}-\d{2}\.csv$/,
+  );
+  const csv = await readFile(await file.path(), 'utf8');
+  expect(csv.startsWith('\uFEFFname,role,group,guardian_of,invite,last_ack,room,care_note')).toBe(
+    true,
+  );
+  expect(csv).toContain('Sora Park,guardian,Bus A,Minji Park,none,,,no');
+  expect(csv).not.toContain('sora@example.com');
 
   // Issue codes from the API (the checklist's button does the same), reload: everyone is invited.
   expect((await call(page, 'POST', `${base}/invites`)).status).toBe(201);

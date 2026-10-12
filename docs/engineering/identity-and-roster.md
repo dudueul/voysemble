@@ -130,6 +130,17 @@ stays. Exercised by `apps/api-worker/test/roster-invites.test.ts` ("roster entri
 People page"), `apps/organizer-web/src/lib/people-model.test.ts`, the live case in
 `sections.test.tsx`, and `apps/organizer-web/e2e/people.spec.ts`.
 
+### The roster as a file (slice 071)
+
+`GET .../roster/export.csv` (owner, organizer, leader: the same door as the list) answers the
+rows of `GET .../roster` as a file in roster order: `name, role, group, guardian_of` (the
+traveler a guardian is bound to, by name), `invite`, `last_ack`, `room` (during a hotel stay,
+slice 070), `care_note` (`yes` / `no`: whether a sealed note is on file, never its content); no
+contact of anyone. UTF-8 with a byte-order mark, `Content-Disposition: attachment;
+filename="roster-<trip-slug>-<date>.csv"`, `no-store`; `rosterCsv` is pure and `rosterEntries`
+is the helper both routes share. The People page carries "Export CSV" beside "Issue invites"
+when the roster is live.
+
 ### Roster entries
 
 `GET .../roster` now returns `RosterEntry` rows: the participation plus two computed facts.
