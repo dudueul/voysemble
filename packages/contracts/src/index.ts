@@ -22,6 +22,7 @@ export * from './incident';
 export * from './itinerary';
 export * from './media';
 export * from './organization';
+export * from './packing';
 export * from './person';
 export * from './report';
 export * from './roster';

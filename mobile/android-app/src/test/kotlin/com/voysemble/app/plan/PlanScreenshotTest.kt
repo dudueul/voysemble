@@ -10,11 +10,16 @@ import com.voysemble.core.i18n.AppLocale
 import org.junit.After
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -45,18 +50,27 @@ class PlanScreenshotTest {
         compose.onNodeWithText("Concert day").assertExists()
         compose.onNodeWithText("Colosseum guided tour").assertExists()
         compose.onNodeWithText("Propose an event").assertExists()
-        // The bookings of the day (slice 047): section labels render uppercase.
-        compose.onNodeWithText("BOOKINGS").assertExists()
-        compose.onNodeWithText("Night 4 of 5 · Rome · 21 rooms").assertExists()
-        compose.onNodeWithText("Roma Coach · 20 of 45 seats · Groups: Bus A").assertExists()
         compose.onRoot().captureRoboImage("$OUT/plan-day.png")
+        // The bookings of the day (slice 047) sit under the events; the list composes only what
+        // shows (CI run 38271876572), so scroll to each row first. Section labels render uppercase.
+        compose.day().performScrollToNode(hasText("BOOKINGS"))
+        compose.onNodeWithText("BOOKINGS").assertExists()
+        compose.day().performScrollToNode(hasText("Night 4 of 5 · Rome · 21 rooms"))
+        compose.onNodeWithText("Night 4 of 5 · Rome · 21 rooms").assertExists()
+        compose.day().performScrollToNode(hasText("Roma Coach · 20 of 45 seats · Groups: Bus A"))
+        compose.onNodeWithText("Roma Coach · 20 of 45 seats · Groups: Bus A").assertExists()
         // Switching days is immediate and local; the arrival day has the flight and the check-in.
+        compose.day().performScrollToNode(hasText("Concert day"))
         compose.onNodeWithContentDescription("Open Arrival, Monday, Dec 28").performClick()
         compose.onNodeWithText("Flight to Rome").assertExists()
+        compose.day().performScrollToNode(hasText("Check-in today · 5 nights · Rome · 21 rooms"))
         compose.onNodeWithText("ICN → FCO").assertExists()
         compose.onNodeWithText("Check-in today · 5 nights · Rome · 21 rooms").assertExists()
         compose.onRoot().captureRoboImage("$OUT/plan-arrival.png")
     }
+
+    /** The day's lazy list: the first scrollable node (the day chips row sits inside it). */
+    private fun ComposeContentTestRule.day() = onAllNodes(hasScrollAction()).onFirst()
 
     @After
     fun resetLanguage() {

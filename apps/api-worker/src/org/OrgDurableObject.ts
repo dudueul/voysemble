@@ -50,7 +50,12 @@ import type {
   ItineraryEventInput,
   ItineraryProposal,
   MeetingWindow,
+  MyPackingItem,
+  MyPackingList,
   OpenWindowRequest,
+  PackingItem,
+  PackingList,
+  PackingTravelerProgress,
   Participation,
   Photo,
   PhotoContentType,
@@ -476,6 +481,29 @@ const MIGRATIONS: { version: number; sql: string }[] = [
       CREATE INDEX IF NOT EXISTS travel_bookings_trip_idx ON travel_bookings(trip_id, created_at);
     `,
   },
+  {
+    // Packing checklist (D38, slice 048): the organizer's items and one tick per traveler and item.
+    version: 18,
+    sql: `
+      CREATE TABLE IF NOT EXISTS packing_items (
+        id TEXT PRIMARY KEY,
+        trip_id TEXT NOT NULL REFERENCES trips(id),
+        name TEXT NOT NULL,
+        note TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS packing_items_trip_idx ON packing_items(trip_id, created_at);
+      CREATE TABLE IF NOT EXISTS packing_ticks (
+        item_id TEXT NOT NULL REFERENCES packing_items(id),
+        participation_id TEXT NOT NULL REFERENCES participations(id),
+        trip_id TEXT NOT NULL,
+        packed_at TEXT NOT NULL,
+        by_role TEXT NOT NULL,
+        PRIMARY KEY (item_id, participation_id)
+      );
+      CREATE INDEX IF NOT EXISTS packing_ticks_participation_idx ON packing_ticks(participation_id);
+    `,
+  },
 ];
 
 type ChatMessageRow = {
@@ -568,6 +596,22 @@ type TravelBookingRow = {
   kind: string;
   data: string;
   created_at: string;
+};
+
+type PackingItemRow = {
+  id: string;
+  trip_id: string;
+  name: string;
+  note: string;
+  created_at: string;
+};
+
+type PackingTickRow = {
+  item_id: string;
+  participation_id: string;
+  trip_id: string;
+  packed_at: string;
+  by_role: string;
 };
 
 type ProposalRow = {
@@ -1178,6 +1222,7 @@ export class OrgDurableObject extends DurableObject<Env> {
         sql.exec('DELETE FROM care_notes WHERE participation_id = ?', r.id);
         sql.exec('DELETE FROM participation_events WHERE participation_id = ?', r.id);
         sql.exec('DELETE FROM document_items WHERE participation_id = ?', r.id);
+        sql.exec('DELETE FROM packing_ticks WHERE participation_id = ?', r.id);
         sql.exec('DELETE FROM chat_reads WHERE reader_key = ?', r.id);
         sql.exec('DELETE FROM participations WHERE id = ?', r.id);
       }
@@ -3665,6 +3710,231 @@ export class OrgDurableObject extends DurableObject<Env> {
     if (!this.bookingRow(tripId, id)) return { notFound: true };
     this.ctx.storage.sql.exec('DELETE FROM travel_bookings WHERE id = ?', id);
     return { deleted: true };
+  }
+
+  // ---- Packing checklist (D38, slice 048) ----
+
+  private packingItemRow(tripId: string, id: string): PackingItemRow | null {
+    return (
+      this.ctx.storage.sql
+        .exec<PackingItemRow>(
+          'SELECT * FROM packing_items WHERE id = ? AND trip_id = ?',
+          id,
+          tripId,
+        )
+        .toArray()[0] ?? null
+    );
+  }
+
+  private packingItemsOf(tripId: string): PackingItemRow[] {
+    return this.ctx.storage.sql
+      .exec<PackingItemRow>(
+        'SELECT * FROM packing_items WHERE trip_id = ? ORDER BY created_at, id',
+        tripId,
+      )
+      .toArray();
+  }
+
+  /** An item with its count over the trip's travelers (a leader's own tick is not counted). */
+  private packingItemOf(r: PackingItemRow, travelerIds: Set<string>): PackingItem {
+    const packed = this.ctx.storage.sql
+      .exec<PackingTickRow>('SELECT * FROM packing_ticks WHERE item_id = ?', r.id)
+      .toArray()
+      .filter((t) => travelerIds.has(t.participation_id)).length;
+    return {
+      id: r.id,
+      tripId: r.trip_id,
+      name: r.name,
+      note: r.note,
+      createdAt: r.created_at,
+      counts: { travelers: travelerIds.size, packed },
+    };
+  }
+
+  async listPacking(tripId: string): Promise<PackingList | { notFound: true }> {
+    this.requireOrg();
+    if (!(await this.getTrip(tripId))) return { notFound: true };
+    const sql = this.ctx.storage.sql;
+    const travelers = sql
+      .exec<ParticipationRow>(
+        "SELECT * FROM participations WHERE trip_id = ? AND role = 'traveler' ORDER BY group_name, display_name",
+        tripId,
+      )
+      .toArray();
+    const travelerIds = new Set(travelers.map((p) => p.id));
+    const rows = this.packingItemsOf(tripId);
+    const itemIds = new Set(rows.map((r) => r.id));
+    const ticks = sql
+      .exec<PackingTickRow>('SELECT * FROM packing_ticks WHERE trip_id = ?', tripId)
+      .toArray()
+      .filter((t) => itemIds.has(t.item_id));
+    const progress: PackingTravelerProgress[] = travelers.map((p) => {
+      const mine = ticks.filter((t) => t.participation_id === p.id);
+      return {
+        participationId: p.id,
+        displayName: p.display_name,
+        groupName: p.group_name,
+        packed: mine.length,
+        total: rows.length,
+        lastPackedAt:
+          mine
+            .map((t) => t.packed_at)
+            .sort()
+            .at(-1) ?? null,
+      };
+    });
+    return {
+      items: rows.map((r) => this.packingItemOf(r, travelerIds)),
+      travelers: progress,
+      ready: rows.length === 0 ? 0 : progress.filter((p) => p.packed === p.total).length,
+    };
+  }
+
+  async createPackingItem(
+    tripId: string,
+    input: { name: string; note: string },
+    now: string,
+  ): Promise<PackingItem | { notFound: true }> {
+    this.requireOrg();
+    if (!(await this.getTrip(tripId))) return { notFound: true };
+    const row: PackingItemRow = {
+      id: crypto.randomUUID(),
+      trip_id: tripId,
+      name: input.name,
+      note: input.note,
+      created_at: now,
+    };
+    this.ctx.storage.sql.exec(
+      'INSERT INTO packing_items (id, trip_id, name, note, created_at) VALUES (?, ?, ?, ?, ?)',
+      row.id,
+      row.trip_id,
+      row.name,
+      row.note,
+      row.created_at,
+    );
+    return this.packingItemOf(row, new Set(this.travelerIds(tripId)));
+  }
+
+  async updatePackingItem(
+    tripId: string,
+    id: string,
+    patch: { name?: string | undefined; note?: string | undefined },
+  ): Promise<PackingItem | { notFound: true }> {
+    this.requireOrg();
+    const row = this.packingItemRow(tripId, id);
+    if (!row) return { notFound: true };
+    const next: PackingItemRow = {
+      ...row,
+      name: patch.name ?? row.name,
+      note: patch.note ?? row.note,
+    };
+    this.ctx.storage.sql.exec(
+      'UPDATE packing_items SET name = ?, note = ? WHERE id = ?',
+      next.name,
+      next.note,
+      id,
+    );
+    return this.packingItemOf(next, new Set(this.travelerIds(tripId)));
+  }
+
+  async deletePackingItem(
+    tripId: string,
+    id: string,
+  ): Promise<{ deleted: true } | { notFound: true }> {
+    this.requireOrg();
+    if (!this.packingItemRow(tripId, id)) return { notFound: true };
+    this.ctx.storage.transactionSync(() => {
+      this.ctx.storage.sql.exec('DELETE FROM packing_ticks WHERE item_id = ?', id);
+      this.ctx.storage.sql.exec('DELETE FROM packing_items WHERE id = ?', id);
+    });
+    return { deleted: true };
+  }
+
+  /** The list for one participation (a traveler's or leader's own, or the traveler a guardian packs for). */
+  async myPacking(
+    tripId: string,
+    participationId: string,
+    packingFor: 'self' | 'guardian',
+  ): Promise<MyPackingList | { notFound: true }> {
+    this.requireOrg();
+    const p = await this.getParticipation(participationId);
+    if (!p || p.tripId !== tripId) return { notFound: true };
+    const ticks = new Map(
+      this.ctx.storage.sql
+        .exec<PackingTickRow>(
+          'SELECT * FROM packing_ticks WHERE participation_id = ? AND trip_id = ?',
+          participationId,
+          tripId,
+        )
+        .toArray()
+        .map((t) => [t.item_id, t] as const),
+    );
+    const items: MyPackingItem[] = this.packingItemsOf(tripId).map((r) => {
+      const t = ticks.get(r.id) ?? null;
+      return {
+        id: r.id,
+        name: r.name,
+        note: r.note,
+        packed: t !== null,
+        packedAt: t?.packed_at ?? null,
+      };
+    });
+    return {
+      travelerParticipationId: participationId,
+      travelerName: p.displayName,
+      packingFor,
+      items,
+      packed: items.filter((i) => i.packed).length,
+      total: items.length,
+    };
+  }
+
+  /** Tick or untick one item for one participation; who ticked (traveler or guardian) is kept. */
+  async setPacked(
+    tripId: string,
+    itemId: string,
+    participationId: string,
+    packed: boolean,
+    byRole: string,
+    now: string,
+  ): Promise<MyPackingItem | { notFound: true }> {
+    this.requireOrg();
+    const row = this.packingItemRow(tripId, itemId);
+    const p = await this.getParticipation(participationId);
+    if (!row || !p || p.tripId !== tripId) return { notFound: true };
+    const sql = this.ctx.storage.sql;
+    if (packed) {
+      sql.exec(
+        `INSERT INTO packing_ticks (item_id, participation_id, trip_id, packed_at, by_role) VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(item_id, participation_id) DO NOTHING`,
+        itemId,
+        participationId,
+        tripId,
+        now,
+        byRole,
+      );
+    } else {
+      sql.exec(
+        'DELETE FROM packing_ticks WHERE item_id = ? AND participation_id = ?',
+        itemId,
+        participationId,
+      );
+    }
+    const t =
+      sql
+        .exec<PackingTickRow>(
+          'SELECT * FROM packing_ticks WHERE item_id = ? AND participation_id = ?',
+          itemId,
+          participationId,
+        )
+        .toArray()[0] ?? null;
+    return {
+      id: row.id,
+      name: row.name,
+      note: row.note,
+      packed: t !== null,
+      packedAt: t?.packed_at ?? null,
+    };
   }
 
   async personTimeline(tripId: string, participationId: string): Promise<TimelineEntry[] | null> {

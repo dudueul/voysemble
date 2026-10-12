@@ -82,6 +82,14 @@ final class CaptureTests: XCTestCase {
         try capture(NavigationStack { MemoriesView(model: MemoriesModel(sampleRole: "guardian")) }, name: "memories-guardian-dark", scheme: .dark)
     }
 
+    func testPacking() throws {
+        // Slice 048 (D38): a traveler's packing list with six of nine packed; a guardian's list for their traveler, dark.
+        try capture(NavigationStack { PackingView(model: PackingModel()) }, name: "packing-light")
+        let fixture = KoreaConcertTourFixture.shared.packing()
+        let mine = PackingList(items: fixture.items, travelerName: "Minji Park", forTraveler: true, offline: false)
+        try capture(NavigationStack { PackingView(model: PackingModel(list: mine)) }, name: "packing-guardian-dark", scheme: .dark)
+    }
+
     func testPlan() throws {
         // Slice 035: the fixture plan on its concert day with the leader's affordances; slice 047 adds
         // the day's bookings under the events (the hotel night here, the flight and the check-in on arrival).

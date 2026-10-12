@@ -317,6 +317,26 @@ public class ApiClient(
             }
         }
 
+    /** GET .../packing/mine (D38, slice 048): my packing list (a guardian's for their traveler). */
+    public suspend fun myPacking(orgId: String, tripId: String, correlationId: String? = null): ApiResult<MyPackingListDto> =
+        call(correlationId) {
+            http.get {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "orgs", orgId, "trips", tripId, "packing", "mine") }
+                common(correlationId)
+            }
+        }
+
+    /** PUT .../packing/{itemId}/mine: tick or untick one item. */
+    public suspend fun setPacked(orgId: String, tripId: String, itemId: String, packed: Boolean, correlationId: String? = null): ApiResult<MyPackingItemDto> =
+        call(correlationId) {
+            http.put {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "orgs", orgId, "trips", tripId, "packing", itemId, "mine") }
+                common(correlationId)
+                contentType(ContentType.Application.Json)
+                setBody(SetPackedRequestDto(packed))
+            }
+        }
+
     public suspend fun listPhotos(orgId: String, tripId: String, correlationId: String? = null): ApiResult<PhotoListDto> =
         call(correlationId) {
             http.get {

@@ -70,7 +70,15 @@ import com.voysemble.core.today.TodayEvent
 import com.voysemble.core.today.TodaySnapshot
 
 @Composable
-fun TodayRoute(vm: TodayViewModel, onOpenHeadcount: () -> Unit = {}, onOpenWindow: () -> Unit = {}, onOpenIncidents: () -> Unit = {}) {
+fun TodayRoute(
+    vm: TodayViewModel,
+    onOpenHeadcount: () -> Unit = {},
+    onOpenWindow: () -> Unit = {},
+    onOpenIncidents: () -> Unit = {},
+    onOpenPacking: () -> Unit = {},
+    /** Slice 048: the packing card's line ("6 of 9 packed"); null before the first answer. */
+    packingSummary: String? = null,
+) {
     val state by vm.state.collectAsStateWithLifecycle()
     // D24: the shared dialog (ProposeChange.kt); change or remove the up-next event.
     var proposing by remember { mutableStateOf<ProposalTarget?>(null) }
@@ -91,6 +99,8 @@ fun TodayRoute(vm: TodayViewModel, onOpenHeadcount: () -> Unit = {}, onOpenWindo
         onOpenHeadcount = onOpenHeadcount,
         onOpenWindow = onOpenWindow,
         onOpenIncidents = onOpenIncidents,
+        onOpenPacking = onOpenPacking,
+        packingSummary = packingSummary,
         onPropose = { id -> state.snapshot.events.firstOrNull { it.id == id }?.let { proposing = ProposalTarget.forEvent(it) } },
         onEditCare = { vm.editCare() },
         onCancelCare = vm::cancelCare,
@@ -112,6 +122,8 @@ fun TodayScreen(
     onEditCare: () -> Unit = {},
     onCancelCare: () -> Unit = {},
     onSaveCare: (CareNoteDto) -> Unit = {},
+    onOpenPacking: () -> Unit = {},
+    packingSummary: String? = null,
 ) {
     val snap = state.snapshot
     Scaffold(
@@ -136,6 +148,8 @@ fun TodayScreen(
             } else {
                 item { HeadcountCard(snap.headcount, snap.checkedIn, snap.expected, onOpenHeadcount, onOpenIncidents) }
             }
+            // Slice 048 (D38): everyone packs; the card opens the list and reads its count.
+            item { PackingCard(packingSummary, onOpenPacking) }
             item { SectionTitle(tr(Txt.TODAY_LATER)) }
             items(snap.later, key = { it.id }) { e -> EventRow(e) }
             item { Spacer(Modifier.height(8.dp)) }
@@ -455,6 +469,21 @@ internal fun StatusChip(status: EventStatus) {
         color = color,
         modifier = Modifier.background(color.copy(alpha = 0.12f), RoundedCornerShape(999.dp)).padding(horizontal = 9.dp, vertical = 3.dp),
     )
+}
+
+/** The packing checklist entry (D38): its summary line and the way in. */
+@Composable
+private fun PackingCard(summary: String?, onOpen: () -> Unit) {
+    val c = LocalVoysembleColors.current
+    Card {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(tr(Txt.PACK_TODAY_TITLE), style = MaterialTheme.typography.labelSmall, color = c.textMuted)
+            Spacer(Modifier.weight(1f))
+            summary?.let { Text(it, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold) }
+        }
+        Spacer(Modifier.height(6.dp))
+        OutlinedButton(onClick = onOpen, shape = MaterialTheme.shapes.small) { Text(tr(Txt.PACK_OPEN)) }
+    }
 }
 
 @Composable

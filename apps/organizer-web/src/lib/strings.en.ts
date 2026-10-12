@@ -530,6 +530,21 @@ export const en = {
     packing: 'Packing checklist (shared with travelers)',
     packingNote:
       'Travelers tick items on their phone; this is the organizer view of one sample traveler.',
+    packingLive: 'Packing checklist',
+    packingHint:
+      'Travelers tick the items on their phones; a guardian can tick for a young traveler.',
+    packingNone: 'No items yet. Add the first below.',
+    packingReady: (ready: number, travelers: number) =>
+      `${ready} of ${travelers} travelers fully packed`,
+    packingPacked: (packed: number, travelers: number) => `${packed} of ${travelers} packed`,
+    packingAddForm: 'Add an item',
+    packingItemLabel: 'Item',
+    packingNoteLabel: 'Note',
+    packingRemove: 'Remove',
+    packingRemoveOf: (name: string) => `Remove ${name}`,
+    packingTravelers: 'By traveler',
+    packingLoadFailed: 'Could not load the packing checklist.',
+    packingAddFailed: 'Could not add the item.',
     liveSubtitle: (missing: number, travelers: number) =>
       missing
         ? `${missing} required documents still missing across ${travelers} travelers`

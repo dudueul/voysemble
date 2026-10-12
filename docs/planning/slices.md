@@ -1257,7 +1257,7 @@ Not done: the phones (slice 044); downloads and the wrap-up export; the per-orga
 
 ## Slice 044: the Memories tab on both phones
 
-Status: done 2026-10-12. Commit `c6f5e02` (`feat(mobile): the Memories tab on both phones (slice 044)`) and the fix `fix(android): the memories imports lost their names to a regex` (see git log). CI: run 38260106599 red on `mobile` only (`MemoriesScreen.kt` and `MemoriesViewModelTest.kt`: three `import …memories.queue/pool/album` lines had become `import …album()` when the section accessors were turned into functions with a regex; `web` and `ios` green, so the Swift side compiled first time); the fix restores the three imports: run 38267926695 at `dbfdf72` red on `web` (one browser spec, `headcounts.spec.ts`, read the leader's roster as something without `participations`; not reproduced on the next run, the spec now asserts the roster status and body) and on `mobile` (the two Memories facts that had never run: `MemoriesScreenshotTest.memories_guardian_dark` looked for "Guardian album" where the section label renders uppercase, and `MemoriesViewModelTest` expected a cleared photo at the front of the pool where `upsert` keeps its place); `ios` green. The second fix (`fix(android): the two Memories facts match the screen and the model`) corrects both tests; its run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit `c6f5e02` (`feat(mobile): the Memories tab on both phones (slice 044)`) and the fix `fix(android): the memories imports lost their names to a regex` (see git log). CI: run 38260106599 red on `mobile` only (`MemoriesScreen.kt` and `MemoriesViewModelTest.kt`: three `import …memories.queue/pool/album` lines had become `import …album()` when the section accessors were turned into functions with a regex; `web` and `ios` green, so the Swift side compiled first time); the fix restores the three imports: run 38267926695 at `dbfdf72` red on `web` (one browser spec, `headcounts.spec.ts`, read the leader's roster as something without `participations`; not reproduced on the next run, the spec now asserts the roster status and body) and on `mobile` (the two Memories facts that had never run: `MemoriesScreenshotTest.memories_guardian_dark` looked for "Guardian album" where the section label renders uppercase, and `MemoriesViewModelTest` expected a cleared photo at the front of the pool where `upsert` keeps its place); `ios` green. The second fix (`fix(android): the two Memories facts match the screen and the model`, `c4dc839`) corrects both tests: run 38270513448 green (web, mobile, ios), 2026-10-12 15:39 UTC; captures commit `a908a84` carries `android/memories-light.png`, `android/memories-guardian-dark.png`, `ios/memories-light.png`, `ios/memories-guardian-dark.png`.
 Spec: D18 (photos), D34 (media pipeline, device-made thumbnails), ADR-0009 (visibility), D31 (device captures), D32 (glass on chips and the picker button). Details: `docs/engineering/media.md` ("Phones").
 
 | Gate | Command | Result |
@@ -1279,7 +1279,7 @@ Not done: a full-screen viewer; per-person tags from the phone; background uploa
 
 ## Slice 045: documents and forms with a step-up confirmation
 
-Status: done 2026-10-12. Commit: see git log (`feat(documents): requirements, sealed scans and the audited reveal behind a step-up confirmation (slice 045)`). CI: run 38267931389 at `b5cc445` red on `mobile` only (the same two Memories test facts as the 044 fix run, corrected in the next fix commit); `web` (the whole browser suite incl. `preparation.spec.ts`) and `ios` green, so the slice itself is verified; the captures commit follows the first green run.
+Status: done 2026-10-12. Commit: see git log (`feat(documents): requirements, sealed scans and the audited reveal behind a step-up confirmation (slice 045)`). CI: run 38267931389 at `b5cc445` red on `mobile` only (the same two Memories test facts as the 044 fix run, corrected in the next fix commit); `web` (the whole browser suite incl. `preparation.spec.ts`) and `ios` green, so the slice itself is verified; the captures commit `a908a84` (after run 38270513448 at `c4dc839`) carries `preparation-live.png` for both desktop projects.
 Spec: D27 (documents tier), D35 (new: step-up reauthentication), D36 (new: documents pipeline), ADR-0001 (tier 3), D17 (timeline), D31 (device captures). Details: `docs/engineering/documents.md`.
 
 | Gate | Command | Result |
@@ -1304,7 +1304,7 @@ Not done: reminders to guardians; a scaling PDF viewer; the packing checklist on
 
 ## Slice 046: travel bookings on the API and the console
 
-Status: done 2026-10-12. Commit: see git log (`feat(travel): flights, hotels and bus charters on the API and the console (slice 046)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: see git log (`feat(travel): flights, hotels and bus charters on the API and the console (slice 046)`, `a183bf1`). CI: run 38270008286 red on `mobile` only (the same two Memories test facts as the two runs before it, fixed by `c4dc839`); `web` (the whole browser suite incl. `travel.spec.ts`) and `ios` green. Verified by run 38270513448 green at `c4dc839`; captures commit `a908a84` carries `travel-live.png` for both desktop projects.
 Spec: D37 (new: travel bookings), D13 (driver contact stays on the console), D31 (device captures). Details: `docs/engineering/travel.md`.
 
 | Gate | Command | Result |
@@ -1329,7 +1329,7 @@ Not done: bookings on the leader's phone; the sealed driver link and the printed
 
 ## Slice 047: bookings on the leader's phone
 
-Status: done 2026-10-12. Commit: see git log (`feat(mobile): the day's bookings on the Plan tab for leaders (slice 047)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: see git log (`feat(mobile): the day's bookings on the Plan tab for leaders (slice 047)`, `08ceea5`). CI: run 38271876572 red on `mobile` only (`web` and `ios` green, so the Swift side and the core JVM facts held first time): two Android test facts, not the app. `PlanScreenshotTest.plan_day_light` asserted the bus row of the concert day without scrolling to it, and a lazy list composes only what shows; `PlanViewModelTest` pinned the exact count of travel requests and the state before the first answer. Both tests now scroll to what they assert and pin what matters (the bookings came after the itinerary; a traveler adds no travel request). The fix rides with slice 048; its run id is recorded in the next commit once verified.
 Spec: D37 (travel bookings; the driver contact never leaves the console), D13 (what guardians and phones never see), D31 (device captures). Details: `docs/engineering/travel.md` ("On the phones").
 
 | Gate | Command | Result |
@@ -1347,3 +1347,27 @@ Built:
 - Docs: `travel.md` phones section and facts, D37 row, captures README, mobile README, ledger, feature flag `mobile.travel` working.
 
 Not done: a traveler's own seat or room; the sealed driver link; bookings in the trip report.
+
+## Slice 048: the packing checklist
+
+Status: done 2026-10-12. Commit: see git log (`feat(packing): the checklist on the console and the phones (slice 048)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D38 (new: packing checklist), ADR-0001 (tier 1), D13 (guardians), D31 (device captures). Details: `docs/engineering/packing.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 32 files, 88 tests (adds `packing.test.ts`: 1) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 15 files, 101 tests (adds the live packing card case) |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e -- preparation.spec.ts` | 2 passed (desktop-1440, laptop-1280); capture `preparation-packing.png` |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+| Core JVM, Android, iOS | CI `mobile` and `ios` jobs | not runnable here (the Android Gradle plugin is behind a blocked host); verified by CI, recorded in the next commit |
+
+Built:
+- Contracts `packing.ts` (`PackingItem` with counts, `PackingTravelerProgress`, `PackingList`, create/update requests, `MyPackingItem`, `MyPackingList`, `SetPackedRequest`).
+- Worker: OrgDurableObject schema 18 (`packing_items`, `packing_ticks`) with `listPacking`, `createPackingItem`, `updatePackingItem`, `deletePackingItem`, `myPacking`, `setPacked`; roster removal drops a person's ticks; `routes/packing.ts` (progress for leaders and up; items for organizers; `/mine` and the tick for any participant, a guardian for their traveler).
+- Console: `packingQuery`, `packing.*`; the live packing card on Preparation (ready line, items with meters and notes, the traveler fold, the add form); strings EN/KO.
+- Core: `api/Packing.kt`, `ApiClient.myPacking/setPacked`, `packing/PackingModel.kt` (`packingOf`, `withPacked`, `replaceItem`, `summary`, `whose`), the fixture's `packing()`, 16 `PACK_*` strings in both languages; `PackingModelTest` (2), `PackingTest` (1).
+- Android: `PackingViewModel` (optimistic tick, the server's item confirms, a failure puts it back), `PackingScreen`, `Screen.PACKING`, the Today packing card with the summary; `PackingViewModelTest` (3), `PackingScreenshotTest` (2: `packing-light.png`, `packing-guardian-dark.png`), the guardian Today capture carries the card.
+- iOS: `PackingModel`, `PackingView`, the Today packing card with a `NavigationLink`; `CaptureTests.testPacking`, `LiveModelsTests.testPackingSampleAndUnreachable`.
+- Docs: `packing.md`, decision D38, documents doc pointer, captures README, mobile README, ledger, feature flags `packing.checklist` and `mobile.packing` working.
+
+Not done: packing reminders in the notification lanes (D29); the leader's per-traveler view on the phone; who-ticked on the console.

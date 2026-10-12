@@ -236,6 +236,25 @@ final class LiveModelsTests: XCTestCase {
         XCTAssertFalse(TodayModel(api: unreachableClient(), trip: guardian).canPropose)
     }
 
+    func testPackingSampleAndUnreachable() async {
+        // Slice 048 (D38): sample mode ticks the fixture without the network; live and unreachable is honest.
+        let sample = PackingModel()
+        XCTAssertFalse(sample.live)
+        XCTAssertEqual(sample.list.summary(), "6 of 9 packed")
+        XCTAssertEqual(sample.list.whose(), "Your packing list")
+        await sample.setPacked("pk7", true)
+        XCTAssertEqual(sample.list.summary(), "7 of 9 packed")
+        XCTAssertNil(sample.notice)
+        let live = PackingModel(api: unreachableClient(), trip: trip)
+        XCTAssertTrue(live.live)
+        XCTAssertEqual(live.list.items.count, 0)
+        await live.refresh()
+        XCTAssertTrue(live.list.offline)
+        XCTAssertEqual(live.error, "Offline. Showing the last list.")
+        await live.setPacked("x", true)
+        XCTAssertEqual(live.notice, "Offline. The tick will not reach the organizer until you are connected; try again then.")
+    }
+
     func testMemoriesSampleAndUnreachable() async {
         // Slice 044 (D18): sample mode is the leader's view of the fixture; a guardian sees the album only.
         let sample = MemoriesModel()

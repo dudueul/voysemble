@@ -3,11 +3,13 @@
 // Minji collected, uploads a PNG scan for Juho; the first reveal asks for a confirmation and emails
 // the link; opening the link confirms and returns to Preparation; the second reveal shows the scan
 // under a watermark with the organizer's address; the reveal count reads 1; the Reports tile reads
-// the completion. Capture preparation-live.png with the viewer open.
+// the completion. Capture preparation-live.png with the viewer open. Slice 048 (D38): the packing
+// checklist on the same page: two items, Minji ticks one from "her phone" (the API as a traveler),
+// the organizer sees the count and her progress. Capture preparation-packing.png.
 
 import { deflateSync } from 'node:zlib';
 import { expect, type Page, test } from '@playwright/test';
-import { OUT, signInWithOrg } from './helpers';
+import { OUT, signIn, signInWithOrg } from './helpers';
 
 const CSV =
   'name,group,guardian_name,guardian_contact\nMinji Park,Bus A,Sora Park,sora@example.com\nJuho Kim,Bus A,,\nLee Hana,Bus B,,';
@@ -55,7 +57,7 @@ function png(width: number, height: number, rgb: [number, number, number]) {
   ]);
 }
 
-async function call(page: Page, method: 'GET' | 'POST', url: string, body?: unknown) {
+async function call(page: Page, method: 'GET' | 'POST' | 'PUT', url: string, body?: unknown) {
   return page.evaluate(
     async ({ method, url, body }) => {
       const r = await fetch(url, {
@@ -95,6 +97,53 @@ test('preparation: requirements, states, a sealed scan, the confirmation, the au
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Preparation');
   await expect(page.getByText('Live', { exact: true })).toBeVisible();
   await expect(page.getByText('No requirements yet', { exact: false })).toBeVisible();
+
+  // The packing checklist (slice 048): two items; Minji ticks the passport from her phone.
+  await expect(page.getByTestId('packing-ready')).toHaveText('0 of 3 travelers fully packed');
+  const packingForm = page.getByRole('form', { name: 'Add an item' });
+  await packingForm.getByLabel('Item').fill('Passport + copy');
+  await packingForm.getByRole('button', { name: 'Add' }).click();
+  await expect(page.getByTestId('packing').locator('li')).toHaveCount(1);
+  await packingForm.getByLabel('Item').fill('EU plug adapter');
+  await packingForm.getByLabel('Note').fill('Type C or F');
+  await packingForm.getByRole('button', { name: 'Add' }).click();
+  const adapterRow = page
+    .getByTestId('packing')
+    .locator('li')
+    .filter({ hasText: 'EU plug adapter' });
+  await expect(adapterRow).toContainText('Type C or F');
+  await expect(adapterRow).toContainText('0 of 3 packed');
+  const issued = await call(page, 'POST', `${base}/invites`);
+  const minjiCode = (issued.json.invites as { displayName: string; code: string }[]).find(
+    (i) => i.displayName === 'Minji Park',
+  )?.code;
+  const ctx = await page.context().browser()?.newContext();
+  if (!ctx) throw new Error('no browser for the second context');
+  const minji = await ctx.newPage();
+  await signIn(minji);
+  expect((await call(minji, 'POST', '/v1/invites/redeem', { code: minjiCode })).status).toBe(200);
+  const mine = await call(minji, 'GET', `${base}/packing/mine`);
+  const passportId = (mine.json.items as { id: string; name: string }[]).find(
+    (i) => i.name === 'Passport + copy',
+  )?.id;
+  expect(
+    (await call(minji, 'PUT', `${base}/packing/${passportId}/mine`, { packed: true })).status,
+  ).toBe(200);
+  await ctx.close();
+  await page.reload();
+  await expect(page.getByText('Live', { exact: true })).toBeVisible();
+  const passportRow = page
+    .getByTestId('packing')
+    .locator('li')
+    .filter({ hasText: 'Passport + copy' });
+  await expect(passportRow).toContainText('1 of 3 packed');
+  await page.getByText('By traveler').click();
+  await expect(page.getByTestId('packing-travelers')).toContainText('Minji Park · Bus A · 1/2');
+  await page.mouse.move(0, 0);
+  await page.screenshot({
+    path: `${OUT}/${info.project.name}/preparation-packing.png`,
+    fullPage: true,
+  });
 
   // Add a required document with a due date.
   const form = page.getByRole('form', { name: 'Add a requirement' });

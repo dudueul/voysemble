@@ -216,3 +216,13 @@ its add form. Produced by `apps/organizer-web/e2e/travel.spec.ts`. Phones follow
 (the hotel's night 4 of 5, the two buses with their roster seats). `android/plan-arrival.png`,
 `ios/plan-arrival.png` (new): the arrival day with the flight from ICN and the hotel check-in.
 Produced by `PlanScreenshotTest.plan_day_light` and `CaptureTests.testPlan`.
+
+## Slice 048 (2026-10-12): the packing checklist
+
+`web/desktop-1440/preparation-packing.png`, `web/laptop-1280/preparation-packing.png`: the live
+Preparation page with the packing card (two items, Minji's tick counted, the "By traveler" fold
+open). Produced by `apps/organizer-web/e2e/preparation.spec.ts`. `android/packing-light.png`,
+`android/packing-guardian-dark.png` (Roborazzi) and `ios/packing-light.png`,
+`ios/packing-guardian-dark.png` (CaptureTests): a traveler's list with six of nine packed and a
+guardian's list for their traveler. `android/today-guardian.png` (updated) carries the packing
+card. Produced by `PackingScreenshotTest` and `CaptureTests.testPacking`.

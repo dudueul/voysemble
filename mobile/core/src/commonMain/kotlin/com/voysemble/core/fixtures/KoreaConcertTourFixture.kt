@@ -28,6 +28,8 @@ import com.voysemble.core.incidents.IncidentFeed
 import com.voysemble.core.incidents.IncidentStatus
 import com.voysemble.core.plan.PlanDay
 import com.voysemble.core.plan.TripPlan
+import com.voysemble.core.packing.PackingItem
+import com.voysemble.core.packing.PackingList
 import com.voysemble.core.travel.BusCharter
 import com.voysemble.core.travel.Flight
 import com.voysemble.core.travel.Hotel
@@ -313,6 +315,23 @@ public object KoreaConcertTourFixture {
             BusCharter("bu1", "Bus A", "Roma Coach", seats = 45, groups = listOf("Bus A"), assigned = 20),
             BusCharter("bu2", "Bus B", "Roma Coach", seats = 45, groups = listOf("Bus B"), assigned = 19),
         ),
+    )
+
+    /** The sample packing list (D38, slice 048): nine items, six in the bag. */
+    public fun packing(): PackingList = PackingList(
+        items = listOf(
+            PackingItem("pk1", "Passport + copy", "", packed = true, packedAt = "2026-12-20T09:00:00.000Z"),
+            PackingItem("pk2", "Concert attire (black)", "Pressed, in the garment bag", packed = true, packedAt = "2026-12-21T10:00:00.000Z"),
+            PackingItem("pk3", "Sheet music folder", "", packed = true, packedAt = "2026-12-21T10:05:00.000Z"),
+            PackingItem("pk4", "Instrument + spare strings", "", packed = true, packedAt = "2026-12-22T08:00:00.000Z"),
+            PackingItem("pk5", "Warm coat", "Rome is cold in December", packed = true, packedAt = "2026-12-22T08:10:00.000Z"),
+            PackingItem("pk6", "Comfortable shoes", "", packed = true, packedAt = "2026-12-22T08:12:00.000Z"),
+            PackingItem("pk7", "EU plug adapter", "Type C or F", packed = false, packedAt = null),
+            PackingItem("pk8", "Medication with doctor note", "", packed = false, packedAt = null),
+            PackingItem("pk9", "Pocket money (EUR)", "", packed = false, packedAt = null),
+        ),
+        travelerName = "Minji Park",
+        forTraveler = false,
     )
 
     /** Minji's care note as the sample head count reveals it (D27). */

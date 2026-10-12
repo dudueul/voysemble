@@ -5,7 +5,9 @@
 // facts, scan uploads as multipart, and the audited reveal, which needs a step-up confirmation
 // (D35): a 403 REAUTH_REQUIRED sends the confirmation link and the page says so; the reauth
 // landing page returns here. The scan shows with a watermark and is never cached. The packing
-// checklist stays a sample card until travelers tick it on their phones. The fixture otherwise.
+// checklist (D38, slice 048) is live too: the organizer's items with how many travelers packed
+// each, the add form, and every traveler's progress; the ticks come from the phones. The fixture
+// otherwise.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
@@ -28,6 +30,8 @@ import {
   documentsQuery,
   meQuery,
   orgsQuery,
+  packing as packingApi,
+  packingQuery,
   pickActiveOrg,
   tripsQuery,
 } from '../../lib/session';
@@ -216,10 +220,155 @@ function LivePreparation({ org, trip }: { org: Organization; trip: Trip }) {
             <ItemsTable org={org} trip={trip} requirement={opened} />
           </Card>
         ) : (
-          <PackingCard sample />
+          <LivePackingCard org={org} trip={trip} />
         )}
       </div>
+      {opened ? (
+        <div className="grid">
+          <LivePackingCard org={org} trip={trip} />
+        </div>
+      ) : null}
     </SectionPage>
+  );
+}
+
+/** The organizer's packing checklist (D38): items with their counts, the add form, progress per traveler. */
+function LivePackingCard({ org, trip }: { org: Organization; trip: Trip }) {
+  const qc = useQueryClient();
+  const list = useQuery(packingQuery(org.id, trip.id));
+  const [name, setName] = useState('');
+  const [itemNote, setItemNote] = useState('');
+  const [note, setNote] = useState<string | null>(null);
+  const refresh = () => qc.invalidateQueries({ queryKey: packingQuery(org.id, trip.id).queryKey });
+  const create = useMutation({
+    mutationFn: () =>
+      packingApi.create(org.id, trip.id, { name: name.trim(), note: itemNote.trim() }),
+    onSuccess: () => {
+      setName('');
+      setItemNote('');
+      setNote(null);
+      void refresh();
+    },
+    onError: (e) => setNote(errorText(e, s.packingAddFailed)),
+  });
+  const remove = useMutation({
+    mutationFn: (id: string) => packingApi.remove(org.id, trip.id, id),
+    onSuccess: () => {
+      setNote(null);
+      void refresh();
+    },
+    onError: (e) => setNote(errorText(e, s.actionFailed)),
+  });
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (name.trim()) create.mutate();
+  };
+  const data = list.data;
+  return (
+    <Card title={s.packingLive} id="prep-packing">
+      <p className="muted small">{s.packingHint}</p>
+      {list.isPending ? (
+        <p className="muted small" role="status">
+          {strings.settings.loading}
+        </p>
+      ) : list.isError ? (
+        <p className="muted small" role="status">
+          {errorText(list.error, s.packingLoadFailed)}
+        </p>
+      ) : data ? (
+        <>
+          <p className="small" data-testid="packing-ready">
+            <strong>{s.packingReady(data.ready, data.travelers.length)}</strong>
+          </p>
+          {data.items.length === 0 ? (
+            <p className="muted small">{s.packingNone}</p>
+          ) : (
+            <ul className="list" data-testid="packing">
+              {data.items.map((it) => {
+                const complete =
+                  it.counts.travelers > 0 && it.counts.packed === it.counts.travelers;
+                return (
+                  <li key={it.id} className="busrow" data-testid={`packing-${it.id}`}>
+                    <div className="flight__route">
+                      <strong>{it.name}</strong>
+                      {it.note ? <span className="muted small">{it.note}</span> : null}
+                    </div>
+                    <div className="stack" style={{ gap: 4 }}>
+                      <Meter
+                        value={it.counts.packed}
+                        max={Math.max(1, it.counts.travelers)}
+                        tone={complete ? 'ok' : 'brand'}
+                        label={s.packingPacked(it.counts.packed, it.counts.travelers)}
+                      />
+                      <span className="small">
+                        {s.packingPacked(it.counts.packed, it.counts.travelers)}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn--ghost btn--sm"
+                      disabled={remove.isPending}
+                      onClick={() => remove.mutate(it.id)}
+                      aria-label={s.packingRemoveOf(it.name)}
+                    >
+                      {s.packingRemove}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {data.items.length > 0 && data.travelers.length > 0 ? (
+            <details className="small">
+              <summary>{s.packingTravelers}</summary>
+              <ul className="list list--plain" data-testid="packing-travelers">
+                {data.travelers.map((p) => (
+                  <li key={p.participationId}>
+                    {p.displayName}
+                    {p.groupName ? ` · ${p.groupName}` : ''} · {p.packed}/{p.total}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          ) : null}
+        </>
+      ) : null}
+      <form className="form" onSubmit={submit} aria-label={s.packingAddForm} noValidate>
+        <div className="field__row">
+          <label className="field">
+            <span className="field__label">{s.packingItemLabel}</span>
+            <input
+              className="field__input"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              maxLength={80}
+            />
+          </label>
+          <label className="field">
+            <span className="field__label">{s.packingNoteLabel}</span>
+            <input
+              className="field__input"
+              value={itemNote}
+              onChange={(e) => setItemNote(e.target.value)}
+              maxLength={160}
+            />
+          </label>
+        </div>
+        <div className="field__row field__row--tight">
+          <button
+            type="submit"
+            className="btn btn--primary btn--sm"
+            disabled={create.isPending || !name.trim()}
+          >
+            <Icons.plus /> {create.isPending ? s.adding : s.add}
+          </button>
+          <span className="field__hint" role="status" data-testid="packing-status">
+            {note ?? ''}
+          </span>
+        </div>
+      </form>
+    </Card>
   );
 }
 

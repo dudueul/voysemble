@@ -522,6 +522,21 @@ export const ko: Strings = {
     packing: '준비물 체크리스트 (참가자와 공유)',
     packingNote:
       '참가자는 휴대폰에서 항목을 체크합니다. 이것은 예시 참가자 한 명의 운영자 화면입니다.',
+    packingLive: '준비물 체크리스트',
+    packingHint:
+      '참가자는 휴대폰에서 항목을 체크합니다. 어린 참가자는 보호자가 대신 체크할 수 있습니다.',
+    packingNone: '아직 항목이 없습니다. 아래에서 첫 항목을 추가하세요.',
+    packingReady: (ready: number, travelers: number) =>
+      `참가자 ${travelers}명 중 ${ready}명이 모두 챙겼습니다`,
+    packingPacked: (packed: number, travelers: number) => `${travelers}명 중 ${packed}명 챙김`,
+    packingAddForm: '항목 추가',
+    packingItemLabel: '항목',
+    packingNoteLabel: '메모',
+    packingRemove: '삭제',
+    packingRemoveOf: (name: string) => `${name} 삭제`,
+    packingTravelers: '참가자별',
+    packingLoadFailed: '준비물 체크리스트를 불러오지 못했습니다.',
+    packingAddFailed: '항목을 추가하지 못했습니다.',
     liveSubtitle: (missing: number, travelers: number) =>
       missing
         ? `참가자 ${travelers}명 중 필수 서류 ${missing}건이 아직 없습니다`

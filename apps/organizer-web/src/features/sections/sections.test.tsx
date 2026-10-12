@@ -1913,3 +1913,109 @@ describe('Travel on the API (slice 046)', () => {
     await waitFor(() => expect(screen.getByText('No bus charters yet.')).toBeTruthy());
   });
 });
+
+describe('Packing checklist on the API (slice 048)', () => {
+  const base = `/v1/orgs/${ORG.id}/trips/${TRIP.id}`;
+  const ITEM = {
+    id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+    tripId: TRIP.id,
+    name: 'Passport + copy',
+    note: '',
+    createdAt: '2026-10-12T00:00:00.000Z',
+    counts: { travelers: 3, packed: 1 },
+  };
+  const TRAVELERS = [
+    {
+      participationId: 'p1',
+      displayName: 'Juho Kim',
+      groupName: 'Bus A',
+      packed: 0,
+      total: 1,
+      lastPackedAt: null,
+    },
+    {
+      participationId: 'p2',
+      displayName: 'Minji Park',
+      groupName: 'Bus A',
+      packed: 1,
+      total: 1,
+      lastPackedAt: '2026-10-12T01:00:00.000Z',
+    },
+    {
+      participationId: 'p3',
+      displayName: 'Lee Hana',
+      groupName: 'Bus B',
+      packed: 0,
+      total: 1,
+      lastPackedAt: null,
+    },
+  ];
+
+  it('lists the items with their counts, adds one, and removes one', async () => {
+    let items: Record<string, unknown>[] = [ITEM];
+    const calls: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const key = `${init?.method ?? 'GET'} ${String(input)}`;
+        calls.push(key);
+        if (key === 'GET /v1/orgs') return Response.json({ organizations: [ORG] });
+        if (key === `GET /v1/orgs/${ORG.id}/trips`) return Response.json({ trips: [TRIP] });
+        if (key === `GET ${base}/documents`)
+          return Response.json({ requirements: [], travelers: 3, missingRequired: 0 });
+        if (key === `GET ${base}/packing`)
+          return Response.json({ items, travelers: TRAVELERS, ready: items.length === 1 ? 1 : 0 });
+        if (key === `POST ${base}/packing`) {
+          const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+          const created = {
+            ...ITEM,
+            id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+            ...body,
+            counts: { travelers: 3, packed: 0 },
+          };
+          items = [...items, created];
+          return Response.json(created, { status: 201 });
+        }
+        if (key === `DELETE ${base}/packing/${ITEM.id}`) {
+          items = items.filter((i) => i.id !== ITEM.id);
+          return Response.json({ deleted: true, itemId: ITEM.id });
+        }
+        return Response.json(
+          { error: { code: 'NOT_FOUND', message: key, correlationId: 't' } },
+          { status: 404 },
+        );
+      }),
+    );
+    renderWithQuery(<PreparationPage />);
+    await screen.findByText('Live');
+    const row = await screen.findByTestId(`packing-${ITEM.id}`);
+    expect(row.textContent).toContain('Passport + copy');
+    expect(row.textContent).toContain('1 of 3 packed');
+    expect(screen.getByTestId('packing-ready').textContent).toBe('1 of 3 travelers fully packed');
+    expect(screen.getByTestId('packing-travelers').textContent).toContain(
+      'Minji Park · Bus A · 1/1',
+    );
+
+    // Add an item with a note: the POST carries both; the row reads 0 of 3.
+    const form = screen.getByRole('form', { name: 'Add an item' });
+    fireEvent.change(within(form).getByLabelText('Item'), { target: { value: 'EU plug adapter' } });
+    fireEvent.change(within(form).getByLabelText('Note'), { target: { value: 'Type C or F' } });
+    fireEvent.submit(form);
+    await waitFor(() => expect(screen.getByText('EU plug adapter')).toBeTruthy());
+    const post = vi
+      .mocked(fetch)
+      .mock.calls.find(
+        ([url, init]) => init?.method === 'POST' && String(url).endsWith('/packing'),
+      );
+    expect(JSON.parse(String(post?.[1]?.body))).toEqual({
+      name: 'EU plug adapter',
+      note: 'Type C or F',
+    });
+    expect(screen.getByText('Type C or F')).toBeTruthy();
+
+    // Remove the passport item.
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Passport + copy' }));
+    await waitFor(() => expect(calls).toContain(`DELETE ${base}/packing/${ITEM.id}`));
+    await waitFor(() => expect(screen.queryByTestId(`packing-${ITEM.id}`)).toBeNull());
+  });
+});

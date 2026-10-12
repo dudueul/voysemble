@@ -40,6 +40,9 @@ import com.voysemble.app.incidents.IncidentsRoute
 import com.voysemble.app.incidents.IncidentsViewModel
 import com.voysemble.app.plan.PlanRoute
 import com.voysemble.app.memories.MemoriesRoute
+import com.voysemble.app.packing.PackingRoute
+import com.voysemble.app.packing.PackingViewModel
+import com.voysemble.core.packing.summary
 import com.voysemble.app.memories.MemoriesViewModel
 import com.voysemble.app.plan.PlanViewModel
 import com.voysemble.app.session.AppGraph
@@ -57,7 +60,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 
-enum class Screen { MAIN, HEADCOUNT, WINDOW, INCIDENTS }
+enum class Screen { MAIN, HEADCOUNT, WINDOW, INCIDENTS, PACKING }
 
 class NavViewModel : ViewModel() {
     private val _screen = MutableStateFlow(Screen.MAIN)
@@ -104,7 +107,16 @@ fun AppScreens(trip: ActiveTrip?, onSignOut: () -> Unit) {
         if (trip == null) TodayViewModel() else TodayViewModel(api = AppGraph.apiClient, trip = trip)
     }
     val todayState by today.state.collectAsStateWithLifecycle()
+    // Slice 048 (D38): my packing list, shared by the Today card (its summary) and the pushed screen.
+    val packing: PackingViewModel = viewModel(key = "packing-${trip?.tripId ?: "sample"}") {
+        if (trip == null) PackingViewModel() else PackingViewModel(api = AppGraph.apiClient, trip = trip)
+    }
+    val packingState by packing.state.collectAsStateWithLifecycle()
     when (screen) {
+        Screen.PACKING -> {
+            BackHandler { nav.back() }
+            PackingRoute(packing, onBack = nav::back)
+        }
         Screen.HEADCOUNT -> {
             BackHandler { nav.back() }
             // Live when signed in on a trip; the fixture otherwise. Keyed so switching trips restarts.
@@ -134,7 +146,14 @@ fun AppScreens(trip: ActiveTrip?, onSignOut: () -> Unit) {
             IncidentsRoute(vm, onBack = nav::back)
         }
         Screen.MAIN -> when (todayState.tab) {
-            MainTab.TODAY -> TodayRoute(today, onOpenHeadcount = { nav.open(Screen.HEADCOUNT) }, onOpenWindow = { nav.open(Screen.WINDOW) }, onOpenIncidents = { nav.open(Screen.INCIDENTS) })
+            MainTab.TODAY -> TodayRoute(
+                today,
+                onOpenHeadcount = { nav.open(Screen.HEADCOUNT) },
+                onOpenWindow = { nav.open(Screen.WINDOW) },
+                onOpenIncidents = { nav.open(Screen.INCIDENTS) },
+                onOpenPacking = { nav.open(Screen.PACKING) },
+                packingSummary = if (packingState.live && packingState.syncing && packingState.list.items.isEmpty()) null else packingState.list.summary(),
+            )
             MainTab.PLAN -> TabHost(today) {
                 // Slice 035: the published plan by day; leaders propose from any event (D24).
                 val vm: PlanViewModel = viewModel(key = "plan-${trip?.tripId ?: "sample"}") {

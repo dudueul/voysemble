@@ -19,6 +19,8 @@ struct TodayView: View {
     @StateObject private var plan: PlanModel
     // Slice 044 (D18): the Memories tab, live on a trip.
     @StateObject private var memories: MemoriesModel
+    // Slice 048 (D38): my packing list; the Today card reads its count, the pushed screen ticks.
+    @StateObject private var packing: PackingModel
     @State private var proposing: ProposalTarget?
 
     init(model: TodayModel) {
@@ -33,6 +35,7 @@ struct TodayView: View {
         _chats = StateObject(wrappedValue: ChatsModel(api: model.api, trip: model.trip))
         _plan = StateObject(wrappedValue: PlanModel(api: model.api, trip: model.trip))
         _memories = StateObject(wrappedValue: MemoriesModel(api: model.api, trip: model.trip))
+        _packing = StateObject(wrappedValue: PackingModel(api: model.api, trip: model.trip))
     }
 
     var body: some View {
@@ -86,6 +89,8 @@ struct TodayView: View {
                         }
                         .font(.subheadline.weight(.semibold))
                     }
+                    // Slice 048 (D38): everyone packs; the card opens the list and reads its count.
+                    PackingCard(model: packing)
                     Text(tr(.todayLater)).font(.headline).padding(.top, 4)
                     ForEach(s.later, id: \.id) { EventRow(event: $0) }
                 }
@@ -317,6 +322,26 @@ private struct GuardianStatusCard: View {
                     .padding(.top, 8)
             }
         }
+    }
+}
+
+/// The packing checklist entry (D38): its summary line and the way in.
+private struct PackingCard: View {
+    @ObservedObject var model: PackingModel
+    var body: some View {
+        Card {
+            HStack {
+                Text(tr(.packTodayTitle)).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                Spacer()
+                if !(model.live && model.syncing && model.list.items.isEmpty) {
+                    Text(model.list.summary()).font(.subheadline.weight(.semibold))
+                }
+            }
+            NavigationLink(tr(.packOpen)) { PackingView(model: model) }
+                .font(.subheadline.weight(.semibold))
+                .padding(.top, 6)
+        }
+        .task { if model.live && model.list.items.isEmpty { await model.refresh() } }
     }
 }
 

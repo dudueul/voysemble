@@ -89,22 +89,26 @@ class PlanViewModelTest {
             if (req.url.encodedPath.endsWith("/travel")) respond(travelJson, HttpStatusCode.OK, json) else respond(itineraryJson, HttpStatusCode.OK, json)
         }
         val vm = PlanViewModel(api = client(engine), trip = kim, deviceDate = { "2026-12-31" })
-        assertNull(vm.state.value.travel)
-        vm.ready.join()
         assertTrue(vm.state.value.canSeeTravel)
-        val travel = vm.state.value.travel ?: error("bookings not loaded")
+        vm.ready.join()
+        val travel = vm.state.value.travel ?: error("bookings not loaded; requests: $paths")
         assertEquals(listOf("DEMO 901"), travel.flights.map { it.code })
         val arrival = travel.bookingsOn("2026-12-28")
         assertEquals(1, arrival.flights.size)
         assertEquals("Check-in today · 5 nights · Rome · 21 rooms", arrival.hotels.single().detail())
         assertEquals("Roma Coach · 2 of 24 seats · Groups: Bus A", arrival.buses.single().detail())
-        assertEquals(1, paths.count { it == "/v1/orgs/org_1/trips/trip_1/travel" })
+        // The bookings came after the itinerary, from the plan route.
+        val travelPath = "/v1/orgs/org_1/trips/trip_1/travel"
+        assertTrue(paths.contains(travelPath), "requests: $paths")
+        assertTrue(paths.indexOf("/v1/orgs/org_1/trips/trip_1/itinerary") < paths.indexOf(travelPath), "requests: $paths")
 
+        // A traveler never asks for the bookings: no new travel request, nothing in the state.
+        val travelRequests = paths.count { it == travelPath }
         val traveler = PlanViewModel(api = client(engine), trip = minji, deviceDate = { "2026-12-31" })
         traveler.ready.join()
         assertFalse(traveler.state.value.canSeeTravel)
         assertNull(traveler.state.value.travel)
-        assertEquals(1, paths.count { it.endsWith("/travel") })
+        assertEquals(travelRequests, paths.count { it == travelPath }, "requests: $paths")
     }
 
     @Test

@@ -57,8 +57,9 @@ reveal fetches the bytes itself; a `403 REAUTH_REQUIRED` stores the return path,
 confirmation link (`auth.reauth`) and says so; the organizer opens the link, lands on
 `/auth/reauth` (`features/auth/ReauthPage.tsx`), is sent back, and reveals again. The scan shows
 inline (an `<img>` or a PDF `<iframe>` on an object URL, revoked on hide) under a watermark
-naming the viewer and the time; nothing is cached. The packing checklist card stays a sample until
-travelers tick it on their phones. The Reports page's documents tile reads the report. Evidence:
+naming the viewer and the time; nothing is cached. The packing checklist card beside it is live
+since slice 048 (`packing.md`): the organizer's items, their counts and the add form. The Reports
+page's documents tile reads the report. Evidence:
 `web/<project>/preparation-live.png` (with the viewer open).
 
 ## Facts established by tests
@@ -84,6 +85,6 @@ travelers tick it on their phones. The Reports page's documents tile reads the r
 
 ## Not done
 
-Per-traveler reminders to guardians ("Remind 3"); a document viewer that scales PDFs; the packing
-checklist on the phones; the owner-held key for tier 3 (ADR-0001 seam); sealed third-party links
+Per-traveler reminders to guardians ("Remind 3"); a document viewer that scales PDFs; the
+owner-held key for tier 3 (ADR-0001 seam); sealed third-party links
 (D27: driver, hotel) and the shred of a removed row's objects before the trip's own.

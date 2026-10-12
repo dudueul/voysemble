@@ -20,6 +20,7 @@ import type {
   CreateAnnouncementRequest,
   CreateBookingRequest,
   CreateDocumentRequirementRequest,
+  CreatePackingItemRequest,
   DeletePhotoResponse,
   DocumentItem,
   DocumentItemList,
@@ -39,6 +40,8 @@ import type {
   OrganizerInvitation,
   OrganizerInvitationList,
   OrgMemberList,
+  PackingItem,
+  PackingList,
   Participation,
   PersonTimeline,
   Photo,
@@ -59,6 +62,7 @@ import type {
   UpdateBookingRequest,
   UpdateDocumentRequirementRequest,
   UpdateOrganizationRequest,
+  UpdatePackingItemRequest,
   UpdateParticipationRequest,
   WindowList,
 } from '@voysemble/contracts';
@@ -294,6 +298,27 @@ export const documents = {
   /** The reveal (a POST: an audited action) fetches bytes itself; 403 REAUTH_REQUIRED means confirm first (D35). */
   revealPath: (orgId: string, tripId: string, requirementId: string, participationId: string) =>
     `/v1/orgs/${orgId}/trips/${tripId}/documents/${requirementId}/items/${participationId}/scan/reveal`,
+};
+
+/** Packing checklist (D38, slice 048): the items with their counts and every traveler's progress. */
+export const packingQuery = (orgId: string, tripId: string) =>
+  queryOptions({
+    queryKey: ['orgs', orgId, 'trips', tripId, 'packing'],
+    queryFn: () => api<PackingList>(`/v1/orgs/${orgId}/trips/${tripId}/packing`),
+  });
+
+export const packing = {
+  create: (orgId: string, tripId: string, body: CreatePackingItemRequest) =>
+    api<PackingItem>(`/v1/orgs/${orgId}/trips/${tripId}/packing`, { method: 'POST', body }),
+  update: (orgId: string, tripId: string, itemId: string, body: UpdatePackingItemRequest) =>
+    api<PackingItem>(`/v1/orgs/${orgId}/trips/${tripId}/packing/${itemId}`, {
+      method: 'PATCH',
+      body,
+    }),
+  remove: (orgId: string, tripId: string, itemId: string) =>
+    api<{ deleted: true; itemId: string }>(`/v1/orgs/${orgId}/trips/${tripId}/packing/${itemId}`, {
+      method: 'DELETE',
+    }),
 };
 
 /** Travel bookings (D37, slice 046): the flights, hotels and bus charters of the trip. */

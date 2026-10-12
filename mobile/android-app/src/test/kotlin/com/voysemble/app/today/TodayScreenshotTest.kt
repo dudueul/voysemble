@@ -10,7 +10,12 @@ import com.voysemble.core.i18n.AppLocale
 import org.junit.After
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.onAllNodes
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
@@ -63,6 +68,8 @@ class TodayScreenshotTest {
                     state = TodayUiState(KoreaConcertTourFixture.today(), live = true, guardian = KoreaConcertTourFixture.guardianCard()),
                     onAcknowledge = {},
                     onSelectTab = {},
+                    // Slice 048: the guardian's packing card for their traveler.
+                    packingSummary = "6 of 9 packed",
                 )
             }
         }
@@ -71,6 +78,10 @@ class TodayScreenshotTest {
         compose.onNodeWithText("Balance ₩1,200,000 · due 2026-11-30").assertExists()
         compose.onAllNodesWithText("Open head count").assertCountEquals(0)
         compose.onRoot().captureRoboImage("$OUT/today-guardian.png")
+        // Slice 048: the packing card sits under the guardian cards; the list composes only what shows.
+        compose.onAllNodes(hasScrollAction()).onFirst().performScrollToNode(hasText("Open packing list"))
+        compose.onNodeWithText("Packing list").assertExists()
+        compose.onNodeWithText("6 of 9 packed").assertExists()
     }
 
     @Test
