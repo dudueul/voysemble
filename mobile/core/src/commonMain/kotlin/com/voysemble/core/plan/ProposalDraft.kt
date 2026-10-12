@@ -12,6 +12,9 @@ import com.voysemble.core.api.ApiClient
 import com.voysemble.core.api.ApiResult
 import com.voysemble.core.api.CreateAddProposalRequestDto
 import com.voysemble.core.api.CreateProposalRequestDto
+import com.voysemble.core.i18n.Txt
+import com.voysemble.core.i18n.tr
+import com.voysemble.core.i18n.trf
 import com.voysemble.core.api.ItineraryProposalDto
 import com.voysemble.core.api.ProposalPatchDto
 
@@ -43,19 +46,19 @@ public fun isValidClock(hhmm: String): Boolean {
 
 /** Null when the draft can be sent; otherwise what is missing, in the leader's words. */
 public fun proposalDraftProblem(d: ProposalDraft): String? {
-    if (d.note.isBlank()) return "Say why in a line."
+    if (d.note.isBlank()) return tr(Txt.PROPOSAL_SAY_WHY)
     return when (d.kind) {
         ProposalKind.EDIT -> when {
-            d.eventId.isNullOrBlank() -> "Pick an event."
-            d.start != null && d.start.isNotBlank() && !isValidClock(d.start.trim()) -> "The new start must be HH:mm."
+            d.eventId.isNullOrBlank() -> tr(Txt.PROPOSAL_PICK_EVENT)
+            d.start != null && d.start.isNotBlank() && !isValidClock(d.start.trim()) -> tr(Txt.PROPOSAL_NEW_START_HHMM)
             else -> null
         }
-        ProposalKind.REMOVE -> if (d.eventId.isNullOrBlank()) "Pick an event." else null
+        ProposalKind.REMOVE -> if (d.eventId.isNullOrBlank()) tr(Txt.PROPOSAL_PICK_EVENT) else null
         ProposalKind.ADD -> when {
-            d.title.isNullOrBlank() -> "Give the event a title."
-            d.start.isNullOrBlank() || !isValidClock(d.start.trim()) -> "The start must be HH:mm."
-            d.end != null && d.end.isNotBlank() && !isValidClock(d.end.trim()) -> "The end must be HH:mm."
-            d.date.isNullOrBlank() || d.timeZone.isNullOrBlank() -> "Pick a day."
+            d.title.isNullOrBlank() -> tr(Txt.PROPOSAL_TITLE_NEEDED)
+            d.start.isNullOrBlank() || !isValidClock(d.start.trim()) -> tr(Txt.PROPOSAL_START_HHMM)
+            d.end != null && d.end.isNotBlank() && !isValidClock(d.end.trim()) -> tr(Txt.PROPOSAL_END_HHMM)
+            d.date.isNullOrBlank() || d.timeZone.isNullOrBlank() -> tr(Txt.PROPOSAL_PICK_DAY)
             else -> null
         }
     }
@@ -108,16 +111,16 @@ public suspend fun ApiClient.sendProposal(orgId: String, tripId: String, draft: 
 
 public const val PROPOSAL_OFFLINE_MESSAGE: String = "Offline. Try again when connected."
 
-/** The same line as a function, which Swift reads without the constant export. */
-public fun proposalOfflineMessage(): String = PROPOSAL_OFFLINE_MESSAGE
+/** The offline line in the app's language; the constant above is the English wording. */
+public fun proposalOfflineMessage(): String = tr(Txt.PROPOSAL_OFFLINE)
 
 /** The line under the button when the server refused: 403 is the one a traveler can hit. */
 public fun proposalFailureMessage(status: Int, code: String): String =
-    if (status == 403) "Only trip leaders propose changes." else "Could not send the proposal ($code)."
+    if (status == 403) tr(Txt.PROPOSAL_LEADERS_ONLY) else trf(Txt.PROPOSAL_FAILED, code)
 
 /** What the card says after a successful send, per kind. */
 public fun proposalSentMessage(kind: ProposalKind): String = when (kind) {
-    ProposalKind.EDIT -> "Proposal sent to the organizer"
-    ProposalKind.REMOVE -> "Removal proposed to the organizer"
-    ProposalKind.ADD -> "New event proposed to the organizer"
+    ProposalKind.EDIT -> tr(Txt.PROPOSAL_SENT_EDIT)
+    ProposalKind.REMOVE -> tr(Txt.PROPOSAL_SENT_REMOVE)
+    ProposalKind.ADD -> tr(Txt.PROPOSAL_SENT_ADD)
 }

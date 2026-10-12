@@ -12,32 +12,32 @@ struct SignInView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Voysemble").font(.largeTitle.bold())
-            Text("Journeys are better together").foregroundStyle(.secondary)
+            Text(tr(.authTagline)).foregroundStyle(.secondary)
             if model.revokedNotice {
                 // D28: the organizer revoked this phone; local data is already gone.
-                Text("This phone's access was revoked by the organizer. Sign in again and enter the new invite code they give you.")
+                Text(tr(.authRevoked))
                     .font(.subheadline).foregroundStyle(.red)
             }
             GroupBox {
                 if let awaiting = model.session as? SessionStateAwaitingLink {
-                    Text("Check your email").font(.headline)
-                    Text("If \(awaiting.email) can sign in, a link is on its way. It works once, for 15 minutes. Paste it here.")
+                    Text(tr(.authCheckEmail)).font(.headline)
+                    Text(tr1(.authSentBody, awaiting.email))
                         .font(.subheadline).foregroundStyle(.secondary)
-                    TextField("Link from the email", text: $pasted, axis: .vertical).textFieldStyle(.roundedBorder)
-                    Button(model.busy ? "Signing in…" : "Sign in") { Task { await model.verify(pasted) } }
+                    TextField(tr(.authLinkField), text: $pasted, axis: .vertical).textFieldStyle(.roundedBorder)
+                    Button(model.busy ? tr(.authSigningIn) : tr(.authSignIn)) { Task { await model.verify(pasted) } }
                         .buttonStyle(.borderedProminent).disabled(model.busy || pasted.isEmpty)
-                    Button("Use another address") { Task { await model.signOut() } }
+                    Button(tr(.authUseAnother)) { Task { await model.signOut() } }
                 } else {
-                    Text("Sign in").font(.headline)
-                    Text("We email you a one-time link. No password.").font(.subheadline).foregroundStyle(.secondary)
-                    TextField("Email", text: $email).textFieldStyle(.roundedBorder)
+                    Text(tr(.authSignIn)).font(.headline)
+                    Text(tr(.authNoPassword)).font(.subheadline).foregroundStyle(.secondary)
+                    TextField(tr(.authEmail), text: $email).textFieldStyle(.roundedBorder)
                         .textInputAutocapitalization(.never).keyboardType(.emailAddress)
-                    Button(model.busy ? "Sending…" : "Email me a link") { Task { await model.requestLink(email) } }
+                    Button(model.busy ? tr(.authSending) : tr(.authEmailMe)) { Task { await model.requestLink(email) } }
                         .buttonStyle(.borderedProminent).disabled(model.busy || !email.contains("@"))
                 }
                 if let error = model.error { Text(error).foregroundStyle(.red).font(.subheadline) }
             }
-            Button("Browse the sample trip") { model.sampleMode = true }.buttonStyle(.bordered)
+            Button(tr(.authBrowseSample)) { model.sampleMode = true }.buttonStyle(.bordered)
             Spacer()
         }
         .padding(24)
@@ -50,20 +50,20 @@ struct InviteView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("You're invited.").font(.largeTitle.bold())
+            Text(tr(.inviteTitle)).font(.largeTitle.bold())
             if let s = model.session as? SessionStateNeedsInvite {
-                Text("Signed in as \(s.email)").foregroundStyle(.secondary)
+                Text(tr1(.inviteSignedInAs, s.email)).foregroundStyle(.secondary)
             }
             GroupBox {
-                Text("Join a trip").font(.headline)
-                Text("Enter the code your organizer gave you. Your role comes with the code.")
+                Text(tr(.inviteJoin)).font(.headline)
+                Text(tr(.inviteHint))
                     .font(.subheadline).foregroundStyle(.secondary)
-                TextField("Invite code", text: $code).textFieldStyle(.roundedBorder).textInputAutocapitalization(.characters)
-                Button(model.busy ? "Joining…" : "Join trip") { Task { await model.redeem(code) } }
+                TextField(tr(.inviteCode), text: $code).textFieldStyle(.roundedBorder).textInputAutocapitalization(.characters)
+                Button(model.busy ? tr(.inviteJoining) : tr(.inviteJoinTrip)) { Task { await model.redeem(code) } }
                     .buttonStyle(.borderedProminent).disabled(model.busy || code.replacingOccurrences(of: "-", with: "").count < 8)
                 if let error = model.error { Text(error).foregroundStyle(.red).font(.subheadline) }
             }
-            Button("Sign out") { Task { await model.signOut() } }
+            Button(tr(.commonSignOut)) { Task { await model.signOut() } }
             Spacer()
         }
         .padding(24)

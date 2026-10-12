@@ -5,6 +5,9 @@
 
 package com.voysemble.app.today
 
+import com.voysemble.core.i18n.Txt
+import com.voysemble.core.i18n.tr
+import com.voysemble.core.i18n.trf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.voysemble.core.api.ApiClient
@@ -12,7 +15,7 @@ import com.voysemble.core.api.ApiResult
 import com.voysemble.core.api.CareNoteDto
 import com.voysemble.core.api.CareNoteStatusDto
 import com.voysemble.core.fixtures.KoreaConcertTourFixture
-import com.voysemble.core.plan.PROPOSAL_OFFLINE_MESSAGE
+import com.voysemble.core.plan.proposalOfflineMessage
 import com.voysemble.core.plan.ProposalDraft
 import com.voysemble.core.plan.ProposalKind
 import com.voysemble.core.plan.proposalDraftProblem
@@ -130,7 +133,7 @@ class TodayViewModel(
             val outcome = when (val r = a.sendProposal(t.organizationId, t.tripId, draft)) {
                 is ApiResult.Ok -> ProposalState(eventId, sending = false, sent = true, kind = draft.kind)
                 is ApiResult.Failed -> ProposalState(eventId, sending = false, sent = false, error = proposalFailureMessage(r.status, r.error.code), kind = draft.kind)
-                is ApiResult.Unreachable -> ProposalState(eventId, sending = false, sent = false, error = PROPOSAL_OFFLINE_MESSAGE, kind = draft.kind)
+                is ApiResult.Unreachable -> ProposalState(eventId, sending = false, sent = false, error = proposalOfflineMessage(), kind = draft.kind)
             }
             _state.update { it.copy(proposal = outcome) }
         }
@@ -180,7 +183,7 @@ class TodayViewModel(
                     }
                     if (travelerId != null) loadCare(a, t, travelerId)
                 }
-                is ApiResult.Failed -> _state.update { it.copy(syncing = false, error = "Could not load the itinerary (${r.error.code}).") }
+                is ApiResult.Failed -> _state.update { it.copy(syncing = false, error = trf(Txt.TODAY_LOAD_FAILED, r.error.code)) }
                 is ApiResult.Unreachable -> _state.update { it.copy(syncing = false, snapshot = it.snapshot.copy(offline = true)) }
             }
         }
@@ -207,8 +210,8 @@ class TodayViewModel(
         return viewModelScope.launch {
             when (val r = a.revealCareNote(t.organizationId, t.tripId, care.travelerId)) {
                 is ApiResult.Ok -> _state.update { it.copy(care = it.care?.copy(draft = r.value.note, message = null)) }
-                is ApiResult.Failed -> _state.update { it.copy(care = it.care?.copy(message = "Could not open the care note (${r.error.code}).")) }
-                is ApiResult.Unreachable -> _state.update { it.copy(care = it.care?.copy(message = "Offline. The care note needs one connection.")) }
+                is ApiResult.Failed -> _state.update { it.copy(care = it.care?.copy(message = trf(Txt.CARE_OPEN_FAILED, r.error.code))) }
+                is ApiResult.Unreachable -> _state.update { it.copy(care = it.care?.copy(message = tr(Txt.CARE_OFFLINE_OPEN))) }
             }
         }
     }
@@ -224,10 +227,10 @@ class TodayViewModel(
         return viewModelScope.launch {
             when (val r = a.putCareNote(t.organizationId, t.tripId, care.travelerId, note)) {
                 is ApiResult.Ok -> _state.update {
-                    it.copy(care = GuardianCareState(care.travelerId, r.value, draft = null, message = if (r.value.hasCareNote) "Care note saved. Leaders of ${it.guardian?.groupName ?: "the group"} can reveal it." else "Care note cleared."))
+                    it.copy(care = GuardianCareState(care.travelerId, r.value, draft = null, message = if (r.value.hasCareNote) trf(Txt.CARE_SAVED, it.guardian?.groupName ?: tr(Txt.CARE_THE_GROUP)) else tr(Txt.CARE_CLEARED)))
                 }
-                is ApiResult.Failed -> _state.update { it.copy(care = care.copy(saving = false, message = "Could not save the care note (${r.error.code}).")) }
-                is ApiResult.Unreachable -> _state.update { it.copy(care = care.copy(saving = false, message = "Offline. The care note was not saved.")) }
+                is ApiResult.Failed -> _state.update { it.copy(care = care.copy(saving = false, message = trf(Txt.CARE_SAVE_FAILED, r.error.code))) }
+                is ApiResult.Unreachable -> _state.update { it.copy(care = care.copy(saving = false, message = tr(Txt.CARE_OFFLINE_SAVE))) }
             }
         }
     }

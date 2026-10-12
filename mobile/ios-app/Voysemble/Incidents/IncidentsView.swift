@@ -36,7 +36,7 @@ final class IncidentsModel: ObservableObject {
 
     /// Local first (pending), then one send; a failed send leaves the answer pending for the next refresh.
     func confirm(_ id: String, _ status: ConfirmationStatus) {
-        feed = feed.confirmLocally(id: id, status: status, note: nil, byName: live ? "Me" : "Kim Daeun", atDevice: deviceClock())
+        feed = feed.confirmLocally(id: id, status: status, note: nil, byName: live ? tr(.commonMe) : "Kim Daeun", atDevice: deviceClock())
         if live { Task { await send(id) } }
     }
 
@@ -51,7 +51,7 @@ final class IncidentsModel: ObservableObject {
             if let list = (r as? ApiResultOk<IncidentListDto>)?.value {
                 feed = IncidentsKt.mergeIncidents(local: feed, remote: list.incidents, clock: { iso in Clocks.localTime(iso) }, locale: Locale.current.language.languageCode?.identifier ?? "en")
             } else if let failed = r as? ApiResultFailed {
-                error = failed.status == 403 ? "Only trip leaders see incidents." : "Could not load incidents (\(failed.error.code))."
+                error = failed.status == 403 ? tr(.incLeadersOnly) : tr1(.incLoadFailed, failed.error.code)
             } else {
                 feed = IncidentFeed(cards: feed.cards, offline: true)
             }
@@ -71,7 +71,7 @@ final class IncidentsModel: ObservableObject {
                 feed = feed.confirmed(id: id)
                 error = nil
             } else if r is ApiResultFailed {
-                error = "The server refused the answer."
+                error = tr(.incRefused)
             } else {
                 feed = IncidentFeed(cards: feed.cards, offline: true)
             }
@@ -90,22 +90,22 @@ struct IncidentsView: View {
         List {
             Section {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("INCIDENTS").font(.caption).foregroundStyle(.secondary)
-                    Text(open.isEmpty ? "Nothing open" : "\(open.count) open").font(.largeTitle.bold())
-                    Text("Answer what you see; the organizer tells the guardian.").font(.caption).foregroundStyle(.secondary)
-                    Text(model.live ? (model.syncing ? "Syncing" : (model.feed.offline ? "Offline" : "Live")) : "Sample data")
+                    Text(tr(.incEyebrow).uppercased()).font(.caption).foregroundStyle(.secondary)
+                    Text(open.isEmpty ? tr(.incNothingOpen) : tr1(.incOpenCount, open.count)).font(.largeTitle.bold())
+                    Text(tr(.incSubtitle)).font(.caption).foregroundStyle(.secondary)
+                    Text(model.live ? (model.syncing ? tr(.commonSyncing) : (model.feed.offline ? tr(.commonOffline) : tr(.commonLive))) : tr(.commonSampleData))
                         .font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
                     if let error = model.error { Text(error).font(.caption).foregroundStyle(.red) }
                 }
             }
             if !open.isEmpty {
-                Section("Open") { ForEach(open, id: \.id) { card in row(card) } }
+                Section(tr(.incOpen)) { ForEach(open, id: \.id) { card in row(card) } }
             }
             if !closed.isEmpty {
-                Section("Resolved") { ForEach(closed, id: \.id) { card in row(card) } }
+                Section(tr(.incResolved)) { ForEach(closed, id: \.id) { card in row(card) } }
             }
         }
-        .navigationTitle("Incidents")
+        .navigationTitle(tr(.incEyebrow))
         .task { await model.refresh() }
         .refreshable { await model.refresh() }
     }
@@ -116,31 +116,31 @@ struct IncidentsView: View {
             HStack {
                 Text(card.title).font(.headline)
                 Spacer()
-                Text(card.isOpen ? "Open" : "Resolved").font(.caption.bold()).foregroundStyle(card.isOpen ? .red : .green)
+                Text(card.isOpen ? tr(.incOpen) : tr(.incResolved)).font(.caption.bold()).foregroundStyle(card.isOpen ? .red : .green)
             }
-            Text("\(card.people.joined(separator: ", ")) · opened \(card.openedAt) · \(card.openedBy)").font(.caption).foregroundStyle(.secondary)
+            Text(tr3(.incMeta, card.people.joined(separator: ", "), card.openedAt, card.openedBy)).font(.caption).foregroundStyle(.secondary)
             if let latest = card.latest {
                 HStack(spacing: 6) {
                     Text(IncidentsModelKt.labelOf(status: latest.status)).font(.caption.bold()).foregroundStyle(latest.status == .withGroup ? .green : .orange)
                     Text("\(latest.byName) · \(latest.at)").font(.caption).foregroundStyle(.secondary)
-                    if card.pending != nil { Text("Pending sync").font(.caption).foregroundStyle(.orange) }
+                    if card.pending != nil { Text(tr(.commonPendingSync)).font(.caption).foregroundStyle(.orange) }
                 }
                 if let note = latest.note { Text(note).font(.subheadline) }
             } else {
-                Text("Not confirmed yet").font(.subheadline.bold()).foregroundStyle(.orange)
+                Text(tr(.incNotConfirmed)).font(.subheadline.bold()).foregroundStyle(.orange)
             }
             if let msg = card.guardianMessage {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Guardian message sent").font(.caption).foregroundStyle(.secondary)
+                    Text(tr(.incGuardianSent)).font(.caption).foregroundStyle(.secondary)
                     Text(msg).font(.subheadline)
                 }
                 .padding(8).background(Color.green.opacity(0.1)).clipShape(RoundedRectangle(cornerRadius: 8))
             }
             if card.isOpen {
                 HStack {
-                    Button("With group") { model.confirm(card.id, .withGroup) }.buttonStyle(.borderedProminent)
-                    Button("Not with group") { model.confirm(card.id, .notWithGroup) }.buttonStyle(.bordered)
-                    Button("Unknown") { model.confirm(card.id, .unknown) }.buttonStyle(.bordered)
+                    Button(tr(.incWithGroup)) { model.confirm(card.id, .withGroup) }.buttonStyle(.borderedProminent)
+                    Button(tr(.incNotWithGroup)) { model.confirm(card.id, .notWithGroup) }.buttonStyle(.bordered)
+                    Button(tr(.incUnknown)) { model.confirm(card.id, .unknown) }.buttonStyle(.bordered)
                 }
                 .font(.caption)
             }

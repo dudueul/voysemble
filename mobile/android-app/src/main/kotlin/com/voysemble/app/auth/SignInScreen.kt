@@ -7,6 +7,9 @@
 
 package com.voysemble.app.auth
 
+import com.voysemble.core.i18n.Txt
+import com.voysemble.core.i18n.tr
+import com.voysemble.core.i18n.trf
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -53,29 +56,29 @@ fun SignInScreen(
     Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
             Text("Voysemble", style = MaterialTheme.typography.headlineLarge)
-            Text("Journeys are better together", style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
+            Text(tr(Txt.AUTH_TAGLINE), style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
             if (state.revokedNotice) {
                 // D28: the organizer revoked this phone; local data is already gone.
                 Text(
-                    "This phone's access was revoked by the organizer. Sign in again and enter the new invite code they give you.",
+                    tr(Txt.AUTH_REVOKED),
                     style = MaterialTheme.typography.bodyMedium,
                     color = c.danger,
-                    modifier = Modifier.semantics { contentDescription = "Access revoked notice" },
+                    modifier = Modifier.semantics { contentDescription = tr(Txt.AUTH_REVOKED_A11Y) },
                 )
             }
             Spacer(Modifier.height(24.dp))
             VyCard {
                 if (awaiting == null) {
-                    Text("Sign in", style = MaterialTheme.typography.titleMedium)
-                    Text("We email you a one-time link. No password.", style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
+                    Text(tr(Txt.AUTH_SIGN_IN), style = MaterialTheme.typography.titleMedium)
+                    Text(tr(Txt.AUTH_NO_PASSWORD), style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
                     Spacer(Modifier.height(12.dp))
                     OutlinedTextField(
                         value = email,
                         onValueChange = { email = it },
-                        label = { Text("Email") },
+                        label = { Text(tr(Txt.AUTH_EMAIL)) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                        modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Email" },
+                        modifier = Modifier.fillMaxWidth().semantics { contentDescription = tr(Txt.AUTH_EMAIL) },
                     )
                     Spacer(Modifier.height(12.dp))
                     Button(
@@ -84,11 +87,11 @@ fun SignInScreen(
                         colors = ButtonDefaults.buttonColors(containerColor = c.action, contentColor = c.onAction),
                         shape = MaterialTheme.shapes.small,
                         modifier = Modifier.fillMaxWidth(),
-                    ) { Text(if (state.busy) "Sending…" else "Email me a link") }
+                    ) { Text(if (state.busy) tr(Txt.AUTH_SENDING) else tr(Txt.AUTH_EMAIL_ME)) }
                 } else {
-                    Text("Check your email", style = MaterialTheme.typography.titleMedium)
+                    Text(tr(Txt.AUTH_CHECK_EMAIL), style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "If ${awaiting.email} can sign in, a link is on its way. It works once, for 15 minutes. Paste it here.",
+                        trf(Txt.AUTH_SENT_BODY, awaiting.email),
                         style = MaterialTheme.typography.bodyMedium,
                         color = c.textMuted,
                     )
@@ -96,9 +99,9 @@ fun SignInScreen(
                     OutlinedTextField(
                         value = pasted,
                         onValueChange = { pasted = it },
-                        label = { Text("Link from the email") },
+                        label = { Text(tr(Txt.AUTH_LINK_FIELD)) },
                         minLines = 2,
-                        modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Link from the email" },
+                        modifier = Modifier.fillMaxWidth().semantics { contentDescription = tr(Txt.AUTH_LINK_FIELD) },
                     )
                     Spacer(Modifier.height(12.dp))
                     Button(
@@ -107,8 +110,8 @@ fun SignInScreen(
                         colors = ButtonDefaults.buttonColors(containerColor = c.action, contentColor = c.onAction),
                         shape = MaterialTheme.shapes.small,
                         modifier = Modifier.fillMaxWidth(),
-                    ) { Text(if (state.busy) "Signing in…" else "Sign in") }
-                    TextButton(onClick = onStartOver) { Text("Use another address") }
+                    ) { Text(if (state.busy) tr(Txt.AUTH_SIGNING_IN) else tr(Txt.AUTH_SIGN_IN)) }
+                    TextButton(onClick = onStartOver) { Text(tr(Txt.AUTH_USE_ANOTHER)) }
                 }
                 state.error?.let {
                     Spacer(Modifier.height(8.dp))
@@ -117,7 +120,7 @@ fun SignInScreen(
             }
             Spacer(Modifier.height(16.dp))
             OutlinedButton(onClick = onBrowseSample, shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth()) {
-                Text("Browse the sample trip")
+                Text(tr(Txt.AUTH_BROWSE_SAMPLE))
             }
         }
     }

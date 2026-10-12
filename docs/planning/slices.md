@@ -1070,7 +1070,7 @@ Not done: per-group breakdown; documents completion; Korean strings.
 
 ## Slice 035: the Plan tab and proposals from both phones
 
-Status: done 2026-10-12. Commit: 139f497 (`feat(plan): the Plan tab on both phones with leader proposals (slice 035)`). CI: run 38244949195 red on `mobile` only (`PlanScreenshotTest.plan_day_light`: the "Propose an event for this day" button sat below the lazy list's viewport on the 8-event concert day, so it was never composed; `ios` green with the captures uploaded, `web` green). Fixed in the follow-up commit (`fix(plan): the add affordance moves into the day header`), which moves the button into the day header on both phones; verified by that commit's run.
+Status: done 2026-10-12. Commit: 139f497 (`feat(plan): the Plan tab on both phones with leader proposals (slice 035)`). CI: run 38244949195 red on `mobile` only (`PlanScreenshotTest.plan_day_light`: the "Propose an event for this day" button sat below the lazy list's viewport on the 8-event concert day, so it was never composed; `ios` green with the captures uploaded, `web` green). Fixed in e71e121 (`fix(plan): the add affordance moves into the day header`), which moves the button into the day header on both phones; verified by run 38246620746 green (web, mobile, ios); captures committed as 033a6f1 (Android and iOS `plan-day.png` and `plan-propose-dark.png`).
 Spec: D24 (leaders propose, the organizer decides), D31 (device captures). Details: `docs/engineering/itinerary.md` ("The Plan tab and proposals from both phones").
 
 | Gate | Command | Result |
@@ -1090,7 +1090,7 @@ Not done: the Memories tab (still a placeholder on both phones); choosing the ki
 
 ## Slice 036: live Settings
 
-Status: done 2026-10-12. Commit: see git log (`feat(settings): organization settings and members on the API and the console (slice 036)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: 291bd7f (`feat(settings): organization settings and members on the API and the console (slice 036)`). CI: run 38246470175 red on `mobile` only (the slice 035 Plan screenshot test fixed one commit later; `web` and `ios` green); verified by run 38246620746 green at e71e121, which carries the same console code; captures committed as 033a6f1 (web `settings-live.png` at desktop-1440 and laptop-1280).
 Spec: D29 (quiet hours, guardian digest hour), D20 (wrap-up window), D21 (members and roles). Details: `docs/engineering/identity-and-roster.md` ("Organization settings and members").
 
 | Gate | Command | Result |
@@ -1112,7 +1112,7 @@ Not done: inviting an organizer by email (D21 says owners and organizers use the
 
 ## Slice 037: Liquid Glass on iOS
 
-Status: done 2026-10-12. Commit: see git log (`feat(ios): Liquid Glass for the control layer on iOS 26 (slice 037)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: 8f7d826 (`feat(ios): Liquid Glass for the control layer on iOS 26 (slice 037)`). CI: run 38247130839 green (web, mobile, ios on `macos-26`); captures committed as a47b972 (every `ios/*.png` re-rendered with the glass look).
 Spec: D32 (iOS Liquid Glass; founder request 2026-10-12). Details: `docs/engineering/ios-liquid-glass.md`.
 
 | Gate | Command | Result |
@@ -1148,3 +1148,23 @@ Built:
 - Docs: `console-i18n.md`, ledger, captures README, feature flag `web.korean` working.
 
 Not done: Korean on the phones; locale-aware date formatting.
+
+## Slice 039: Korean on the phones
+
+Status: done 2026-10-12. Commit: see git log (`feat(mobile): Korean on both phones from one shared string table (slice 039)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: founder rule (KO/EN only), D31 (device captures). Details: `docs/engineering/mobile-i18n.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Core JVM tests | `mobile/gradlew -p mobile :core:jvmTest -Pvoysemble.android=false` | adds `L10nTest` (3: parity and placeholders, no English left, lookup and language tags) |
+| Android unit + screenshots | CI `mobile` job | `today-ko.png`, `plan-day-ko.png`; the English tests unchanged |
+| iOS | CI `ios` job | `CaptureTests.testKorean` (`today-ko.png`, `plan-day-ko.png`) |
+| Lint + headers | `pnpm lint`, `pnpm check:headers` | clean |
+
+Built:
+- Core: `i18n/L10n.kt` (`AppLocale`, `Txt` with 270+ keys, `tr`, `trf`, `tr1`..`tr4`, `placeholderCount`), `i18n/Tables.kt` (`EN`, `KO`); the proposal rule and outcomes, the plan's revision line, the confirmation labels and the empty trip name read the table.
+- Android: `MainActivity` sets the language at launch; every screen and view model reads keys (Today, proposal dialog, Plan, head count, meeting window, bulletin, chats, incidents, sign-in, invite, widgets, navigation; the bottom bar keeps keys); Korean screenshots.
+- iOS: `VoysembleApp.init` sets the language; `Design/L10n.swift`; every view and model reads keys (the same screens); Korean captures.
+- Docs: `mobile-i18n.md`, console doc pointer, ledger (incl. the CI records for the slice 035 fix, 036 and 037), captures README, mobile README, feature flag `mobile.korean` working.
+
+Not done: a language switch inside the app; plural forms beyond the lines that needed them; Korean fixture content (the sample trip stays as data).

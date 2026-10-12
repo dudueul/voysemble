@@ -58,30 +58,30 @@ struct BulletinView: View {
                 HStack {
                     Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
                     Spacer()
-                    Text(model.live ? (model.syncing ? "Syncing" : (model.feed.offline ? "Offline" : "Live")) : "Sample data")
+                    Text(model.live ? (model.syncing ? tr(.commonSyncing) : (model.feed.offline ? tr(.commonOffline) : tr(.commonLive))) : tr(.commonSampleData))
                         .font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
                 }
                 if model.live && model.feed.items.isEmpty && !model.syncing {
-                    Text("No announcements yet.").font(.subheadline).foregroundStyle(.secondary)
+                    Text(tr(.bulNone)).font(.subheadline).foregroundStyle(.secondary)
                 }
             }
             ForEach(model.feed.items, id: \.id) { a in
                 VStack(alignment: .leading, spacing: 6) {
                     Text("\(a.author) · \(a.publishedAt)").font(.caption).foregroundStyle(.secondary)
                     if a.isRevision {
-                        Label("Itinerary update · rev \(a.revisionNumber.map { "\($0)" } ?? "?")", systemImage: "calendar").font(.caption.bold()).foregroundStyle(.blue)
+                        Label(tr1(.bulRevision, a.revisionNumber.map { "\($0)" } ?? "?"), systemImage: "calendar").font(.caption.bold()).foregroundStyle(.blue)
                     }
                     Text(a.title).font(.headline)
                     Text(a.body)
                     if !a.changeLines.isEmpty {
                         VStack(alignment: .leading, spacing: 2) {
                             ForEach(Array(a.changeLines.prefix(10)), id: \.self) { line in Text("• \(line)").font(.subheadline) }
-                            if a.changeLines.count > 10 { Text("and \(a.changeLines.count - 10) more").font(.caption).foregroundStyle(.secondary) }
+                            if a.changeLines.count > 10 { Text(tr1(.bulMore, a.changeLines.count - 10)).font(.caption).foregroundStyle(.secondary) }
                         }
                     }
                     if let t = a.machineTranslation {
                         VStack(alignment: .leading, spacing: 2) {
-                            Label(a.translationLabel ?? "Machine translation", systemImage: "character.book.closed").font(.caption).foregroundStyle(.secondary)
+                            Label(a.translationLabel ?? tr(.bulMachine), systemImage: "character.book.closed").font(.caption).foregroundStyle(.secondary)
                             Text(t).font(.subheadline)
                         }
                         .padding(8).background(Color.secondary.opacity(0.1)).clipShape(RoundedRectangle(cornerRadius: 8))
@@ -89,9 +89,9 @@ struct BulletinView: View {
                     if a.requiresAck {
                         HStack {
                             switch a.ack {
-                            case .unacknowledged: Button("Got it") { model.acknowledge(a.id) }.buttonStyle(.borderedProminent)
-                            case .pending: Label("Queued · sends when online", systemImage: "clock").font(.subheadline)
-                            case .acknowledged: Label("Acknowledged", systemImage: "checkmark").font(.subheadline)
+                            case .unacknowledged: Button(tr(.bulGotIt)) { model.acknowledge(a.id) }.buttonStyle(.borderedProminent)
+                            case .pending: Label(tr(.todayQueued), systemImage: "clock").font(.subheadline)
+                            case .acknowledged: Label(tr(.todayAcknowledged), systemImage: "checkmark").font(.subheadline)
                             }
                             Text("\(a.acknowledgedCount)/\(a.totalCount)").font(.caption).foregroundStyle(.secondary)
                         }
@@ -100,16 +100,16 @@ struct BulletinView: View {
                 .padding(.vertical, 4)
             }
         }
-        .navigationTitle("Bulletin")
+        .navigationTitle(tr(.bulTitle))
         .task { await model.refresh() }
         .refreshable { await model.refresh() }
     }
 
     private var subtitle: String {
         switch model.feed.unackedRequired.count {
-        case 0: return "Nothing waiting for you"
-        case 1: return "1 update needs your acknowledgment"
-        case let n: return "\(n) updates need your acknowledgment"
+        case 0: return tr(.bulNothing)
+        case 1: return tr(.bulOne)
+        case let n: return tr1(.bulMany, n)
         }
     }
 }

@@ -5,6 +5,9 @@
 
 package com.voysemble.app.bulletin
 
+import com.voysemble.core.i18n.Txt
+import com.voysemble.core.i18n.tr
+import com.voysemble.core.i18n.trf
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -76,19 +79,19 @@ fun BulletinScreen(
         item {
             ScreenHeader(
                 eyebrow = tripName ?: "Korea Concert Tour",
-                title = "Bulletin",
+                title = tr(Txt.BUL_TITLE),
                 subtitle = when (val n = feed.unackedRequired.size) {
-                    0 -> if (live && feed.items.isEmpty() && !syncing) "No announcements yet" else "Nothing waiting for you"
-                    1 -> "1 update needs your acknowledgment"
-                    else -> "$n updates need your acknowledgment"
+                    0 -> if (live && feed.items.isEmpty() && !syncing) tr(Txt.BUL_NONE) else tr(Txt.BUL_NOTHING)
+                    1 -> tr(Txt.BUL_ONE)
+                    else -> trf(Txt.BUL_MANY, n)
                 },
                 onBack = null,
             ) {
                 if (live) {
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                        if (syncing) LabelChip("Syncing", c.textMuted, AppIcons.Sync) else LabelChip("Live", c.success, AppIcons.Sync)
-                        TextButton(onClick = onRefresh) { Text("Refresh") }
-                        TextButton(onClick = onSignOut) { Text("Sign out") }
+                        if (syncing) LabelChip(tr(Txt.COMMON_SYNCING), c.textMuted, AppIcons.Sync) else LabelChip(tr(Txt.COMMON_LIVE), c.success, AppIcons.Sync)
+                        TextButton(onClick = onRefresh) { Text(tr(Txt.COMMON_REFRESH)) }
+                        TextButton(onClick = onSignOut) { Text(tr(Txt.COMMON_SIGN_OUT)) }
                     }
                 } else {
                     SampleDataChip()
@@ -103,7 +106,7 @@ fun BulletinScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(AppIcons.Offline, contentDescription = null, tint = c.warning, modifier = Modifier.size(18.dp))
-                    Text("Offline. Acknowledgments send when you are back online.", style = MaterialTheme.typography.bodyMedium, color = c.warning)
+                    Text(tr(Txt.BUL_OFFLINE), style = MaterialTheme.typography.bodyMedium, color = c.warning)
                 }
             }
         }
@@ -117,12 +120,12 @@ private fun AnnouncementRow(a: AnnouncementItem, onAcknowledge: (String) -> Unit
     VyCard {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("${a.author} · ${a.publishedAt}", style = MaterialTheme.typography.labelSmall, color = c.textMuted, modifier = Modifier.weight(1f))
-            if (a.requiresAck) LabelChip("Ack required", if (a.ack == AckState.UNACKNOWLEDGED) c.warning else c.textMuted)
-            if (a.sharedWithGuardians) LabelChip("Parents", c.info, AppIcons.People)
+            if (a.requiresAck) LabelChip(tr(Txt.BUL_ACK_REQUIRED), if (a.ack == AckState.UNACKNOWLEDGED) c.warning else c.textMuted)
+            if (a.sharedWithGuardians) LabelChip(tr(Txt.BUL_PARENTS), c.info, AppIcons.People)
         }
         Spacer(Modifier.height(6.dp))
         if (a.isRevision) {
-            LabelChip("Itinerary update · rev ${a.revisionNumber ?: "?"}", c.info, AppIcons.Plan)
+            LabelChip(trf(Txt.BUL_REVISION, a.revisionNumber ?: "?"), c.info, AppIcons.Plan)
             Spacer(Modifier.height(4.dp))
         }
         Text(a.title, style = MaterialTheme.typography.titleMedium)
@@ -133,7 +136,7 @@ private fun AnnouncementRow(a: AnnouncementItem, onAcknowledge: (String) -> Unit
             Spacer(Modifier.height(6.dp))
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 a.changeLines.take(10).forEach { line -> Text("• $line", style = MaterialTheme.typography.bodyMedium) }
-                if (a.changeLines.size > 10) Text("and ${a.changeLines.size - 10} more", style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
+                if (a.changeLines.size > 10) Text(trf(Txt.BUL_MORE, a.changeLines.size - 10), style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
             }
         }
         a.machineTranslation?.let { t ->
@@ -144,7 +147,7 @@ private fun AnnouncementRow(a: AnnouncementItem, onAcknowledge: (String) -> Unit
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     Icon(AppIcons.Translate, contentDescription = null, tint = c.textMuted, modifier = Modifier.size(14.dp))
-                    Text(a.translationLabel ?: "Machine translation", style = MaterialTheme.typography.labelSmall, color = c.textMuted)
+                    Text(a.translationLabel ?: tr(Txt.BUL_MACHINE), style = MaterialTheme.typography.labelSmall, color = c.textMuted)
                 }
                 Text(t, style = MaterialTheme.typography.bodyMedium)
             }
@@ -157,16 +160,16 @@ private fun AnnouncementRow(a: AnnouncementItem, onAcknowledge: (String) -> Unit
                         onClick = { onAcknowledge(a.id) },
                         colors = ButtonDefaults.buttonColors(containerColor = c.action, contentColor = c.onAction),
                         shape = MaterialTheme.shapes.small,
-                    ) { Text("Got it") }
+                    ) { Text(tr(Txt.BUL_GOT_IT)) }
                     AckState.PENDING -> OutlinedButton(onClick = {}, enabled = false, shape = MaterialTheme.shapes.small) {
                         Icon(AppIcons.Clock, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Queued · sends when online")
+                        Text(tr(Txt.TODAY_QUEUED))
                     }
                     AckState.ACKNOWLEDGED -> OutlinedButton(onClick = {}, enabled = false, shape = MaterialTheme.shapes.small) {
                         Icon(AppIcons.Check, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Acknowledged")
+                        Text(tr(Txt.TODAY_ACKNOWLEDGED))
                     }
                 }
                 Text("${a.acknowledgedCount}/${a.totalCount}", style = MaterialTheme.typography.bodyMedium, color = c.textMuted)

@@ -8,6 +8,8 @@
 package com.voysemble.core.today
 
 import com.voysemble.core.api.AnnouncementDto
+import com.voysemble.core.i18n.Txt
+import com.voysemble.core.i18n.tr
 
 /**
  * D19/D16: the required-ack announcement that rides on Today. The oldest unacknowledged one
@@ -39,7 +41,7 @@ public fun TodaySnapshot.withOffline(offline: Boolean): TodaySnapshot = copy(off
 
 /** Shown until the first itinerary answer: the trip name, nothing else invented. */
 public fun emptyTodaySnapshot(tripName: String): TodaySnapshot = TodaySnapshot(
-    tripName = tripName.ifBlank { "Your trip" },
+    tripName = tripName.ifBlank { tr(Txt.COMMON_YOUR_TRIP) },
     dayNumber = 0,
     dateLabel = "",
     timeZoneLabel = "",

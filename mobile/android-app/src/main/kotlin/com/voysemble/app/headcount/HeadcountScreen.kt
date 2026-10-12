@@ -6,6 +6,9 @@
 
 package com.voysemble.app.headcount
 
+import com.voysemble.core.i18n.Txt
+import com.voysemble.core.i18n.tr
+import com.voysemble.core.i18n.trf
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -101,14 +104,14 @@ fun HeadcountScreen(
         ) {
             item {
                 ScreenHeader(
-                    eyebrow = "Head count · ${session.groupLabel}",
+                    eyebrow = trf(Txt.HC_EYEBROW, session.groupLabel),
                     title = "${session.presentCount} / ${session.expected}",
-                    subtitle = "Opened ${session.openedAtDevice} by ${session.openedBy}" +
-                        (session.closedAtDevice?.let { " · closed $it" } ?: ""),
+                    subtitle = trf(Txt.HC_OPENED, session.openedAtDevice, session.openedBy) +
+                        (session.closedAtDevice?.let { trf(Txt.HC_CLOSED_AT, it) } ?: ""),
                     onBack = onBack,
                 ) {
                     Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        if (!status.live) SampleDataChip() else LabelChip(if (status.syncing) "Syncing" else "Live", c.info, AppIcons.Check)
+                        if (!status.live) SampleDataChip() else LabelChip(if (status.syncing) tr(Txt.COMMON_SYNCING) else tr(Txt.COMMON_LIVE), c.info, AppIcons.Check)
                         Box(Modifier.clickable(enabled = status.live && session.syncState == SyncState.PENDING && !status.syncing, onClick = onRetrySync)) {
                             SyncChip(pending = session.syncState == SyncState.PENDING)
                         }
@@ -116,7 +119,7 @@ fun HeadcountScreen(
                 }
             }
             if (status.loading) {
-                item { Text("Loading the roster…", style = MaterialTheme.typography.bodyMedium, color = c.textMuted) }
+                item { Text(tr(Txt.HC_LOADING_ROSTER), style = MaterialTheme.typography.bodyMedium, color = c.textMuted) }
             }
             status.error?.let { message ->
                 item { Text(message, style = MaterialTheme.typography.bodyMedium, color = c.danger) }
@@ -130,7 +133,7 @@ fun HeadcountScreen(
                 )
             }
             if (session.missing.isNotEmpty()) {
-                item { SectionLabel("${session.missing.size} missing") }
+                item { SectionLabel(trf(Txt.HC_MISSING_SECTION, session.missing.size)) }
                 items(session.missing, key = { "m-${it.id}" }) { m ->
                     MissingCard(m, session.markOf(m.id), session.isClosed, onToggle, onExcuse, onWithOtherGroup)
                 }
@@ -139,12 +142,12 @@ fun HeadcountScreen(
                     VyCard {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Icon(AppIcons.Check, contentDescription = null, tint = c.success)
-                            Text("Everyone accounted for", style = MaterialTheme.typography.titleMedium)
+                            Text(tr(Txt.HC_EVERYONE), style = MaterialTheme.typography.titleMedium)
                         }
                     }
                 }
             }
-            item { SectionLabel("Roster · tap to mark present") }
+            item { SectionLabel(tr(Txt.HC_ROSTER_SECTION)) }
             item {
                 VyCard {
                     session.members.forEachIndexed { i, m ->
@@ -181,15 +184,15 @@ private fun MissingCard(
                 Text(m.name, style = MaterialTheme.typography.titleMedium)
                 Text(
                     listOfNotNull(
-                        m.room?.let { "Room $it" },
-                        m.lastAckAt?.let { "last ack $it" } ?: "no ack today",
+                        m.room?.let { trf(Txt.HC_ROOM, it) },
+                        m.lastAckAt?.let { trf(Txt.HC_LAST_ACK, it) } ?: tr(Txt.HC_NO_ACK),
                         m.windowState?.let { windowLabel(it) },
                     ).joinToString(" · "),
                     style = MaterialTheme.typography.bodyMedium,
                     color = c.textMuted,
                 )
             }
-            LabelChip(if (mark == HeadcountMark.MISSING) "Missing" else "Not marked", c.danger)
+            LabelChip(if (mark == HeadcountMark.MISSING) tr(Txt.HC_MISSING) else tr(Txt.HC_NOT_MARKED), c.danger)
         }
         if (!closed) {
             Spacer(Modifier.height(10.dp))
@@ -197,12 +200,12 @@ private fun MissingCard(
                 OutlinedButton(onClick = {}, shape = MaterialTheme.shapes.small, contentPadding = PaddingValues(horizontal = 12.dp)) {
                     Icon(AppIcons.Phone, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Call")
+                    Text(tr(Txt.HC_CALL))
                 }
                 OutlinedButton(onClick = {}, shape = MaterialTheme.shapes.small, contentPadding = PaddingValues(horizontal = 12.dp)) {
                     Icon(AppIcons.Bell, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Come now")
+                    Text(tr(Txt.HC_COME_NOW))
                 }
             }
             Spacer(Modifier.height(6.dp))
@@ -212,9 +215,9 @@ private fun MissingCard(
                     colors = ButtonDefaults.buttonColors(containerColor = c.action, contentColor = c.onAction),
                     shape = MaterialTheme.shapes.small,
                     contentPadding = PaddingValues(horizontal = 12.dp),
-                ) { Text("Present") }
-                OutlinedButton(onClick = { onWithOtherGroup(m.id) }, shape = MaterialTheme.shapes.small, contentPadding = PaddingValues(horizontal = 12.dp)) { Text("Other group") }
-                OutlinedButton(onClick = { onExcuse(m.id) }, shape = MaterialTheme.shapes.small, contentPadding = PaddingValues(horizontal = 12.dp)) { Text("Excuse") }
+                ) { Text(tr(Txt.HC_PRESENT)) }
+                OutlinedButton(onClick = { onWithOtherGroup(m.id) }, shape = MaterialTheme.shapes.small, contentPadding = PaddingValues(horizontal = 12.dp)) { Text(tr(Txt.HC_OTHER_GROUP)) }
+                OutlinedButton(onClick = { onExcuse(m.id) }, shape = MaterialTheme.shapes.small, contentPadding = PaddingValues(horizontal = 12.dp)) { Text(tr(Txt.HC_EXCUSE)) }
             }
         }
     }
@@ -231,11 +234,11 @@ private fun RosterRow(
 ) {
     val c = LocalVoysembleColors.current
     val (label, color) = when (mark) {
-        HeadcountMark.PRESENT -> "Present" to c.success
-        HeadcountMark.MISSING -> "Missing" to c.danger
-        HeadcountMark.WITH_OTHER_GROUP -> "Other group" to c.info
-        HeadcountMark.EXCUSED -> "Excused" to c.textMuted
-        HeadcountMark.UNMARKED -> "Not marked" to c.warning
+        HeadcountMark.PRESENT -> tr(Txt.HC_PRESENT) to c.success
+        HeadcountMark.MISSING -> tr(Txt.HC_MISSING) to c.danger
+        HeadcountMark.WITH_OTHER_GROUP -> tr(Txt.HC_OTHER_GROUP) to c.info
+        HeadcountMark.EXCUSED -> tr(Txt.HC_EXCUSED) to c.textMuted
+        HeadcountMark.UNMARKED -> tr(Txt.HC_NOT_MARKED) to c.warning
     }
     Column(Modifier.fillMaxWidth()) {
         Row(
@@ -258,12 +261,12 @@ private fun RosterRow(
                 // D27: one tap, audited on the server; the line stays only while this screen is open.
                 Icon(
                     AppIcons.Care,
-                    contentDescription = "Care note for ${m.name}",
+                    contentDescription = trf(Txt.HC_CARE_A11Y, m.name),
                     tint = c.warning,
                     modifier = Modifier.size(22.dp).clickable(onClick = onCareTap),
                 )
             }
-            m.room?.let { Text("Rm $it", style = MaterialTheme.typography.bodyMedium, color = c.textMuted) }
+            m.room?.let { Text(trf(Txt.HC_ROOM, it), style = MaterialTheme.typography.bodyMedium, color = c.textMuted) }
             LabelChip(label, color)
         }
         careLine?.let {
@@ -282,16 +285,16 @@ private fun CloseBar(session: HeadcountSession, onClose: () -> Unit) {
     ) {
         Column(Modifier.weight(1f)) {
             Text(
-                "${session.accountedCount} of ${session.expected} accounted for",
+                trf(Txt.HC_ACCOUNTED, session.accountedCount, session.expected),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
                 when {
-                    session.closedWithMissing -> "Closed with ${session.missing.size} missing · incident opened"
-                    session.isClosed -> "Closed"
-                    session.missing.isNotEmpty() -> "Closing now marks ${session.missing.size} as missing"
-                    else -> "Ready to close"
+                    session.closedWithMissing -> trf(Txt.HC_CLOSED_WITH_MISSING, session.missing.size)
+                    session.isClosed -> tr(Txt.HC_CLOSED)
+                    session.missing.isNotEmpty() -> trf(Txt.HC_CLOSING_MARKS, session.missing.size)
+                    else -> tr(Txt.HC_READY)
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (session.closedWithMissing) c.danger else c.textMuted,
@@ -302,7 +305,7 @@ private fun CloseBar(session: HeadcountSession, onClose: () -> Unit) {
             enabled = !session.isClosed,
             colors = ButtonDefaults.buttonColors(containerColor = c.action, contentColor = c.onAction),
             shape = MaterialTheme.shapes.small,
-        ) { Text(if (session.isClosed) "Closed" else "Close head count") }
+        ) { Text(if (session.isClosed) tr(Txt.HC_CLOSED) else tr(Txt.HC_CLOSE)) }
     }
 }
 
@@ -316,9 +319,9 @@ private fun Initials(name: String) {
 }
 
 internal fun windowLabel(state: WindowState): String = when (state) {
-    WindowState.INSIDE -> "inside zone"
-    WindowState.OUTSIDE -> "outside zone"
-    WindowState.UNCERTAIN -> "location uncertain"
-    WindowState.STALE -> "location stale"
-    WindowState.OPTED_OUT -> "not sharing"
+    WindowState.INSIDE -> tr(Txt.HC_WIN_INSIDE)
+    WindowState.OUTSIDE -> tr(Txt.HC_WIN_OUTSIDE)
+    WindowState.UNCERTAIN -> tr(Txt.HC_WIN_UNCERTAIN)
+    WindowState.STALE -> tr(Txt.HC_WIN_STALE)
+    WindowState.OPTED_OUT -> tr(Txt.HC_WIN_NOT_SHARING)
 }

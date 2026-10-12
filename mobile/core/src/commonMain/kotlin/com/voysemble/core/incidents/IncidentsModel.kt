@@ -7,6 +7,9 @@
 
 package com.voysemble.core.incidents
 
+import com.voysemble.core.i18n.Txt
+import com.voysemble.core.i18n.tr
+
 public enum class ConfirmationStatus { WITH_GROUP, NOT_WITH_GROUP, UNKNOWN }
 
 public enum class IncidentStatus { OPEN, RESOLVED }
@@ -52,7 +55,7 @@ public fun IncidentFeed.confirmed(id: String): IncidentFeed =
     })
 
 public fun labelOf(status: ConfirmationStatus): String = when (status) {
-    ConfirmationStatus.WITH_GROUP -> "With the group"
-    ConfirmationStatus.NOT_WITH_GROUP -> "Not with the group"
-    ConfirmationStatus.UNKNOWN -> "Status unknown"
+    ConfirmationStatus.WITH_GROUP -> tr(Txt.CONF_WITH_GROUP)
+    ConfirmationStatus.NOT_WITH_GROUP -> tr(Txt.CONF_NOT_WITH_GROUP)
+    ConfirmationStatus.UNKNOWN -> tr(Txt.CONF_UNKNOWN)
 }

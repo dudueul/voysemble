@@ -6,13 +6,15 @@
 
 package com.voysemble.app.plan
 
+import com.voysemble.core.i18n.Txt
+import com.voysemble.core.i18n.trf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.voysemble.app.today.ProposalState
 import com.voysemble.core.api.ApiClient
 import com.voysemble.core.api.ApiResult
 import com.voysemble.core.fixtures.KoreaConcertTourFixture
-import com.voysemble.core.plan.PROPOSAL_OFFLINE_MESSAGE
+import com.voysemble.core.plan.proposalOfflineMessage
 import com.voysemble.core.plan.ProposalDraft
 import com.voysemble.core.plan.TripPlan
 import com.voysemble.core.plan.emptyTripPlan
@@ -78,7 +80,7 @@ class PlanViewModel(
                         s.copy(plan = plan, selected = selected, syncing = false, error = null)
                     }
                 }
-                is ApiResult.Failed -> _state.update { it.copy(syncing = false, error = "Could not load the plan (${r.error.code}).") }
+                is ApiResult.Failed -> _state.update { it.copy(syncing = false, error = trf(Txt.PLAN_LOAD_FAILED, r.error.code)) }
                 is ApiResult.Unreachable -> _state.update { it.copy(plan = it.plan.withOffline(true), syncing = false) }
             }
         }
@@ -106,7 +108,7 @@ class PlanViewModel(
             val outcome = when (val r = a.sendProposal(t.organizationId, t.tripId, draft)) {
                 is ApiResult.Ok -> ProposalState(eventId, sending = false, sent = true, kind = draft.kind)
                 is ApiResult.Failed -> ProposalState(eventId, sending = false, sent = false, error = proposalFailureMessage(r.status, r.error.code), kind = draft.kind)
-                is ApiResult.Unreachable -> ProposalState(eventId, sending = false, sent = false, error = PROPOSAL_OFFLINE_MESSAGE, kind = draft.kind)
+                is ApiResult.Unreachable -> ProposalState(eventId, sending = false, sent = false, error = proposalOfflineMessage(), kind = draft.kind)
             }
             _state.update { it.copy(proposal = outcome) }
         }

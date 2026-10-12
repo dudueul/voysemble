@@ -5,6 +5,9 @@
 
 package com.voysemble.app.incidents
 
+import com.voysemble.core.i18n.Txt
+import com.voysemble.core.i18n.tr
+import com.voysemble.core.i18n.trf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.voysemble.core.api.ApiClient
@@ -61,7 +64,7 @@ class IncidentsViewModel(
             for (card in _state.value.feed.cards.filter { it.pending != null }) send(card.id).join()
             when (val r = a.listIncidents(t.organizationId, t.tripId)) {
                 is ApiResult.Ok -> _state.update { it.copy(feed = mergeIncidents(it.feed, r.value.incidents, ::localTime, locale), syncing = false) }
-                is ApiResult.Failed -> _state.update { it.copy(syncing = false, error = if (r.status == 403) "Only trip leaders see incidents." else "Could not load incidents (${r.error.code}).") }
+                is ApiResult.Failed -> _state.update { it.copy(syncing = false, error = if (r.status == 403) tr(Txt.INC_LEADERS_ONLY) else trf(Txt.INC_LOAD_FAILED, r.error.code)) }
                 is ApiResult.Unreachable -> _state.update { it.copy(feed = it.feed.copy(offline = true), syncing = false) }
             }
         }
@@ -74,7 +77,7 @@ class IncidentsViewModel(
         return viewModelScope.launch {
             when (a.confirmIncident(t.organizationId, t.tripId, id, ConfirmIncidentRequestDto(pending.status.wireName(), pending.note))) {
                 is ApiResult.Ok -> _state.update { it.copy(feed = it.feed.confirmed(id), error = null) }
-                is ApiResult.Failed -> _state.update { it.copy(error = "The server refused the answer.") }
+                is ApiResult.Failed -> _state.update { it.copy(error = tr(Txt.INC_REFUSED)) }
                 is ApiResult.Unreachable -> _state.update { it.copy(feed = it.feed.copy(offline = true)) }
             }
         }

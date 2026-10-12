@@ -5,6 +5,8 @@
 
 package com.voysemble.app.ui
 
+import com.voysemble.core.i18n.Txt
+import com.voysemble.core.i18n.tr
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -55,7 +57,7 @@ fun ScreenHeader(
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (onBack != null) {
                 IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
-                    Icon(AppIcons.Back, contentDescription = "Back")
+                    Icon(AppIcons.Back, contentDescription = tr(Txt.COMMON_BACK))
                 }
                 Spacer(Modifier.width(4.dp))
             }
@@ -89,7 +91,7 @@ fun LabelChip(text: String, color: Color, icon: ImageVector? = null) {
 fun SampleDataChip() {
     val c = LocalVoysembleColors.current
     Text(
-        "Sample data",
+        tr(Txt.COMMON_SAMPLE_DATA),
         style = MaterialTheme.typography.labelSmall,
         color = c.pending,
         modifier = Modifier
@@ -103,7 +105,7 @@ fun SampleDataChip() {
 @Composable
 fun SyncChip(pending: Boolean) {
     val c = LocalVoysembleColors.current
-    if (pending) LabelChip("Pending sync", c.warning, AppIcons.Clock) else LabelChip("Synced", c.success, AppIcons.Check)
+    if (pending) LabelChip(tr(Txt.COMMON_PENDING_SYNC), c.warning, AppIcons.Clock) else LabelChip(tr(Txt.COMMON_SYNCED), c.success, AppIcons.Check)
 }
 
 @Composable

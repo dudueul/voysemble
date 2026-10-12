@@ -89,6 +89,14 @@ final class CaptureTests: XCTestCase {
         try capture(NavigationStack { ScrollView { form.padding(20) } }, name: "plan-propose-dark", scheme: .dark)
     }
 
+    func testKorean() throws {
+        // Slice 039: the same screens in Korean; the fixture's own names stay as they are.
+        AppLocale.shared.current = "ko"
+        defer { AppLocale.shared.current = "en" }
+        try capture(TodayView(model: TodayModel()), name: "today-ko")
+        try capture(NavigationStack { PlanView(model: PlanModel()) }, name: "plan-day-ko")
+    }
+
     func testSignInAndInvite() throws {
         try capture(SignInView(model: SessionModel()), name: "sign-in")
         try capture(InviteView(model: SessionModel()), name: "invite")

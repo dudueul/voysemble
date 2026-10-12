@@ -6,6 +6,9 @@
 
 package com.voysemble.app.incidents
 
+import com.voysemble.core.i18n.Txt
+import com.voysemble.core.i18n.tr
+import com.voysemble.core.i18n.trf
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -61,24 +64,24 @@ fun IncidentsScreen(state: IncidentsUiState, onConfirm: (String, ConfirmationSta
         ) {
             item {
                 ScreenHeader(
-                    eyebrow = "Incidents",
-                    title = if (open.isEmpty()) "Nothing open" else "${open.size} open",
-                    subtitle = "Answer what you see; the organizer tells the guardian.",
+                    eyebrow = tr(Txt.INC_EYEBROW),
+                    title = if (open.isEmpty()) tr(Txt.INC_NOTHING_OPEN) else trf(Txt.INC_OPEN_COUNT, open.size),
+                    subtitle = tr(Txt.INC_SUBTITLE),
                     onBack = onBack,
                 ) {
                     Column(horizontalAlignment = androidx.compose.ui.Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        if (!state.live) SampleDataChip() else LabelChip(if (state.syncing) "Syncing" else "Live", c.info, AppIcons.Check)
-                        if (state.feed.offline) LabelChip("Offline", c.warning, AppIcons.Offline)
+                        if (!state.live) SampleDataChip() else LabelChip(if (state.syncing) tr(Txt.COMMON_SYNCING) else tr(Txt.COMMON_LIVE), c.info, AppIcons.Check)
+                        if (state.feed.offline) LabelChip(tr(Txt.COMMON_OFFLINE), c.warning, AppIcons.Offline)
                     }
                 }
             }
             state.error?.let { message -> item { Text(message, style = MaterialTheme.typography.bodyMedium, color = c.danger) } }
             if (open.isEmpty() && closed.isEmpty() && !state.syncing) {
-                item { Text("No incidents on this trip.", style = MaterialTheme.typography.bodyMedium, color = c.textMuted) }
+                item { Text(tr(Txt.INC_NONE), style = MaterialTheme.typography.bodyMedium, color = c.textMuted) }
             }
-            if (open.isNotEmpty()) item { SectionLabel("Open") }
+            if (open.isNotEmpty()) item { SectionLabel(tr(Txt.INC_OPEN)) }
             items(open, key = { it.id }) { card -> IncidentRow(card, onConfirm) }
-            if (closed.isNotEmpty()) item { SectionLabel("Resolved") }
+            if (closed.isNotEmpty()) item { SectionLabel(tr(Txt.INC_RESOLVED)) }
             items(closed, key = { it.id }) { card -> IncidentRow(card, onConfirm) }
         }
     }
@@ -90,25 +93,25 @@ private fun IncidentRow(card: IncidentCard, onConfirm: (String, ConfirmationStat
     VyCard {
         Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(card.title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-            LabelChip(if (card.isOpen) "Open" else "Resolved", if (card.isOpen) c.danger else c.success)
+            LabelChip(if (card.isOpen) tr(Txt.INC_OPEN) else tr(Txt.INC_RESOLVED), if (card.isOpen) c.danger else c.success)
         }
-        Text("${card.people.joinToString(", ")} · opened ${card.openedAt} · ${card.openedBy}", style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
+        Text(trf(Txt.INC_META, card.people.joinToString(", "), card.openedAt, card.openedBy), style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
         Spacer(Modifier.height(8.dp))
         val latest = card.latest
         if (latest != null) {
             Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 LabelChip(labelOf(latest.status), if (latest.status == ConfirmationStatus.WITH_GROUP) c.success else c.warning)
                 Text("${latest.byName} · ${latest.at}", style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
-                if (card.pending != null) LabelChip("Pending sync", c.warning, AppIcons.Clock)
+                if (card.pending != null) LabelChip(tr(Txt.COMMON_PENDING_SYNC), c.warning, AppIcons.Clock)
             }
             latest.note?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
         } else {
-            Text("Not confirmed yet", style = MaterialTheme.typography.bodyMedium, color = c.warning, fontWeight = FontWeight.SemiBold)
+            Text(tr(Txt.INC_NOT_CONFIRMED), style = MaterialTheme.typography.bodyMedium, color = c.warning, fontWeight = FontWeight.SemiBold)
         }
         card.guardianMessage?.let { msg ->
             Spacer(Modifier.height(8.dp))
             Column(Modifier.fillMaxWidth().background(c.success.copy(alpha = 0.10f), MaterialTheme.shapes.small).padding(10.dp)) {
-                Text("Guardian message sent", style = MaterialTheme.typography.labelSmall, color = c.textMuted)
+                Text(tr(Txt.INC_GUARDIAN_SENT), style = MaterialTheme.typography.labelSmall, color = c.textMuted)
                 Text(msg, style = MaterialTheme.typography.bodyMedium)
             }
         }
@@ -120,10 +123,10 @@ private fun IncidentRow(card: IncidentCard, onConfirm: (String, ConfirmationStat
                     colors = ButtonDefaults.buttonColors(containerColor = c.action, contentColor = c.onAction),
                     shape = MaterialTheme.shapes.small,
                     contentPadding = PaddingValues(horizontal = 12.dp),
-                ) { Text("With group") }
-                OutlinedButton(onClick = { onConfirm(card.id, ConfirmationStatus.NOT_WITH_GROUP) }, shape = MaterialTheme.shapes.small, contentPadding = PaddingValues(horizontal = 12.dp)) { Text("Not with group") }
+                ) { Text(tr(Txt.INC_WITH_GROUP)) }
+                OutlinedButton(onClick = { onConfirm(card.id, ConfirmationStatus.NOT_WITH_GROUP) }, shape = MaterialTheme.shapes.small, contentPadding = PaddingValues(horizontal = 12.dp)) { Text(tr(Txt.INC_NOT_WITH_GROUP)) }
                 Spacer(Modifier.width(0.dp))
-                OutlinedButton(onClick = { onConfirm(card.id, ConfirmationStatus.UNKNOWN) }, shape = MaterialTheme.shapes.small, contentPadding = PaddingValues(horizontal = 12.dp)) { Text("Unknown") }
+                OutlinedButton(onClick = { onConfirm(card.id, ConfirmationStatus.UNKNOWN) }, shape = MaterialTheme.shapes.small, contentPadding = PaddingValues(horizontal = 12.dp)) { Text(tr(Txt.INC_UNKNOWN)) }
             }
         }
     }

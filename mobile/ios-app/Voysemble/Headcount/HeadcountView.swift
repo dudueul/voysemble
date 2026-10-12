@@ -80,12 +80,12 @@ final class HeadcountModel: ObservableObject {
             if let ok = (r as? ApiResultOk<RevealCareNoteResponseDto>)?.value {
                 revealed[id] = CareKt.careLineOf(note: ok.note)
             } else if let failed = r as? ApiResultFailed {
-                error = failed.status == 403 ? "Only this group's leaders see the care note." : failed.status == 404 ? "No care note on file." : "Could not reveal the care note (\(failed.error.code))."
+                error = failed.status == 403 ? tr(.hcCareLeadersOnly) : failed.status == 404 ? tr(.hcCareNone) : tr1(.hcCareRevealFailed, failed.error.code)
             } else {
-                error = "Offline. Care notes are never cached on the device."
+                error = tr(.hcCareOffline)
             }
         } catch {
-            self.error = "Offline. Care notes are never cached on the device."
+            self.error = tr(.hcCareOffline)
         }
     }
 
@@ -100,20 +100,20 @@ final class HeadcountModel: ObservableObject {
                 let me = roster.participations.first { $0.id == trip.participationId }
                 session = HeadcountsKt.headcountFromRoster(
                     id: newId(), roster: roster.participations, groupName: me?.groupName,
-                    openedBy: me?.displayName ?? "Leader", openedAtDevice: deviceClock(),
+                    openedBy: me?.displayName ?? tr(.commonLeader), openedAtDevice: deviceClock(),
                 )
                 loading = false
                 await push()
             } else if let failed = r as? ApiResultFailed {
                 loading = false
-                error = failed.status == 403 ? "Only trip leaders and organizers count heads." : "Could not load the roster (\(failed.error.code))."
+                error = failed.status == 403 ? tr(.hcLeadersOnly) : tr1(.hcLoadFailed, failed.error.code)
             } else {
                 loading = false
-                error = "Offline. The roster needs one connection to start a count."
+                error = tr(.hcOfflineRoster)
             }
         } catch {
             loading = false
-            self.error = "Offline. The roster needs one connection to start a count."
+            self.error = tr(.hcOfflineRoster)
         }
     }
 
@@ -125,7 +125,7 @@ final class HeadcountModel: ObservableObject {
             let r = try await HeadcountsKt.pushHeadcount(api: api, orgId: trip.organizationId, tripId: trip.tripId, session: session)
             session = session.adoptPush(result: r)
             lastPush = r.outcome
-            error = r.outcome.hasPrefix("rejected") ? "The server refused this count (\(r.outcome.dropFirst("rejected:".count)))." : nil
+            error = r.outcome.hasPrefix("rejected") ? tr1(.hcRefused, String(r.outcome.dropFirst("rejected:".count))) : nil
         } catch {
             lastPush = "offline"
         }
@@ -140,42 +140,42 @@ struct HeadcountView: View {
         List {
             Section {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("HEAD COUNT · \(s.groupLabel)").font(.caption).foregroundStyle(.secondary)
+                    Text(tr1(.hcEyebrow, s.groupLabel).uppercased()).font(.caption).foregroundStyle(.secondary)
                     Text("\(s.presentCount) / \(s.expected)").font(.largeTitle.bold())
                     HStack(spacing: 8) {
-                        Text(s.syncState == .pending ? "Pending sync" : "Synced").font(.caption).foregroundStyle(s.syncState == .pending ? .orange : .green)
+                        Text(s.syncState == .pending ? tr(.commonPendingSync) : tr(.commonSynced)).font(.caption).foregroundStyle(s.syncState == .pending ? .orange : .green)
                         if model.live {
-                            Text(model.syncing ? "Syncing" : "Live").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                            Text(model.syncing ? tr(.commonSyncing) : tr(.commonLive)).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
                             if s.syncState == .pending && !model.syncing && !s.members.isEmpty {
-                                Button("Retry sync") { model.retrySync() }.font(.caption)
+                                Button(tr(.commonRetrySync)) { model.retrySync() }.font(.caption)
                             }
                         } else {
-                            Text("Sample data").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                            Text(tr(.commonSampleData)).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
                         }
                     }
-                    if model.loading { Text("Loading the roster…").font(.caption).foregroundStyle(.secondary) }
+                    if model.loading { Text(tr(.hcLoadingRoster)).font(.caption).foregroundStyle(.secondary) }
                     if let error = model.error { Text(error).font(.caption).foregroundStyle(.red) }
                 }
             }
             if !s.missing.isEmpty {
-                Section("\(s.missing.count) missing") {
+                Section(tr1(.hcMissingSection, s.missing.count)) {
                     ForEach(s.missing, id: \.id) { m in
                         VStack(alignment: .leading, spacing: 6) {
                             Text(m.name).font(.headline)
-                            Text([m.room.map { "Room \($0)" }, m.lastAckAt.map { "last ack \($0)" } ?? "no ack today"].compactMap { $0 }.joined(separator: " · "))
+                            Text([m.room.map { tr1(.hcRoom, $0) }, m.lastAckAt.map { tr1(.hcLastAck, $0) } ?? tr(.hcNoAck)].compactMap { $0 }.joined(separator: " · "))
                                 .font(.subheadline).foregroundStyle(.secondary)
                             if !s.isClosed {
                                 HStack {
-                                    Button("Present") { model.toggle(m.id) }.buttonStyle(.borderedProminent)
-                                    Button("Other group") { model.withOtherGroup(m.id) }.buttonStyle(.bordered)
-                                    Button("Excuse") { model.excuse(m.id) }.buttonStyle(.bordered)
+                                    Button(tr(.hcPresent)) { model.toggle(m.id) }.buttonStyle(.borderedProminent)
+                                    Button(tr(.hcOtherGroup)) { model.withOtherGroup(m.id) }.buttonStyle(.bordered)
+                                    Button(tr(.hcExcuse)) { model.excuse(m.id) }.buttonStyle(.bordered)
                                 }
                             }
                         }
                     }
                 }
             }
-            Section("Roster · tap to mark present") {
+            Section(tr(.hcRosterSection)) {
                 ForEach(s.members, id: \.id) { m in
                     let mark = s.markOf(memberId: m.id)
                     VStack(alignment: .leading, spacing: 4) {
@@ -190,7 +190,7 @@ struct HeadcountView: View {
                                     Image(systemName: "cross.case").foregroundStyle(.orange)
                                 }
                                 .buttonStyle(.plain)
-                                .accessibilityLabel("Care note for \(m.name)")
+                                .accessibilityLabel(tr1(.hcCareA11y, m.name))
                             }
                             Spacer()
                             Text(label(for: mark)).font(.caption).foregroundStyle(.secondary)
@@ -206,9 +206,9 @@ struct HeadcountView: View {
         }
         .safeAreaInset(edge: .bottom) {
             HStack {
-                Text("\(s.accountedCount) of \(s.expected) accounted for").font(.subheadline)
+                Text(tr2(.hcAccounted, s.accountedCount, s.expected)).font(.subheadline)
                 Spacer()
-                Button(s.isClosed ? "Closed" : "Close head count") { model.close() }
+                Button(s.isClosed ? tr(.hcClosed) : tr(.hcClose)) { model.close() }
                     .buttonStyle(.borderedProminent).disabled(s.isClosed)
             }
             .padding().background(.bar)
@@ -218,11 +218,11 @@ struct HeadcountView: View {
 
     private func label(for mark: HeadcountMark) -> String {
         switch mark {
-        case .present: return "Present"
-        case .missing: return "Missing"
-        case .withOtherGroup: return "Other group"
-        case .excused: return "Excused"
-        case .unmarked: return "Not marked"
+        case .present: return tr(.hcPresent)
+        case .missing: return tr(.hcMissing)
+        case .withOtherGroup: return tr(.hcOtherGroup)
+        case .excused: return tr(.hcExcused)
+        case .unmarked: return tr(.hcNotMarked)
         }
     }
 }

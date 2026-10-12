@@ -74,12 +74,12 @@ final class SessionModel: ObservableObject {
         do {
             let result = try await block()
             if let failed = result as? ApiResultFailed {
-                error = "\(failed.error.message) (ref \(failed.error.correlationId))"
+                error = tr2(.authRef, failed.error.message, failed.error.correlationId)
             } else if let unreachable = result as? ApiResultUnreachable {
-                error = unreachable.reason == "no-token" ? "Paste the whole link from the email." : "Could not reach the server. Check your connection."
+                error = unreachable.reason == "no-token" ? tr(.authPasteWhole) : tr(.authUnreachable)
             }
         } catch {
-            self.error = "Something went wrong."
+            self.error = tr(.authSomethingWrong)
         }
         session = manager.current()
         revokedNotice = manager.revokedNotice()

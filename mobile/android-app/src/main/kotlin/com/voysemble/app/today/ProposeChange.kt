@@ -6,6 +6,8 @@
 
 package com.voysemble.app.today
 
+import com.voysemble.core.i18n.Txt
+import com.voysemble.core.i18n.tr
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -46,7 +48,7 @@ data class ProposalTarget(
 ) {
     companion object {
         /** Change or remove `event`; the day is unknown on Today's card and not needed for either. */
-        fun forEvent(event: TodayEvent, dayLabel: String = "Today", date: String = "", timeZone: String = ""): ProposalTarget =
+        fun forEvent(event: TodayEvent, dayLabel: String = tr(Txt.PROPOSE_DAY_TODAY), date: String = "", timeZone: String = ""): ProposalTarget =
             ProposalTarget(listOf(ProposalKind.EDIT, ProposalKind.REMOVE), event.id, event.title, dayLabel, date, timeZone, 0)
 
         /** Add an event after the day's last one. */
@@ -66,9 +68,9 @@ fun ProposeChangeDialog(target: ProposalTarget, onDismiss: () -> Unit, onSend: (
 }
 
 fun kindLabel(kind: ProposalKind): String = when (kind) {
-    ProposalKind.EDIT -> "Change time"
-    ProposalKind.REMOVE -> "Remove"
-    ProposalKind.ADD -> "Add event"
+    ProposalKind.EDIT -> tr(Txt.PROPOSE_CHANGE_TIME)
+    ProposalKind.REMOVE -> tr(Txt.PROPOSE_REMOVE)
+    ProposalKind.ADD -> tr(Txt.PROPOSE_ADD_EVENT)
 }
 
 /** Kind chips (when there is a choice), the fields for that kind, the note, Send and Cancel. */
@@ -95,7 +97,7 @@ fun ProposeChangeForm(target: ProposalTarget, onSend: (ProposalDraft) -> Unit, o
     )
     val problem = proposalDraftProblem(draft)
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(if (kind == ProposalKind.ADD) "Propose an event" else "Propose a change", style = MaterialTheme.typography.titleLarge)
+        Text(if (kind == ProposalKind.ADD) tr(Txt.PROPOSE_TITLE_EVENT) else tr(Txt.TODAY_PROPOSE_CHANGE), style = MaterialTheme.typography.titleLarge)
         Text(target.eventTitle ?: target.dayLabel, style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
         if (target.kinds.size > 1) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -108,27 +110,27 @@ fun ProposeChangeForm(target: ProposalTarget, onSend: (ProposalDraft) -> Unit, o
             ProposalKind.EDIT -> OutlinedTextField(
                 value = start,
                 onValueChange = { start = it },
-                label = { Text("New start (HH:mm, optional)") },
+                label = { Text(tr(Txt.PROPOSE_NEW_START)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
-            ProposalKind.REMOVE -> Text("The organizer removes it from the plan if they agree.", style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
+            ProposalKind.REMOVE -> Text(tr(Txt.PROPOSE_REMOVE_HINT), style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
             ProposalKind.ADD -> {
-                OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Title") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text(tr(Txt.PROPOSE_FIELD_TITLE)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(value = start, onValueChange = { start = it }, label = { Text("Start (HH:mm)") }, singleLine = true, modifier = Modifier.weight(1f))
-                    OutlinedTextField(value = end, onValueChange = { end = it }, label = { Text("End (optional)") }, singleLine = true, modifier = Modifier.weight(1f))
+                    OutlinedTextField(value = start, onValueChange = { start = it }, label = { Text(tr(Txt.PROPOSE_FIELD_START)) }, singleLine = true, modifier = Modifier.weight(1f))
+                    OutlinedTextField(value = end, onValueChange = { end = it }, label = { Text(tr(Txt.PROPOSE_FIELD_END)) }, singleLine = true, modifier = Modifier.weight(1f))
                 }
-                OutlinedTextField(value = place, onValueChange = { place = it }, label = { Text("Place") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = place, onValueChange = { place = it }, label = { Text(tr(Txt.PROPOSE_FIELD_PLACE)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
             }
         }
-        OutlinedTextField(value = note, onValueChange = { note = it }, label = { Text("Why") }, minLines = 2, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = note, onValueChange = { note = it }, label = { Text(tr(Txt.PROPOSE_FIELD_WHY)) }, minLines = 2, modifier = Modifier.fillMaxWidth())
         if (problem != null && note.isNotBlank()) Text(problem, style = MaterialTheme.typography.bodySmall, color = c.warning)
         Row {
             Spacer(Modifier.weight(1f))
-            TextButton(onClick = onCancel) { Text("Cancel") }
+            TextButton(onClick = onCancel) { Text(tr(Txt.COMMON_CANCEL)) }
             Spacer(Modifier.width(4.dp))
-            TextButton(onClick = { onSend(draft) }, enabled = problem == null) { Text("Send") }
+            TextButton(onClick = { onSend(draft) }, enabled = problem == null) { Text(tr(Txt.COMMON_SEND)) }
         }
     }
 }

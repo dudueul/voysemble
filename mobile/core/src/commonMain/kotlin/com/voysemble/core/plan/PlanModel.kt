@@ -8,6 +8,9 @@
 package com.voysemble.core.plan
 
 import com.voysemble.core.api.ItineraryDto
+import com.voysemble.core.i18n.Txt
+import com.voysemble.core.i18n.tr
+import com.voysemble.core.i18n.trf
 import com.voysemble.core.today.TodayEvent
 import com.voysemble.core.today.dateLabelOf
 import com.voysemble.core.today.epochDayOf
@@ -81,7 +84,7 @@ public fun TripPlan.initialDayIndex(date: String): Int {
 
 /** "Revision 3 · published 20 Dec" style line without a date library: the day part of the ISO instant. */
 public fun TripPlan.revisionLine(): String = when {
-    revision <= 0 -> "Not published yet"
-    publishedAt == null -> "Revision $revision"
-    else -> "Revision $revision · published ${publishedAt.take(10)}"
+    revision <= 0 -> tr(Txt.PLAN_NOT_PUBLISHED)
+    publishedAt == null -> trf(Txt.PLAN_REVISION_ONLY, revision)
+    else -> trf(Txt.PLAN_REVISION, revision, publishedAt.take(10))
 }

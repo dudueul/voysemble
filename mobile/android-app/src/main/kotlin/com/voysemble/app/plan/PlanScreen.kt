@@ -6,6 +6,9 @@
 
 package com.voysemble.app.plan
 
+import com.voysemble.core.i18n.Txt
+import com.voysemble.core.i18n.tr
+import com.voysemble.core.i18n.trf
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -85,14 +88,14 @@ fun PlanScreen(
         item {
             ScreenHeader(
                 eyebrow = plan.tripName,
-                title = "Plan",
+                title = tr(Txt.PLAN_TITLE),
                 subtitle = plan.revisionLine() + when (val m = plan.minutesSinceSync) {
                     null -> ""
-                    0 -> " · Synced just now"
-                    else -> " · Synced $m min ago"
+                    0 -> " · " + tr(Txt.COMMON_SYNCED_JUST_NOW)
+                    else -> " · " + trf(Txt.COMMON_SYNCED_MIN_AGO, m)
                 },
                 onBack = null,
-            ) { if (!state.live) SampleDataChip() else LabelChip(if (state.syncing) "Syncing" else "Live", c.info, AppIcons.Check) }
+            ) { if (!state.live) SampleDataChip() else LabelChip(if (state.syncing) tr(Txt.COMMON_SYNCING) else tr(Txt.COMMON_LIVE), c.info, AppIcons.Check) }
         }
         state.error?.let { item { Text(it, style = MaterialTheme.typography.bodyMedium, color = c.danger) } }
         if (plan.offline) {
@@ -103,14 +106,14 @@ fun PlanScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(AppIcons.Offline, contentDescription = null, tint = c.warning, modifier = Modifier.size(18.dp))
-                    Text("Offline. Showing the last synced plan.", style = MaterialTheme.typography.bodyMedium, color = c.warning)
+                    Text(tr(Txt.COMMON_OFFLINE_LAST_PLAN), style = MaterialTheme.typography.bodyMedium, color = c.warning)
                 }
             }
         }
         if (plan.days.isEmpty()) {
             item {
                 Text(
-                    if (state.live && state.syncing) "Loading the plan…" else "No published plan yet. The organizer publishes it from the console.",
+                    if (state.live && state.syncing) tr(Txt.PLAN_LOADING) else tr(Txt.PLAN_NONE),
                     style = MaterialTheme.typography.bodyMedium,
                     color = c.textMuted,
                 )
@@ -124,18 +127,18 @@ fun PlanScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(day.label, style = MaterialTheme.typography.titleLarge)
-                        Text("${day.dateLabel} · ${day.timeZoneLabel} · Day ${day.dayNumber}", style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
+                        Text(trf(Txt.PLAN_DAY_META, day.dateLabel, day.timeZoneLabel, day.dayNumber), style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
                     }
                     if (state.canPropose) {
                         OutlinedButton(onClick = { onPropose(ProposalTarget.forDay(day)) }, enabled = state.proposal?.sending != true, shape = MaterialTheme.shapes.small) {
-                            Text("Propose an event")
+                            Text(tr(Txt.PLAN_PROPOSE_EVENT))
                         }
                     }
                 }
             }
             state.proposal?.let { p -> item { ProposalLine(p, onDismissProposal) } }
             if (day.events.isEmpty()) {
-                item { Text("Nothing planned for this day yet.", style = MaterialTheme.typography.bodyMedium, color = c.textMuted) }
+                item { Text(tr(Txt.PLAN_NOTHING), style = MaterialTheme.typography.bodyMedium, color = c.textMuted) }
             }
             items(day.events, key = { it.id }) { e ->
                 Column {
@@ -144,8 +147,8 @@ fun PlanScreen(
                         TextButton(
                             onClick = { onPropose(ProposalTarget.forEvent(e, day.label, day.date, day.timeZone)) },
                             enabled = state.proposal?.sending != true,
-                            modifier = Modifier.semantics { contentDescription = "Propose a change to ${e.title}" },
-                        ) { Text("Propose a change") }
+                            modifier = Modifier.semantics { contentDescription = trf(Txt.PLAN_PROPOSE_CHANGE_A11Y, e.title) },
+                        ) { Text(tr(Txt.TODAY_PROPOSE_CHANGE)) }
                     }
                 }
             }
@@ -162,8 +165,8 @@ private fun DayChips(days: List<PlanDay>, selected: Int, onSelect: (Int) -> Unit
             FilterChip(
                 selected = i == selected,
                 onClick = { onSelect(i) },
-                label = { Text("D${d.dayNumber} · ${d.label}") },
-                modifier = Modifier.semantics { contentDescription = "Open ${d.label}, ${d.dateLabel}" },
+                label = { Text(trf(Txt.PLAN_DAY_CHIP, d.dayNumber, d.label)) },
+                modifier = Modifier.semantics { contentDescription = trf(Txt.PLAN_OPEN_DAY_A11Y, d.label, d.dateLabel) },
             )
         }
     }
@@ -176,14 +179,14 @@ private fun ProposalLine(p: ProposalState, onDismiss: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             when {
-                p.sending -> "Sending proposal…"
+                p.sending -> tr(Txt.TODAY_SENDING_PROPOSAL)
                 p.sent -> proposalSentMessage(p.kind)
-                else -> p.error ?: "Could not send the proposal."
+                else -> p.error ?: tr(Txt.PROPOSAL_FAILED_GENERIC)
             },
             style = MaterialTheme.typography.bodyMedium,
             color = if (p.sent || p.sending) c.success else c.warning,
             modifier = Modifier.weight(1f),
         )
-        if (!p.sending) TextButton(onClick = onDismiss) { Text("OK") }
+        if (!p.sending) TextButton(onClick = onDismiss) { Text(tr(Txt.COMMON_OK)) }
     }
 }

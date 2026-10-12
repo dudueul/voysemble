@@ -6,6 +6,9 @@
 
 package com.voysemble.app.chat
 
+import com.voysemble.core.i18n.Txt
+import com.voysemble.core.i18n.tr
+import com.voysemble.core.i18n.trf
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -76,15 +79,15 @@ fun ChannelList(state: ChatsUiState, onOpen: (String) -> Unit) {
     ) {
         item {
             ScreenHeader(
-                eyebrow = "Chats",
-                title = if (unread == 0) "All caught up" else "$unread unread",
-                subtitle = "Fixed channels: everyone, your group, your leaders. No one-to-one between travelers.",
+                eyebrow = tr(Txt.CHAT_EYEBROW),
+                title = if (unread == 0) tr(Txt.CHAT_CAUGHT_UP) else trf(Txt.CHAT_UNREAD, unread),
+                subtitle = tr(Txt.CHAT_RULE),
                 onBack = null,
-            ) { if (!state.live) SampleDataChip() else LabelChip(if (state.syncing) "Syncing" else "Live", c.info, AppIcons.Check) }
+            ) { if (!state.live) SampleDataChip() else LabelChip(if (state.syncing) tr(Txt.COMMON_SYNCING) else tr(Txt.COMMON_LIVE), c.info, AppIcons.Check) }
         }
         state.error?.let { item { Text(it, style = MaterialTheme.typography.bodyMedium, color = c.danger) } }
         if (state.channels.isEmpty() && state.live && !state.syncing) {
-            item { Text("No channels yet. They appear once the roster has groups and leaders.", style = MaterialTheme.typography.bodyMedium, color = c.textMuted) }
+            item { Text(tr(Txt.CHAT_NONE), style = MaterialTheme.typography.bodyMedium, color = c.textMuted) }
         }
         items(state.channels, key = { it.id }) { ch -> ChannelRow(ch, onOpen) }
     }
@@ -96,7 +99,7 @@ private fun ChannelRow(ch: ChatChannel, onOpen: (String) -> Unit) {
     VyCard(
         Modifier
             .clickable { onOpen(ch.id) }
-            .semantics { contentDescription = "Open chat ${ch.title}" },
+            .semantics { contentDescription = trf(Txt.CHAT_OPEN_A11Y, ch.title) },
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Box(Modifier.size(36.dp).background(c.action.copy(alpha = 0.12f), CircleShape), contentAlignment = Alignment.Center) {
@@ -110,7 +113,7 @@ private fun ChannelRow(ch: ChatChannel, onOpen: (String) -> Unit) {
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(ch.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    if (ch.unread > 0) LabelChip("${ch.unread} new", c.action)
+                    if (ch.unread > 0) LabelChip(trf(Txt.CHAT_NEW, ch.unread), c.action)
                 }
                 Text(ch.lastPreview ?: ch.subtitle, style = MaterialTheme.typography.bodyMedium, color = c.textMuted, maxLines = 1)
             }
@@ -138,13 +141,13 @@ fun ThreadScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             item {
-                ScreenHeader(eyebrow = "Chat", title = thread.channel.title, subtitle = thread.channel.subtitle, onBack = onBack) {
-                    if (!live) SampleDataChip() else LabelChip(if (syncing) "Syncing" else if (thread.offline) "Offline" else "Live", if (thread.offline) c.warning else c.info, AppIcons.Check)
+                ScreenHeader(eyebrow = tr(Txt.CHAT_ONE), title = thread.channel.title, subtitle = thread.channel.subtitle, onBack = onBack) {
+                    if (!live) SampleDataChip() else LabelChip(if (syncing) tr(Txt.COMMON_SYNCING) else if (thread.offline) tr(Txt.COMMON_OFFLINE) else tr(Txt.COMMON_LIVE), if (thread.offline) c.warning else c.info, AppIcons.Check)
                 }
             }
             error?.let { item { Text(it, style = MaterialTheme.typography.bodyMedium, color = c.danger) } }
             if (thread.messages.isEmpty()) {
-                item { Text("No messages yet. Say hello.", style = MaterialTheme.typography.bodyMedium, color = c.textMuted) }
+                item { Text(tr(Txt.CHAT_NO_MESSAGES), style = MaterialTheme.typography.bodyMedium, color = c.textMuted) }
             }
             items(thread.messages, key = { it.id }) { m -> Bubble(m, onRetry) }
         }
@@ -156,8 +159,8 @@ fun ThreadScreen(
             OutlinedTextField(
                 value = draft,
                 onValueChange = { draft = it.take(1000) },
-                placeholder = { Text("Message") },
-                modifier = Modifier.weight(1f).semantics { contentDescription = "Message" },
+                placeholder = { Text(tr(Txt.CHAT_MESSAGE)) },
+                modifier = Modifier.weight(1f).semantics { contentDescription = tr(Txt.CHAT_MESSAGE) },
                 maxLines = 4,
             )
             Button(
@@ -165,7 +168,7 @@ fun ThreadScreen(
                 enabled = draft.isNotBlank(),
                 colors = ButtonDefaults.buttonColors(containerColor = c.action, contentColor = c.onAction),
                 shape = MaterialTheme.shapes.small,
-            ) { Text("Send") }
+            ) { Text(tr(Txt.COMMON_SEND)) }
         }
     }
 }
@@ -186,8 +189,8 @@ private fun Bubble(m: ChatMessage, onRetry: (String) -> Unit) {
             Spacer(Modifier.height(2.dp))
             Text(
                 when {
-                    m.failed -> "Not sent · tap to retry"
-                    m.pending -> "Sending…"
+                    m.failed -> tr(Txt.CHAT_NOT_SENT)
+                    m.pending -> tr(Txt.CHAT_SENDING)
                     else -> m.sentAt
                 },
                 style = MaterialTheme.typography.labelSmall,

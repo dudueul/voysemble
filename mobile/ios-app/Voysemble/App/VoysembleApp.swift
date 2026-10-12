@@ -9,6 +9,11 @@ import VoysembleCore
 struct VoysembleApp: App {
     @StateObject private var session = SessionModel()
 
+    init() {
+        // Slice 039: the phone's language decides the app's (Korean or English), once per launch.
+        AppLocale.shared.set(languageTag: Locale.preferredLanguages.first ?? "en")
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView(session: session)

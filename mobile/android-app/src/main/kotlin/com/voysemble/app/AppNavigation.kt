@@ -8,6 +8,9 @@
 
 package com.voysemble.app
 
+import com.voysemble.core.i18n.Txt
+import com.voysemble.core.i18n.tr
+import com.voysemble.core.i18n.trf
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -168,6 +171,6 @@ private fun TabHost(today: TodayViewModel, content: @Composable () -> Unit) {
 @Composable
 private fun NotBuilt(name: String) {
     Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-        Text("$name is not built yet. Status in feature-status.json is \"deferred\".", style = MaterialTheme.typography.bodyLarge)
+        Text(trf(Txt.COMMON_NOT_BUILT, name) + " " + tr(Txt.COMMON_NOT_BUILT_STATUS), style = MaterialTheme.typography.bodyLarge)
     }
 }

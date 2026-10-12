@@ -27,7 +27,7 @@ final class ChatsModel: ObservableObject {
         trip: ActiveTrip? = nil,
         deviceClock: @escaping () -> String = { Clocks.now() },
         newId: @escaping () -> String = { "local-\(UUID().uuidString)" },
-        senderName: String = "Me"
+        senderName: String = tr(.commonMe)
     ) {
         self.api = api
         self.trip = trip
@@ -68,7 +68,7 @@ final class ChatsModel: ObservableObject {
                     open = thread.mergeRemote(channel: list.channel.toChatChannel(clock: Clocks.localTime), remote: list.messages.map { $0.toChatMessage(clock: Clocks.localTime) })
                     error = nil
                 } else if let failed = r as? ApiResultFailed {
-                    error = failed.status == 403 ? "You are not in this channel." : "Could not load the messages (\(failed.error.code))."
+                    error = failed.status == 403 ? tr(.chatNotMember) : tr1(.chatMessagesFailed, failed.error.code)
                 } else {
                     open = ChatThread(channel: thread.channel, messages: thread.messages, offline: true)
                 }
@@ -78,13 +78,13 @@ final class ChatsModel: ObservableObject {
                     channels = list.channels.map { $0.toChatChannel(clock: Clocks.localTime) }
                     error = nil
                 } else if let failed = r as? ApiResultFailed {
-                    error = "Could not load chats (\(failed.error.code))."
+                    error = tr1(.chatLoadFailed, failed.error.code)
                 } else {
-                    error = "Offline. Showing what was last loaded."
+                    error = tr(.chatOffline)
                 }
             }
         } catch {
-            if let thread = open { open = ChatThread(channel: thread.channel, messages: thread.messages, offline: true) } else { self.error = "Offline. Showing what was last loaded." }
+            if let thread = open { open = ChatThread(channel: thread.channel, messages: thread.messages, offline: true) } else { self.error = tr(.chatOffline) }
         }
     }
 
@@ -119,7 +119,7 @@ final class ChatsModel: ObservableObject {
                 open = open?.confirm(localId: localId, server: dto.toChatMessage(clock: Clocks.localTime))
             } else if let failed = r as? ApiResultFailed {
                 open = open?.fail(localId: localId, offline: false)
-                error = failed.status == 403 ? "You are not in this channel." : "The server refused the message (\(failed.error.code))."
+                error = failed.status == 403 ? tr(.chatNotMember) : tr1(.chatRefused, failed.error.code)
             } else {
                 open = open?.fail(localId: localId, offline: true)
             }
@@ -153,10 +153,10 @@ struct ChatsView: View {
         List {
             Section {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("CHATS").font(.caption).foregroundStyle(.secondary)
-                    Text(model.unreadTotal == 0 ? "All caught up" : "\(model.unreadTotal) unread").font(.largeTitle.bold())
-                    Text("Fixed channels: everyone, your group, your leaders. No one-to-one between travelers.").font(.caption).foregroundStyle(.secondary)
-                    Text(model.live ? (model.syncing ? "Syncing" : "Live") : "Sample data").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                    Text(tr(.chatEyebrow).uppercased()).font(.caption).foregroundStyle(.secondary)
+                    Text(model.unreadTotal == 0 ? tr(.chatCaughtUp) : tr1(.chatUnread, model.unreadTotal)).font(.largeTitle.bold())
+                    Text(tr(.chatRule)).font(.caption).foregroundStyle(.secondary)
+                    Text(model.live ? (model.syncing ? tr(.commonSyncing) : tr(.commonLive)) : tr(.commonSampleData)).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
                     if let error = model.error { Text(error).font(.caption).foregroundStyle(.red) }
                 }
             }
@@ -172,7 +172,7 @@ struct ChatsView: View {
                                 HStack(spacing: 6) {
                                     Text(ch.title).font(.headline)
                                     if ch.unread > 0 {
-                                        Text("\(ch.unread) new").font(.caption2.weight(.semibold))
+                                        Text(tr1(.chatNew, ch.unread)).font(.caption2.weight(.semibold))
                                             .foregroundStyle(Color(argb: Tokens.Color.Light.action))
                                             .voyChip(tint: Color(argb: Tokens.Color.Light.action))
                                     }
@@ -183,11 +183,11 @@ struct ChatsView: View {
                             if let at = ch.lastAt { Text(at).font(.caption).foregroundStyle(.secondary) }
                         }
                     }
-                    .accessibilityLabel("Open chat \(ch.title)")
+                    .accessibilityLabel(tr1(.chatOpenA11y, ch.title))
                 }
             }
         }
-        .navigationTitle("Chats")
+        .navigationTitle(tr(.chatEyebrow))
     }
 }
 
@@ -205,7 +205,7 @@ private struct ThreadView: View {
                     Text(thread.channel.subtitle).font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
-                Text(model.live ? (thread.offline ? "Offline" : (model.syncing ? "Syncing" : "Live")) : "Sample data")
+                Text(model.live ? (thread.offline ? tr(.commonOffline) : (model.syncing ? tr(.commonSyncing) : tr(.commonLive))) : tr(.commonSampleData))
                     .font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
             }
             .padding()
@@ -213,15 +213,15 @@ private struct ThreadView: View {
             ScrollView {
                 LazyVStack(spacing: 8) {
                     if thread.messages.isEmpty {
-                        Text("No messages yet. Say hello.").font(.subheadline).foregroundStyle(.secondary)
+                        Text(tr(.chatNoMessages)).font(.subheadline).foregroundStyle(.secondary)
                     }
                     ForEach(thread.messages, id: \.id) { m in bubble(m) }
                 }
                 .padding(.horizontal)
             }
             HStack(spacing: 8) {
-                TextField("Message", text: $draft, axis: .vertical).textFieldStyle(.roundedBorder).lineLimit(1...4)
-                Button("Send") {
+                TextField(tr(.chatMessage), text: $draft, axis: .vertical).textFieldStyle(.roundedBorder).lineLimit(1...4)
+                Button(tr(.commonSend)) {
                     let text = draft
                     draft = ""
                     Task { await model.send(text) }
@@ -239,7 +239,7 @@ private struct ThreadView: View {
             VStack(alignment: .leading, spacing: 2) {
                 if !m.mine { Text(m.senderName).font(.caption2).foregroundStyle(.secondary) }
                 Text(m.body).font(.body)
-                Text(m.failed ? "Not sent · tap to retry" : (m.pending ? "Sending…" : m.sentAt))
+                Text(m.failed ? tr(.chatNotSent) : (m.pending ? tr(.chatSending) : m.sentAt))
                     .font(.caption2).foregroundStyle(m.failed ? .red : (m.mine ? .white.opacity(0.8) : .secondary))
             }
             .padding(.horizontal, 12).padding(.vertical, 8)

@@ -5,6 +5,9 @@
 
 package com.voysemble.app.session
 
+import com.voysemble.core.i18n.Txt
+import com.voysemble.core.i18n.tr
+import com.voysemble.core.i18n.trf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.voysemble.core.api.ApiResult
@@ -42,16 +45,16 @@ class SessionViewModel(private val manager: SessionManager) : ViewModel() {
     fun requestLink(email: String, locale: String = "ko"): Job = run {
         when (val r = manager.requestLink(email, locale)) {
             is ApiResult.Ok -> Unit
-            is ApiResult.Failed -> fail("${r.error.message} (ref ${r.error.correlationId})")
-            is ApiResult.Unreachable -> fail("Could not reach the server. Check your connection.")
+            is ApiResult.Failed -> fail(trf(Txt.AUTH_REF, r.error.message, r.error.correlationId))
+            is ApiResult.Unreachable -> fail(tr(Txt.AUTH_UNREACHABLE))
         }
     }
 
     fun verify(linkOrToken: String): Job = run {
         when (val r = manager.verify(linkOrToken)) {
             is ApiResult.Ok -> Unit
-            is ApiResult.Failed -> fail(if (r.status == 401) "This link does not work any more. Request a new one." else "${r.error.message} (ref ${r.error.correlationId})")
-            is ApiResult.Unreachable -> fail(if (r.reason == "no-token") "Paste the whole link from the email." else "Could not reach the server. Check your connection.")
+            is ApiResult.Failed -> fail(if (r.status == 401) tr(Txt.AUTH_LINK_DEAD) else "${r.error.message} (ref ${r.error.correlationId})")
+            is ApiResult.Unreachable -> fail(if (r.reason == "no-token") tr(Txt.AUTH_PASTE_WHOLE) else tr(Txt.AUTH_UNREACHABLE))
         }
     }
 
@@ -60,12 +63,12 @@ class SessionViewModel(private val manager: SessionManager) : ViewModel() {
             is ApiResult.Ok -> Unit
             is ApiResult.Failed -> fail(
                 when (r.status) {
-                    404 -> "That code is not valid or has expired."
-                    409 -> "That code was already used."
-                    else -> "${r.error.message} (ref ${r.error.correlationId})"
+                    404 -> tr(Txt.AUTH_CODE_INVALID)
+                    409 -> tr(Txt.AUTH_CODE_USED)
+                    else -> trf(Txt.AUTH_REF, r.error.message, r.error.correlationId)
                 },
             )
-            is ApiResult.Unreachable -> fail("Could not reach the server. Check your connection.")
+            is ApiResult.Unreachable -> fail(tr(Txt.AUTH_UNREACHABLE))
         }
     }
 

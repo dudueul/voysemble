@@ -34,14 +34,14 @@ struct TodayView: View {
 
     var body: some View {
         TabView(selection: $model.tab) {
-            todayTab.tabItem { Label("Today", systemImage: "calendar") }.tag(MainTab.today)
+            todayTab.tabItem { Label(tr(.tabToday), systemImage: "calendar") }.tag(MainTab.today)
             NavigationStack { PlanView(model: plan) }
-                .tabItem { Label("Plan", systemImage: "list.bullet.rectangle") }.tag(MainTab.plan)
+                .tabItem { Label(tr(.tabPlan), systemImage: "list.bullet.rectangle") }.tag(MainTab.plan)
             NavigationStack { BulletinView(model: bulletin) }
-                .tabItem { Label("Bulletin", systemImage: "bell") }.tag(MainTab.bulletin)
+                .tabItem { Label(tr(.tabBulletin), systemImage: "bell") }.tag(MainTab.bulletin)
             NavigationStack { ChatsView(model: chats) }
-                .tabItem { Label("Chats", systemImage: "bubble.left") }.tag(MainTab.chats)
-            placeholder("Memories").tabItem { Label("Memories", systemImage: "photo.on.rectangle") }.tag(MainTab.memories)
+                .tabItem { Label(tr(.tabChats), systemImage: "bubble.left") }.tag(MainTab.chats)
+            placeholder(tr(.tabMemories)).tabItem { Label(tr(.tabMemories), systemImage: "photo.on.rectangle") }.tag(MainTab.memories)
         }
         .tint(Color(argb: Tokens.Color.Light.brand))
         .voyTabBarMinimizes()
@@ -74,15 +74,15 @@ struct TodayView: View {
                         HeadcountCard(groups: s.headcount, checkedIn: Int(s.checkedIn), expected: Int(s.expected))
                         // Slice 009: leader and traveler screens reachable from Today, as on Android.
                         HStack {
-                            NavigationLink("Open head count") { HeadcountView(model: headcount) }
+                            NavigationLink(tr(.todayOpenHeadCount)) { HeadcountView(model: headcount) }
                             Spacer()
-                            NavigationLink("Meeting window") { MeetingWindowView(model: window) }
+                            NavigationLink(tr(.todayMeetingWindow)) { MeetingWindowView(model: window) }
                             Spacer()
-                            NavigationLink("Incidents") { IncidentsView(model: incidents) }
+                            NavigationLink(tr(.todayIncidents)) { IncidentsView(model: incidents) }
                         }
                         .font(.subheadline.weight(.semibold))
                     }
-                    Text("Later today").font(.headline).padding(.top, 4)
+                    Text(tr(.todayLater)).font(.headline).padding(.top, 4)
                     ForEach(s.later, id: \.id) { EventRow(event: $0) }
                 }
                 .padding(16)
@@ -103,10 +103,10 @@ struct TodayView: View {
 
     private func header(_ s: TodaySnapshot) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("\(s.tripName.uppercased()) · DAY \(s.dayNumber)")
+            Text(tr2(.todayEyebrow, s.tripName.uppercased(), s.dayNumber))
                 .font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
             HStack {
-                Text("Today").font(.largeTitle.bold())
+                Text(tr(.todayTitle)).font(.largeTitle.bold())
                 Spacer()
                 statusChip
             }
@@ -126,22 +126,22 @@ struct TodayView: View {
     /// "Live" / "Syncing" with the API; "Sample data" on the fixture, as on Android.
     private var statusChip: some View {
         let (label, color): (String, UInt32) = model.live
-            ? (model.syncing ? ("Syncing", Tokens.Color.Light.warning) : ("Live", Tokens.Color.Light.success))
-            : ("Sample data", Tokens.Color.Light.pending)
+            ? (model.syncing ? (tr(.commonSyncing), Tokens.Color.Light.warning) : (tr(.commonLive), Tokens.Color.Light.success))
+            : (tr(.commonSampleData), Tokens.Color.Light.pending)
         return Text(label).font(.caption2.weight(.semibold))
             .foregroundStyle(Color(argb: color))
             .voyChip(tint: Color(argb: color))
     }
 
     private func syncText(_ minutes: KotlinInt?) -> String {
-        guard let m = minutes?.intValue else { return "Not synced yet" }
-        return m == 0 ? "Synced just now" : "Synced \(m) min ago"
+        guard let m = minutes?.intValue else { return tr(.commonNotSyncedYet) }
+        return m == 0 ? tr(.commonSyncedJustNow) : tr1(.commonSyncedMinAgo, m)
     }
 
     private var offlineBanner: some View {
         HStack(spacing: 8) {
             Image(systemName: "wifi.slash")
-            Text("Offline. Showing the last synced plan.")
+            Text(tr(.commonOfflineLastPlan))
         }
         .font(.subheadline.weight(.semibold))
         .foregroundStyle(Color(argb: Tokens.Color.Light.warning))
@@ -152,8 +152,8 @@ struct TodayView: View {
 
     private func placeholder(_ name: String) -> some View {
         VStack(spacing: 8) {
-            Text("\(name) is not built yet").font(.headline)
-            Text("Status in feature-status.json is \"deferred\".").foregroundStyle(.secondary)
+            Text(tr1(.commonNotBuilt, name)).font(.headline)
+            Text(tr(.commonNotBuiltStatus)).foregroundStyle(.secondary)
         }
     }
 }
@@ -167,7 +167,7 @@ private struct UpNextCard: View {
     var onDismiss: () -> Void = {}
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("UP NEXT").font(.caption2.weight(.semibold)).opacity(0.8)
+            Text(tr(.todayUpNext)).font(.caption2.weight(.semibold)).opacity(0.8)
             Text(event.title).font(.title3.bold())
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(event.end.map { "\(event.start) – \($0)" } ?? event.start).font(.largeTitle.bold())
@@ -180,22 +180,22 @@ private struct UpNextCard: View {
                 HStack(spacing: 10) {
                     Button {
                     } label: {
-                        Label(event.isMeetingPoint ? "Meeting point" : "Directions", systemImage: "map")
+                        Label(event.isMeetingPoint ? tr(.todayMeetingPoint) : tr(.todayDirections), systemImage: "map")
                     }
                     .voyOverlayButton()
                     if canPropose {
                         Button {
                             onPropose()
                         } label: {
-                            Text(proposal?.sending == true ? "Sending proposal…"
+                            Text(proposal?.sending == true ? tr(.todaySendingProposal)
                                 : proposal?.sent == true ? ProposalDraftKt.proposalSentMessage(kind: proposal?.kind ?? ProposalKind.edit)
-                                : "Propose a change")
+                                : tr(.todayProposeChange))
                                 .font(.subheadline.weight(.semibold))
                         }
                         .voyOverlayButton()
                         .disabled(proposal?.sending == true)
                         if let p = proposal, !p.sending {
-                            Button("OK") { onDismiss() }.font(.subheadline.weight(.semibold)).voyOverlayButton()
+                            Button(tr(.commonOk)) { onDismiss() }.font(.subheadline.weight(.semibold)).voyOverlayButton()
                         }
                     }
                 }
@@ -208,7 +208,7 @@ private struct UpNextCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 16).fill(Color(argb: Tokens.Color.Light.action)))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Up next: \(event.title) at \(event.start)")
+        .accessibilityLabel(tr2(.todayUpNextA11y, event.title, event.start))
     }
 }
 
@@ -218,7 +218,7 @@ private struct AnnouncementCard: View {
     var body: some View {
         Card {
             HStack {
-                Text("LATEST UPDATE").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                Text(tr(.todayLatestUpdate)).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
                 Spacer()
                 Text("\(announcement.author) · \(announcement.publishedAt)").font(.subheadline).foregroundStyle(.secondary)
             }
@@ -227,15 +227,15 @@ private struct AnnouncementCard: View {
             HStack(spacing: 10) {
                 switch announcement.ack {
                 case .unacknowledged:
-                    Button("Acknowledge") { onAcknowledge(announcement.id) }
+                    Button(tr(.todayAcknowledge)) { onAcknowledge(announcement.id) }
                         .buttonStyle(.borderedProminent)
                         .tint(Color(argb: Tokens.Color.Light.action))
                 case .pending:
-                    Label("Queued · sends when online", systemImage: "clock").font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
+                    Label(tr(.todayQueued), systemImage: "clock").font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
                 case .acknowledged:
-                    Label("Acknowledged", systemImage: "checkmark").font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
+                    Label(tr(.todayAcknowledged), systemImage: "checkmark").font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
                 }
-                Text("\(announcement.acknowledgedCount)/\(announcement.totalCount) acknowledged").font(.subheadline).foregroundStyle(.secondary)
+                Text(tr2(.todayAckCount, announcement.acknowledgedCount, announcement.totalCount)).font(.subheadline).foregroundStyle(.secondary)
             }
             .padding(.top, 10)
         }
@@ -255,20 +255,20 @@ private struct GuardianCareCard: View {
         let reveals = Int(status?.reveals ?? 0)
         Card {
             HStack {
-                Text("CARE NOTE").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                Text(tr(.todayCareNote)).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
                 Spacer()
-                Text(onFile ? "On file · \(reveals) \(reveals == 1 ? "reveal" : "reveals")" : "Not on file").font(.subheadline.weight(.semibold))
+                Text(onFile ? tr1(.todayCareOnFile, reveals) : tr(.todayCareNotOnFile)).font(.subheadline.weight(.semibold))
             }
             if let draft = model.careDraft {
-                TextField("Allergies", text: $allergies).textFieldStyle(.roundedBorder)
-                TextField("Medications", text: $medications).textFieldStyle(.roundedBorder)
-                TextField("Anything else a leader should know", text: $freeText, axis: .vertical).textFieldStyle(.roundedBorder)
+                TextField(tr(.todayCareAllergies), text: $allergies).textFieldStyle(.roundedBorder)
+                TextField(tr(.todayCareMedications), text: $medications).textFieldStyle(.roundedBorder)
+                TextField(tr(.todayCareFreeText), text: $freeText, axis: .vertical).textFieldStyle(.roundedBorder)
                 HStack {
-                    Button(model.careSaving ? "Saving…" : "Save care note") {
+                    Button(model.careSaving ? tr(.todayCareSaving) : tr(.todayCareSave)) {
                         Task { await model.saveCare(CareNoteDto(allergies: allergies, medications: medications, freeText: freeText)) }
                     }
                     .buttonStyle(.borderedProminent).disabled(model.careSaving)
-                    Button("Cancel") { model.cancelCare() }.buttonStyle(.bordered).disabled(model.careSaving)
+                    Button(tr(.commonCancel)) { model.cancelCare() }.buttonStyle(.bordered).disabled(model.careSaving)
                 }
                 .onAppear {
                     allergies = draft.allergies
@@ -277,10 +277,10 @@ private struct GuardianCareCard: View {
                 }
             } else {
                 Text(onFile
-                    ? "Allergies, medications and what a leader should know. Sealed; only your traveler's leaders and the organizer can reveal it, and every reveal is recorded."
-                    : "Add allergies, medications and anything a leader should know in one tap at lunch. Sealed on the server; never kept on a phone.")
+                    ? tr(.todayCareSealedIntro)
+                    : tr(.todayCareAddIntro))
                     .font(.subheadline).foregroundStyle(.secondary).padding(.top, 4)
-                Button(onFile ? "Edit care note" : "Add care note") { Task { await model.editCare() } }
+                Button(onFile ? tr(.todayCareEdit) : tr(.todayCareAdd)) { Task { await model.editCare() } }
                     .buttonStyle(.bordered).padding(.top, 6)
             }
             if let message = model.careMessage {
@@ -302,7 +302,7 @@ private struct GuardianStatusCard: View {
         }()
         Card {
             HStack {
-                Text("YOUR TRAVELER").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                Text(tr(.todayYourTraveler)).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
                 Spacer()
                 Text([card.travelerName, card.groupName].compactMap { $0 }.joined(separator: " · ")).font(.subheadline.weight(.semibold))
             }
@@ -329,9 +329,9 @@ private struct HeadcountCard: View {
     var body: some View {
         Card {
             HStack {
-                Text("HEAD COUNT").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                Text(tr(.todayHeadCount)).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
                 Spacer()
-                Text("\(checkedIn) / \(expected) checked in").font(.subheadline.weight(.semibold))
+                Text(tr2(.todayCheckedIn, checkedIn, expected)).font(.subheadline.weight(.semibold))
             }
             ForEach(groups, id: \.label) { g in
                 let short = g.checkedIn < g.expected
@@ -339,7 +339,7 @@ private struct HeadcountCard: View {
                     Text(g.label).font(.subheadline).frame(width: 48, alignment: .leading)
                     ProgressView(value: Double(g.checkedIn), total: Double(max(g.expected, 1)))
                         .tint(Color(argb: short ? Tokens.Color.Light.warning : Tokens.Color.Light.action))
-                    Text(short ? "\(g.checkedIn)/\(g.expected) · \(g.expected - g.checkedIn) missing" : "\(g.checkedIn)/\(g.expected)")
+                    Text(short ? tr3(.todayGroupMissing, g.checkedIn, g.expected, g.expected - g.checkedIn) : "\(g.checkedIn)/\(g.expected)")
                         .font(.subheadline)
                 }
                 .padding(.top, 6)
@@ -390,11 +390,11 @@ struct StatusChip: View {
     var body: some View {
         let (label, color): (String, UInt32) = {
             switch status {
-            case .scheduled: return ("Scheduled", Tokens.Color.Light.textMuted)
-            case .inProgress: return ("Now", Tokens.Color.Light.action)
-            case .done: return ("Done", Tokens.Color.Light.success)
-            case .delayed: return ("Delayed", Tokens.Color.Light.warning)
-            case .cancelled: return ("Cancelled", Tokens.Color.Light.danger)
+            case .scheduled: return (tr(.statusScheduled), Tokens.Color.Light.textMuted)
+            case .inProgress: return (tr(.statusNow), Tokens.Color.Light.action)
+            case .done: return (tr(.statusDone), Tokens.Color.Light.success)
+            case .delayed: return (tr(.statusDelayed), Tokens.Color.Light.warning)
+            case .cancelled: return (tr(.statusCancelled), Tokens.Color.Light.danger)
             }
         }()
         Text(label).font(.caption2.weight(.semibold))

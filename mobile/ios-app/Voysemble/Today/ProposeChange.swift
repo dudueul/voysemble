@@ -28,7 +28,7 @@ struct ProposalTarget: Identifiable {
     let nextOrder: Int32
 
     /// Change or remove `event`; the day is unknown on Today's card and not needed for either.
-    static func forEvent(_ event: TodayEvent, dayLabel: String = "Today", date: String = "", timeZone: String = "") -> ProposalTarget {
+    static func forEvent(_ event: TodayEvent, dayLabel: String = tr(.proposeDayToday), date: String = "", timeZone: String = "") -> ProposalTarget {
         ProposalTarget(kinds: [.edit, .remove], eventId: event.id, eventTitle: event.title, dayLabel: dayLabel, date: date, timeZone: timeZone, nextOrder: 0)
     }
 
@@ -39,9 +39,9 @@ struct ProposalTarget: Identifiable {
 }
 
 func kindLabel(_ kind: ProposalKind) -> String {
-    if kind == ProposalKind.edit { return "Change time" }
-    if kind == ProposalKind.remove { return "Remove" }
-    return "Add event"
+    if kind == ProposalKind.edit { return tr(.proposeChangeTime) }
+    if kind == ProposalKind.remove { return tr(.proposeRemove) }
+    return tr(.proposeAddEvent)
 }
 
 /// Send a draft the rule accepted and map the answer to the card's line. Shared by Today and Plan.
@@ -99,34 +99,34 @@ struct ProposeChangeForm: View {
     var body: some View {
         let problem = ProposalDraftKt.proposalDraftProblem(d: draft)
         VStack(alignment: .leading, spacing: 10) {
-            Text(kind == ProposalKind.add ? "Propose an event" : "Propose a change").font(.title3.bold())
+            Text(kind == ProposalKind.add ? tr(.proposeTitleEvent) : tr(.todayProposeChange)).font(.title3.bold())
             Text(target.eventTitle ?? target.dayLabel).font(.subheadline).foregroundStyle(.secondary)
             if target.kinds.count > 1 {
-                Picker("Kind", selection: $kind) {
+                Picker(tr(.proposeKind), selection: $kind) {
                     ForEach(target.kinds, id: \.self) { k in Text(kindLabel(k)).tag(k) }
                 }
                 .pickerStyle(.segmented)
             }
             if kind == ProposalKind.edit {
-                TextField("New start (HH:mm, optional)", text: $start).textFieldStyle(.roundedBorder)
+                TextField(tr(.proposeNewStart), text: $start).textFieldStyle(.roundedBorder)
             } else if kind == ProposalKind.remove {
-                Text("The organizer removes it from the plan if they agree.").font(.subheadline).foregroundStyle(.secondary)
+                Text(tr(.proposeRemoveHint)).font(.subheadline).foregroundStyle(.secondary)
             } else {
-                TextField("Title", text: $title).textFieldStyle(.roundedBorder)
+                TextField(tr(.proposeFieldTitle), text: $title).textFieldStyle(.roundedBorder)
                 HStack {
-                    TextField("Start (HH:mm)", text: $start).textFieldStyle(.roundedBorder)
-                    TextField("End (optional)", text: $end).textFieldStyle(.roundedBorder)
+                    TextField(tr(.proposeFieldStart), text: $start).textFieldStyle(.roundedBorder)
+                    TextField(tr(.proposeFieldEnd), text: $end).textFieldStyle(.roundedBorder)
                 }
-                TextField("Place", text: $place).textFieldStyle(.roundedBorder)
+                TextField(tr(.proposeFieldPlace), text: $place).textFieldStyle(.roundedBorder)
             }
-            TextField("Why", text: $note, axis: .vertical).lineLimit(2...4).textFieldStyle(.roundedBorder)
+            TextField(tr(.proposeFieldWhy), text: $note, axis: .vertical).lineLimit(2...4).textFieldStyle(.roundedBorder)
             if let problem, !note.trimmingCharacters(in: .whitespaces).isEmpty {
                 Text(problem).font(.caption).foregroundStyle(Color(argb: Tokens.Color.Light.warning))
             }
             HStack {
                 Spacer()
-                Button("Cancel") { onCancel() }.buttonStyle(.bordered)
-                Button("Send") { onSend(draft) }.buttonStyle(.borderedProminent).disabled(problem != nil)
+                Button(tr(.commonCancel)) { onCancel() }.buttonStyle(.bordered)
+                Button(tr(.commonSend)) { onSend(draft) }.buttonStyle(.borderedProminent).disabled(problem != nil)
             }
         }
     }

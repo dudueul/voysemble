@@ -67,12 +67,12 @@ final class MeetingWindowModel: ObservableObject {
                 window = dto?.toMeetingWindow(selfId: trip.participationId, clock: { iso in Clocks.localTime(iso) })
                 if canOpen && !groupKnown { await loadOwnGroup(api, trip) }
             } else if let failed = r as? ApiResultFailed {
-                error = failed.status == 403 ? "Guardians do not take part in meeting windows." : "Could not load the meeting window (\(failed.error.code))."
+                error = failed.status == 403 ? tr(.winGuardiansNo) : tr1(.winLoadFailed, failed.error.code)
             } else {
-                error = "Offline. The window needs one connection."
+                error = tr(.winOffline)
             }
         } catch {
-            self.error = "Offline. The window needs one connection."
+            self.error = tr(.winOffline)
         }
     }
 
@@ -104,14 +104,14 @@ final class MeetingWindowModel: ObservableObject {
         error = nil
         defer { opening = false }
         guard let fix = await locationSource?.fix() else {
-            error = "Could not read this phone's position. Stand at the meeting point and allow location."
+            error = tr(.winNoFix)
             return
         }
         let start = Date()
         let f = ISO8601DateFormatter()
         let body = OpenWindowRequestDto(
-            label: label.trimmingCharacters(in: .whitespaces).isEmpty ? "Regroup" : label.trimmingCharacters(in: .whitespaces),
-            place: place.trimmingCharacters(in: .whitespaces).isEmpty ? "Meeting point" : place.trimmingCharacters(in: .whitespaces),
+            label: label.trimmingCharacters(in: .whitespaces).isEmpty ? tr(.winRegroup) : label.trimmingCharacters(in: .whitespaces),
+            place: place.trimmingCharacters(in: .whitespaces).isEmpty ? tr(.winMeetingPoint) : place.trimmingCharacters(in: .whitespaces),
             radiusMeters: Int32(min(max(radiusMeters, 25), 2000)),
             startsAt: f.string(from: start),
             endsAt: f.string(from: start.addingTimeInterval(Double(min(max(minutes, 5), 240)) * 60)),
@@ -124,12 +124,12 @@ final class MeetingWindowModel: ObservableObject {
                 current = dto
                 window = dto.toMeetingWindow(selfId: trip.participationId, clock: { iso in Clocks.localTime(iso) })
             } else if let failed = r as? ApiResultFailed {
-                error = failed.status == 403 ? "Only trip leaders open windows." : "The server refused the window (\(failed.error.code))."
+                error = failed.status == 403 ? tr(.winLeadersOnly) : tr1(.winRefused, failed.error.code)
             } else {
-                error = "Offline. A window needs one connection to open."
+                error = tr(.winOfflineOpen)
             }
         } catch {
-            self.error = "Offline. A window needs one connection to open."
+            self.error = tr(.winOfflineOpen)
         }
     }
 
@@ -138,9 +138,9 @@ final class MeetingWindowModel: ObservableObject {
         guard let api, let trip, let dto = current else { return }
         do {
             let r = try await api.closeWindow(orgId: trip.organizationId, tripId: trip.tripId, windowId: dto.id, correlationId: nil)
-            if r is ApiResultOk<MeetingWindowDto> { await refresh() } else { error = "Could not close the window." }
+            if r is ApiResultOk<MeetingWindowDto> { await refresh() } else { error = tr(.winCloseFailed) }
         } catch {
-            self.error = "Offline. The window closes itself at its end time."
+            self.error = tr(.winOfflineClose)
         }
     }
 
@@ -166,12 +166,12 @@ final class MeetingWindowModel: ObservableObject {
                 window = window?.withSelfState(state: WindowRulesKt.windowStateOf(wire: ok.state))
                 error = nil
             } else if let failed = r as? ApiResultFailed {
-                error = failed.status == 409 ? "This window has ended." : "The server refused the report (\(failed.error.code))."
+                error = failed.status == 409 ? tr(.winEnded) : tr1(.winReportRefused, failed.error.code)
             } else {
-                error = "Offline. Your state was not sent."
+                error = tr(.winOfflineReport)
             }
         } catch {
-            self.error = "Offline. Your state was not sent."
+            self.error = tr(.winOfflineReport)
         }
     }
 }
@@ -182,7 +182,7 @@ struct MeetingWindowView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                Text("MEETING WINDOW").font(.caption).foregroundStyle(.secondary)
+                Text(tr(.winEyebrow).uppercased()).font(.caption).foregroundStyle(.secondary)
                 if let w = model.window {
                     openWindow(w)
                 } else {
@@ -197,8 +197,8 @@ struct MeetingWindowView: View {
     /// "Live" / "Syncing" with the API; "Sample data" on the fixture, as on Android.
     private var statusChip: some View {
         let (label, color): (String, UInt32) = model.live
-            ? (model.syncing ? ("Syncing", Tokens.Color.Light.warning) : ("Live", Tokens.Color.Light.success))
-            : ("Sample data", Tokens.Color.Light.pending)
+            ? (model.syncing ? (tr(.commonSyncing), Tokens.Color.Light.warning) : (tr(.commonLive), Tokens.Color.Light.success))
+            : (tr(.commonSampleData), Tokens.Color.Light.pending)
         return Text(label).font(.caption2.weight(.semibold))
             .foregroundStyle(Color(argb: color))
             .voyChip(tint: Color(argb: color))
@@ -207,15 +207,15 @@ struct MeetingWindowView: View {
     private var noWindow: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("No window open").font(.largeTitle.bold())
+                Text(tr(.winNoneTitle)).font(.largeTitle.bold())
                 Spacer()
                 statusChip
             }
             if let error = model.error { Text(error).font(.caption).foregroundStyle(.red) }
-            Text("No meeting window is open right now.").font(.headline)
+            Text(tr(.winNoneBody)).font(.headline)
             Text(model.canOpen
-                ? "Open one here: this phone's position becomes the meeting point. Travelers opt in per window; leaders see inside or outside, never a track."
-                : "When a leader opens one, it appears here with its time range and zone. Sharing is per window, only while it is open, and stops automatically.")
+                ? tr(.winNoneLeaderHint)
+                : tr(.winNoneTravelerHint))
                 .font(.subheadline).foregroundStyle(.secondary)
             if model.canOpen { OpenWindowForm(model: model) }
         }
@@ -230,12 +230,12 @@ struct MeetingWindowView: View {
             Spacer()
             statusChip
         }
-        Text("\(w.place) · \(w.radiusMeters) m zone · \(w.startsAt)–\(w.endsAt)").font(.subheadline).foregroundStyle(.secondary)
-        Label(open ? "Open · \(w.minutesLeftAt(now: now)) min left" : "Closed", systemImage: "clock")
+        Text(tr4(.winMeta, w.place, w.radiusMeters, w.startsAt, w.endsAt)).font(.subheadline).foregroundStyle(.secondary)
+        Label(open ? tr1(.winOpenLeft, w.minutesLeftAt(now: now)) : tr(.winClosed), systemImage: "clock")
             .font(.caption).foregroundStyle(open ? .green : .secondary)
         if let error = model.error { Text(error).font(.caption).foregroundStyle(.red) }
         if model.canOpen && open {
-            Button("Close window now") { Task { await model.closeWindow() } }.buttonStyle(.bordered)
+            Button(tr(.winCloseNow)) { Task { await model.closeWindow() } }.buttonStyle(.bordered)
         }
         Canvas { ctx, size in
             let center = CGPoint(x: size.width / 2, y: size.height / 2)
@@ -263,15 +263,15 @@ struct MeetingWindowView: View {
         if w.selfId != nil, w.me != nil {
             Toggle(isOn: Binding(get: { w.selfOptedIn }, set: { model.setSharing($0) })) {
                 VStack(alignment: .leading) {
-                    Text("Share my position for this window").font(.headline)
-                    Text(w.selfOptedIn ? "Sharing with leaders until \(w.endsAt). Stops automatically." : "Only while this window is open. Leaders see inside/outside, never a track. Guardians never see it.")
+                    Text(tr(.winShareTitle)).font(.headline)
+                    Text(w.selfOptedIn ? tr1(.winSharingUntil, w.endsAt) : tr(.winShareHint))
                         .font(.subheadline).foregroundStyle(.secondary)
                 }
             }
             .disabled(!open)
             if let me = w.me {
                 HStack(spacing: 6) {
-                    Text("Your state:").font(.caption).foregroundStyle(.secondary)
+                    Text(tr(.winYourState)).font(.caption).foregroundStyle(.secondary)
                     Text(label(for: me.state)).font(.caption.bold()).foregroundStyle(color(for: me.state))
                 }
             }
@@ -290,11 +290,11 @@ struct MeetingWindowView: View {
 
     private func label(for s: WindowState) -> String {
         switch s {
-        case .inside: return "Inside"
-        case .outside: return "Outside"
-        case .uncertain: return "Uncertain"
-        case .stale: return "Stale"
-        case .optedOut: return "Not sharing"
+        case .inside: return tr(.winStateInside)
+        case .outside: return tr(.winStateOutside)
+        case .uncertain: return tr(.winStateUncertain)
+        case .stale: return tr(.winStateStale)
+        case .optedOut: return tr(.winStateNotSharing)
         }
     }
 }
@@ -302,7 +302,7 @@ struct MeetingWindowView: View {
 /// The leader's form (slice 032): label, place, radius, duration, groups; the point is the phone's fix.
 private struct OpenWindowForm: View {
     @ObservedObject var model: MeetingWindowModel
-    @State private var label = "Regroup"
+    @State private var label = tr(.winRegroup)
     @State private var place = ""
     @State private var radius = "200"
     @State private var minutes = "30"
@@ -311,15 +311,15 @@ private struct OpenWindowForm: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("OPEN A WINDOW HERE").font(.caption).foregroundStyle(.secondary)
-            TextField("Label", text: $label).textFieldStyle(.roundedBorder)
-            TextField("Place", text: $place).textFieldStyle(.roundedBorder)
+            Text(tr(.winFormTitle).uppercased()).font(.caption).foregroundStyle(.secondary)
+            TextField(tr(.winLabel), text: $label).textFieldStyle(.roundedBorder)
+            TextField(tr(.winPlace), text: $place).textFieldStyle(.roundedBorder)
             HStack {
-                TextField("Radius (m)", text: $radius).textFieldStyle(.roundedBorder).keyboardType(.numberPad)
-                TextField("Minutes", text: $minutes).textFieldStyle(.roundedBorder).keyboardType(.numberPad)
+                TextField(tr(.winRadius), text: $radius).textFieldStyle(.roundedBorder).keyboardType(.numberPad)
+                TextField(tr(.winMinutes), text: $minutes).textFieldStyle(.roundedBorder).keyboardType(.numberPad)
             }
-            TextField("Groups (comma separated; empty = everyone)", text: $groups).textFieldStyle(.roundedBorder)
-            Button(model.opening ? "Opening…" : "Open window here") {
+            TextField(tr(.winGroups), text: $groups).textFieldStyle(.roundedBorder)
+            Button(model.opening ? tr(.winOpening) : tr(.winOpenHere)) {
                 Task {
                     await model.openWindow(
                         label: label, place: place, radiusMeters: Int(radius) ?? 200, minutes: Int(minutes) ?? 30,
@@ -328,7 +328,7 @@ private struct OpenWindowForm: View {
                 }
             }
             .buttonStyle(.borderedProminent).disabled(model.opening)
-            Text("Uses this phone's position once as the meeting point. Stand where the group should gather.")
+            Text(tr(.winFormHint))
                 .font(.caption).foregroundStyle(.secondary)
         }
         .padding(12)

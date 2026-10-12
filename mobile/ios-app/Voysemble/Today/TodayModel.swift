@@ -101,7 +101,7 @@ final class TodayModel: ObservableObject {
                     }
                 }
             } else if let failed = r as? ApiResultFailed {
-                error = "Could not load the itinerary (\(failed.error.code))."
+                error = tr1(.todayLoadFailed, failed.error.code)
             } else {
                 snapshot = snapshot.withOffline(offline: true)
             }
@@ -135,12 +135,12 @@ extension TodayModel {
             if let ok = (r as? ApiResultOk<RevealCareNoteResponseDto>)?.value {
                 careDraft = ok.note
             } else if let failed = r as? ApiResultFailed {
-                careMessage = "Could not open the care note (\(failed.error.code))."
+                careMessage = tr1(.careOpenFailed, failed.error.code)
             } else {
-                careMessage = "Offline. The care note needs one connection."
+                careMessage = tr(.careOfflineOpen)
             }
         } catch {
-            careMessage = "Offline. The care note needs one connection."
+            careMessage = tr(.careOfflineOpen)
         }
     }
 
@@ -160,14 +160,14 @@ extension TodayModel {
             if let status = (r as? ApiResultOk<CareNoteStatusDto>)?.value {
                 careStatus = status
                 careDraft = nil
-                careMessage = status.hasCareNote ? "Care note saved. Leaders of \(guardian?.groupName ?? "the group") can reveal it." : "Care note cleared."
+                careMessage = status.hasCareNote ? tr1(.careSaved, guardian?.groupName ?? tr(.careTheGroup)) : tr(.careCleared)
             } else if let failed = r as? ApiResultFailed {
-                careMessage = "Could not save the care note (\(failed.error.code))."
+                careMessage = tr1(.careSaveFailed, failed.error.code)
             } else {
-                careMessage = "Offline. The care note was not saved."
+                careMessage = tr(.careOfflineSave)
             }
         } catch {
-            careMessage = "Offline. The care note was not saved."
+            careMessage = tr(.careOfflineSave)
         }
     }
 }

@@ -6,6 +6,9 @@
 
 package com.voysemble.app.window
 
+import com.voysemble.core.i18n.Txt
+import com.voysemble.core.i18n.tr
+import com.voysemble.core.i18n.trf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.voysemble.core.api.ApiClient
@@ -96,9 +99,9 @@ class MeetingWindowViewModel(
                     if (_state.value.canOpen && !groupKnown) loadOwnGroup(a, t)
                 }
                 is ApiResult.Failed -> _state.update {
-                    it.copy(syncing = false, error = if (r.status == 403) "Guardians do not take part in meeting windows." else "Could not load the meeting window (${r.error.code}).")
+                    it.copy(syncing = false, error = if (r.status == 403) tr(Txt.WIN_GUARDIANS_NO) else trf(Txt.WIN_LOAD_FAILED, r.error.code))
                 }
-                is ApiResult.Unreachable -> _state.update { it.copy(syncing = false, error = "Offline. The window needs one connection.") }
+                is ApiResult.Unreachable -> _state.update { it.copy(syncing = false, error = tr(Txt.WIN_OFFLINE)) }
             }
         }
     }
@@ -137,13 +140,13 @@ class MeetingWindowViewModel(
         return viewModelScope.launch {
             val fix = locationSource?.fix()
             if (fix == null) {
-                _state.update { it.copy(opening = false, error = "Could not read this phone's position. Stand at the meeting point and allow location.") }
+                _state.update { it.copy(opening = false, error = tr(Txt.WIN_NO_FIX)) }
                 return@launch
             }
             val start = isoClock()
             val body = OpenWindowRequestDto(
-                label = label.trim().ifEmpty { "Regroup" },
-                place = place.trim().ifEmpty { "Meeting point" },
+                label = label.trim().ifEmpty { tr(Txt.WIN_REGROUP) },
+                place = place.trim().ifEmpty { tr(Txt.WIN_MEETING_POINT) },
                 radiusMeters = radiusMeters.coerceIn(25, 2000),
                 startsAt = start.toString(),
                 endsAt = start.plusSeconds(minutes.coerceIn(5, 240) * 60L).toString(),
@@ -156,9 +159,9 @@ class MeetingWindowViewModel(
                     _state.update { it.copy(window = r.value.toMeetingWindow(t.participationId, ::localTime), now = deviceClock(), opening = false) }
                 }
                 is ApiResult.Failed -> _state.update {
-                    it.copy(opening = false, error = if (r.status == 403) "Only trip leaders open windows." else "The server refused the window (${r.error.code}).")
+                    it.copy(opening = false, error = if (r.status == 403) tr(Txt.WIN_LEADERS_ONLY) else trf(Txt.WIN_REFUSED, r.error.code))
                 }
-                is ApiResult.Unreachable -> _state.update { it.copy(opening = false, error = "Offline. A window needs one connection to open.") }
+                is ApiResult.Unreachable -> _state.update { it.copy(opening = false, error = tr(Txt.WIN_OFFLINE_OPEN)) }
             }
         }
     }
@@ -171,8 +174,8 @@ class MeetingWindowViewModel(
         return viewModelScope.launch {
             when (a.closeWindow(t.organizationId, t.tripId, dto.id)) {
                 is ApiResult.Ok -> refresh().join()
-                is ApiResult.Failed -> _state.update { it.copy(error = "Could not close the window.") }
-                is ApiResult.Unreachable -> _state.update { it.copy(error = "Offline. The window closes itself at its end time.") }
+                is ApiResult.Failed -> _state.update { it.copy(error = tr(Txt.WIN_CLOSE_FAILED)) }
+                is ApiResult.Unreachable -> _state.update { it.copy(error = tr(Txt.WIN_OFFLINE_CLOSE)) }
             }
         }
     }
@@ -191,9 +194,9 @@ class MeetingWindowViewModel(
             when (val r = a.reportWindowState(t.organizationId, t.tripId, dto.id, state)) {
                 is ApiResult.Ok -> _state.update { it.copy(window = it.window?.withSelfState(windowStateOf(r.value.state)), error = null) }
                 is ApiResult.Failed -> _state.update {
-                    it.copy(error = if (r.status == 409) "This window has ended." else "The server refused the report (${r.error.code}).")
+                    it.copy(error = if (r.status == 409) tr(Txt.WIN_ENDED) else trf(Txt.WIN_REPORT_REFUSED, r.error.code))
                 }
-                is ApiResult.Unreachable -> _state.update { it.copy(error = "Offline. Your state was not sent.") }
+                is ApiResult.Unreachable -> _state.update { it.copy(error = tr(Txt.WIN_OFFLINE_REPORT)) }
             }
         }
     }

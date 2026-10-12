@@ -10,6 +10,9 @@
 
 package com.voysemble.app.headcount
 
+import com.voysemble.core.i18n.Txt
+import com.voysemble.core.i18n.tr
+import com.voysemble.core.i18n.trf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.voysemble.core.api.ApiClient
@@ -83,12 +86,12 @@ class HeadcountViewModel(
                 is ApiResult.Ok -> _revealed.update { it + (memberId to careLineOf(r.value.note)) }
                 is ApiResult.Failed -> _status.update {
                     it.copy(error = when (r.status) {
-                        403 -> "Only this group's leaders see the care note."
-                        404 -> "No care note on file."
-                        else -> "Could not reveal the care note (${r.error.code})."
+                        403 -> tr(Txt.HC_CARE_LEADERS_ONLY)
+                        404 -> tr(Txt.HC_CARE_NONE)
+                        else -> trf(Txt.HC_CARE_REVEAL_FAILED, r.error.code)
                     })
                 }
-                is ApiResult.Unreachable -> _status.update { it.copy(error = "Offline. Care notes are never cached on the device.") }
+                is ApiResult.Unreachable -> _status.update { it.copy(error = tr(Txt.HC_CARE_OFFLINE)) }
             }
         }
     }
@@ -121,16 +124,16 @@ class HeadcountViewModel(
                         id = newId(),
                         roster = r.value.participations,
                         groupName = me?.groupName,
-                        openedBy = me?.displayName ?: "Leader",
+                        openedBy = me?.displayName ?: tr(Txt.COMMON_LEADER),
                         openedAtDevice = deviceClock(),
                     )
                     _status.update { it.copy(loading = false) }
                     push().join()
                 }
                 is ApiResult.Failed -> _status.update {
-                    it.copy(loading = false, error = if (r.status == 403) "Only trip leaders and organizers count heads." else "Could not load the roster (${r.error.code}).")
+                    it.copy(loading = false, error = if (r.status == 403) tr(Txt.HC_LEADERS_ONLY) else trf(Txt.HC_LOAD_FAILED, r.error.code))
                 }
-                is ApiResult.Unreachable -> _status.update { it.copy(loading = false, error = "Offline. The roster needs one connection to start a count.") }
+                is ApiResult.Unreachable -> _status.update { it.copy(loading = false, error = tr(Txt.HC_OFFLINE_ROSTER)) }
             }
         }
     }
@@ -144,7 +147,7 @@ class HeadcountViewModel(
             val r = pushHeadcount(a, t.organizationId, t.tripId, _state.value)
             // Marks made while the push was in flight win (rule in core, shared with iOS).
             _state.update { current -> current.adoptPush(r) }
-            _status.update { it.copy(syncing = false, lastPush = r.outcome, error = if (r.outcome.startsWith("rejected")) "The server refused this count (${r.outcome.substringAfter(':')})." else null) }
+            _status.update { it.copy(syncing = false, lastPush = r.outcome, error = if (r.outcome.startsWith("rejected")) trf(Txt.HC_REFUSED, r.outcome.substringAfter(':')) else null) }
         }
     }
 

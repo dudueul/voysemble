@@ -7,6 +7,9 @@
 
 package com.voysemble.app.window
 
+import com.voysemble.core.i18n.Txt
+import com.voysemble.core.i18n.tr
+import com.voysemble.core.i18n.trf
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
@@ -134,22 +137,22 @@ fun MeetingWindowScreen(
     ) {
         item {
             ScreenHeader(
-                eyebrow = "Meeting window",
+                eyebrow = tr(Txt.WIN_EYEBROW),
                 title = window.label,
-                subtitle = "${window.place} · ${window.radiusMeters} m zone · ${window.startsAt}–${window.endsAt}",
+                subtitle = trf(Txt.WIN_META, window.place, window.radiusMeters, window.startsAt, window.endsAt),
                 onBack = onBack,
             ) { StatusChip(status) }
         }
         status.error?.let { item { Text(it, style = MaterialTheme.typography.bodyMedium, color = c.danger) } }
         if (status.canOpen && open) {
             item {
-                OutlinedButton(onClick = onCloseWindow, shape = MaterialTheme.shapes.small) { Text("Close window now") }
+                OutlinedButton(onClick = onCloseWindow, shape = MaterialTheme.shapes.small) { Text(tr(Txt.WIN_CLOSE_NOW)) }
             }
         }
         item {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (open) LabelChip("Open · $minutesLeft min left", c.success, AppIcons.Clock) else LabelChip("Closed", c.textMuted, AppIcons.Clock)
-                Text("Opened by ${window.openedBy}", style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
+                if (open) LabelChip(trf(Txt.WIN_OPEN_LEFT, minutesLeft), c.success, AppIcons.Clock) else LabelChip(tr(Txt.WIN_CLOSED), c.textMuted, AppIcons.Clock)
+                Text(trf(Txt.WIN_OPENED_BY, window.openedBy), style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
             }
         }
         item { SchematicMap(window) }
@@ -159,9 +162,9 @@ fun MeetingWindowScreen(
                 VyCard {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Column(Modifier.weight(1f)) {
-                            Text("Share my position for this window", style = MaterialTheme.typography.titleMedium)
+                            Text(tr(Txt.WIN_SHARE_TITLE), style = MaterialTheme.typography.titleMedium)
                             Text(
-                                if (window.selfOptedIn) "Sharing with leaders until ${window.endsAt}. Stops automatically." else "Only while this window is open. Leaders see inside/outside, never a track. Guardians never see it.",
+                                if (window.selfOptedIn) trf(Txt.WIN_SHARING_UNTIL, window.endsAt) else tr(Txt.WIN_SHARE_HINT),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = c.textMuted,
                             )
@@ -170,13 +173,13 @@ fun MeetingWindowScreen(
                             checked = window.selfOptedIn,
                             onCheckedChange = onSharingChange,
                             enabled = open,
-                            modifier = Modifier.semantics { contentDescription = "Share my position" },
+                            modifier = Modifier.semantics { contentDescription = tr(Txt.WIN_SHARE_A11Y) },
                         )
                     }
                     window.me?.let { me ->
                         Spacer(Modifier.height(8.dp))
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text("Your state:", style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
+                            Text(tr(Txt.WIN_YOUR_STATE), style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
                             LabelChip(stateLabel(me.state), stateColor(c, me.state))
                         }
                     }
@@ -189,7 +192,7 @@ fun MeetingWindowScreen(
 @Composable
 private fun StatusChip(status: WindowScreenStatus) {
     val c = LocalVoysembleColors.current
-    if (!status.live) SampleDataChip() else LabelChip(if (status.syncing) "Syncing" else "Live", c.info, AppIcons.Check)
+    if (!status.live) SampleDataChip() else LabelChip(if (status.syncing) tr(Txt.COMMON_SYNCING) else tr(Txt.COMMON_LIVE), c.info, AppIcons.Check)
 }
 
 /** Live mode without an open or scheduled window; a leader gets the form to open one here. */
@@ -200,14 +203,13 @@ private fun NoWindow(status: WindowScreenStatus, onBack: () -> Unit, onOpenWindo
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        ScreenHeader(eyebrow = "Meeting window", title = "No window open", subtitle = null, onBack = onBack) { StatusChip(status) }
+        ScreenHeader(eyebrow = tr(Txt.WIN_EYEBROW), title = tr(Txt.WIN_NONE_TITLE), subtitle = null, onBack = onBack) { StatusChip(status) }
         status.error?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = c.danger) }
         VyCard {
-            Text("No meeting window is open right now.", style = MaterialTheme.typography.titleMedium)
+            Text(tr(Txt.WIN_NONE_BODY), style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(4.dp))
             Text(
-                if (status.canOpen) "Open one here: this phone's position becomes the meeting point. Travelers opt in per window; leaders see inside or outside, never a track."
-                else "When a leader opens one, it appears here with its time range and zone. Sharing is per window, only while it is open, and stops automatically.",
+                if (status.canOpen) tr(Txt.WIN_NONE_LEADER_HINT) else tr(Txt.WIN_NONE_TRAVELER_HINT),
                 style = MaterialTheme.typography.bodyMedium,
                 color = c.textMuted,
             )
@@ -220,30 +222,30 @@ private fun NoWindow(status: WindowScreenStatus, onBack: () -> Unit, onOpenWindo
 @Composable
 private fun OpenWindowForm(status: WindowScreenStatus, onOpenWindow: (WindowDraft) -> Unit) {
     val c = LocalVoysembleColors.current
-    var label by remember { mutableStateOf("Regroup") }
+    var label by remember { mutableStateOf(tr(Txt.WIN_REGROUP)) }
     var place by remember { mutableStateOf("") }
     var radius by remember { mutableStateOf("200") }
     var minutes by remember { mutableStateOf("30") }
     var groups by remember(status.ownGroup) { mutableStateOf(status.ownGroup ?: "") }
     VyCard {
-        SectionLabel("Open a window here")
+        SectionLabel(tr(Txt.WIN_FORM_TITLE))
         Spacer(Modifier.height(8.dp))
-        OutlinedTextField(value = label, onValueChange = { label = it }, label = { Text("Label") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = place, onValueChange = { place = it }, label = { Text("Place") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = label, onValueChange = { label = it }, label = { Text(tr(Txt.WIN_LABEL)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = place, onValueChange = { place = it }, label = { Text(tr(Txt.WIN_PLACE)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(value = radius, onValueChange = { radius = it.filter(Char::isDigit) }, label = { Text("Radius (m)") }, singleLine = true, modifier = Modifier.weight(1f))
-            OutlinedTextField(value = minutes, onValueChange = { minutes = it.filter(Char::isDigit) }, label = { Text("Minutes") }, singleLine = true, modifier = Modifier.weight(1f))
+            OutlinedTextField(value = radius, onValueChange = { radius = it.filter(Char::isDigit) }, label = { Text(tr(Txt.WIN_RADIUS)) }, singleLine = true, modifier = Modifier.weight(1f))
+            OutlinedTextField(value = minutes, onValueChange = { minutes = it.filter(Char::isDigit) }, label = { Text(tr(Txt.WIN_MINUTES)) }, singleLine = true, modifier = Modifier.weight(1f))
         }
-        OutlinedTextField(value = groups, onValueChange = { groups = it }, label = { Text("Groups (comma separated; empty = everyone)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = groups, onValueChange = { groups = it }, label = { Text(tr(Txt.WIN_GROUPS)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(8.dp))
         Button(
             onClick = { onOpenWindow(WindowDraft(label, place, radius.toIntOrNull() ?: 200, minutes.toIntOrNull() ?: 30, groups.split(','))) },
             enabled = !status.opening,
             colors = ButtonDefaults.buttonColors(containerColor = c.action, contentColor = c.onAction),
             shape = MaterialTheme.shapes.small,
-        ) { Text(if (status.opening) "Opening…" else "Open window here") }
+        ) { Text(if (status.opening) tr(Txt.WIN_OPENING) else tr(Txt.WIN_OPEN_HERE)) }
         Spacer(Modifier.height(4.dp))
-        Text("Uses this phone's position once as the meeting point. Stand where the group should gather.", style = MaterialTheme.typography.bodySmall, color = c.textMuted)
+        Text(tr(Txt.WIN_FORM_HINT), style = MaterialTheme.typography.bodySmall, color = c.textMuted)
     }
 }
 
@@ -258,7 +260,7 @@ private fun SchematicMap(window: MeetingWindow) {
             .fillMaxWidth()
             .aspectRatio(1.3f)
             .background(c.surfaceRaised, MaterialTheme.shapes.medium)
-            .semantics { contentDescription = "Schematic map: ${window.insideCount} of ${window.sharingCount} sharing travelers inside the zone" },
+            .semantics { contentDescription = trf(Txt.WIN_MAP_A11Y, window.insideCount, window.sharingCount) },
     ) {
         Canvas(Modifier.fillMaxSize()) {
             val center = Offset(size.width / 2f, size.height / 2f)
@@ -288,7 +290,7 @@ private fun SchematicMap(window: MeetingWindow) {
 private fun Legend(window: MeetingWindow) {
     val c = LocalVoysembleColors.current
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        SectionLabel("Travelers in this window")
+        SectionLabel(tr(Txt.WIN_TRAVELERS))
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             WindowState.entries.forEach { s ->
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -311,9 +313,9 @@ internal fun stateColor(c: VoysembleColors, state: WindowState): Color {
 }
 
 internal fun stateLabel(state: WindowState): String = when (state) {
-    WindowState.INSIDE -> "Inside"
-    WindowState.OUTSIDE -> "Outside"
-    WindowState.UNCERTAIN -> "Uncertain"
-    WindowState.STALE -> "Stale"
-    WindowState.OPTED_OUT -> "Not sharing"
+    WindowState.INSIDE -> tr(Txt.WIN_STATE_INSIDE)
+    WindowState.OUTSIDE -> tr(Txt.WIN_STATE_OUTSIDE)
+    WindowState.UNCERTAIN -> tr(Txt.WIN_STATE_UNCERTAIN)
+    WindowState.STALE -> tr(Txt.WIN_STATE_STALE)
+    WindowState.OPTED_OUT -> tr(Txt.WIN_STATE_NOT_SHARING)
 }

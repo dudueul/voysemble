@@ -4,6 +4,9 @@
 
 package com.voysemble.app.auth
 
+import com.voysemble.core.i18n.Txt
+import com.voysemble.core.i18n.tr
+import com.voysemble.core.i18n.trf
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -39,20 +42,20 @@ fun InviteScreen(state: SessionUiState, onRedeem: (String) -> Unit, onSignOut: (
     var code by remember { mutableStateOf("") }
     Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
-            Text("You're invited.", style = MaterialTheme.typography.headlineLarge)
-            Text("Signed in as $email", style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
+            Text(tr(Txt.INVITE_TITLE), style = MaterialTheme.typography.headlineLarge)
+            Text(trf(Txt.INVITE_SIGNED_IN_AS, email), style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
             Spacer(Modifier.height(24.dp))
             VyCard {
-                Text("Join a trip", style = MaterialTheme.typography.titleMedium)
-                Text("Enter the code your organizer gave you. Your role comes with the code.", style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
+                Text(tr(Txt.INVITE_JOIN), style = MaterialTheme.typography.titleMedium)
+                Text(tr(Txt.INVITE_HINT), style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
                 Spacer(Modifier.height(12.dp))
                 OutlinedTextField(
                     value = code,
                     onValueChange = { code = it.uppercase() },
-                    label = { Text("Invite code") },
+                    label = { Text(tr(Txt.INVITE_CODE)) },
                     placeholder = { Text("K7PX-4MDQ") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Invite code" },
+                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = tr(Txt.INVITE_CODE) },
                 )
                 Spacer(Modifier.height(12.dp))
                 Button(
@@ -61,14 +64,14 @@ fun InviteScreen(state: SessionUiState, onRedeem: (String) -> Unit, onSignOut: (
                     colors = ButtonDefaults.buttonColors(containerColor = c.action, contentColor = c.onAction),
                     shape = MaterialTheme.shapes.small,
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text(if (state.busy) "Joining…" else "Join trip") }
+                ) { Text(if (state.busy) tr(Txt.INVITE_JOINING) else tr(Txt.INVITE_JOIN_TRIP)) }
                 state.error?.let {
                     Spacer(Modifier.height(8.dp))
                     Text(it, color = c.danger, style = MaterialTheme.typography.bodyMedium)
                 }
             }
             Spacer(Modifier.height(8.dp))
-            TextButton(onClick = onSignOut) { Text("Sign out") }
+            TextButton(onClick = onSignOut) { Text(tr(Txt.COMMON_SIGN_OUT)) }
         }
     }
 }

@@ -4,6 +4,8 @@
 
 package com.voysemble.app.plan
 
+import com.voysemble.core.i18n.AppLocale
+import org.junit.After
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -45,6 +47,23 @@ class PlanScreenshotTest {
         // Switching days is immediate and local.
         compose.onNodeWithContentDescription("Open Arrival, Monday, Dec 28").performClick()
         compose.onNodeWithText("Flight to Rome").assertExists()
+    }
+
+    @After
+    fun resetLanguage() {
+        AppLocale.current = "en"
+    }
+
+    @Test
+    fun plan_day_ko() {
+        // Slice 039: the Plan tab in Korean (labels and events come from the fixture as they are).
+        AppLocale.current = "ko"
+        val vm = PlanViewModel()
+        compose.setContent { VoysembleTheme(darkTheme = false) { PlanRoute(vm) } }
+        compose.onNodeWithText("D4 · Concert day").assertExists()
+        compose.onNodeWithText("일정 제안").assertExists()
+        compose.onNodeWithText("Colosseum guided tour").assertExists()
+        compose.onRoot().captureRoboImage("$OUT/plan-day-ko.png")
     }
 
     @Test

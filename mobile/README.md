@@ -31,6 +31,8 @@ simulator (slice 022; iOS 26 with Liquid Glass since slice 037, `docs/engineerin
 `docs/engineering/ios-live.md`.
 
 Shared rules and fixtures: `core/src/commonMain/kotlin/com/voysemble/core/today`, `.../fixtures`.
+User-facing text in both languages: `.../i18n` (slice 039, `docs/engineering/mobile-i18n.md`); screens call
+`tr(Txt.KEY)` on Android and `tr(.key)` on iOS, never a literal.
 
 ## Commands
 

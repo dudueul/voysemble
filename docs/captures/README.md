@@ -161,3 +161,9 @@ tab bar. The pictures before this slice came from Xcode 16.4 on `macos-15` with 
 `web/desktop-1440/command-center-ko.png`, `web/laptop-1280/command-center-ko.png`,
 `web/desktop-1440/people-ko.png`, `web/laptop-1280/people-ko.png`: the command center and People after
 the top-bar toggle switched the console to Korean. Produced by `e2e/locale.spec.ts`.
+
+## Slice 039 (2026-10-12): Korean on the phones
+
+`android/today-ko.png`, `android/plan-day-ko.png` (Roborazzi) and `ios/today-ko.png`, `ios/plan-day-ko.png`
+(CaptureTests): Today and the Plan tab with the app's language set to Korean; the sample trip's own
+names stay as they are. All land here through the CI `captures` job.

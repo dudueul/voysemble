@@ -6,6 +6,9 @@
 
 package com.voysemble.app.today
 
+import com.voysemble.core.i18n.Txt
+import com.voysemble.core.i18n.tr
+import com.voysemble.core.i18n.trf
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -133,7 +136,7 @@ fun TodayScreen(
             } else {
                 item { HeadcountCard(snap.headcount, snap.checkedIn, snap.expected, onOpenHeadcount, onOpenIncidents) }
             }
-            item { SectionTitle("Later today") }
+            item { SectionTitle(tr(Txt.TODAY_LATER)) }
             items(snap.later, key = { it.id }) { e -> EventRow(e) }
             item { Spacer(Modifier.height(8.dp)) }
         }
@@ -145,14 +148,14 @@ private fun Header(snap: TodaySnapshot, live: Boolean = false, syncing: Boolean 
     val c = LocalVoysembleColors.current
     Column {
         Text(
-            text = "${snap.tripName.uppercase()} · DAY ${snap.dayNumber}",
+            text = trf(Txt.TODAY_EYEBROW, snap.tripName.uppercase(), snap.dayNumber),
             style = MaterialTheme.typography.labelSmall,
             color = c.textMuted,
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Today", style = MaterialTheme.typography.headlineLarge)
+            Text(tr(Txt.TODAY_TITLE), style = MaterialTheme.typography.headlineLarge)
             Spacer(Modifier.weight(1f))
-            if (live) LabelChip(if (syncing) "Syncing" else "Live", c.info, AppIcons.Check) else SampleChip()
+            if (live) LabelChip(if (syncing) tr(Txt.COMMON_SYNCING) else tr(Txt.COMMON_LIVE), c.info, AppIcons.Check) else SampleChip()
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("${snap.dateLabel} · ${snap.timeZoneLabel}", style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
@@ -160,9 +163,9 @@ private fun Header(snap: TodaySnapshot, live: Boolean = false, syncing: Boolean 
             Icon(AppIcons.Sync, contentDescription = null, tint = c.success, modifier = Modifier.size(14.dp))
             Text(
                 text = when (val m = snap.minutesSinceSync) {
-                    null -> "Not synced yet"
-                    0 -> "Synced just now"
-                    else -> "Synced $m min ago"
+                    null -> tr(Txt.COMMON_NOT_SYNCED_YET)
+                    0 -> tr(Txt.COMMON_SYNCED_JUST_NOW)
+                    else -> trf(Txt.COMMON_SYNCED_MIN_AGO, m)
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = c.textMuted,
@@ -175,7 +178,7 @@ private fun Header(snap: TodaySnapshot, live: Boolean = false, syncing: Boolean 
 private fun SampleChip() {
     val c = LocalVoysembleColors.current
     Text(
-        "Sample data",
+        tr(Txt.COMMON_SAMPLE_DATA),
         style = MaterialTheme.typography.labelSmall,
         color = c.pending,
         modifier = Modifier
@@ -194,7 +197,7 @@ private fun OfflineBanner(snap: TodaySnapshot) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(AppIcons.Offline, contentDescription = null, tint = c.warning, modifier = Modifier.size(18.dp))
-        Text("Offline. Showing the last synced plan.", style = MaterialTheme.typography.bodyMedium, color = c.warning)
+        Text(tr(Txt.COMMON_OFFLINE_LAST_PLAN), style = MaterialTheme.typography.bodyMedium, color = c.warning)
     }
 }
 
@@ -213,10 +216,10 @@ private fun UpNextCard(
         shape = MaterialTheme.shapes.medium,
         color = c.action,
         contentColor = c.onAction,
-        modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Up next: ${e.title} at ${e.start}" },
+        modifier = Modifier.fillMaxWidth().semantics { contentDescription = trf(Txt.TODAY_UP_NEXT_A11Y, e.title, e.start) },
     ) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("UP NEXT", style = MaterialTheme.typography.labelSmall, color = c.onAction.copy(alpha = 0.8f))
+            Text(tr(Txt.TODAY_UP_NEXT), style = MaterialTheme.typography.labelSmall, color = c.onAction.copy(alpha = 0.8f))
             Text(e.title, style = MaterialTheme.typography.titleLarge)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
@@ -238,22 +241,22 @@ private fun UpNextCard(
             ) {
                 Icon(AppIcons.Map, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(8.dp))
-                Text(if (e.isMeetingPoint) "Meeting point" else "Directions")
+                Text(if (e.isMeetingPoint) tr(Txt.TODAY_MEETING_POINT) else tr(Txt.TODAY_DIRECTIONS))
             }
             // D24: leaders propose; the organizer decides on the console.
             if (canPropose) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(onClick = onPropose, enabled = proposal?.sending != true) {
                     Text(
                         when {
-                            proposal?.sending == true -> "Sending proposal…"
+                            proposal?.sending == true -> tr(Txt.TODAY_SENDING_PROPOSAL)
                             proposal?.sent == true -> proposalSentMessage(proposal?.kind ?: ProposalKind.EDIT)
-                            else -> "Propose a change"
+                            else -> tr(Txt.TODAY_PROPOSE_CHANGE)
                         },
                         color = c.onAction,
                     )
                 }
                 if (proposal != null && !proposal.sending) {
-                    TextButton(onClick = onDismissProposal) { Text("OK", color = c.onAction) }
+                    TextButton(onClick = onDismissProposal) { Text(tr(Txt.COMMON_OK), color = c.onAction) }
                 }
             }
             if (canPropose) proposal?.error?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = c.onAction) }
@@ -266,7 +269,7 @@ private fun AnnouncementCard(a: TodayAnnouncement, onAcknowledge: (String) -> Un
     val c = LocalVoysembleColors.current
     Card {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("LATEST UPDATE", style = MaterialTheme.typography.labelSmall, color = c.textMuted)
+            Text(tr(Txt.TODAY_LATEST_UPDATE), style = MaterialTheme.typography.labelSmall, color = c.textMuted)
             Spacer(Modifier.weight(1f))
             Text("${a.author} · ${a.publishedAt}", style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
         }
@@ -281,19 +284,19 @@ private fun AnnouncementCard(a: TodayAnnouncement, onAcknowledge: (String) -> Un
                     onClick = { onAcknowledge(a.id) },
                     colors = ButtonDefaults.buttonColors(containerColor = c.action, contentColor = c.onAction),
                     shape = MaterialTheme.shapes.small,
-                ) { Text("Acknowledge") }
+                ) { Text(tr(Txt.TODAY_ACKNOWLEDGE)) }
                 AckState.PENDING -> OutlinedButton(onClick = {}, enabled = false, shape = MaterialTheme.shapes.small) {
                     Icon(AppIcons.Clock, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Queued · sends when online")
+                    Text(tr(Txt.TODAY_QUEUED))
                 }
                 AckState.ACKNOWLEDGED -> OutlinedButton(onClick = {}, enabled = false, shape = MaterialTheme.shapes.small) {
                     Icon(AppIcons.Check, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("Acknowledged")
+                    Text(tr(Txt.TODAY_ACKNOWLEDGED))
                 }
             }
-            Text("${a.acknowledgedCount}/${a.totalCount} acknowledged", style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
+            Text(trf(Txt.TODAY_ACK_COUNT, a.acknowledgedCount, a.totalCount), style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
         }
     }
 }
@@ -309,7 +312,7 @@ internal fun GuardianStatusCard(card: GuardianCard) {
     }
     Card {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("YOUR TRAVELER", style = MaterialTheme.typography.labelSmall, color = c.textMuted)
+            Text(tr(Txt.TODAY_YOUR_TRAVELER), style = MaterialTheme.typography.labelSmall, color = c.textMuted)
             Spacer(Modifier.weight(1f))
             Text(listOfNotNull(card.travelerName, card.groupName).joinToString(" · "), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
         }
@@ -333,10 +336,10 @@ internal fun GuardianCareCard(care: GuardianCareState, onEdit: () -> Unit, onCan
     val c = LocalVoysembleColors.current
     Card {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("CARE NOTE", style = MaterialTheme.typography.labelSmall, color = c.textMuted)
+            Text(tr(Txt.TODAY_CARE_NOTE), style = MaterialTheme.typography.labelSmall, color = c.textMuted)
             Spacer(Modifier.weight(1f))
             Text(
-                if (care.status.hasCareNote) "On file · ${care.status.reveals} ${if (care.status.reveals == 1) "reveal" else "reveals"}" else "Not on file",
+                if (care.status.hasCareNote) trf(Txt.TODAY_CARE_ON_FILE, care.status.reveals) else tr(Txt.TODAY_CARE_NOT_ON_FILE),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -345,20 +348,19 @@ internal fun GuardianCareCard(care: GuardianCareState, onEdit: () -> Unit, onCan
         val draft = care.draft
         if (draft == null) {
             Text(
-                if (care.status.hasCareNote) "Allergies, medications and what a leader should know. Sealed; only your traveler's leaders and the organizer can reveal it, and every reveal is recorded."
-                else "Add allergies, medications and anything a leader should know in one tap at lunch. Sealed on the server; never kept on a phone.",
+                if (care.status.hasCareNote) tr(Txt.TODAY_CARE_SEALED_INTRO) else tr(Txt.TODAY_CARE_ADD_INTRO),
                 style = MaterialTheme.typography.bodyMedium,
                 color = c.textMuted,
             )
             Spacer(Modifier.height(8.dp))
-            OutlinedButton(onClick = onEdit, shape = MaterialTheme.shapes.small) { Text(if (care.status.hasCareNote) "Edit care note" else "Add care note") }
+            OutlinedButton(onClick = onEdit, shape = MaterialTheme.shapes.small) { Text(if (care.status.hasCareNote) tr(Txt.TODAY_CARE_EDIT) else tr(Txt.TODAY_CARE_ADD)) }
         } else {
             var allergies by remember(draft) { mutableStateOf(draft.allergies) }
             var medications by remember(draft) { mutableStateOf(draft.medications) }
             var freeText by remember(draft) { mutableStateOf(draft.freeText) }
-            OutlinedTextField(value = allergies, onValueChange = { allergies = it.take(200) }, label = { Text("Allergies") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = medications, onValueChange = { medications = it.take(200) }, label = { Text("Medications") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(value = freeText, onValueChange = { freeText = it.take(500) }, label = { Text("Anything else a leader should know") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = allergies, onValueChange = { allergies = it.take(200) }, label = { Text(tr(Txt.TODAY_CARE_ALLERGIES)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = medications, onValueChange = { medications = it.take(200) }, label = { Text(tr(Txt.TODAY_CARE_MEDICATIONS)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = freeText, onValueChange = { freeText = it.take(500) }, label = { Text(tr(Txt.TODAY_CARE_FREE_TEXT)) }, modifier = Modifier.fillMaxWidth())
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
@@ -366,8 +368,8 @@ internal fun GuardianCareCard(care: GuardianCareState, onEdit: () -> Unit, onCan
                     enabled = !care.saving,
                     colors = ButtonDefaults.buttonColors(containerColor = c.action, contentColor = c.onAction),
                     shape = MaterialTheme.shapes.small,
-                ) { Text(if (care.saving) "Saving…" else "Save care note") }
-                OutlinedButton(onClick = onCancel, enabled = !care.saving, shape = MaterialTheme.shapes.small) { Text("Cancel") }
+                ) { Text(if (care.saving) tr(Txt.TODAY_CARE_SAVING) else tr(Txt.TODAY_CARE_SAVE)) }
+                OutlinedButton(onClick = onCancel, enabled = !care.saving, shape = MaterialTheme.shapes.small) { Text(tr(Txt.COMMON_CANCEL)) }
             }
         }
         care.message?.let { m ->
@@ -382,14 +384,14 @@ private fun HeadcountCard(groups: List<HeadcountGroup>, checkedIn: Int, expected
     val c = LocalVoysembleColors.current
     Card {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("HEAD COUNT", style = MaterialTheme.typography.labelSmall, color = c.textMuted)
+            Text(tr(Txt.TODAY_HEAD_COUNT), style = MaterialTheme.typography.labelSmall, color = c.textMuted)
             Spacer(Modifier.weight(1f))
-            Text("$checkedIn / $expected checked in", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+            Text(trf(Txt.TODAY_CHECKED_IN, checkedIn, expected), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
         }
         Spacer(Modifier.height(6.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = onOpenHeadcount, shape = MaterialTheme.shapes.small) { Text("Open head count") }
-            OutlinedButton(onClick = onOpenIncidents, shape = MaterialTheme.shapes.small) { Text("Incidents") }
+            OutlinedButton(onClick = onOpenHeadcount, shape = MaterialTheme.shapes.small) { Text(tr(Txt.TODAY_OPEN_HEAD_COUNT)) }
+            OutlinedButton(onClick = onOpenIncidents, shape = MaterialTheme.shapes.small) { Text(tr(Txt.TODAY_INCIDENTS)) }
         }
         Spacer(Modifier.height(10.dp))
         groups.forEach { g ->
@@ -403,7 +405,7 @@ private fun HeadcountCard(groups: List<HeadcountGroup>, checkedIn: Int, expected
                     trackColor = c.border,
                 )
                 Text(
-                    text = if (short) "${g.checkedIn}/${g.expected} · ${g.expected - g.checkedIn} missing" else "${g.checkedIn}/${g.expected}",
+                    text = if (short) trf(Txt.TODAY_GROUP_MISSING, g.checkedIn, g.expected, g.expected - g.checkedIn) else "${g.checkedIn}/${g.expected}",
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
@@ -441,11 +443,11 @@ internal fun EventRow(e: TodayEvent) {
 internal fun StatusChip(status: EventStatus) {
     val c = LocalVoysembleColors.current
     val (label, color) = when (status) {
-        EventStatus.SCHEDULED -> "Scheduled" to c.textMuted
-        EventStatus.IN_PROGRESS -> "Now" to c.action
-        EventStatus.DONE -> "Done" to c.success
-        EventStatus.DELAYED -> "Delayed" to c.warning
-        EventStatus.CANCELLED -> "Cancelled" to c.danger
+        EventStatus.SCHEDULED -> tr(Txt.STATUS_SCHEDULED) to c.textMuted
+        EventStatus.IN_PROGRESS -> tr(Txt.STATUS_NOW) to c.action
+        EventStatus.DONE -> tr(Txt.STATUS_DONE) to c.success
+        EventStatus.DELAYED -> tr(Txt.STATUS_DELAYED) to c.warning
+        EventStatus.CANCELLED -> tr(Txt.STATUS_CANCELLED) to c.danger
     }
     Text(
         label,
@@ -480,7 +482,7 @@ internal fun BottomTabs(selected: MainTab, onSelect: (MainTab) -> Unit) {
                 selected = tab == selected,
                 onClick = { onSelect(tab) },
                 icon = { Icon(icon, contentDescription = null) },
-                label = { Text(label) },
+                label = { Text(tr(label)) },
             )
         }
     }
@@ -488,12 +490,13 @@ internal fun BottomTabs(selected: MainTab, onSelect: (MainTab) -> Unit) {
     Box(Modifier.height(0.dp).background(c.border))
 }
 
-private val TABS: List<Triple<MainTab, String, ImageVector>> = listOf(
-    Triple(MainTab.TODAY, "Today", AppIcons.Today),
-    Triple(MainTab.PLAN, "Plan", AppIcons.Plan),
-    Triple(MainTab.BULLETIN, "Bulletin", AppIcons.Bulletin),
-    Triple(MainTab.CHATS, "Chats", AppIcons.Chat),
-    Triple(MainTab.MEMORIES, "Memories", AppIcons.Memories),
+// Keys, not text: the bar reads the language at render (slice 039).
+private val TABS: List<Triple<MainTab, Txt, ImageVector>> = listOf(
+    Triple(MainTab.TODAY, Txt.TAB_TODAY, AppIcons.Today),
+    Triple(MainTab.PLAN, Txt.TAB_PLAN, AppIcons.Plan),
+    Triple(MainTab.BULLETIN, Txt.TAB_BULLETIN, AppIcons.Bulletin),
+    Triple(MainTab.CHATS, Txt.TAB_CHATS, AppIcons.Chat),
+    Triple(MainTab.MEMORIES, Txt.TAB_MEMORIES, AppIcons.Memories),
 )
 
 private fun iconFor(kind: EventKind): ImageVector = when (kind) {

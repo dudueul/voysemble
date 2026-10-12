@@ -6,6 +6,9 @@
 
 package com.voysemble.app.chat
 
+import com.voysemble.core.i18n.Txt
+import com.voysemble.core.i18n.tr
+import com.voysemble.core.i18n.trf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.voysemble.core.api.ApiClient
@@ -53,7 +56,7 @@ class ChatsViewModel(
     private val newId: () -> String = { "local-${UUID.randomUUID()}" },
     /** Poll cadence while the tab is on screen; tests pass Long.MAX_VALUE to switch it off. */
     private val tickMs: Long = 15_000,
-    private val senderName: String = "Me",
+    private val senderName: String = tr(Txt.COMMON_ME),
 ) : ViewModel() {
     private val _state = MutableStateFlow(ChatsUiState(initial, live = trip != null && api != null))
     val state: StateFlow<ChatsUiState> = _state
@@ -80,8 +83,8 @@ class ChatsViewModel(
             if (open == null) {
                 when (val r = a.listChats(t.organizationId, t.tripId)) {
                     is ApiResult.Ok -> _state.update { it.copy(channels = r.value.channels.map { c -> c.toChatChannel(::localTime) }, syncing = false, error = null) }
-                    is ApiResult.Failed -> _state.update { it.copy(syncing = false, error = "Could not load chats (${r.error.code}).") }
-                    is ApiResult.Unreachable -> _state.update { it.copy(syncing = false, error = "Offline. Showing what was last loaded.") }
+                    is ApiResult.Failed -> _state.update { it.copy(syncing = false, error = trf(Txt.CHAT_LOAD_FAILED, r.error.code)) }
+                    is ApiResult.Unreachable -> _state.update { it.copy(syncing = false, error = tr(Txt.CHAT_OFFLINE)) }
                 }
             } else {
                 when (val r = a.chatMessages(t.organizationId, t.tripId, open.channel.id)) {
@@ -89,7 +92,7 @@ class ChatsViewModel(
                         val thread = it.open ?: return@update it.copy(syncing = false)
                         it.copy(open = thread.mergeRemote(r.value.channel.toChatChannel(::localTime), r.value.messages.map { m -> m.toChatMessage(::localTime) }), syncing = false, error = null)
                     }
-                    is ApiResult.Failed -> _state.update { it.copy(syncing = false, error = if (r.status == 403) "You are not in this channel." else "Could not load the messages (${r.error.code}).") }
+                    is ApiResult.Failed -> _state.update { it.copy(syncing = false, error = if (r.status == 403) tr(Txt.CHAT_NOT_MEMBER) else trf(Txt.CHAT_MESSAGES_FAILED, r.error.code)) }
                     is ApiResult.Unreachable -> _state.update { it.copy(syncing = false, open = it.open?.copy(offline = true)) }
                 }
             }
@@ -121,7 +124,7 @@ class ChatsViewModel(
         return viewModelScope.launch {
             when (val r = a.sendChatMessage(t.organizationId, t.tripId, channelId, text)) {
                 is ApiResult.Ok -> _state.update { it.copy(open = it.open?.confirm(localId, r.value.toChatMessage(::localTime))) }
-                is ApiResult.Failed -> _state.update { it.copy(open = it.open?.fail(localId, offline = false), error = if (r.status == 403) "You are not in this channel." else "The server refused the message (${r.error.code}).") }
+                is ApiResult.Failed -> _state.update { it.copy(open = it.open?.fail(localId, offline = false), error = if (r.status == 403) tr(Txt.CHAT_NOT_MEMBER) else trf(Txt.CHAT_REFUSED, r.error.code)) }
                 is ApiResult.Unreachable -> _state.update { it.copy(open = it.open?.fail(localId, offline = true)) }
             }
         }

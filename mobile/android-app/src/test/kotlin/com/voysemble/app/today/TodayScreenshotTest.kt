@@ -6,6 +6,8 @@
 
 package com.voysemble.app.today
 
+import com.voysemble.core.i18n.AppLocale
+import org.junit.After
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.onAllNodesWithText
@@ -91,6 +93,26 @@ class TodayScreenshotTest {
         compose.onNodeWithText("On file · 2 reveals").assertExists()
         compose.onNodeWithText("Save care note").assertExists()
         compose.onRoot().captureRoboImage("$OUT/today-guardian-care.png")
+    }
+
+    @After
+    fun resetLanguage() {
+        AppLocale.current = "en"
+    }
+
+    @Test
+    fun today_ko() {
+        // Slice 039: the same screen in Korean; the fixture's own names stay as they are.
+        AppLocale.current = "ko"
+        compose.setContent {
+            VoysembleTheme(darkTheme = false) {
+                TodayScreen(state = TodayUiState(KoreaConcertTourFixture.today(), canPropose = true), onAcknowledge = {}, onSelectTab = {})
+            }
+        }
+        compose.onNodeWithText("다음 일정").assertExists()
+        compose.onNodeWithText("확인했어요").assertExists()
+        compose.onNodeWithText("변경 제안").assertExists()
+        compose.onRoot().captureRoboImage("$OUT/today-ko.png")
     }
 
     @Test

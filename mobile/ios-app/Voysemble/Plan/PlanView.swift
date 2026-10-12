@@ -61,7 +61,7 @@ final class PlanModel: ObservableObject {
                 plan = next
                 error = nil
             } else if let failed = r as? ApiResultFailed {
-                error = "Could not load the plan (\(failed.error.code))."
+                error = tr1(.planLoadFailed, failed.error.code)
             } else {
                 plan = plan.withOffline(offline: true)
             }
@@ -99,7 +99,7 @@ struct PlanView: View {
                 if let error = model.error { Text(error).font(.caption).foregroundStyle(Color(argb: Tokens.Color.Light.danger)) }
                 if model.plan.offline { offlineBanner }
                 if model.plan.days.isEmpty {
-                    Text(model.live && model.syncing ? "Loading the plan…" : "No published plan yet. The organizer publishes it from the console.")
+                    Text(model.live && model.syncing ? tr(.planLoading) : tr(.planNone))
                         .font(.subheadline).foregroundStyle(.secondary)
                 } else {
                     dayChips
@@ -128,7 +128,7 @@ struct PlanView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(model.plan.tripName.uppercased()).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
             HStack {
-                Text("Plan").font(.largeTitle.bold())
+                Text(tr(.planTitle)).font(.largeTitle.bold())
                 Spacer()
                 statusChip
             }
@@ -139,8 +139,8 @@ struct PlanView: View {
     /// "Live" / "Syncing" with the API; "Sample data" on the fixture, as on Android.
     private var statusChip: some View {
         let (label, color): (String, UInt32) = model.live
-            ? (model.syncing ? ("Syncing", Tokens.Color.Light.warning) : ("Live", Tokens.Color.Light.success))
-            : ("Sample data", Tokens.Color.Light.pending)
+            ? (model.syncing ? (tr(.commonSyncing), Tokens.Color.Light.warning) : (tr(.commonLive), Tokens.Color.Light.success))
+            : (tr(.commonSampleData), Tokens.Color.Light.pending)
         return Text(label).font(.caption2.weight(.semibold))
             .foregroundStyle(Color(argb: color))
             .voyChip(tint: Color(argb: color))
@@ -148,13 +148,13 @@ struct PlanView: View {
 
     private func syncText(_ minutes: KotlinInt?) -> String {
         guard let m = minutes?.intValue else { return "" }
-        return m == 0 ? " · Synced just now" : " · Synced \(m) min ago"
+        return " · " + (m == 0 ? tr(.commonSyncedJustNow) : tr1(.commonSyncedMinAgo, m))
     }
 
     private var offlineBanner: some View {
         HStack(spacing: 8) {
             Image(systemName: "wifi.slash")
-            Text("Offline. Showing the last synced plan.")
+            Text(tr(.commonOfflineLastPlan))
         }
         .font(.subheadline.weight(.semibold))
         .foregroundStyle(Color(argb: Tokens.Color.Light.warning))
@@ -171,12 +171,12 @@ struct PlanView: View {
                     ForEach(Array(model.plan.days.enumerated()), id: \.element.date) { i, day in
                         let on = i == model.selected
                         Button { model.selected = i } label: {
-                            Text("D\(day.dayNumber) · \(day.label)")
+                            Text(tr2(.planDayChip, day.dayNumber, day.label))
                                 .font(.subheadline.weight(.semibold))
                                 .voyPill(selected: on, tint: Color(argb: Tokens.Color.Light.action))
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel("Open \(day.label), \(day.dateLabel)")
+                        .accessibilityLabel(tr2(.planOpenDayA11y, day.label, day.dateLabel))
                     }
                 }
             }
@@ -188,30 +188,30 @@ struct PlanView: View {
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(day.label).font(.title3.bold())
-                Text("\(day.dateLabel) · \(day.timeZoneLabel) · Day \(day.dayNumber)").font(.subheadline).foregroundStyle(.secondary)
+                Text(tr3(.planDayMeta, day.dateLabel, day.timeZoneLabel, day.dayNumber)).font(.subheadline).foregroundStyle(.secondary)
             }
             Spacer()
             // The add affordance sits in the day header so a long day never hides it, as on Android.
             if model.canPropose {
-                Button("Propose an event") { proposing = ProposalTarget.forDay(day) }
+                Button(tr(.planProposeEvent)) { proposing = ProposalTarget.forDay(day) }
                     .voyButton()
                     .disabled(model.proposal?.sending == true)
             }
         }
         if let p = model.proposal { proposalLine(p) }
         if day.events.isEmpty {
-            Text("Nothing planned for this day yet.").font(.subheadline).foregroundStyle(.secondary)
+            Text(tr(.planNothing)).font(.subheadline).foregroundStyle(.secondary)
         }
         ForEach(day.events, id: \.id) { e in
             VStack(alignment: .leading, spacing: 0) {
                 EventRow(event: e)
                 if model.canPropose {
-                    Button("Propose a change") {
+                    Button(tr(.todayProposeChange)) {
                         proposing = ProposalTarget.forEvent(e, dayLabel: day.label, date: day.date, timeZone: day.timeZone)
                     }
                     .font(.subheadline.weight(.semibold))
                     .disabled(model.proposal?.sending == true)
-                    .accessibilityLabel("Propose a change to \(e.title)")
+                    .accessibilityLabel(tr1(.planProposeChangeA11y, e.title))
                 }
             }
         }
@@ -220,11 +220,11 @@ struct PlanView: View {
     /// The result of the last proposal, with OK to clear it.
     private func proposalLine(_ p: ProposalState) -> some View {
         HStack(spacing: 8) {
-            Text(p.sending ? "Sending proposal…" : p.sent ? ProposalDraftKt.proposalSentMessage(kind: p.kind) : (p.error ?? "Could not send the proposal."))
+            Text(p.sending ? tr(.todaySendingProposal) : p.sent ? ProposalDraftKt.proposalSentMessage(kind: p.kind) : (p.error ?? tr(.proposalFailedGeneric)))
                 .font(.subheadline)
                 .foregroundStyle(Color(argb: p.sent || p.sending ? Tokens.Color.Light.success : Tokens.Color.Light.warning))
             Spacer()
-            if !p.sending { Button("OK") { model.dismissProposal() }.font(.subheadline.weight(.semibold)) }
+            if !p.sending { Button(tr(.commonOk)) { model.dismissProposal() }.font(.subheadline.weight(.semibold)) }
         }
     }
 }
