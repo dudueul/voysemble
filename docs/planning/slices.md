@@ -648,7 +648,7 @@ Apple/Google native sign-in.
 
 ## Slice 020: revision diff with required ack
 
-Status: done 2026-10-12. Commit: see git log (`feat(itinerary): revision diff ...`). CI: pending at commit time; the run id is recorded in a follow-up docs commit once verified.
+Status: done 2026-10-12. Commit `f6b64c1`. **CI verified**: run 38192800686 green (web incl. the extended itinerary E2E across four viewports, mobile incl. BulletinScreenshotTest and the TodayViewModelTest live-announcement case, ios), 2026-10-12 01:50 UTC. First push green.
 Spec: D19 (everyone gets the diff with a required ack, guardians a safe summary), D16 (ack duty), D13 (guardian visibility). Details: `docs/engineering/itinerary.md` (slice 020 section) and `docs/engineering/announcements.md`.
 
 Design settled in the interview before building: keep building features before deploying; the diff rides on
@@ -689,3 +689,40 @@ Deviations found while building:
 
 Not done: the side-by-side revision history page, iOS live Today and announcements, nudge pushes for
 unacknowledged revisions (notification lanes), disruption drafts.
+
+## Slice 021: public marketing site
+
+Status: done 2026-10-12. Commit: see git log (`feat(public-web): marketing landing ...`). CI: pending at commit time; the run id is recorded in a follow-up docs commit once verified.
+Spec: D30 (content policy, from the 2026-10-12 interview), ADR-0008 (public site surface and hosts), D11 (KO/EN). Details: `docs/engineering/public-web.md`.
+
+Interview outcomes: separate static app built before the live People page; EN at `/`, KO at `/ko/`; full
+product catalog without build-status tags; pricing model only with pilot on request; pilot by email plus
+console link; real console captures plus HTML/CSS phone frames; draft privacy and terms; Cloudflare beacon
+only when configured; positioning on school and youth group travel.
+
+| Gate | Command | Result |
+|---|---|---|
+| Unit tests | `pnpm --filter @voysemble/public-web test` | 1 file, 10 tests (model shape en = ko, captures exist, renderers, sitemap, robots) |
+| Typecheck | `pnpm --filter @voysemble/public-web typecheck` | pass (Node type stripping build, DOM lib for the E2E) |
+| Lint + headers | `pnpm lint`, `pnpm check:headers` | 164 files, clean |
+| Build | `pnpm --filter @voysemble/public-web build` | 10 pages, 12 hashed assets |
+| Browser E2E | `pnpm --filter @voysemble/public-web test:e2e` | 4 specs × 4 viewports (phone-only menu test skips elsewhere); see the CI row |
+
+Facts established by tests: see the engineering doc.
+
+Built:
+- `apps/public-web`: typed content model, EN and KO copy (hero, four roles, 21 features in three phases,
+  three phone frames, eight privacy rules, six platform points, pricing, ten FAQs, call to action, footer),
+  draft privacy and terms in both languages, pure renderers with canonical/hreflang/Open Graph, hashed
+  assets, `_headers`, sitemap, robots, bilingual 404, Open Graph card script and PNG, assets-only Worker
+  config per ADR-0008, Vitest and Playwright (four viewports, captures to `docs/captures/public/`).
+- CI `web` job runs the public site unit tests through `pnpm test`, its E2E, and uploads its captures.
+- Docs: `public-web.md`, D30 and D31 in the decision log, captures README, feature flags.
+
+Deviations found while building:
+- Node 22.22 runs the TypeScript build script natively, so the site needs no bundler; the E2E tsconfig
+  needs the DOM lib for `page.evaluate` callbacks.
+- Role chips are list items too; the E2E counts detail bullets by their class.
+
+Not done: store badges, a waitlist form, help center, reviewed legal wording, the CI capture commit-back
+(D31, next slice).
