@@ -261,7 +261,7 @@ private fun RosterRow(
                 // D27: one tap, audited on the server; the line stays only while this screen is open.
                 Icon(
                     AppIcons.Care,
-                    contentDescription = trf(Txt.HC_CARE_A11Y, m.name),
+                    contentDescription = trf(Txt.HC_CARE_SPOKEN, m.name),
                     tint = c.warning,
                     modifier = Modifier.size(22.dp).clickable(onClick = onCareTap),
                 )

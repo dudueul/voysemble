@@ -147,7 +147,7 @@ fun PlanScreen(
                         TextButton(
                             onClick = { onPropose(ProposalTarget.forEvent(e, day.label, day.date, day.timeZone)) },
                             enabled = state.proposal?.sending != true,
-                            modifier = Modifier.semantics { contentDescription = trf(Txt.PLAN_PROPOSE_CHANGE_A11Y, e.title) },
+                            modifier = Modifier.semantics { contentDescription = trf(Txt.PLAN_PROPOSE_CHANGE_SPOKEN, e.title) },
                         ) { Text(tr(Txt.TODAY_PROPOSE_CHANGE)) }
                     }
                 }
@@ -166,7 +166,7 @@ private fun DayChips(days: List<PlanDay>, selected: Int, onSelect: (Int) -> Unit
                 selected = i == selected,
                 onClick = { onSelect(i) },
                 label = { Text(trf(Txt.PLAN_DAY_CHIP, d.dayNumber, d.label)) },
-                modifier = Modifier.semantics { contentDescription = trf(Txt.PLAN_OPEN_DAY_A11Y, d.label, d.dateLabel) },
+                modifier = Modifier.semantics { contentDescription = trf(Txt.PLAN_OPEN_DAY_SPOKEN, d.label, d.dateLabel) },
             )
         }
     }

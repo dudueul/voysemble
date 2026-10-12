@@ -190,7 +190,7 @@ struct HeadcountView: View {
                                     Image(systemName: "cross.case").foregroundStyle(.orange)
                                 }
                                 .buttonStyle(.plain)
-                                .accessibilityLabel(tr1(.hcCareA11y, m.name))
+                                .accessibilityLabel(tr1(.hcCareSpoken, m.name))
                             }
                             Spacer()
                             Text(label(for: mark)).font(.caption).foregroundStyle(.secondary)

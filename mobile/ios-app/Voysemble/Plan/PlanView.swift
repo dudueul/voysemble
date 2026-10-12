@@ -176,7 +176,7 @@ struct PlanView: View {
                                 .voyPill(selected: on, tint: Color(argb: Tokens.Color.Light.action))
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel(tr2(.planOpenDayA11y, day.label, day.dateLabel))
+                        .accessibilityLabel(tr2(.planOpenDaySpoken, day.label, day.dateLabel))
                     }
                 }
             }
@@ -211,7 +211,7 @@ struct PlanView: View {
                     }
                     .font(.subheadline.weight(.semibold))
                     .disabled(model.proposal?.sending == true)
-                    .accessibilityLabel(tr1(.planProposeChangeA11y, e.title))
+                    .accessibilityLabel(tr1(.planProposeChangeSpoken, e.title))
                 }
             }
         }

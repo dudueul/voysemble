@@ -173,7 +173,7 @@ fun MeetingWindowScreen(
                             checked = window.selfOptedIn,
                             onCheckedChange = onSharingChange,
                             enabled = open,
-                            modifier = Modifier.semantics { contentDescription = tr(Txt.WIN_SHARE_A11Y) },
+                            modifier = Modifier.semantics { contentDescription = tr(Txt.WIN_SHARE_SPOKEN) },
                         )
                     }
                     window.me?.let { me ->
@@ -260,7 +260,7 @@ private fun SchematicMap(window: MeetingWindow) {
             .fillMaxWidth()
             .aspectRatio(1.3f)
             .background(c.surfaceRaised, MaterialTheme.shapes.medium)
-            .semantics { contentDescription = trf(Txt.WIN_MAP_A11Y, window.insideCount, window.sharingCount) },
+            .semantics { contentDescription = trf(Txt.WIN_MAP_SPOKEN, window.insideCount, window.sharingCount) },
     ) {
         Canvas(Modifier.fillMaxSize()) {
             val center = Offset(size.width / 2f, size.height / 2f)

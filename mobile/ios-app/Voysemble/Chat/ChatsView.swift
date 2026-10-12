@@ -183,7 +183,7 @@ struct ChatsView: View {
                             if let at = ch.lastAt { Text(at).font(.caption).foregroundStyle(.secondary) }
                         }
                     }
-                    .accessibilityLabel(tr1(.chatOpenA11y, ch.title))
+                    .accessibilityLabel(tr1(.chatOpenSpoken, ch.title))
                 }
             }
         }

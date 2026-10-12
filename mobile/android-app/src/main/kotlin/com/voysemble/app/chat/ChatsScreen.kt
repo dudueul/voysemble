@@ -99,7 +99,7 @@ private fun ChannelRow(ch: ChatChannel, onOpen: (String) -> Unit) {
     VyCard(
         Modifier
             .clickable { onOpen(ch.id) }
-            .semantics { contentDescription = trf(Txt.CHAT_OPEN_A11Y, ch.title) },
+            .semantics { contentDescription = trf(Txt.CHAT_OPEN_SPOKEN, ch.title) },
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Box(Modifier.size(36.dp).background(c.action.copy(alpha = 0.12f), CircleShape), contentAlignment = Alignment.Center) {

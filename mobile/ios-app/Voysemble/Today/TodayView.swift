@@ -208,7 +208,7 @@ private struct UpNextCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 16).fill(Color(argb: Tokens.Color.Light.action)))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(tr2(.todayUpNextA11y, event.title, event.start))
+        .accessibilityLabel(tr2(.todayUpNextSpoken, event.title, event.start))
     }
 }
 

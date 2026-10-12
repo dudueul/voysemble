@@ -216,7 +216,7 @@ private fun UpNextCard(
         shape = MaterialTheme.shapes.medium,
         color = c.action,
         contentColor = c.onAction,
-        modifier = Modifier.fillMaxWidth().semantics { contentDescription = trf(Txt.TODAY_UP_NEXT_A11Y, e.title, e.start) },
+        modifier = Modifier.fillMaxWidth().semantics { contentDescription = trf(Txt.TODAY_UP_NEXT_SPOKEN, e.title, e.start) },
     ) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(tr(Txt.TODAY_UP_NEXT), style = MaterialTheme.typography.labelSmall, color = c.onAction.copy(alpha = 0.8f))

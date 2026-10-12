@@ -63,7 +63,7 @@ fun SignInScreen(
                     tr(Txt.AUTH_REVOKED),
                     style = MaterialTheme.typography.bodyMedium,
                     color = c.danger,
-                    modifier = Modifier.semantics { contentDescription = tr(Txt.AUTH_REVOKED_A11Y) },
+                    modifier = Modifier.semantics { contentDescription = tr(Txt.AUTH_REVOKED_SPOKEN) },
                 )
             }
             Spacer(Modifier.height(24.dp))
