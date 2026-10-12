@@ -2043,7 +2043,7 @@ Not done: filtering the Incidents screen by kind; the kind on the console's inci
 
 ## Slice 080: the guardian's card while their traveler's request is open
 
-Status: done 2026-10-12. Commit: see git log (`feat(guardian): the guardian's Today card says "asked for help" while the traveler's own request is open (slice 080)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: ba9dbee (`feat(guardian): the guardian's Today card says "asked for help" while the traveler's own request is open (slice 080)`). CI: run 38306893103 green (web, mobile, ios); captures recorded by CI in 9105372.
 Spec: D13 (status, never raw data: the request's words stay with the traveler and the organizer), D17, D31. Details: `docs/engineering/guardian.md` (route table, phone card rules, facts), `incidents.md`.
 
 | Gate | Command | Result |
@@ -2066,7 +2066,7 @@ Not done: a guardian's own request for their traveler; a push to the guardian be
 
 ## Slice 081: each organizer's switch for the incident emails
 
-Status: done 2026-10-12. Commit: see git log (`feat(accounts): each owner and organizer turns the incident emails off or on for themselves (slice 081)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: 3e5934b (`feat(accounts): each owner and organizer turns the incident emails off or on for themselves (slice 081)`). CI: run 38307655084 green (web, mobile, ios); captures recorded by CI in b18885a.
 Spec: D29 (notifications that respect the reader; amended in 076 and 078 for the organizers' emails), D21. Details: `docs/engineering/identity-and-roster.md` (the account section), `notifications.md`.
 
 | Gate | Command | Result |
@@ -2085,7 +2085,7 @@ Not done: a per-trip switch; a digest of the incident emails instead of one each
 
 ## Slice 082: the traveler sees that a leader answered
 
-Status: done 2026-10-12. Commit: see git log (`feat(mobile): the traveler's help card says which leader answered and when, never their note (slice 082)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: 7960066 (`feat(mobile): the traveler's help card says which leader answered and when, never their note (slice 082)`). CI: run 38308182592 green (web, mobile, ios); captures recorded by CI in 504fa37.
 Spec: D17 (a human answer), D13 (the note stays with the staff), D31. Details: `docs/engineering/incidents.md` (Behaviour, Routes, Mobile, facts).
 
 | Gate | Command | Result |
