@@ -86,4 +86,27 @@ test('people: live roster, invite status, groups, filters', async ({ page }, inf
   await expect(rows.first()).toContainText('Hana Mom');
   await expect(page.getByText('Showing 1 of 5 people.')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Issue invites' })).toHaveAttribute('href', '/setup');
+
+  // Roster actions (slice 028): edit, revoke the code, remove with the bound guardian.
+  await page.getByRole('button', { name: 'Everyone' }).click();
+  await page.getByRole('button', { name: 'All groups' }).click();
+  await expect(rows).toHaveCount(5);
+  await page.getByRole('button', { name: 'Open the card of Juho Kim' }).click();
+  await card.getByRole('button', { name: 'Edit' }).click();
+  await card.getByLabel('Group (empty for none)').fill('Bus B');
+  await card.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByTestId('roster-action-status')).toHaveText('Saved.');
+  await expect(rows.filter({ hasText: 'Juho Kim' })).toContainText('Bus B');
+  await card.getByRole('button', { name: 'Revoke code' }).click();
+  await expect(page.getByTestId('roster-action-status')).toContainText('Code revoked.');
+  await expect(rows.filter({ hasText: 'Juho Kim' })).toContainText('Code not issued');
+  await page.screenshot({ path: `${OUT}/${info.project.name}/people-actions.png`, fullPage: true });
+  await page.getByRole('button', { name: 'Open the card of Lee, Hana' }).click();
+  await card.getByRole('button', { name: 'Remove from roster' }).click();
+  await expect(card).toContainText('Remove Lee, Hana and 1 bound guardian?');
+  await card.getByRole('button', { name: 'Yes, remove' }).click();
+  await expect(card).toHaveCount(0);
+  await expect(rows).toHaveCount(3);
+  await expect(page.getByText('Hana Mom')).toHaveCount(0);
+  await expect(page.locator('.page__subtitle')).toHaveText('2 travelers · 1 guardians · 0 leaders');
 });

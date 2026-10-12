@@ -4,8 +4,9 @@
 // chips from the real groups. Sample mode keeps the fixture. The care-note column (D27) stays
 // honest: a dash in live mode, never a fake note.
 
-import { useQuery } from '@tanstack/react-query';
-import type { ReactNode } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { PersonTimeline } from '@voysemble/contracts';
+import type { FormEvent, ReactNode } from 'react';
 import { useState } from 'react';
 import { Icons } from '../../app/shell/icons';
 import { FROZEN_NOW } from '../../fixtures/korea-concert-tour';
@@ -22,6 +23,7 @@ import {
   orgsQuery,
   personTimelineQuery,
   pickActiveOrg,
+  roster as rosterApi,
   rosterQuery,
   tripsQuery,
 } from '../../lib/session';
@@ -55,6 +57,159 @@ function fixtureModel(): PeopleModel {
     groups: ['Bus A', 'Bus B'],
     totals: { ...peopleTotals, notJoined: total - peopleTotals.joined },
   };
+}
+
+/** Edit, revoke the code, remove the row (slice 028, D12). Joined rows wait for D28. */
+function RosterActions({
+  orgId,
+  tripId,
+  card,
+  onRemoved,
+}: {
+  orgId: string;
+  tripId: string;
+  card: PersonTimeline;
+  onRemoved: () => void;
+}) {
+  const qc = useQueryClient();
+  const p = card.participation;
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(p.displayName);
+  const [group, setGroup] = useState(p.groupName ?? '');
+  const [confirming, setConfirming] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const refresh = () => {
+    void qc.invalidateQueries({ queryKey: rosterQuery(orgId, tripId).queryKey });
+    void qc.invalidateQueries({ queryKey: personTimelineQuery(orgId, tripId, p.id).queryKey });
+  };
+  const save = useMutation({
+    mutationFn: () =>
+      rosterApi.update(orgId, tripId, p.id, {
+        displayName: name.trim(),
+        groupName: group.trim() || null,
+      }),
+    onSuccess: () => {
+      setEditing(false);
+      setNote(s.saved);
+      refresh();
+    },
+    onError: () => setNote(s.saveFailed),
+  });
+  const revoke = useMutation({
+    mutationFn: () => rosterApi.revokeInvite(orgId, tripId, p.id),
+    onSuccess: (r) => {
+      setNote(s.revoked(r.revoked));
+      refresh();
+    },
+    onError: () => setNote(s.revokeFailed),
+  });
+  const remove = useMutation({
+    mutationFn: () => rosterApi.remove(orgId, tripId, p.id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: rosterQuery(orgId, tripId).queryKey });
+      onRemoved();
+    },
+    onError: () => {
+      setConfirming(false);
+      setNote(s.removeFailed);
+    },
+  });
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (name.trim()) save.mutate();
+  };
+  const joined = p.invite === 'joined';
+  return (
+    <div className="person-card__actions" data-testid="roster-actions">
+      {editing ? (
+        <form className="form form--inline" onSubmit={submit} aria-label={s.edit}>
+          <label className="field">
+            <span className="field__label">{s.editName}</span>
+            <input
+              className="field__input"
+              value={name}
+              maxLength={80}
+              required
+              onChange={(e) => setName(e.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span className="field__label">{s.editGroup}</span>
+            <input
+              className="field__input"
+              value={group}
+              maxLength={40}
+              onChange={(e) => setGroup(e.target.value)}
+            />
+          </label>
+          <div className="form__actions">
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              onClick={() => setEditing(false)}
+            >
+              {s.cancel}
+            </button>
+            <button type="submit" className="btn btn--primary btn--sm" disabled={save.isPending}>
+              {s.save}
+            </button>
+          </div>
+        </form>
+      ) : confirming ? (
+        <fieldset className="form__actions fieldset--plain">
+          <legend className="sr-only">{s.remove}</legend>
+          <span className="small">{s.removeConfirm(p.displayName, card.guardians.length)}</span>
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm"
+            onClick={() => setConfirming(false)}
+          >
+            {s.cancel}
+          </button>
+          <button
+            type="button"
+            className="btn btn--danger btn--sm"
+            disabled={remove.isPending}
+            onClick={() => remove.mutate()}
+          >
+            {s.removeYes}
+          </button>
+        </fieldset>
+      ) : (
+        <div className="form__actions">
+          <button type="button" className="btn btn--ghost btn--sm" onClick={() => setEditing(true)}>
+            {s.edit}
+          </button>
+          {!joined && (p.invite === 'issued' || p.invite === 'expired') ? (
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              disabled={revoke.isPending}
+              onClick={() => revoke.mutate()}
+            >
+              {s.revokeCode}
+            </button>
+          ) : null}
+          {!joined ? (
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              onClick={() => setConfirming(true)}
+            >
+              {s.remove}
+            </button>
+          ) : (
+            <span className="muted small">{s.joinedNote}</span>
+          )}
+        </div>
+      )}
+      {note ? (
+        <p className="small muted" role="status" data-testid="roster-action-status">
+          {note}
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 /** One person's card and timeline (slice 026, D17), beside the roster in live mode. */
@@ -131,9 +286,9 @@ function PersonCard({
             )
           ) : null}
         </div>
+        <RosterActions orgId={orgId} tripId={tripId} card={card} onRemoved={onClose} />
         <div className="person-card__soon">
           <span>{s.careNoteSoon}</span>
-          <span>{s.revokeSoon}</span>
         </div>
         <h3 className="card__subtitle">{s.timeline}</h3>
         {card.entries.length === 0 ? (

@@ -19,13 +19,17 @@ import {
   Participation,
   RedeemInviteRequest,
   RedeemInviteResponse,
+  RemoveParticipationResponse,
+  RevokeInviteResponse,
   type RosterEntry,
   RosterImportRequest,
   RosterImportResponse,
   RosterResponse,
+  UpdateParticipationRequest,
 } from '@voysemble/contracts';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { HTTPException } from 'hono/http-exception';
+import { z } from 'zod';
 import { requireAuth, requireOrgRole } from '../auth/middleware';
 import { db } from '../db/client';
 import { inviteCodes, memberships, organizations } from '../db/schema';
@@ -105,6 +109,72 @@ const addLeaderRoute = createRoute({
     401: ERROR_RESPONSES[401],
     403: ERROR_RESPONSES[403],
     404: ERROR_RESPONSES[404],
+    500: ERROR_RESPONSES[500],
+  },
+});
+
+const RowParams = TripParams.extend({ participationId: z.uuid() });
+
+const updateRowRoute = createRoute({
+  method: 'patch',
+  path: '/v1/orgs/{orgId}/trips/{tripId}/roster/{participationId}',
+  tags: ['roster'],
+  summary: 'Rename or regroup a roster row (owner or organizer); role and binding never change',
+  security: SESSION_SECURITY,
+  request: {
+    params: RowParams,
+    body: { content: { 'application/json': { schema: UpdateParticipationRequest } } },
+  },
+  responses: {
+    200: { description: 'The row.', content: { 'application/json': { schema: Participation } } },
+    400: ERROR_RESPONSES[400],
+    401: ERROR_RESPONSES[401],
+    403: ERROR_RESPONSES[403],
+    404: ERROR_RESPONSES[404],
+    500: ERROR_RESPONSES[500],
+  },
+});
+
+const removeRowRoute = createRoute({
+  method: 'delete',
+  path: '/v1/orgs/{orgId}/trips/{tripId}/roster/{participationId}',
+  tags: ['roster'],
+  summary:
+    'Remove a row nobody joined, with the guardians bound to a traveler; revokes their codes',
+  description:
+    'Refused (409) when the row or a bound guardian already joined: a person who joined is revoked, never erased.',
+  security: SESSION_SECURITY,
+  request: { params: RowParams },
+  responses: {
+    200: {
+      description: 'Removed ids.',
+      content: { 'application/json': { schema: RemoveParticipationResponse } },
+    },
+    401: ERROR_RESPONSES[401],
+    403: ERROR_RESPONSES[403],
+    404: ERROR_RESPONSES[404],
+    409: ERROR_RESPONSES[409],
+    500: ERROR_RESPONSES[500],
+  },
+});
+
+const revokeInviteRoute = createRoute({
+  method: 'post',
+  path: '/v1/orgs/{orgId}/trips/{tripId}/roster/{participationId}/revoke-invite',
+  tags: ['roster'],
+  summary: "Revoke a row's live invite codes; the next issue mints a new one",
+  description: "Refused (409) once the row joined: revoke the person's devices instead (D28).",
+  security: SESSION_SECURITY,
+  request: { params: RowParams },
+  responses: {
+    200: {
+      description: 'Count revoked.',
+      content: { 'application/json': { schema: RevokeInviteResponse } },
+    },
+    401: ERROR_RESPONSES[401],
+    403: ERROR_RESPONSES[403],
+    404: ERROR_RESPONSES[404],
+    409: ERROR_RESPONSES[409],
     500: ERROR_RESPONSES[500],
   },
 });
@@ -247,6 +317,73 @@ export function mountRosterRoutes(app: OpenAPIHono<AppEnv>): void {
     const org = await orgObject(c.env, orgId);
     if (!(await org.getTrip(tripId))) throw new HTTPException(404, { message: 'Trip not found.' });
     return c.json(await org.addLeader(tripId, displayName, groupName), 201);
+  });
+
+  /** Revoke every open code of the given rows (D1); returns how many. */
+  const revokeCodes = async (env: AppEnv['Bindings'], ids: string[], now: string) => {
+    if (ids.length === 0) return 0;
+    const d = db(env.DB);
+    const open = await d
+      .select({ codeHash: inviteCodes.codeHash })
+      .from(inviteCodes)
+      .where(
+        and(
+          inArray(inviteCodes.participationId, ids),
+          isNull(inviteCodes.redeemedAt),
+          isNull(inviteCodes.revokedAt),
+        ),
+      )
+      .all();
+    for (const row of open) {
+      await d
+        .update(inviteCodes)
+        .set({ revokedAt: now })
+        .where(eq(inviteCodes.codeHash, row.codeHash));
+    }
+    return open.length;
+  };
+
+  app.openapi(updateRowRoute, async (c) => {
+    const auth = requireAuth(c);
+    const { orgId, tripId, participationId } = c.req.valid('param');
+    await requireOrgRole(c.env, auth, orgId, 'organizer');
+    const org = await orgObject(c.env, orgId);
+    if (!(await org.getTrip(tripId))) throw new HTTPException(404, { message: 'Trip not found.' });
+    const r = await org.updateParticipation(tripId, participationId, c.req.valid('json'));
+    if ('notFound' in r) throw new HTTPException(404, { message: 'Person not found.' });
+    return c.json(r, 200);
+  });
+
+  app.openapi(removeRowRoute, async (c) => {
+    const auth = requireAuth(c);
+    const { orgId, tripId, participationId } = c.req.valid('param');
+    await requireOrgRole(c.env, auth, orgId, 'organizer');
+    const org = await orgObject(c.env, orgId);
+    if (!(await org.getTrip(tripId))) throw new HTTPException(404, { message: 'Trip not found.' });
+    const r = await org.removeParticipation(tripId, participationId);
+    if ('notFound' in r) throw new HTTPException(404, { message: 'Person not found.' });
+    if ('joined' in r) {
+      throw new HTTPException(409, {
+        message:
+          'Someone on this row already joined; revoke their devices instead of removing the row.',
+      });
+    }
+    await revokeCodes(c.env, r.removed, nowIso());
+    return c.json({ removed: r.removed }, 200);
+  });
+
+  app.openapi(revokeInviteRoute, async (c) => {
+    const auth = requireAuth(c);
+    const { orgId, tripId, participationId } = c.req.valid('param');
+    await requireOrgRole(c.env, auth, orgId, 'organizer');
+    const org = await orgObject(c.env, orgId);
+    if (!(await org.getTrip(tripId))) throw new HTTPException(404, { message: 'Trip not found.' });
+    const person = await org.getParticipation(participationId);
+    if (!person || person.tripId !== tripId)
+      throw new HTTPException(404, { message: 'Person not found.' });
+    if (person.accountId)
+      throw new HTTPException(409, { message: 'Already joined; revoke devices instead.' });
+    return c.json({ revoked: await revokeCodes(c.env, [participationId], nowIso()) }, 200);
   });
 
   app.openapi(issueInvitesRoute, async (c) => {

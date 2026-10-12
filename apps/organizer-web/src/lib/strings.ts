@@ -180,6 +180,25 @@ export const strings = {
     noEvents: 'No activity recorded yet.',
     careNoteSoon: 'Care note: arrives with its own slice (D27).',
     revokeSoon: 'Revoke devices: arrives with its own slice (D28).',
+    edit: 'Edit',
+    editName: 'Name',
+    editGroup: 'Group (empty for none)',
+    save: 'Save',
+    cancel: 'Cancel',
+    saved: 'Saved.',
+    saveFailed: 'Could not save.',
+    revokeCode: 'Revoke code',
+    revoked: (n: number) =>
+      n === 1 ? 'Code revoked. Issue a new one from the setup checklist.' : `${n} codes revoked.`,
+    revokeFailed: 'Could not revoke the code.',
+    remove: 'Remove from roster',
+    removeConfirm: (name: string, guardians: number) =>
+      guardians > 0
+        ? `Remove ${name} and ${guardians} bound ${guardians === 1 ? 'guardian' : 'guardians'}? Their codes stop working.`
+        : `Remove ${name}? Their code stops working.`,
+    removeYes: 'Yes, remove',
+    removeFailed: 'Could not remove. Someone on this row already joined.',
+    joinedNote: 'Joined: revoking devices arrives with D28.',
     kind: {
       joined: 'Joined',
       ack: 'Acknowledged',

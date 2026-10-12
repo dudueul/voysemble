@@ -47,6 +47,26 @@ export const Participation = z
   .openapi('Participation');
 export type Participation = z.infer<typeof Participation>;
 
+/** Edit a roster row's name or group (slice 028); absent fields stay. */
+export const UpdateParticipationRequest = z
+  .object({
+    displayName: DisplayName.optional(),
+    groupName: GroupName.nullable().optional(),
+  })
+  .openapi('UpdateParticipationRequest');
+export type UpdateParticipationRequest = z.infer<typeof UpdateParticipationRequest>;
+
+/** Rows removed together: the row and, for a traveler, the guardians bound to it. */
+export const RemoveParticipationResponse = z
+  .object({ removed: z.array(Id) })
+  .openapi('RemoveParticipationResponse');
+export type RemoveParticipationResponse = z.infer<typeof RemoveParticipationResponse>;
+
+export const RevokeInviteResponse = z
+  .object({ revoked: z.number().int() })
+  .openapi('RevokeInviteResponse');
+export type RevokeInviteResponse = z.infer<typeof RevokeInviteResponse>;
+
 export const RosterImportResponse = z
   .object({
     created: z.number().int(),

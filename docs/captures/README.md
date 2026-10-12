@@ -87,3 +87,8 @@ roster (guardian link, placeholders, empty timeline). Produced by `e2e/people.sp
 `web/desktop-1440/billing-live.png`, `web/laptop-1280/billing-live.png`: the ledger after a fee was set,
 one payment saved and a bank CSV imported (1 paid, 1 partial, 1 unpaid). Produced by `e2e/billing.spec.ts`.
 `android/today-guardian.png` and `ios/today-guardian.png` now carry the balance line.
+
+## Slice 028 (2026-10-12): roster actions on the person card
+
+`web/desktop-1440/people-actions.png`, `web/laptop-1280/people-actions.png`: Juho's card after a regroup
+and a revoked code ("Code not issued" in the row). Produced by `e2e/people.spec.ts`.

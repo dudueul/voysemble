@@ -281,6 +281,79 @@ describe('sample sections', () => {
     expect(screen.queryByTestId('person-card')).toBeNull();
   });
 
+  it('People: roster actions on the card edit, revoke and remove with the right calls', async () => {
+    const base = `/v1/orgs/${ORG.id}/trips/${TRIP.id}`;
+    const calls: { method: string; url: string; body?: unknown }[] = [];
+    const juho = {
+      id: 'p3',
+      tripId: TRIP.id,
+      role: 'traveler',
+      displayName: 'Juho Kim',
+      groupName: 'Bus A',
+      guardianOf: null,
+      accountId: null,
+      createdAt: '2026-10-11T00:00:00.000Z',
+      invite: 'issued',
+      lastAckAt: null,
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        const method = init?.method ?? 'GET';
+        if (method !== 'GET')
+          calls.push({ method, url, body: init?.body ? JSON.parse(String(init.body)) : undefined });
+        if (method === 'GET' && url === '/v1/orgs') return Response.json({ organizations: [ORG] });
+        if (method === 'GET' && url === `/v1/orgs/${ORG.id}/trips`)
+          return Response.json({ trips: [TRIP] });
+        if (method === 'GET' && url === `${base}/roster`)
+          return Response.json({ participations: [juho] });
+        if (method === 'GET' && url === `${base}/people/p3/timeline`)
+          return Response.json({
+            participation: juho,
+            guardianOf: null,
+            guardians: [],
+            entries: [],
+          });
+        if (method === 'PATCH' && url === `${base}/roster/p3`)
+          return Response.json({ ...juho, groupName: 'Bus B' });
+        if (method === 'POST' && url === `${base}/roster/p3/revoke-invite`)
+          return Response.json({ revoked: 1 });
+        if (method === 'DELETE' && url === `${base}/roster/p3`)
+          return Response.json({ removed: ['p3'] });
+        return Response.json(
+          { error: { code: 'NOT_FOUND', message: url, correlationId: 't' } },
+          { status: 404 },
+        );
+      }),
+    );
+    renderWithQuery(<PeoplePage />);
+    await waitFor(() => expect(screen.getByTestId('person-p3')).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: 'Open the card of Juho Kim' }));
+    await waitFor(() => expect(screen.getByTestId('roster-actions')).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.change(screen.getByLabelText('Group (empty for none)'), {
+      target: { value: 'Bus B' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(text(screen.getByTestId('roster-action-status'))).toBe('Saved.'));
+    expect(calls[0]).toEqual({
+      method: 'PATCH',
+      url: `${base}/roster/p3`,
+      body: { displayName: 'Juho Kim', groupName: 'Bus B' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Revoke code' }));
+    await waitFor(() =>
+      expect(text(screen.getByTestId('roster-action-status'))).toContain('Code revoked.'),
+    );
+    expect(calls[1]).toMatchObject({ method: 'POST', url: `${base}/roster/p3/revoke-invite` });
+    fireEvent.click(screen.getByRole('button', { name: 'Remove from roster' }));
+    expect(screen.getByText('Remove Juho Kim? Their code stops working.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, remove' }));
+    await waitFor(() => expect(screen.queryByTestId('person-card')).toBeNull());
+    expect(calls[2]).toMatchObject({ method: 'DELETE', url: `${base}/roster/p3` });
+  });
+
   it('Billing: live ledger with totals, set fee, save a payment, import CSV', async () => {
     const base = `/v1/orgs/${ORG.id}/trips/${TRIP.id}`;
     const posted: { url: string; body: unknown }[] = [];

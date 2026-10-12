@@ -105,6 +105,9 @@
     "mobile.bulletin.ios-live": "working",
     "mobile.today.guardian": "working",
     "web.people.person-card": "working",
-    "guardian.balance": "working"
+    "guardian.balance": "working",
+    "roster.edit": "working",
+    "roster.remove": "working",
+    "invites.revoke": "working"
   }
 }

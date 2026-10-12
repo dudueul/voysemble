@@ -199,8 +199,39 @@ selectable in live mode (`aria-selected`), and the name is a button labelled "Op
   placeholders; Minji's shows "Guardians: Sora Park · Invited"; Close removes it. Capture
   `people-person.png` (desktop, laptop).
 
+## Roster editing and invite revocation (slice 028, D12)
+
+The person card gains the three roster actions an organizer needs between import and departure.
+Exercised by `apps/api-worker/test/roster-invites.test.ts` ("roster editing and invite
+revocation"), the actions case in `sections.test.tsx`, and `e2e/people.spec.ts`.
+
+| Route | Who | Behaviour |
+|---|---|---|
+| `PATCH .../roster/{participationId}` | owner, organizer | `{ displayName?, groupName? }` renames or regroups the row; role and guardian binding never change here. 404 for an unknown id. |
+| `POST .../roster/{participationId}/revoke-invite` | owner, organizer | Revokes the row's open codes in D1 (`revoked_at`); the roster reads `none` and the next "issue invites" mints a fresh code; the old code redeems as 404. 409 once the person joined: revoke their devices instead (D28). |
+| `DELETE .../roster/{participationId}` | owner, organizer | Removes a row nobody joined and, for a traveler, the guardians bound to it, with their marks, incident links and fee rows; revokes their codes. 409 when the row or a bound guardian already joined (a person who joined is revoked, never erased). |
+
+Console: the card's actions row offers Edit (name and group inline), Revoke code (while a code
+is issued or expired) and Remove from roster (two-step confirmation naming the bound guardians);
+a joined row shows "Joined: revoking devices arrives with D28" instead. The roster and the card
+refetch after each action; a removal closes the card.
+
+### Facts established by tests (slice 028)
+
+- Worker: a rename and regroup keeps the role; an unknown id is 404; revoking Juho's code reads
+  `none`, the next issue mints exactly his new code, the old code is 404 and the new one joins;
+  once joined, revoke and remove are 409; removing Hana removes Hana Mom with her, revokes their
+  codes (404 on redeem), leaves three rows, and a second delete is 404; a member cannot edit or
+  remove (403).
+- Console unit: Edit then Save sends the PATCH body with the trimmed name and group; Revoke code
+  posts and shows the revoked note; Remove asks "Remove Juho Kim? Their code stops working.",
+  Yes sends DELETE and closes the card.
+- Browser: Juho's group becomes Bus B in the row after Save; Revoke code drops his row to
+  "Code not issued"; removing Lee, Hana asks about her one bound guardian, removes both, leaves
+  three rows and "2 travelers · 1 guardians · 0 leaders". Capture `people-actions.png`.
+
 ## Open items
 
-- Invite revocation endpoint; roster row editing and removal; care notes (D27); device revocation (D28); deep links from timeline entries.
+- Care notes (D27); device revocation for joined rows (D28); deep links from timeline entries; CSV export of the roster.
 - Invite email delivery (guardian contact) and invite revocation endpoint.
 - Organizer-facing web screens for onboarding checklist (D26) are slice 007 candidates.

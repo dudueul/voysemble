@@ -890,3 +890,27 @@ Built:
   (`billing.fee-ledger`, `guardian.balance`, `web.billing` working).
 
 Not done: Stripe for the organizer's license, per-traveler Checkout links, ledger CSV export.
+
+## Slice 028: roster editing and invite revocation
+
+Status: done 2026-10-12. Commit: see git log (`feat(roster): edit, revoke code, remove ...`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D12 (roster as the source of truth, codes bound to rows), D28 named for joined rows. Details: `docs/engineering/identity-and-roster.md` (slice 028 section).
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 18 files, 55 tests (roster-invites.test.ts grows by 1) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 13 files, 72 tests (adds the roster actions case) |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e` | people.spec.ts extended; capture `people-actions.png` |
+
+Facts established by tests: see the engineering doc.
+
+Built:
+- Contracts `UpdateParticipationRequest`, `RemoveParticipationResponse`, `RevokeInviteResponse`; OrgDO
+  `updateParticipation`, `removeParticipation` (guardians first, dependents with them); routes PATCH, DELETE and
+  revoke-invite on `.../roster/{participationId}` (owner, organizer), code revocation in D1.
+- Console: `roster` helpers in `session.ts`, `RosterActions` on the person card (edit inline, revoke, two-step
+  remove), strings, styles.
+- Docs: roster doc section, captures README, feature flags (`roster.edit`, `roster.remove`, `invites.revoke`).
+
+Not done: revoking devices of joined rows (D28), roster CSV export, editing a guardian's binding.

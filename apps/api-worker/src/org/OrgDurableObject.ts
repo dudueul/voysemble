@@ -797,6 +797,57 @@ export class OrgDurableObject extends DurableObject<Env> {
     );
   }
 
+  /** Rename or regroup a row (slice 028). Role and binding never change here. */
+  async updateParticipation(
+    tripId: string,
+    participationId: string,
+    patch: { displayName?: string | undefined; groupName?: string | null | undefined },
+  ): Promise<Participation | { notFound: true }> {
+    this.requireOrg();
+    const existing = await this.getParticipation(participationId);
+    if (!existing || existing.tripId !== tripId) return { notFound: true };
+    const displayName = patch.displayName ?? existing.displayName;
+    const groupName = patch.groupName === undefined ? existing.groupName : patch.groupName;
+    this.ctx.storage.sql.exec(
+      'UPDATE participations SET display_name = ?, group_name = ? WHERE id = ?',
+      displayName,
+      groupName,
+      participationId,
+    );
+    return { ...existing, displayName, groupName };
+  }
+
+  /**
+   * Remove a row that nobody has joined yet, together with the guardians bound to a traveler
+   * (slice 028). Refused with the joined ids when the row or a bound guardian has an account:
+   * a person who joined is revoked (D28), not erased. Marks, fee rows and incident links of the
+   * removed rows go with them; the invite codes are revoked by the route (they live in D1).
+   */
+  async removeParticipation(
+    tripId: string,
+    participationId: string,
+  ): Promise<{ removed: string[] } | { notFound: true } | { joined: string[] }> {
+    this.requireOrg();
+    const sql = this.ctx.storage.sql;
+    const target = await this.getParticipation(participationId);
+    if (!target || target.tripId !== tripId) return { notFound: true };
+    const bound = target.role === 'traveler' ? await this.guardiansOf(tripId, target.id) : [];
+    const rows = [target, ...bound];
+    const joined = rows.filter((r) => r.accountId).map((r) => r.id);
+    if (joined.length > 0) return { joined };
+    // Guardians first: their guardian_of points at the traveler row (foreign key).
+    this.ctx.storage.transactionSync(() => {
+      for (const r of [...bound, target]) {
+        sql.exec('DELETE FROM acks WHERE participation_id = ?', r.id);
+        sql.exec('DELETE FROM headcount_marks WHERE participation_id = ?', r.id);
+        sql.exec('DELETE FROM incident_people WHERE participation_id = ?', r.id);
+        sql.exec('DELETE FROM fees WHERE participation_id = ?', r.id);
+        sql.exec('DELETE FROM participations WHERE id = ?', r.id);
+      }
+    });
+    return { removed: rows.map((r) => r.id) };
+  }
+
   async listRoster(tripId: string): Promise<Participation[]> {
     this.requireOrg();
     return this.ctx.storage.sql

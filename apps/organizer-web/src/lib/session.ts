@@ -19,11 +19,14 @@ import type {
   OrganizationList,
   Participation,
   PersonTimeline,
+  RemoveParticipationResponse,
+  RevokeInviteResponse,
   RosterImportResponse,
   RosterResponse,
   SessionResponse,
   Trip,
   TripList,
+  UpdateParticipationRequest,
 } from '@voysemble/contracts';
 import { ApiError, api } from './api-client';
 
@@ -56,6 +59,32 @@ export const rosterQuery = (orgId: string, tripId: string) =>
     queryFn: async () =>
       (await api<RosterResponse>(`/v1/orgs/${orgId}/trips/${tripId}/roster`)).participations,
   });
+
+/** Roster row actions on the person card (slice 028). */
+export const roster = {
+  update: (
+    orgId: string,
+    tripId: string,
+    participationId: string,
+    body: UpdateParticipationRequest,
+  ) =>
+    api<Participation>(`/v1/orgs/${orgId}/trips/${tripId}/roster/${participationId}`, {
+      method: 'PATCH',
+      body,
+    }),
+  remove: (orgId: string, tripId: string, participationId: string) =>
+    api<RemoveParticipationResponse>(
+      `/v1/orgs/${orgId}/trips/${tripId}/roster/${participationId}`,
+      {
+        method: 'DELETE',
+      },
+    ),
+  revokeInvite: (orgId: string, tripId: string, participationId: string) =>
+    api<RevokeInviteResponse>(
+      `/v1/orgs/${orgId}/trips/${tripId}/roster/${participationId}/revoke-invite`,
+      { method: 'POST' },
+    ),
+};
 
 /** One person's card and timeline (slice 026, D17). */
 export const personTimelineQuery = (orgId: string, tripId: string, participationId: string) =>

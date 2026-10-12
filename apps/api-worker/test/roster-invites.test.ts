@@ -310,3 +310,67 @@ describe('roster entries for the People page (slice 023)', () => {
     expect(inviteStatusOf(null, [revoked, redeemed], now)).toBe('none');
   });
 });
+
+describe('roster editing and invite revocation (slice 028)', () => {
+  it('edits a row, revokes a code so a new one can be issued, removes unjoined rows with their guardians', async () => {
+    const { nate, org, trip, body } = await setup();
+    const base = `/v1/orgs/${org.id}/trips/${trip.id}`;
+    const id = (name: string) => body.participations.find((p) => p.displayName === name)?.id ?? '';
+    const juho = id('Juho Kim');
+    // Edit: name and group; role and binding untouched; unknown ids 404.
+    const edited = await json<{ displayName: string; groupName: string | null; role: string }>(
+      await api(nate).patch(`${base}/roster/${juho}`, {
+        displayName: 'Kim Juho',
+        groupName: 'Bus B',
+      }),
+    );
+    expect(edited).toMatchObject({ displayName: 'Kim Juho', groupName: 'Bus B', role: 'traveler' });
+    expect(
+      (await api(nate).patch(`${base}/roster/${crypto.randomUUID()}`, { groupName: null })).status,
+    ).toBe(404);
+
+    // Revoke: the live code dies, status drops to none, a fresh issue mints a new code, the old one cannot redeem.
+    const issued = await json<IssueInvitesResponse>(await api(nate).post(`${base}/invites`));
+    const oldCode = issued.invites.find((i) => i.participationId === juho)?.code ?? '';
+    const revoked = await json<{ revoked: number }>(
+      await api(nate).post(`${base}/roster/${juho}/revoke-invite`),
+    );
+    expect(revoked.revoked).toBe(1);
+    const roster = RosterResponse.parse(await json(await api(nate).get(`${base}/roster`)));
+    expect(roster.participations.find((p) => p.id === juho)?.invite).toBe('none');
+    const reissued = await json<IssueInvitesResponse>(await api(nate).post(`${base}/invites`));
+    expect(reissued.invites.map((i) => i.participationId)).toEqual([juho]);
+    const stranger = await signIn('stranger@example.com');
+    expect((await api(stranger).post('/v1/invites/redeem', { code: oldCode })).status).toBe(404);
+    expect(
+      (await api(stranger).post('/v1/invites/redeem', { code: reissued.invites[0]?.code ?? '' }))
+        .status,
+    ).toBe(200);
+    // Joined now: revoking the code is refused; so is removing the row.
+    expect((await api(nate).post(`${base}/roster/${juho}/revoke-invite`)).status).toBe(409);
+    expect((await api(nate).delete(`${base}/roster/${juho}`)).status).toBe(409);
+
+    // Remove: a traveler nobody joined goes with the guardian bound to them; their codes are revoked.
+    const hana = id('Lee, Hana');
+    const hanaMom = id('Hana Mom');
+    const removed = await json<{ removed: string[] }>(
+      await api(nate).delete(`${base}/roster/${hana}`),
+    );
+    expect(removed.removed.sort()).toEqual([hana, hanaMom].sort());
+    const after = RosterResponse.parse(await json(await api(nate).get(`${base}/roster`)));
+    expect(after.participations.map((p) => p.displayName).sort()).toEqual([
+      'Kim Juho',
+      'Minji Park',
+      'Sora Park',
+    ]);
+    const hanaCode = issued.invites.find((i) => i.participationId === hana)?.code ?? '';
+    expect((await api(stranger).post('/v1/invites/redeem', { code: hanaCode })).status).toBe(404);
+    expect((await api(nate).delete(`${base}/roster/${hana}`)).status).toBe(404);
+    // A member (the stranger joined as a traveler) cannot edit or remove.
+    const minjiId = id('Minji Park');
+    expect(
+      (await api(stranger).patch(`${base}/roster/${minjiId}`, { groupName: 'Bus B' })).status,
+    ).toBe(403);
+    expect((await api(stranger).delete(`${base}/roster/${minjiId}`)).status).toBe(403);
+  });
+});
