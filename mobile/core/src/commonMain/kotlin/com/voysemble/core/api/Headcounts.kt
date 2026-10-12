@@ -115,6 +115,13 @@ public fun headcountFromRoster(
     )
 }
 
+/**
+ * After a push returns: marks made while it was in flight win, so only the sync flag is taken
+ * from the result, and only when the device copy is still the one that was pushed.
+ */
+public fun HeadcountSession.adoptPush(result: HeadcountPushResult): HeadcountSession =
+    if (result.session.syncState == SyncState.SYNCED && closedAtDevice == result.session.closedAtDevice && marks == result.session.marks) result.session else this
+
 /** Outcome of one push: the (possibly synced) session and why it is or is not synced. */
 public data class HeadcountPushResult(
     val session: HeadcountSession,

@@ -9,6 +9,7 @@ import com.voysemble.core.headcount.HeadcountMark
 import com.voysemble.core.headcount.SyncState
 import com.voysemble.core.headcount.close
 import com.voysemble.core.headcount.mark
+import com.voysemble.core.headcount.markSynced
 import com.voysemble.core.headcount.togglePresent
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -120,5 +121,20 @@ class HeadcountsSyncTest {
         val offline = pushHeadcount(ApiClient(config, MockEngine { throw IllegalStateException("no route") }), "o", "t", s)
         assertEquals("offline", offline.outcome)
         assertEquals(SyncState.PENDING, offline.session.syncState)
+    }
+
+    @Test
+    fun adoptPush_keeps_marks_made_while_the_push_was_in_flight() {
+        val pushed = headcountFromRoster("hc1", listOf(p("t1", "A", "traveler", "Bus A"), p("t2", "B", "traveler", "Bus A")), "Bus A", "Kim", "06:50")
+            .togglePresent("t1")
+        val synced = HeadcountPushResult(pushed.markSynced(), "synced")
+        // Nothing changed meanwhile: the synced copy is adopted.
+        assertEquals(SyncState.SYNCED, pushed.adoptPush(synced).syncState)
+        // A mark landed during the push: keep the device copy, still pending.
+        val changed = pushed.togglePresent("t2")
+        assertEquals(changed, changed.adoptPush(synced))
+        assertEquals(SyncState.PENDING, changed.adoptPush(synced).syncState)
+        // A rejection never flips the flag.
+        assertEquals(pushed, pushed.adoptPush(HeadcountPushResult(pushed, "rejected:403")))
     }
 }

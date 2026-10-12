@@ -14,6 +14,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.voysemble.core.api.ApiClient
 import com.voysemble.core.api.ApiResult
+import com.voysemble.core.api.adoptPush
 import com.voysemble.core.api.headcountFromRoster
 import com.voysemble.core.api.pushHeadcount
 import com.voysemble.core.fixtures.KoreaConcertTourFixture
@@ -108,8 +109,8 @@ class HeadcountViewModel(
         _status.update { it.copy(syncing = true) }
         return viewModelScope.launch {
             val r = pushHeadcount(a, t.organizationId, t.tripId, _state.value)
-            // Marks made while the push was in flight win: only the sync flag is taken from the result.
-            _state.update { current -> if (r.session.syncState == SyncState.SYNCED && current.closedAtDevice == r.session.closedAtDevice && current.marks == r.session.marks) r.session else current }
+            // Marks made while the push was in flight win (rule in core, shared with iOS).
+            _state.update { current -> current.adoptPush(r) }
             _status.update { it.copy(syncing = false, lastPush = r.outcome, error = if (r.outcome.startsWith("rejected")) "The server refused this count (${r.outcome.substringAfter(':')})." else null) }
         }
     }

@@ -89,4 +89,10 @@ class IncidentsSyncTest {
         val failed = ApiClient(config, MockEngine { throw IllegalStateException("offline") }).confirmIncident("o", "t", "i1", ConfirmIncidentRequestDto("unknown", null))
         assertIs<ApiResult.Unreachable>(failed)
     }
+
+    @Test
+    fun confirmRequestOf_maps_the_pending_answer_to_the_wire_body() {
+        val pending = com.voysemble.core.incidents.IncidentConfirmation(com.voysemble.core.incidents.ConfirmationStatus.NOT_WITH_GROUP, "On Bus B", "Me", "07:12")
+        assertEquals(ConfirmIncidentRequestDto("not_with_group", "On Bus B"), confirmRequestOf(pending))
+    }
 }

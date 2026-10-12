@@ -62,6 +62,10 @@ public fun ConfirmationStatus.wireName(): String = when (this) {
     ConfirmationStatus.UNKNOWN -> "unknown"
 }
 
+/** The pending local answer as the wire request; one place for the mapping, callable from Swift. */
+public fun confirmRequestOf(confirmation: IncidentConfirmation): ConfirmIncidentRequestDto =
+    ConfirmIncidentRequestDto(confirmation.status.wireName(), confirmation.note)
+
 public fun confirmationStatusOf(wire: String): ConfirmationStatus = when (wire) {
     "with_group" -> ConfirmationStatus.WITH_GROUP
     "not_with_group" -> ConfirmationStatus.NOT_WITH_GROUP

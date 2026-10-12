@@ -133,6 +133,10 @@ Swift and the Kotlin framework (SKIE):
 - Kotlin objects are `.shared` (`KoreaConcertTourFixture.shared`), companions are `.companion`.
 - Suspend functions are `async throws`; the project is in Swift 5 language mode because framework types are not `Sendable`.
 - A Kotlin property named `self` is renamed; we use `me`.
+- Read a result payload as `(r as? ApiResultOk<T>)?.value` (optional chaining tolerates either
+  import of the generic `value`); never call a Kotlin extension on a bridged enum from Swift (give
+  core a top-level function instead); `Int?` parameters take `KotlinInt(int:)`; prefer named-copy
+  helpers in core over `doCopy(...)` (slice 024, `docs/engineering/ios-live.md`).
 
 Gradle:
 - Plugins are precompiled convention plugins in `build-logic` and `build-logic-android`; the Android one is only included when `voysemble.android=true`.

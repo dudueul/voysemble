@@ -9,17 +9,29 @@ import VoysembleCore
 
 struct TodayView: View {
     @StateObject var model: TodayModel
+    // The tab and leader screens share the Today model's client and trip (live) or none (sample).
+    @StateObject private var bulletin: BulletinModel
+    @StateObject private var headcount: HeadcountModel
+    @StateObject private var incidents: IncidentsModel
+
+    init(model: TodayModel) {
+        _model = StateObject(wrappedValue: model)
+        _bulletin = StateObject(wrappedValue: BulletinModel(api: model.api, trip: model.trip))
+        _headcount = StateObject(wrappedValue: HeadcountModel(api: model.api, trip: model.trip))
+        _incidents = StateObject(wrappedValue: IncidentsModel(api: model.api, trip: model.trip))
+    }
 
     var body: some View {
         TabView(selection: $model.tab) {
             todayTab.tabItem { Label("Today", systemImage: "calendar") }.tag(MainTab.today)
             placeholder("Plan").tabItem { Label("Plan", systemImage: "list.bullet.rectangle") }.tag(MainTab.plan)
-            NavigationStack { BulletinView(model: BulletinModel()) }
+            NavigationStack { BulletinView(model: bulletin) }
                 .tabItem { Label("Bulletin", systemImage: "bell") }.tag(MainTab.bulletin)
             placeholder("Chats").tabItem { Label("Chats", systemImage: "bubble.left") }.tag(MainTab.chats)
             placeholder("Memories").tabItem { Label("Memories", systemImage: "photo.on.rectangle") }.tag(MainTab.memories)
         }
         .tint(Color(argb: Tokens.Color.Light.brand))
+        .task { await model.refresh() }
     }
 
     private var todayTab: some View {
@@ -34,11 +46,11 @@ struct TodayView: View {
                     HeadcountCard(groups: s.headcount, checkedIn: Int(s.checkedIn), expected: Int(s.expected))
                     // Slice 009: leader and traveler screens reachable from Today, as on Android.
                     HStack {
-                        NavigationLink("Open head count") { HeadcountView(model: HeadcountModel()) }
+                        NavigationLink("Open head count") { HeadcountView(model: headcount) }
                         Spacer()
                         NavigationLink("Meeting window") { MeetingWindowView(model: MeetingWindowModel()) }
                         Spacer()
-                        NavigationLink("Incidents") { IncidentsView(model: IncidentsModel()) }
+                        NavigationLink("Incidents") { IncidentsView(model: incidents) }
                     }
                     .font(.subheadline.weight(.semibold))
                     Text("Later today").font(.headline).padding(.top, 4)
@@ -57,10 +69,10 @@ struct TodayView: View {
             HStack {
                 Text("Today").font(.largeTitle.bold())
                 Spacer()
-                Text("Sample data").font(.caption2.weight(.semibold))
-                    .foregroundStyle(Color(argb: Tokens.Color.Light.pending))
-                    .padding(.horizontal, 10).padding(.vertical, 3)
-                    .background(Capsule().fill(Color(argb: Tokens.Color.Light.pending).opacity(0.1)))
+                statusChip
+            }
+            if let error = model.error {
+                Text(error).font(.caption).foregroundStyle(Color(argb: Tokens.Color.Light.danger))
             }
             HStack(spacing: 6) {
                 Text("\(s.dateLabel) · \(s.timeZoneLabel)")
@@ -70,6 +82,17 @@ struct TodayView: View {
             }
             .font(.subheadline).foregroundStyle(.secondary)
         }
+    }
+
+    /// "Live" / "Syncing" with the API; "Sample data" on the fixture, as on Android.
+    private var statusChip: some View {
+        let (label, color): (String, UInt32) = model.live
+            ? (model.syncing ? ("Syncing", Tokens.Color.Light.warning) : ("Live", Tokens.Color.Light.success))
+            : ("Sample data", Tokens.Color.Light.pending)
+        return Text(label).font(.caption2.weight(.semibold))
+            .foregroundStyle(Color(argb: color))
+            .padding(.horizontal, 10).padding(.vertical, 3)
+            .background(Capsule().fill(Color(argb: color).opacity(0.1)))
     }
 
     private func syncText(_ minutes: KotlinInt?) -> String {

@@ -72,7 +72,7 @@
     "announcements.ack-status": "working",
     "mobile.core.announcements-api": "working",
     "mobile.core.headcounts-api": "working",
-    "mobile.headcount.ios-live": "deferred",
+    "mobile.headcount.ios-live": "working",
     "incidents.auto-from-headcount": "working",
     "incidents.resolve": "working",
     "web.safety.incidents": "working",
@@ -80,14 +80,14 @@
     "incidents.guardian-message": "working",
     "web.command-center.movements": "simulated",
     "itinerary.api": "working",
-    "mobile.today.ios-live": "deferred",
+    "mobile.today.ios-live": "working",
     "mobile.proposals": "working",
     "mobile.proposals.ios": "deferred",
     "announcements.translation": "working",
     "announcements.translation.edit": "working",
     "ai.port": "working",
     "mobile.incidents": "working",
-    "mobile.incidents.ios-live": "deferred",
+    "mobile.incidents.ios-live": "working",
     "incidents.guardian-push": "deferred",
     "mobile.auth.magic-link": "working",
     "mobile.auth.invite-redeem": "working",
@@ -101,6 +101,7 @@
     "mobile.bulletin.revision-lines": "working",
     "web.public-site": "working",
     "web.public-site.legal-drafts": "working",
-    "roster.invite-status": "working"
+    "roster.invite-status": "working",
+    "mobile.bulletin.ios-live": "working"
   }
 }

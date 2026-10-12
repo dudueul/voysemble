@@ -25,7 +25,10 @@ struct RootView: View {
     @ObservedObject var session: SessionModel
 
     var body: some View {
-        if session.session is SessionStateReady || session.sampleMode {
+        if let ready = session.session as? SessionStateReady {
+            // Live app: every screen reads the API for the active trip (slice 024).
+            TodayView(model: TodayModel(api: session.api, trip: ready.trip))
+        } else if session.sampleMode {
             TodayView(model: TodayModel())
         } else if session.session is SessionStateNeedsInvite {
             InviteView(model: session)

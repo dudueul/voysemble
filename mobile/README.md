@@ -21,6 +21,11 @@ Design tokens: `packages/design-tokens` generates `core/.../design/Tokens.kt` an
 | Bulletin (slice 009) | `android-app/.../bulletin/BulletinScreen.kt` | `ios-app/Voysemble/Bulletin/BulletinView.swift` | same, `bulletin-*.png` |
 | Sign-in + invite (slice 011) | `android-app/.../auth/*Screen.kt` | `ios-app/Voysemble/Auth/SignInView.swift` | same, `sign-in*.png`, `invite.png` |
 | Meeting window (slice 009) | `android-app/.../window/MeetingWindowScreen.kt` | `ios-app/Voysemble/Window/MeetingWindowView.swift` | same, `window-*.png` |
+| Incidents (slice 016) | `android-app/.../incidents/IncidentsScreen.kt` | `ios-app/Voysemble/Incidents/IncidentsView.swift` | same, `incidents-*.png` |
+
+iOS evidence: `ios-app/VoysembleTests/CaptureTests.swift` writes `docs/captures/ios/*.png` on the CI
+simulator (slice 022). Live data on iOS (Today, Bulletin, Head count, Incidents): slice 024,
+`docs/engineering/ios-live.md`.
 
 Shared rules and fixtures: `core/src/commonMain/kotlin/com/voysemble/core/today`, `.../fixtures`.
 

@@ -12,14 +12,15 @@ import com.voysemble.core.api.ApiResult
 import com.voysemble.core.api.CreateProposalRequestDto
 import com.voysemble.core.api.ProposalPatchDto
 import com.voysemble.core.fixtures.KoreaConcertTourFixture
-import com.voysemble.core.api.AnnouncementDto
 import com.voysemble.core.session.ActiveTrip
-import com.voysemble.core.today.AckState
-import com.voysemble.core.today.TodayAnnouncement
 import com.voysemble.core.today.TodaySnapshot
 import com.voysemble.core.today.acknowledgeAnnouncement
 import com.voysemble.core.today.confirmAcknowledgment
+import com.voysemble.core.today.emptyTodaySnapshot
+import com.voysemble.core.today.latestRequiredAck
+import com.voysemble.core.today.toTodayAnnouncement
 import com.voysemble.core.today.todaySnapshotOf
+import com.voysemble.core.today.withAnnouncement
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -54,7 +55,7 @@ class TodayViewModel(
 ) : ViewModel() {
     private val _state = MutableStateFlow(
         TodayUiState(
-            snapshot = if (trip != null && api != null) emptySnapshot(trip) else initial,
+            snapshot = if (trip != null && api != null) emptyTodaySnapshot(trip.tripName) else initial,
             live = trip != null && api != null,
         ),
     )
@@ -120,17 +121,15 @@ class TodayViewModel(
             when (val r = a.getItinerary(t.organizationId, t.tripId)) {
                 is ApiResult.Ok -> {
                     val zone = r.value.days.firstOrNull()?.timeZone ?: "UTC"
-                    // D19/D16: the latest required-ack announcement rides on Today; unacknowledged first.
+                    // D19/D16: the required-ack announcement that rides on Today (rule in core, shared with iOS).
                     val latest = when (val list = a.listAnnouncements(t.organizationId, t.tripId)) {
-                        is ApiResult.Ok -> list.value.announcements.filter { it.requiresAck }
-                            .sortedWith(compareBy({ it.myAck == "acknowledged" }, { it.publishedAt }))
-                            .let { items -> items.firstOrNull { it.myAck != "acknowledged" } ?: items.maxByOrNull { it.publishedAt } }
+                        is ApiResult.Ok -> latestRequiredAck(list.value.announcements)
                         else -> null
                     }
                     _state.update {
                         it.copy(
                             snapshot = todaySnapshotOf(r.value, deviceDate(zone), deviceClock(zone), minutesSinceSync = 0)
-                                .copy(announcement = latest?.let(::toTodayAnnouncement)),
+                                .withAnnouncement(latest?.toTodayAnnouncement(::localTime)),
                             syncing = false,
                         )
                     }
@@ -141,34 +140,12 @@ class TodayViewModel(
         }
     }
 
-    private fun toTodayAnnouncement(dto: AnnouncementDto): TodayAnnouncement = TodayAnnouncement(
-        id = dto.id,
-        title = dto.title,
-        body = dto.body,
-        author = dto.authorName,
-        publishedAt = try { HH_MM.withZone(ZoneId.systemDefault()).format(java.time.Instant.parse(dto.publishedAt)) } catch (_: Exception) { dto.publishedAt },
-        acknowledgedCount = dto.ackCount,
-        totalCount = dto.ackTotal,
-        ack = if (dto.myAck == "acknowledged") AckState.ACKNOWLEDGED else AckState.UNACKNOWLEDGED,
-    )
+    private fun localTime(iso: String): String =
+        try { HH_MM.withZone(ZoneId.systemDefault()).format(java.time.Instant.parse(iso)) } catch (_: Exception) { iso }
 
     companion object {
         private val HH_MM: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
         private fun zoneOf(zone: String): ZoneId = try { ZoneId.of(zone) } catch (_: Exception) { ZoneId.systemDefault() }
-
-        /** Shown until the first itinerary answer: the trip name, nothing else invented. */
-        private fun emptySnapshot(trip: ActiveTrip): TodaySnapshot = TodaySnapshot(
-            tripName = trip.tripName.ifBlank { "Your trip" },
-            dayNumber = 0,
-            dateLabel = "",
-            timeZoneLabel = "",
-            now = "00:00",
-            events = emptyList(),
-            announcement = null,
-            headcount = emptyList(),
-            minutesSinceSync = null,
-            offline = false,
-        )
     }
 }

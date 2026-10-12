@@ -8,8 +8,45 @@ import VoysembleCore
 @MainActor
 final class BulletinModel: ObservableObject {
     @Published private(set) var feed: AnnouncementFeed
-    init(feed: AnnouncementFeed = KoreaConcertTourFixture.shared.announcements()) { self.feed = feed }
-    func acknowledge(_ id: String) { feed = feed.acknowledge(id: id) }
+    @Published private(set) var syncing = false
+    let api: ApiClient?
+    let trip: ActiveTrip?
+    var live: Bool { api != nil && trip != nil }
+
+    /// Live (slice 024) with the client and the active trip: sync through core (outbox replay +
+    /// fetch + merge), as BulletinViewModel on Android. Without a trip: the fixture.
+    init(feed: AnnouncementFeed? = nil, api: ApiClient? = nil, trip: ActiveTrip? = nil) {
+        self.api = api
+        self.trip = trip
+        if let feed {
+            self.feed = feed
+        } else if api != nil, trip != nil {
+            self.feed = AnnouncementFeed(items: [], outbox: [], offline: false)
+        } else {
+            self.feed = KoreaConcertTourFixture.shared.announcements()
+        }
+    }
+
+    /// Local first (pending + outbox), then one sync attempt that replays the outbox.
+    func acknowledge(_ id: String) {
+        feed = feed.acknowledge(id: id)
+        if live { Task { await refresh() } }
+    }
+
+    func refresh() async {
+        guard let api, let trip else { return }
+        syncing = true
+        defer { syncing = false }
+        do {
+            let result = try await BulletinSyncKt.syncBulletin(
+                api: api, orgId: trip.organizationId, tripId: trip.tripId, local: feed,
+                ackedAtDevice: { _ in Clocks.isoNow() }, clock: { iso in Clocks.localTime(iso) },
+            )
+            feed = result.feed
+        } catch {
+            feed = AnnouncementFeed(items: feed.items, outbox: feed.outbox, offline: true)
+        }
+    }
 }
 
 struct BulletinView: View {
@@ -18,7 +55,15 @@ struct BulletinView: View {
     var body: some View {
         List {
             Section {
-                Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
+                HStack {
+                    Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
+                    Spacer()
+                    Text(model.live ? (model.syncing ? "Syncing" : (model.feed.offline ? "Offline" : "Live")) : "Sample data")
+                        .font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                }
+                if model.live && model.feed.items.isEmpty && !model.syncing {
+                    Text("No announcements yet.").font(.subheadline).foregroundStyle(.secondary)
+                }
             }
             ForEach(model.feed.items, id: \.id) { a in
                 VStack(alignment: .leading, spacing: 6) {
@@ -56,6 +101,8 @@ struct BulletinView: View {
             }
         }
         .navigationTitle("Bulletin")
+        .task { await model.refresh() }
+        .refreshable { await model.refresh() }
     }
 
     private var subtitle: String {

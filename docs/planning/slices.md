@@ -781,3 +781,32 @@ Deviations found while building: none of note; the fixture test needed the query
 
 Not done: per-person card and timeline, invite revocation, roster editing, care notes (D27), the phone roster
 for leaders.
+
+## Slice 024: iOS on the API
+
+Status: done 2026-10-12. Commit: see git log (`feat(ios): live Today, Bulletin, head count and incidents ...`). CI: pending at commit time; the run id is recorded in a follow-up docs commit once verified (Swift compiles only in CI).
+Spec: D13/D16/D19 (Today card and acks), D14/D25 (head counts), D17 (incidents), D24 (read-only published itinerary). Details: `docs/engineering/ios-live.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Core JVM tests | `./gradlew :core:jvmTest -Pvoysemble.android=false` | 46 tests (adds TodayLiveTest: 3, adoptPush: 1, confirmRequestOf: 1) |
+| Android | CI `mobile` job | TodayViewModel and HeadcountViewModel now use the core rules; existing tests unchanged |
+| iOS | CI `ios` job | LiveModelsTests (6) against a closed port; CaptureTests unchanged |
+| Lint + headers | `pnpm lint`, `pnpm check:headers` | clean |
+
+Facts established by tests: see the engineering doc.
+
+Built:
+- Core: `today/TodayLive.kt` (`latestRequiredAck`, `toTodayAnnouncement`, `withAnnouncement`, `withOffline`,
+  `emptyTodaySnapshot`), `HeadcountSession.adoptPush`, `confirmRequestOf`; Android view models use them.
+- iOS: `TodayModel` (refresh, ack, status chip), `BulletinModel`, `HeadcountModel`, `IncidentsModel` live
+  with the client and the active trip; `TodayView` owns the sub-models; `RootView` wires the ready session;
+  `Clocks` helpers; `LiveModelsTests`.
+- Docs: `ios-live.md`, SKIE rules in `mobile-build-and-test.md`, mobile README screen table, feature flags
+  (`mobile.today.ios-live`, `mobile.headcount.ios-live`, `mobile.incidents.ios-live`, `mobile.bulletin.ios-live`
+  working).
+
+Deviations found while building: two Android rules (Today card selection, in-flight head count marks) lived
+in view models and were moved into core so iOS does not re-implement them.
+
+Not done: proposing from iOS, the meeting window on the API, live captures on the simulator, Apple sign-in.

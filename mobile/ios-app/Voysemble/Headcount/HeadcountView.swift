@@ -8,17 +8,99 @@ import VoysembleCore
 @MainActor
 final class HeadcountModel: ObservableObject {
     @Published private(set) var session: HeadcountSession
+    @Published private(set) var loading = false
+    @Published private(set) var syncing = false
+    /// Safe, user-facing text; nil when the last step succeeded.
+    @Published private(set) var error: String?
+    /// Last push outcome from core (`synced`, `already-closed`, `rejected:<status>`, `offline`).
+    @Published private(set) var lastPush: String?
+    let api: ApiClient?
+    let trip: ActiveTrip?
+    var live: Bool { api != nil && trip != nil }
     private let deviceClock: () -> String
+    private let newId: () -> String
 
-    init(session: HeadcountSession = KoreaConcertTourFixture.shared.headcountBusA(), deviceClock: @escaping () -> String = { "06:58" }) {
-        self.session = session
-        self.deviceClock = deviceClock
+    /// Live (slice 024) with the client and the active trip: the roster seeds the leader's own
+    /// group, every close pushes once, marks made during a push win (rules in core, as on
+    /// Android). Without a trip: the fixture with a fixed clock for screenshots.
+    init(
+        session: HeadcountSession? = nil,
+        deviceClock: (() -> String)? = nil,
+        api: ApiClient? = nil,
+        trip: ActiveTrip? = nil,
+        newId: @escaping () -> String = { UUID().uuidString.lowercased() },
+    ) {
+        self.api = api
+        self.trip = trip
+        self.newId = newId
+        let isLive = api != nil && trip != nil
+        let liveClock: () -> String = { Clocks.now() }
+        let fixedClock: () -> String = { "06:58" }
+        self.deviceClock = deviceClock ?? (isLive ? liveClock : fixedClock)
+        if let session {
+            self.session = session
+        } else if isLive {
+            self.session = HeadcountSession(id: "", groupLabel: "", openedBy: "", openedAtDevice: "", closedAtDevice: nil, members: [], marks: [:], syncState: .pending)
+            self.loading = true
+        } else {
+            self.session = KoreaConcertTourFixture.shared.headcountBusA()
+        }
     }
 
     func toggle(_ id: String) { session = session.togglePresent(memberId: id) }
     func excuse(_ id: String) { session = session.mark(memberId: id, mark: .excused) }
     func withOtherGroup(_ id: String) { session = session.mark(memberId: id, mark: .withOtherGroup) }
-    func close() { session = session.close(atDevice: deviceClock()) }
+
+    /// Local close first (final), then one push.
+    func close() {
+        session = session.close(atDevice: deviceClock())
+        if live { Task { await push() } }
+    }
+
+    /// For the "Pending sync" chip: push again without changing anything on the device.
+    func retrySync() { Task { await push() } }
+
+    /// Roster -> the leader's own group (whole trip when the leader has none) -> open-session push.
+    func load() async {
+        guard let api, let trip else { return }
+        loading = true
+        error = nil
+        do {
+            let r = try await api.listRoster(orgId: trip.organizationId, tripId: trip.tripId, correlationId: nil)
+            if let roster = (r as? ApiResultOk<RosterResponseDto>)?.value {
+                let me = roster.participations.first { $0.id == trip.participationId }
+                session = HeadcountsKt.headcountFromRoster(
+                    id: newId(), roster: roster.participations, groupName: me?.groupName,
+                    openedBy: me?.displayName ?? "Leader", openedAtDevice: deviceClock(),
+                )
+                loading = false
+                await push()
+            } else if let failed = r as? ApiResultFailed {
+                loading = false
+                error = failed.status == 403 ? "Only trip leaders and organizers count heads." : "Could not load the roster (\(failed.error.code))."
+            } else {
+                loading = false
+                error = "Offline. The roster needs one connection to start a count."
+            }
+        } catch {
+            loading = false
+            self.error = "Offline. The roster needs one connection to start a count."
+        }
+    }
+
+    private func push() async {
+        guard let api, let trip, session.syncState != .synced else { return }
+        syncing = true
+        defer { syncing = false }
+        do {
+            let r = try await HeadcountsKt.pushHeadcount(api: api, orgId: trip.organizationId, tripId: trip.tripId, session: session)
+            session = session.adoptPush(result: r)
+            lastPush = r.outcome
+            error = r.outcome.hasPrefix("rejected") ? "The server refused this count (\(r.outcome.dropFirst("rejected:".count)))." : nil
+        } catch {
+            lastPush = "offline"
+        }
+    }
 }
 
 struct HeadcountView: View {
@@ -31,7 +113,19 @@ struct HeadcountView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("HEAD COUNT · \(s.groupLabel)").font(.caption).foregroundStyle(.secondary)
                     Text("\(s.presentCount) / \(s.expected)").font(.largeTitle.bold())
-                    Text(s.syncState == .pending ? "Pending sync" : "Synced").font(.caption).foregroundStyle(s.syncState == .pending ? .orange : .green)
+                    HStack(spacing: 8) {
+                        Text(s.syncState == .pending ? "Pending sync" : "Synced").font(.caption).foregroundStyle(s.syncState == .pending ? .orange : .green)
+                        if model.live {
+                            Text(model.syncing ? "Syncing" : "Live").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                            if s.syncState == .pending && !model.syncing && !s.members.isEmpty {
+                                Button("Retry sync") { model.retrySync() }.font(.caption)
+                            }
+                        } else {
+                            Text("Sample data").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                        }
+                    }
+                    if model.loading { Text("Loading the roster…").font(.caption).foregroundStyle(.secondary) }
+                    if let error = model.error { Text(error).font(.caption).foregroundStyle(.red) }
                 }
             }
             if !s.missing.isEmpty {
@@ -75,6 +169,7 @@ struct HeadcountView: View {
             }
             .padding().background(.bar)
         }
+        .task { if model.live && model.session.members.isEmpty { await model.load() } }
     }
 
     private func label(for mark: HeadcountMark) -> String {

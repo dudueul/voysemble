@@ -1,5 +1,9 @@
 // Copyright 2026- At Day. All rights reserved.
 // Today screen state holder (SwiftUI). Mirrors TodayViewModel on Android; rules live in core.
+// Live (slice 024) when constructed with the API client and the active trip: the published
+// itinerary builds today's snapshot for the device date and clock in the trip's zone, the
+// required-ack announcement rides on the card (rule in core), "Got it" posts the ack, and no
+// signal keeps the last snapshot marked offline. Without a trip it shows the fixture.
 
 import Foundation
 import VoysembleCore
@@ -10,12 +14,107 @@ enum MainTab: CaseIterable { case today, plan, bulletin, chats, memories }
 final class TodayModel: ObservableObject {
     @Published private(set) var snapshot: TodaySnapshot
     @Published var tab: MainTab = .today
+    @Published private(set) var syncing = false
+    @Published private(set) var error: String?
 
-    init(snapshot: TodaySnapshot = KoreaConcertTourFixture.shared.today()) {
-        self.snapshot = snapshot
+    let api: ApiClient?
+    let trip: ActiveTrip?
+    var live: Bool { api != nil && trip != nil }
+
+    private let deviceDate: (String) -> String
+    private let deviceClock: (String) -> String
+
+    init(
+        snapshot: TodaySnapshot = KoreaConcertTourFixture.shared.today(),
+        api: ApiClient? = nil,
+        trip: ActiveTrip? = nil,
+        deviceDate: @escaping (String) -> String = { zone in Clocks.date(in: zone) },
+        deviceClock: @escaping (String) -> String = { zone in Clocks.time(in: zone) },
+    ) {
+        self.api = api
+        self.trip = trip
+        self.deviceDate = deviceDate
+        self.deviceClock = deviceClock
+        if let trip, api != nil {
+            self.snapshot = TodayLiveKt.emptyTodaySnapshot(tripName: trip.tripName)
+        } else {
+            self.snapshot = snapshot
+        }
     }
 
+    /** Local first; in live mode the ack is posted and confirmed (or stays pending offline). */
     func acknowledge(_ id: String) {
         snapshot = snapshot.acknowledgeAnnouncement(id: id)
+        guard let api, let trip else { return }
+        Task {
+            let result = try? await api.ackAnnouncement(
+                orgId: trip.organizationId, tripId: trip.tripId, announcementId: id,
+                ackedAtDevice: ISO8601DateFormatter().string(from: Date()), correlationId: nil,
+            )
+            if result is ApiResultOk<AckResponseDto> { snapshot = snapshot.confirmAcknowledgment(id: id) }
+        }
     }
+
+    func refresh() async {
+        guard let api, let trip else { return }
+        syncing = true
+        error = nil
+        defer { syncing = false }
+        do {
+            let r = try await api.getItinerary(orgId: trip.organizationId, tripId: trip.tripId, correlationId: nil)
+            if let itinerary = (r as? ApiResultOk<ItineraryDto>)?.value {
+                let zone = itinerary.days.first?.timeZone ?? "UTC"
+                var latest: AnnouncementDto? = nil
+                let list = try? await api.listAnnouncements(orgId: trip.organizationId, tripId: trip.tripId, correlationId: nil)
+                if let value = (list as? ApiResultOk<AnnouncementListDto>)?.value {
+                    latest = TodayLiveKt.latestRequiredAck(announcements: value.announcements)
+                }
+                snapshot = TodayBuilderKt.todaySnapshotOf(
+                    itinerary: itinerary, date: deviceDate(zone), now: deviceClock(zone),
+                    minutesSinceSync: KotlinInt(int: 0), offline: false,
+                ).withAnnouncement(announcement: latest?.toTodayAnnouncement(clock: Clocks.localTime))
+            } else if let failed = r as? ApiResultFailed {
+                error = "Could not load the itinerary (\(failed.error.code))."
+            } else {
+                snapshot = snapshot.withOffline(offline: true)
+            }
+        } catch {
+            snapshot = snapshot.withOffline(offline: true)
+        }
+    }
+}
+
+/** Device date and clock in a zone, and ISO -> local HH:mm; one place for the format strings. */
+enum Clocks {
+    static func date(in zone: String) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(identifier: zone) ?? .current
+        f.dateFormat = "yyyy-MM-dd"
+        return f.string(from: Date())
+    }
+
+    static func time(in zone: String) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(identifier: zone) ?? .current
+        f.dateFormat = "HH:mm"
+        return f.string(from: Date())
+    }
+
+    static func now() -> String { time(in: TimeZone.current.identifier) }
+
+    /** ISO 8601 (with or without fractional seconds) to local HH:mm; the input when unparseable. */
+    static func localTime(_ iso: String) -> String {
+        let withFraction = ISO8601DateFormatter()
+        withFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let plain = ISO8601DateFormatter()
+        guard let date = withFraction.date(from: iso) ?? plain.date(from: iso) else { return iso }
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "HH:mm"
+        return f.string(from: date)
+    }
+
+    static func isoNow() -> String { ISO8601DateFormatter().string(from: Date()) }
 }
