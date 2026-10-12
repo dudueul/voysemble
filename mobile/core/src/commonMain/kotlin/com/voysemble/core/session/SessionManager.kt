@@ -75,6 +75,7 @@ public class SessionManager(
             is ApiResult.Ok -> {
                 store.put(KEY_EMAIL, email.trim().lowercase())
                 store.put(KEY_AWAITING, "1")
+                store.put(KEY_REVOKED_NOTICE, null)
                 ApiResult.Ok(Unit, r.correlationId)
             }
             is ApiResult.Failed -> r
@@ -128,6 +129,28 @@ public class SessionManager(
 
     public suspend fun signOut() {
         if (store.get(KEY_TOKEN) != null) api.logout()
+        clear()
+        store.put(KEY_REVOKED_NOTICE, null)
+    }
+
+    /**
+     * Lost or stolen device (D28): the server said this session was wiped. Forget everything local
+     * at once (no logout call: the session is already dead), remember to tell the person why on
+     * the sign-in screen, and notify the platform so the screen changes now.
+     */
+    public fun wipe() {
+        clear()
+        store.put(KEY_REVOKED_NOTICE, "1")
+        onWiped?.invoke()
+    }
+
+    /** Set by the platform (view model) to refresh its state when `wipe()` runs mid-call. */
+    public var onWiped: (() -> Unit)? = null
+
+    /** True until the next sign-in attempt: the sign-in screen explains the revocation. */
+    public fun revokedNotice(): Boolean = store.get(KEY_REVOKED_NOTICE) == "1"
+
+    private fun clear() {
         listOf(KEY_TOKEN, KEY_ACCOUNT, KEY_AWAITING, KEY_ORG, KEY_ORG_NAME, KEY_TRIP, KEY_TRIP_NAME, KEY_PARTICIPATION, KEY_ROLE)
             .forEach { store.put(it, null) }
     }
@@ -154,6 +177,8 @@ public class SessionManager(
 
     public companion object {
         public const val KEY_TOKEN: String = "session.token"
+        /** "1" after a wipe until the next sign-in attempt (D28); public so screenshots can seed it. */
+        public const val KEY_REVOKED_NOTICE: String = "session.revokedNotice"
         private const val KEY_ACCOUNT = "session.accountId"
         private const val KEY_EMAIL = "session.email"
         private const val KEY_AWAITING = "session.awaitingLink"

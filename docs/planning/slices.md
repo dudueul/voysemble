@@ -917,7 +917,7 @@ Not done: revoking devices of joined rows (D28), roster CSV export, editing a gu
 
 ## Slice 029: meeting windows, live
 
-Status: done 2026-10-12. Commit: see git log (`feat(windows): meeting windows on the API, console and phones (slice 029)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: 52865ef (`feat(windows): meeting windows on the API, console and phones (slice 029)`). CI: run 38202237188 green (web, mobile, ios); captures committed as b615e7f (web `safety-window-live.png`, Android `window-none.png`, iOS `window-sharing-dark.png` and `window-none.png`).
 Spec: D15 (no ambient tracking: windows, opt-in per window, states only, point erased at close), D13 (guardians never see it), D31 (captures). Details: `docs/engineering/meeting-windows.md`.
 
 | Gate | Command | Result |
@@ -968,4 +968,31 @@ Built:
 - Docs: `care-notes.md`, roster doc pointer, captures README, mobile README, feature flag (`roster.care-notes` working).
 
 Not done: guardian entry on the phone; edit notifications; documents (tier 3); Korean strings.
+
+## Slice 031: lost or stolen device
+
+Status: done 2026-10-12. Commit: see git log (`feat(session): revoke devices with a wipe directive and re-enrolment (slice 031)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D28 (organizer revokes devices, sessions killed, 401 + wipe directive, re-enrol by invite code with groups restored), ADR-0007 sessions. Details: `docs/engineering/device-revocation.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 22 files, 62 tests (adds `revoke-devices.test.ts`: 1) |
+| Core JVM tests | `./gradlew :core:jvmTest -Pvoysemble.android=false` | green (adds `SessionWipeTest`: 3) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 14 files, 79 tests (adds the People revoke case) |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e` | `revoke.spec.ts` new; capture `people-revoke.png` |
+| Android unit + screenshots | CI `mobile` job | `SessionViewModelTest` (+1), `sign-in-revoked.png` |
+| iOS unit + captures | CI `ios` job | `LiveModelsTests` (+1), `sign-in-revoked.png` |
+
+Facts established by tests: see the engineering doc.
+
+Built:
+- Contracts `RevokeDevicesResponse`, `ErrorCode` + `SESSION_WIPED`, `TimelineKind` + `devices_revoked`.
+- Worker: D1 migration 0002 (`sessions.revoked_reason`), `revokeNativeSessions`, `wipeDirectiveFor`, the middleware's wiped 401 with `X-Voysemble-Wipe: 1`; OrgDO schema v13 (`participation_events`), `unbindAccount`, timeline entry; route `POST .../roster/{id}/revoke-devices`.
+- Core: `ApiClient.onWipe` + `WIPE_HEADER`, `ApiResult.Failed.wiped`, `SessionManager.wipe/onWiped/revokedNotice`, `KEY_REVOKED_NOTICE`.
+- Android: `AppGraph` wiring, `SessionViewModel.revokedNotice` + `onWiped`, sign-in notice; tests and capture. iOS: `SessionModel.revokedNotice/refresh` + hooks, sign-in notice; test and capture.
+- Console: `roster.revokeDevices`, the card's two-step "Revoke devices" with the new code in the status, strings; unit test; e2e with capture.
+- Docs: `device-revocation.md`, roster doc pointer, captures README, mobile README, feature flag (`devices.revoke-wipe` working).
+
+Not done: reauth before the action; clearing a push token or local database (nothing to clear yet); Korean strings.
 

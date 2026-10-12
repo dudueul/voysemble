@@ -177,7 +177,14 @@ export const strings = {
     noGuardians: 'No guardian on the roster.',
     timeline: 'Timeline',
     noEvents: 'No activity recorded yet.',
-    revokeSoon: 'Revoke devices: arrives with its own slice (D28).',
+    // Lost or stolen device (D28, slice 031).
+    revokeDevices: 'Revoke devices',
+    revokeDevicesConfirm: (name: string) =>
+      `Sign out every phone of ${name} and issue a new invite code? Their phones clear themselves on the next sync.`,
+    revokeDevicesYes: 'Yes, revoke devices',
+    revokeDevicesDone: (sessions: number, code: string, expires: string) =>
+      `${sessions} ${sessions === 1 ? 'phone' : 'phones'} signed out. New code ${code} (valid until ${expires}); hand it over in person.`,
+    revokeDevicesFailed: 'Could not revoke the devices.',
     // Care notes (D27, slice 030).
     care: {
       title: 'Care note',
@@ -220,7 +227,6 @@ export const strings = {
         : `Remove ${name}? Their code stops working.`,
     removeYes: 'Yes, remove',
     removeFailed: 'Could not remove. Someone on this row already joined.',
-    joinedNote: 'Joined: revoking devices arrives with D28.',
     kind: {
       joined: 'Joined',
       ack: 'Acknowledged',
@@ -230,6 +236,7 @@ export const strings = {
       guardian_message: 'Guardian message',
       care_update: 'Care note',
       care_reveal: 'Care note',
+      devices_revoked: 'Devices',
     } as Record<string, string>,
     open: (name: string) => `Open the card of ${name}`,
   },

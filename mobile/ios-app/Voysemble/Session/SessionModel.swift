@@ -11,6 +11,8 @@ final class SessionModel: ObservableObject {
     @Published var sampleMode = false
     @Published private(set) var busy = false
     @Published private(set) var error: String?
+    /// D28: the organizer revoked this phone; the sign-in screen says so until the next attempt.
+    @Published private(set) var revokedNotice = false
 
     let api: ApiClient
     private let manager: SessionManager
@@ -22,8 +24,21 @@ final class SessionModel: ObservableObject {
             engine: DarwinEngineFactory.shared.create(),
         )
         self.api = client
-        self.manager = manager ?? SessionManager(api: client, store: store)
-        self.session = self.manager.current()
+        let m = manager ?? SessionManager(api: client, store: store)
+        self.manager = m
+        self.session = m.current()
+        self.revokedNotice = m.revokedNotice()
+        // Lost or stolen device (D28): a wiped answer clears the session mid-call and the route
+        // changes at once; the hooks run on the client's thread, so hop to the main actor.
+        client.onWipe = { m.wipe() }
+        m.onWiped = { [weak self] in Task { @MainActor in self?.refresh() } }
+    }
+
+    /// Re-read the store (after a wipe from any screen's call).
+    func refresh() {
+        session = manager.current()
+        revokedNotice = manager.revokedNotice()
+        if session is SessionStateSignedOut { sampleMode = false }
     }
 
     func requestLink(_ email: String) async {
@@ -49,6 +64,7 @@ final class SessionModel: ObservableObject {
         busy = true
         try? await manager.signOut()
         session = manager.current()
+        revokedNotice = manager.revokedNotice()
         busy = false
     }
 
@@ -66,6 +82,7 @@ final class SessionModel: ObservableObject {
             self.error = "Something went wrong."
         }
         session = manager.current()
+        revokedNotice = manager.revokedNotice()
         busy = false
     }
 }

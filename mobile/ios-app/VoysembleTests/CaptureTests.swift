@@ -60,6 +60,14 @@ final class CaptureTests: XCTestCase {
     func testSignInAndInvite() throws {
         try capture(SignInView(model: SessionModel()), name: "sign-in")
         try capture(InviteView(model: SessionModel()), name: "invite")
+        // Slice 031 (D28): the sign-in screen after the organizer revoked this phone.
+        let store = InMemorySecureStore()
+        store.put(key: SessionManager.companion.KEY_REVOKED_NOTICE, value: "1")
+        let client = ApiClient(
+            config: ApiClientConfig(host: "127.0.0.1:9", userAgent: "Voysemble-iOS-tests", sessionToken: { nil }),
+            engine: DarwinEngineFactory.shared.create(),
+        )
+        try capture(SignInView(model: SessionModel(api: client, manager: SessionManager(api: client, store: store))), name: "sign-in-revoked")
     }
 
     // MARK: - Harness

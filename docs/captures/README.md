@@ -109,3 +109,10 @@ row's revealed line. Produced by `e2e/people.spec.ts`. `android/headcount-care.p
 `ios/headcount-care.png` (CaptureTests): the head count roster row with the care icon and the revealed
 line under Minji's name. Both land here through the CI `captures` job.
 
+## Slice 031 (2026-10-12): device revocation
+
+`web/desktop-1440/people-revoke.png`, `web/laptop-1280/people-revoke.png`: Minji's card after "Revoke
+devices" (status with the new code, the row back to Invited, the timeline fact). Produced by
+`e2e/revoke.spec.ts`. `android/sign-in-revoked.png` (Roborazzi) and `ios/sign-in-revoked.png`
+(CaptureTests): the sign-in screen with the revocation notice. Both land here through the CI `captures` job.
+

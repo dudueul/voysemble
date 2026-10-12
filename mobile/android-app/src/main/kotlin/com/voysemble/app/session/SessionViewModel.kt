@@ -22,11 +22,18 @@ data class SessionUiState(
     val busy: Boolean = false,
     /** Safe, user-facing message from the last failed call (with its support reference). */
     val error: String? = null,
+    /** D28: the organizer revoked this phone; the sign-in screen says so until the next attempt. */
+    val revokedNotice: Boolean = false,
 )
 
 class SessionViewModel(private val manager: SessionManager) : ViewModel() {
-    private val _state = MutableStateFlow(SessionUiState(manager.current()))
+    private val _state = MutableStateFlow(SessionUiState(manager.current(), revokedNotice = manager.revokedNotice()))
     val state: StateFlow<SessionUiState> = _state
+
+    init {
+        // A wipe can land inside any screen's call; the route changes at once.
+        manager.onWiped = { _state.update { it.copy(session = manager.current(), revokedNotice = manager.revokedNotice(), sampleMode = false) } }
+    }
 
     fun enterSampleMode() = _state.update { it.copy(sampleMode = true, error = null) }
     fun leaveSampleMode() = _state.update { it.copy(sampleMode = false) }
@@ -72,7 +79,7 @@ class SessionViewModel(private val manager: SessionManager) : ViewModel() {
             try {
                 block()
             } finally {
-                _state.update { it.copy(busy = false, session = manager.current()) }
+                _state.update { it.copy(busy = false, session = manager.current(), revokedNotice = manager.revokedNotice()) }
             }
         }
     }

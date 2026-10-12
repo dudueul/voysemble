@@ -9,7 +9,7 @@ import { OpenAPIHono } from '@hono/zod-openapi';
 import type { ErrorEnvelope } from '@voysemble/contracts';
 import { HTTPException } from 'hono/http-exception';
 import { secureHeaders } from 'hono/secure-headers';
-import { authenticate } from './auth/middleware';
+import { authenticate, WIPE_HEADER } from './auth/middleware';
 import type { AppEnv } from './env';
 import { mountAnnouncementRoutes } from './routes/announcements';
 import { mountAuthRoutes } from './routes/auth';
@@ -101,6 +101,12 @@ export function createApp(): OpenAPIHono<AppEnv> {
                 : err.status === 429
                   ? 'RATE_LIMITED'
                   : 'INTERNAL';
+      if (err.status === 401 && c.get('wiped')) {
+        // D28: the wipe directive rides the 401 of a revoked session (code + header).
+        return c.json(errorBody('SESSION_WIPED', err.message, correlationId), 401, {
+          [WIPE_HEADER]: '1',
+        });
+      }
       return c.json(errorBody(code, err.message || 'Request failed.', correlationId), err.status);
     }
     // Unexpected failure: log the real error with the correlation id, return a safe envelope.

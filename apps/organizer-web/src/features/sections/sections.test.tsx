@@ -432,6 +432,87 @@ describe('sample sections', () => {
     );
   });
 
+  it('People: revoking devices on a joined card confirms, posts, and shows the new code', async () => {
+    const base = `/v1/orgs/${ORG.id}/trips/${TRIP.id}`;
+    const minji = {
+      id: 'p1',
+      tripId: TRIP.id,
+      role: 'traveler',
+      displayName: 'Minji Park',
+      groupName: 'Bus A',
+      guardianOf: null,
+      accountId: 'a1',
+      createdAt: '2026-10-11T00:00:00.000Z',
+      invite: 'joined',
+      lastAckAt: null,
+      hasCareNote: false,
+    };
+    let revoked = false;
+    stubApi({
+      'GET /v1/orgs': () => ({ organizations: [ORG] }),
+      [`GET /v1/orgs/${ORG.id}/trips`]: () => ({ trips: [TRIP] }),
+      [`GET ${base}/roster`]: () => ({
+        participations: [revoked ? { ...minji, accountId: null, invite: 'issued' } : minji],
+      }),
+      [`GET ${base}/people/p1/care-note`]: () => ({
+        participationId: 'p1',
+        hasCareNote: false,
+        updatedAt: null,
+        updatedByName: null,
+        reveals: 0,
+      }),
+      [`GET ${base}/people/p1/timeline`]: () => ({
+        participation: revoked ? { ...minji, accountId: null, invite: 'issued' } : minji,
+        guardianOf: null,
+        guardians: [],
+        entries: revoked
+          ? [
+              {
+                kind: 'devices_revoked',
+                at: new Date().toISOString(),
+                title: 'Devices revoked by Owner',
+                detail: 'Every phone signed out; a new invite code was issued.',
+                ref: null,
+              },
+            ]
+          : [],
+      }),
+      [`POST ${base}/roster/p1/revoke-devices`]: () => {
+        revoked = true;
+        return {
+          revokedSessions: 1,
+          invite: {
+            participationId: 'p1',
+            role: 'traveler',
+            displayName: 'Minji Park',
+            code: 'K7PX-4MDQ',
+            expiresAt: '2026-11-11T00:00:00.000Z',
+          },
+        };
+      },
+    });
+    renderWithQuery(<PeoplePage />);
+    await waitFor(() => expect(screen.getByTestId('person-p1')).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: 'Open the card of Minji Park' }));
+    await waitFor(() => expect(screen.getByTestId('person-card')).toBeTruthy());
+    expect(screen.queryByRole('button', { name: 'Remove from roster' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Revoke devices' }));
+    expect(text(screen.getByTestId('revoke-devices-confirm'))).toContain(
+      'Sign out every phone of Minji Park and issue a new invite code?',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, revoke devices' }));
+    await waitFor(() =>
+      expect(text(screen.getByTestId('roster-action-status'))).toBe(
+        '1 phone signed out. New code K7PX-4MDQ (valid until 2026-11-11); hand it over in person.',
+      ),
+    );
+    await waitFor(() => expect(text(screen.getByTestId('person-p1'))).toContain('Invited'));
+    await waitFor(() =>
+      expect(text(screen.getByTestId('timeline'))).toContain('Devices revoked by Owner'),
+    );
+    expect(screen.getByRole('button', { name: 'Remove from roster' })).toBeTruthy();
+  });
+
   it('People: roster actions on the card edit, revoke and remove with the right calls', async () => {
     const base = `/v1/orgs/${ORG.id}/trips/${TRIP.id}`;
     const calls: { method: string; url: string; body?: unknown }[] = [];

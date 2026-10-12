@@ -119,6 +119,19 @@ export const IssuedInvite = z
   .openapi('IssuedInvite');
 export type IssuedInvite = z.infer<typeof IssuedInvite>;
 
+/**
+ * Lost or stolen device (D28, slice 031): every native session of the person's account is revoked
+ * with a wipe directive, the roster row is unbound, and a fresh invite code is minted so the
+ * person re-enrols on a new phone with their groups restored.
+ */
+export const RevokeDevicesResponse = z
+  .object({
+    revokedSessions: z.number().int(),
+    invite: IssuedInvite,
+  })
+  .openapi('RevokeDevicesResponse');
+export type RevokeDevicesResponse = z.infer<typeof RevokeDevicesResponse>;
+
 export const IssueInvitesResponse = z
   .object({ invites: z.array(IssuedInvite) })
   .openapi('IssueInvitesResponse');

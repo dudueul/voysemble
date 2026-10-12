@@ -15,7 +15,10 @@ import { HTTPException } from 'hono/http-exception';
 import { db } from '../db/client';
 import { memberships, organizations } from '../db/schema';
 import type { AppEnv, AuthContext } from '../env';
-import { resolveSession } from './service';
+import { resolveSession, wipeDirectiveFor } from './service';
+
+/** Response header a wiped session sees on its 401 (D28); the app clears its local state. */
+export const WIPE_HEADER = 'X-Voysemble-Wipe';
 
 export const SESSION_COOKIE = 'vy_session';
 
@@ -36,14 +39,28 @@ export const authenticate = createMiddleware<AppEnv>(async (c, next) => {
         client: resolved.session.client,
       };
       c.set('auth', auth);
+    } else if (await wipeDirectiveFor(db(c.env.DB), token)) {
+      // The organizer revoked this phone (D28). Public routes (a new magic link) still work; any
+      // route that needs a session answers 401 SESSION_WIPED with the directive (see requireAuth
+      // and the error handler) so the app wipes itself and returns to the invite screen.
+      c.set('wiped', true);
     }
   }
   await next();
 });
 
-export function requireAuth(c: { get: (k: 'auth') => AuthContext | undefined }): AuthContext {
+/** Message of the wiped 401; the error handler adds the code and the header. */
+export const WIPED_MESSAGE =
+  'This device was signed out by the organizer. Sign in again with a new invite code.';
+
+export function requireAuth(c: {
+  get: ((k: 'auth') => AuthContext | undefined) & ((k: 'wiped') => boolean | undefined);
+}): AuthContext {
   const auth = c.get('auth');
-  if (!auth) throw new HTTPException(401, { message: 'Sign in required.' });
+  if (!auth) {
+    if (c.get('wiped')) throw new HTTPException(401, { message: WIPED_MESSAGE });
+    throw new HTTPException(401, { message: 'Sign in required.' });
+  }
   return auth;
 }
 

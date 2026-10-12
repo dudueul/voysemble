@@ -20,6 +20,7 @@ import {
   RedeemInviteRequest,
   RedeemInviteResponse,
   RemoveParticipationResponse,
+  RevokeDevicesResponse,
   RevokeInviteResponse,
   type RosterEntry,
   RosterImportRequest,
@@ -31,6 +32,7 @@ import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { HTTPException } from 'hono/http-exception';
 import { z } from 'zod';
 import { requireAuth, requireOrgRole } from '../auth/middleware';
+import { revokeSessions } from '../auth/service';
 import { db } from '../db/client';
 import { inviteCodes, memberships, organizations } from '../db/schema';
 import type { AppEnv } from '../env';
@@ -264,6 +266,28 @@ function rowsToRoster(csv: string): {
   return { rows, skipped };
 }
 
+const revokeDevicesRoute = createRoute({
+  method: 'post',
+  path: '/v1/orgs/{orgId}/trips/{tripId}/roster/{participationId}/revoke-devices',
+  tags: ['roster'],
+  summary: 'Lost or stolen device: sign out every phone of this person and issue a new code (D28)',
+  description:
+    "Owner or organizer. Revokes every session of the account behind a joined row (phone and browser, except the caller's own) with the wipe directive (the phone's next request is 401 with X-Voysemble-Wipe: 1 and the app clears itself), unbinds the row so it reads as invited again, revokes open codes and mints a fresh one. 409 when nobody joined the row. The person re-enrols with the new code; group and role stay on the row.",
+  security: SESSION_SECURITY,
+  request: { params: RowParams },
+  responses: {
+    200: {
+      description: 'Sessions revoked and the new code (shown once).',
+      content: { 'application/json': { schema: RevokeDevicesResponse } },
+    },
+    401: ERROR_RESPONSES[401],
+    403: ERROR_RESPONSES[403],
+    404: ERROR_RESPONSES[404],
+    409: ERROR_RESPONSES[409],
+    500: ERROR_RESPONSES[500],
+  },
+});
+
 export function mountRosterRoutes(app: OpenAPIHono<AppEnv>): void {
   app.openapi(importRoute, async (c) => {
     const auth = requireAuth(c);
@@ -342,6 +366,47 @@ export function mountRosterRoutes(app: OpenAPIHono<AppEnv>): void {
     }
     return open.length;
   };
+
+  app.openapi(revokeDevicesRoute, async (c) => {
+    const auth = requireAuth(c);
+    const { orgId, tripId, participationId } = c.req.valid('param');
+    const access = await requireOrgRole(c.env, auth, orgId, 'organizer');
+    const org = await orgObject(c.env, orgId);
+    if (!(await org.getTrip(tripId))) throw new HTTPException(404, { message: 'Trip not found.' });
+    const now = nowIso();
+    const me = await org.participationForAccount(tripId, auth.accountId);
+    const byName = me?.displayName ?? (access.role === 'owner' ? 'Owner' : 'Organizer');
+    const unbound = await org.unbindAccount(tripId, participationId, byName, now);
+    if ('notFound' in unbound) throw new HTTPException(404, { message: 'Person not found.' });
+    if ('notJoined' in unbound)
+      throw new HTTPException(409, {
+        message: 'Nobody has joined this row; revoke its code instead.',
+      });
+    const d = db(c.env.DB);
+    const revokedSessions = await revokeSessions(d, unbound.accountId, auth.sessionId, now);
+    await revokeCodes(c.env, [participationId], now);
+    const row = await org.getParticipation(participationId);
+    if (!row) throw new HTTPException(404, { message: 'Person not found.' });
+    const code = randomInviteCode();
+    const expiresAt = plusSeconds(now, INVITE_TTL_SECONDS);
+    await d.insert(inviteCodes).values({
+      codeHash: hashInviteCode(code),
+      organizationId: orgId,
+      tripId,
+      participationId,
+      role: row.role as 'leader' | 'traveler' | 'guardian',
+      createdBy: auth.accountId,
+      createdAt: now,
+      expiresAt,
+    });
+    return c.json(
+      {
+        revokedSessions,
+        invite: { participationId, role: row.role, displayName: row.displayName, code, expiresAt },
+      },
+      200,
+    );
+  });
 
   app.openapi(updateRowRoute, async (c) => {
     const auth = requireAuth(c);

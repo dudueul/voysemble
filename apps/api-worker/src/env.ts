@@ -36,6 +36,8 @@ export type AuthContext = {
 export type Variables = {
   correlationId: string;
   auth?: AuthContext;
+  /** The presented session was revoked with the wipe directive (D28); set by the middleware. */
+  wiped?: boolean;
 };
 
 export type AppEnv = { Bindings: Bindings; Variables: Variables };

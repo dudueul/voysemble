@@ -54,6 +54,15 @@ fun SignInScreen(
         Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
             Text("Voysemble", style = MaterialTheme.typography.headlineLarge)
             Text("Journeys are better together", style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
+            if (state.revokedNotice) {
+                // D28: the organizer revoked this phone; local data is already gone.
+                Text(
+                    "This phone's access was revoked by the organizer. Sign in again and enter the new invite code they give you.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = c.danger,
+                    modifier = Modifier.semantics { contentDescription = "Access revoked notice" },
+                )
+            }
             Spacer(Modifier.height(24.dp))
             VyCard {
                 if (awaiting == null) {

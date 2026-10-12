@@ -39,7 +39,7 @@
     "billing.fee-ledger": "working",
     "roster.care-notes": "working",
     "documents.sealed-links": "deferred",
-    "devices.revoke-wipe": "deferred",
+    "devices.revoke-wipe": "working",
     "notifications.lanes": "deferred",
     "auth.magic-link": "working",
     "auth.sessions": "working",

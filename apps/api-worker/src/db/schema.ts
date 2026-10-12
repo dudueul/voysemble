@@ -27,6 +27,8 @@ export const sessions = sqliteTable(
     expiresAt: text('expires_at').notNull(),
     lastSeenAt: text('last_seen_at').notNull(),
     revokedAt: text('revoked_at'),
+    /** 'wipe' when the organizer revoked the devices (D28); null for a logout. */
+    revokedReason: text('revoked_reason'),
   },
   (t) => [index('sessions_account_idx').on(t.accountId)],
 );

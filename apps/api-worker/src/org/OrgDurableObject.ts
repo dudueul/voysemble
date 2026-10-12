@@ -333,6 +333,23 @@ const MIGRATIONS: { version: number; sql: string }[] = [
       CREATE INDEX IF NOT EXISTS care_reveals_person_idx ON care_reveals(participation_id, revealed_at);
     `,
   },
+  {
+    // Slice 031 (D28): facts about a roster row that no other table holds (first: the organizer
+    // revoked the person's devices). One row per fact, read by the person's timeline.
+    version: 13,
+    sql: `
+      CREATE TABLE IF NOT EXISTS participation_events (
+        id TEXT PRIMARY KEY,
+        participation_id TEXT NOT NULL REFERENCES participations(id),
+        trip_id TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        by_name TEXT NOT NULL,
+        detail TEXT,
+        at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS participation_events_person_idx ON participation_events(participation_id, at);
+    `,
+  },
 ];
 
 type CareNoteRow = {
@@ -951,6 +968,7 @@ export class OrgDurableObject extends DurableObject<Env> {
         sql.exec('DELETE FROM fees WHERE participation_id = ?', r.id);
         sql.exec('DELETE FROM care_reveals WHERE participation_id = ?', r.id);
         sql.exec('DELETE FROM care_notes WHERE participation_id = ?', r.id);
+        sql.exec('DELETE FROM participation_events WHERE participation_id = ?', r.id);
         sql.exec('DELETE FROM participations WHERE id = ?', r.id);
       }
     });
@@ -1014,6 +1032,39 @@ export class OrgDurableObject extends DurableObject<Env> {
       participationId,
     );
     return { ...existing, accountId };
+  }
+
+  /**
+   * Lost or stolen device (D28): the row forgets its account so the person re-enrols with a fresh
+   * code on a new phone; the group, role and every recorded fact stay on the row.
+   */
+  async unbindAccount(
+    tripId: string,
+    participationId: string,
+    byName: string,
+    now: string,
+  ): Promise<{ accountId: string } | { notFound: true } | { notJoined: true }> {
+    this.requireOrg();
+    const p = await this.getParticipation(participationId);
+    if (!p || p.tripId !== tripId) return { notFound: true };
+    if (!p.accountId) return { notJoined: true };
+    this.ctx.storage.transactionSync(() => {
+      this.ctx.storage.sql.exec(
+        'UPDATE participations SET account_id = NULL WHERE id = ?',
+        participationId,
+      );
+      this.ctx.storage.sql.exec(
+        'INSERT INTO participation_events (id, participation_id, trip_id, kind, by_name, detail, at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        crypto.randomUUID(),
+        participationId,
+        tripId,
+        'devices_revoked',
+        byName,
+        null,
+        now,
+      );
+    });
+    return { accountId: p.accountId };
   }
 
   /** The caller's participation in a trip, if any (one account has at most one per trip here). */
@@ -2414,6 +2465,23 @@ export class OrgDurableObject extends DurableObject<Env> {
     if (!me || me.tripId !== tripId) return null;
     const sql = this.ctx.storage.sql;
     const entries: TimelineEntry[] = [];
+    // Facts recorded on the row itself (slice 031): devices revoked by the organizer.
+    for (const r of sql
+      .exec<{ kind: string; by_name: string; detail: string | null; at: string }>(
+        'SELECT kind, by_name, detail, at FROM participation_events WHERE participation_id = ?',
+        participationId,
+      )
+      .toArray()) {
+      if (r.kind === 'devices_revoked') {
+        entries.push({
+          kind: 'devices_revoked',
+          at: r.at,
+          title: `Devices revoked by ${r.by_name}`,
+          detail: 'Every phone signed out; a new invite code was issued.',
+          ref: null,
+        });
+      }
+    }
     // Care note (D27): the latest write and every audited reveal; never the content.
     for (const r of sql
       .exec<CareNoteRow>('SELECT * FROM care_notes WHERE participation_id = ?', participationId)

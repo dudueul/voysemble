@@ -25,6 +25,7 @@ import type {
   PersonTimeline,
   RemoveParticipationResponse,
   RevealCareNoteResponse,
+  RevokeDevicesResponse,
   RevokeInviteResponse,
   RosterImportResponse,
   RosterResponse,
@@ -88,6 +89,12 @@ export const roster = {
   revokeInvite: (orgId: string, tripId: string, participationId: string) =>
     api<RevokeInviteResponse>(
       `/v1/orgs/${orgId}/trips/${tripId}/roster/${participationId}/revoke-invite`,
+      { method: 'POST' },
+    ),
+  /** Lost or stolen device (D28, slice 031): every phone signed out, a fresh code minted. */
+  revokeDevices: (orgId: string, tripId: string, participationId: string) =>
+    api<RevokeDevicesResponse>(
+      `/v1/orgs/${orgId}/trips/${tripId}/roster/${participationId}/revoke-devices`,
       { method: 'POST' },
     ),
 };

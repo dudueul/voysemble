@@ -52,6 +52,18 @@ class AuthScreenshotTest {
     }
 
     @Test
+    fun sign_in_after_revocation_light() {
+        // Slice 031 (D28): the organizer revoked this phone; the screen says why.
+        compose.setContent {
+            VoysembleTheme(darkTheme = false) {
+                SignInScreen(SessionUiState(SessionState.SignedOut, revokedNotice = true), onRequestLink = {}, onVerify = {}, onBrowseSample = {}, onStartOver = {})
+            }
+        }
+        compose.onNodeWithText("This phone's access was revoked by the organizer. Sign in again and enter the new invite code they give you.").assertExists()
+        compose.onRoot().captureRoboImage("$OUT/sign-in-revoked.png")
+    }
+
+    @Test
     fun invite_light() {
         compose.setContent {
             VoysembleTheme(darkTheme = false) {

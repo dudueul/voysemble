@@ -108,6 +108,26 @@ final class LiveModelsTests: XCTestCase {
         XCTAssertNil(MeetingWindowModel(window: nil).window)
     }
 
+    func testSessionWipeNoticeFromTheStore() async {
+        // Slice 031 (D28): a store carrying the revoked notice shows it; a wipe mid-session signs out.
+        let store = InMemorySecureStore()
+        store.put(key: SessionManager.companion.KEY_REVOKED_NOTICE, value: "1")
+        let client = unreachableClient()
+        let model = SessionModel(api: client, manager: SessionManager(api: client, store: store))
+        XCTAssertTrue(model.revokedNotice)
+        XCTAssertTrue(model.session is SessionStateSignedOut)
+        store.put(key: SessionManager.companion.KEY_REVOKED_NOTICE, value: nil)
+        store.put(key: SessionManager.companion.KEY_TOKEN, value: "tok")
+        store.put(key: "session.accountId", value: "acc")
+        model.refresh()
+        XCTAssertFalse(model.revokedNotice)
+        XCTAssertTrue(model.session is SessionStateNeedsInvite)
+        client.onWipe?()
+        try? await Task.sleep(for: .milliseconds(50))
+        XCTAssertTrue(model.session is SessionStateSignedOut)
+        XCTAssertTrue(model.revokedNotice)
+    }
+
     func testClocksFormatWireTimes() {
         XCTAssertEqual(Clocks.localTime("not a date"), "not a date")
         let hhmm = Clocks.localTime("2026-12-31T06:30:00.000Z")

@@ -13,6 +13,11 @@ struct SignInView: View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Voysemble").font(.largeTitle.bold())
             Text("Journeys are better together").foregroundStyle(.secondary)
+            if model.revokedNotice {
+                // D28: the organizer revoked this phone; local data is already gone.
+                Text("This phone's access was revoked by the organizer. Sign in again and enter the new invite code they give you.")
+                    .font(.subheadline).foregroundStyle(.red)
+            }
             GroupBox {
                 if let awaiting = model.session as? SessionStateAwaitingLink {
                     Text("Check your email").font(.headline)

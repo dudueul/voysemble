@@ -28,9 +28,12 @@ object AppGraph {
             ),
             OkHttp.create(),
         )
+        val m = SessionManager(a, s)
+        // Lost or stolen device (D28): a wiped answer clears the session at once, mid-call.
+        a.onWipe = { m.wipe() }
         store = s
         api = a
-        session = SessionManager(a, s)
+        session = m
     }
 
     val apiClient: ApiClient get() = api ?: error("AppGraph.init not called")

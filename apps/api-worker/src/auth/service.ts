@@ -135,3 +135,38 @@ export async function resolveSession(
 export async function revokeSession(d: Db, sessionId: string): Promise<void> {
   await d.update(sessions).set({ revokedAt: nowIso() }).where(eq(sessions.id, sessionId));
 }
+
+/**
+ * Lost or stolen device (D28): revoke every live session of the account (phone and browser; a
+ * lost phone has both) with the wipe directive, except the caller's own session, so an organizer
+ * who also leads a group and revokes their own row keeps the console they are working in.
+ */
+export async function revokeSessions(
+  d: Db,
+  accountId: string,
+  exceptSessionId: string | null,
+  now = nowIso(),
+): Promise<number> {
+  const live = await d
+    .select({ id: sessions.id })
+    .from(sessions)
+    .where(and(eq(sessions.accountId, accountId), isNull(sessions.revokedAt)))
+    .all();
+  const targets = live.map((r) => r.id).filter((id) => id !== exceptSessionId);
+  for (const id of targets) {
+    await d
+      .update(sessions)
+      .set({ revokedAt: now, revokedReason: 'wipe' })
+      .where(eq(sessions.id, id));
+  }
+  return targets.length;
+}
+
+/** True when the presented token belongs to a session revoked with the wipe directive. */
+export async function wipeDirectiveFor(d: Db, sessionToken: string): Promise<boolean> {
+  const session = await d.query.sessions.findFirst({
+    where: eq(sessions.tokenHash, hashToken(sessionToken)),
+    columns: { revokedReason: true },
+  });
+  return session?.revokedReason === 'wipe';
+}

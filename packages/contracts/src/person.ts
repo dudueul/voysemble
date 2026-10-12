@@ -19,6 +19,7 @@ export const TimelineKind = z
     'guardian_message',
     'care_update',
     'care_reveal',
+    'devices_revoked',
   ])
   .openapi('TimelineKind');
 export type TimelineKind = z.infer<typeof TimelineKind>;

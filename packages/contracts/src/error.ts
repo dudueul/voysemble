@@ -13,6 +13,8 @@ export const ErrorCode = z.enum([
   'CONFLICT',
   'RATE_LIMITED',
   'INTERNAL',
+  /** 401 from a session the organizer revoked with a wipe (D28): the phone clears its state. */
+  'SESSION_WIPED',
 ]);
 export type ErrorCode = z.infer<typeof ErrorCode>;
 

@@ -25,6 +25,9 @@ import io.ktor.http.path
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
+/** Response header on a wiped session's 401 (D28). */
+public const val WIPE_HEADER: String = "X-Voysemble-Wipe"
+
 public class ApiClientConfig(
     /** e.g. "next.dev.voysemble.cfd" or "api.voysemble.com". Scheme is always https. */
     public val host: String,
@@ -49,6 +52,13 @@ public class ApiClient(
         expectSuccess = false
         install(ContentNegotiation) { json(json) }
     }
+
+    /**
+     * Lost or stolen device (D28): called once per wiped answer (401 with `X-Voysemble-Wipe: 1`
+     * or code `SESSION_WIPED`) before the result is returned. The platform wires it to
+     * `SessionManager.wipe()`; set after construction so Swift needs no extra constructor argument.
+     */
+    public var onWipe: (() -> Unit)? = null
 
     public suspend fun health(correlationId: String? = null): ApiResult<HealthResponse> =
         call(correlationId) { http.get { url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "health") }; header("User-Agent", config.userAgent); correlationId?.let { header(CORRELATION_HEADER, it) } } }
@@ -289,7 +299,10 @@ public class ApiClient(
         }
         val text = response.bodyAsText()
         return try {
-            ApiResult.Failed(response.status.value, json.decodeFromString<ErrorEnvelope>(text).error)
+            val error = json.decodeFromString<ErrorEnvelope>(text).error
+            val wiped = response.status.value == 401 && (response.headers[WIPE_HEADER] == "1" || error.code == "SESSION_WIPED")
+            if (wiped) onWipe?.invoke()
+            ApiResult.Failed(response.status.value, error, wiped)
         } catch (_: Throwable) {
             ApiResult.Unreachable("non-envelope:${response.status.value}")
         }

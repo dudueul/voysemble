@@ -59,6 +59,38 @@ class SessionViewModelTest {
     }
 
     @Test
+    fun a_wiped_answer_signs_out_at_once_with_the_notice() = runTest {
+        // Slice 031 (D28): the store is signed in on a trip; any call answered with the wipe
+        // directive clears it and the route moves to sign-in with the notice.
+        val store = InMemorySecureStore()
+        store.put(SessionManager.KEY_TOKEN, "tok")
+        store.put("session.accountId", "acc")
+        store.put("session.email", "m@example.com")
+        store.put("active.orgId", "org")
+        store.put("active.tripId", "trip")
+        store.put("active.participationId", "p")
+        val engine = MockEngine {
+            respond(
+                """{"error":{"code":"SESSION_WIPED","message":"signed out by the organizer","correlationId":"c"}}""",
+                HttpStatusCode.Unauthorized,
+                headersOf(HttpHeaders.ContentType to listOf("application/json"), "X-Voysemble-Wipe" to listOf("1")),
+            )
+        }
+        val api = ApiClient(ApiClientConfig("h", "t") { store.get(SessionManager.KEY_TOKEN) }, engine)
+        val manager = SessionManager(api, store)
+        api.onWipe = { manager.wipe() }
+        val vm = SessionViewModel(manager)
+        assertIs<SessionState.Ready>(vm.state.value.session)
+        api.myParticipations()
+        assertEquals(SessionState.SignedOut, vm.state.value.session)
+        assertEquals(true, vm.state.value.revokedNotice)
+        // Requesting a new link clears the notice.
+        val vm2 = vm { """{"accepted":true,"expiresInSeconds":900}""" to HttpStatusCode.Accepted }
+        vm2.requestLink("m@example.com").join()
+        assertEquals(false, vm2.state.value.revokedNotice)
+    }
+
+    @Test
     fun expired_link_and_bad_code_show_safe_messages() = runTest {
         val vm = vm { path ->
             when (path) {

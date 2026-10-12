@@ -323,6 +323,21 @@ function RosterActions({
     },
     onError: () => setNote(s.revokeFailed),
   });
+  const [confirmingDevices, setConfirmingDevices] = useState(false);
+  const revokeDevices = useMutation({
+    mutationFn: () => rosterApi.revokeDevices(orgId, tripId, p.id),
+    onSuccess: (r) => {
+      setConfirmingDevices(false);
+      setNote(
+        s.revokeDevicesDone(r.revokedSessions, r.invite.code, r.invite.expiresAt.slice(0, 10)),
+      );
+      refresh();
+    },
+    onError: () => {
+      setConfirmingDevices(false);
+      setNote(s.revokeDevicesFailed);
+    },
+  });
   const remove = useMutation({
     mutationFn: () => rosterApi.remove(orgId, tripId, p.id),
     onSuccess: () => {
@@ -418,8 +433,36 @@ function RosterActions({
             >
               {s.remove}
             </button>
+          ) : confirmingDevices ? (
+            <fieldset
+              className="form__actions fieldset--plain"
+              data-testid="revoke-devices-confirm"
+            >
+              <span className="small">{s.revokeDevicesConfirm(p.displayName)}</span>
+              <button
+                type="button"
+                className="btn btn--danger btn--sm"
+                disabled={revokeDevices.isPending}
+                onClick={() => revokeDevices.mutate()}
+              >
+                {s.revokeDevicesYes}
+              </button>
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                onClick={() => setConfirmingDevices(false)}
+              >
+                {s.cancel}
+              </button>
+            </fieldset>
           ) : (
-            <span className="muted small">{s.joinedNote}</span>
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              onClick={() => setConfirmingDevices(true)}
+            >
+              {s.revokeDevices}
+            </button>
           )}
         </div>
       )}

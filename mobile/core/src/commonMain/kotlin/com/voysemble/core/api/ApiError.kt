@@ -25,8 +25,11 @@ public data class ErrorDetail(val path: String, val message: String)
 public sealed interface ApiResult<out T> {
     public data class Ok<T>(val value: T, val correlationId: String?) : ApiResult<T>
 
-    /** Server answered with an ErrorEnvelope. */
-    public data class Failed(val status: Int, val error: ErrorBody) : ApiResult<Nothing>
+    /**
+     * Server answered with an ErrorEnvelope. `wiped` is the D28 directive: the organizer revoked
+     * this device; the client has already cleared its session when this is true.
+     */
+    public data class Failed(val status: Int, val error: ErrorBody, val wiped: Boolean = false) : ApiResult<Nothing>
 
     /** No usable answer: offline, timeout, TLS, or a body that is not our envelope. */
     public data class Unreachable(val reason: String) : ApiResult<Nothing>
