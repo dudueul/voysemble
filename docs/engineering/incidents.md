@@ -36,13 +36,17 @@ API, and wires the organizer console's Safety page to those cards. Exercised by
   lists the cards naming them, projected further than a guardian's: their own words on a `help`
   card ("Status update about <name>" otherwise), themselves alone, no trail, no note, no guardian
   message.
+- Slice 076: a card opened from a phone (a traveler's help request, a leader's card) also reaches
+  every owner and organizer by email at once (`notifications.md`); one the organizer opened on
+  the console does not. A traveler asks once: a second request while one of theirs is open is
+  409; after it is resolved they may ask again.
 
 ## Routes
 
 | Route | Who | Behaviour |
 |---|---|---|
 | `GET /v1/orgs/{orgId}/trips/{tripId}/incidents` | staff; a guardian (slice 016) and a traveler (slice 074), projected | Cards, open first. A guardian gets the cards naming their traveler (`guardianView`); a traveler the cards naming themselves (`travelerView`: their own words on a `help` card, "Status update about <name>" otherwise, themselves alone, no trail, no note, no guardian message). |
-| `POST /v1/orgs/{orgId}/trips/{tripId}/incidents` (slice 068) | owner, organizer; a leader for their group (slice 073); a traveler for themselves (slice 074) | `OpenIncidentRequest { title (1..160), participationIds (1..50) }`: a card opened by hand, kind `manual`, open, no head count, opened by "Owner" / "Organizer"; every id must be a traveler of the trip (a guardian, a leader or an unknown id is 404); the leaders of the named travelers' groups and their guardians get "Incident opened: <names>" at once (D29). 201 with the card. A leader (slice 073) names travelers of their own group only (a whole-trip leader any traveler; 403 otherwise), and the card is opened by their name. A traveler (slice 074) names only themselves (403 otherwise): kind `help`, opened by their name, "Help asked: <name>" to the leaders of their group and their guardians. |
+| `POST /v1/orgs/{orgId}/trips/{tripId}/incidents` (slice 068) | owner, organizer; a leader for their group (slice 073); a traveler for themselves (slice 074) | `OpenIncidentRequest { title (1..160), participationIds (1..50) }`: a card opened by hand, kind `manual`, open, no head count, opened by "Owner" / "Organizer"; every id must be a traveler of the trip (a guardian, a leader or an unknown id is 404); the leaders of the named travelers' groups and their guardians get "Incident opened: <names>" at once (D29). 201 with the card. A leader (slice 073) names travelers of their own group only (a whole-trip leader any traveler; 403 otherwise), and the card is opened by their name. A traveler (slice 074) names only themselves (403 otherwise): kind `help`, opened by their name, "Help asked: <name>" to the leaders of their group and their guardians; 409 while a request of theirs is open (slice 076). A card opened from a phone is mailed to every owner and organizer at once (slice 076). |
 | `POST /v1/orgs/{orgId}/trips/{tripId}/incidents/{incidentId}/resolve` | staff | `{ note }`; returns the resolved card. |
 
 ## Console (Safety page)
@@ -178,6 +182,11 @@ otherwise), reachable from Today next to "Open head count". iOS `IncidentsView` 
   keeps a local card at 07:12; a leader's trip has no card. iOS: the sample card; unreachable
   says offline with no card; a leader has none. Console unit: a `help` card reads "Asked for
   help from the phone"; the head count's does not.
+- Slice 076, worker: the owner's card from the console leaves his mailbox at the sign-in link;
+  Kim's card from the phone mails him at once (tag `incident`, English, "<trip>: incident opened
+  by Kim · Minji Park", Kim's words, the Safety link); Minji's request mails "<trip>: Minji Park
+  asked for help" with her words; a second request while hers is open is 409; once resolved she
+  asks again (201).
 
 ## Not done
 

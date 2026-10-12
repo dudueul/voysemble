@@ -61,6 +61,7 @@
     "incidents.manual-phone": "working",
     "incidents.help-from-phone": "working",
     "mobile.my-room": "working",
+    "incidents.organizer-email": "working",
     "travel.bookings": "working",
     "packing.checklist": "working",
     "packing.reminders": "working",

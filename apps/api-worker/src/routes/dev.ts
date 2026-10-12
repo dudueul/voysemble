@@ -18,7 +18,7 @@ const DevMail = z
     subject: z.string(),
     text: z.string(),
     locale: z.enum(['ko', 'en']),
-    tag: z.enum(['magic-link', 'invite', 'digest']),
+    tag: z.enum(['magic-link', 'invite', 'digest', 'incident']),
   })
   .openapi('DevMail');
 

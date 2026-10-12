@@ -34,6 +34,8 @@ zone is the trip's.
 | The morning three days and one day before the start, from 09:00 (the cron, slice 056; `packing.md`) | `packing_reminder` | travelers and leaders with packing left, the guardians of those travelers; one body each, once per morning (`notifyRows`) | "Packing: 3 days to go" |
 | The organizer presses "Remind" on a document requirement (slice 060; `documents.md`) | `document_reminder` | the travelers still missing it, the guardians of those travelers; once a day (`notifyRows`) | "Documents: Passport copy still needed" |
 | The morning three days and one day before a requirement's due date, from 09:00 (the cron, slice 062; `documents.md`) | `document_reminder` | the same, with the same reference as the nudge: whichever comes first that morning delivers (`notifyRows`) | the same |
+| A traveler asks for help from Today (slice 074) | `incident_status` | the leaders of their group, their guardians | "Help asked: Minji Park" |
+| A card is opened from a phone: a traveler's help request or a leader's card (slice 076) | an email, tag `incident` (`lib/organizer-mail.ts`, not a lane row) | every owner and organizer of the organization, in their language | "Korea Concert Tour: Minji Park asked for help" / "Korea Concert Tour: incident opened by Kim · Minji Park" |
 
 A second sync of an open head count calls nobody again. `notifyTrip` never throws into the
 route: a failure to notify is logged and the thing that happened stands.
@@ -102,6 +104,21 @@ rows, skipped, failed). The organizer's log counts the emailed rows next to the 
 one call per organization; a later slice moves the wake-up into the organization object's own
 alarm when the number of organizations makes the sweep the wrong shape.
 
+## The organizers' email on a card from the phone (slice 076)
+
+Owners and organizers have no app: the lanes above never reach them, and the console shows an
+open card only while someone looks at it. So a card opened from a phone (a traveler's "I need
+help", slice 074; a leader's card, slice 073) is mailed at once: `emailOrganizers(env, orgId,
+compose)` (`lib/organizer-mail.ts`) reads every owner and organizer with their language
+(`memberships` joined to `accounts`) and sends one message each through the `EmailPort`
+(`templates.ts` `incidentOpenedEmail`, tag `incident`: the subject names the traveler or the
+leader, the body carries the traveler's own words, the people, the trip-zone clock and the
+Safety page's link). A card the organizer opened on the console sends nothing. The send never
+throws into the route; a failure is logged without the address or the body. A traveler asks
+once: while a request of theirs is open, another is 409 (the Today card already says the leaders
+know); after it is resolved they may ask again. The production transport is the digest's
+(unbound in named environments until the Email Service binding lands).
+
 ## Facts established by tests
 
 - Rules (`notification-rules.test.ts`): the lane per role and kind; quiet hours across midnight;
@@ -143,4 +160,6 @@ Push delivery (FCM and APNs: a token per device, the Android channels are there,
 id per push); opening the exact announcement or incident rather than its tab or screen (the
 reference is there; the screens open on their own first item); the production email transport (the digest goes
 through the same `EmailPort` as the sign-in link, which named environments do not bind yet);
-chat mentions; the organizer's mobile digest; packing reminders.
+chat mentions; the organizer's mobile digest; an email to the organizers for a head count that
+closes with people missing (the console's alert carries it; slice 076 mails only the cards opened
+from a phone).

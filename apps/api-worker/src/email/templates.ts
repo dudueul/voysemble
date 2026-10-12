@@ -83,3 +83,42 @@ export function digestEmail(
   const t = locale === 'ko' ? ko : en;
   return { to, subject: t.subject, text: t.text, locale, tag: 'digest' };
 }
+
+/**
+ * Slice 076: a card opened from a phone reaches the owners and organizers at once, since they
+ * have no app: a traveler's "I need help" (kind `help`) or a leader's card (kind `manual`). The
+ * traveler's own words are the body's first line; the clock is the trip's; the link opens the
+ * Safety page.
+ */
+export function incidentOpenedEmail(
+  to: string,
+  locale: 'ko' | 'en',
+  organizationName: string,
+  trip: { name: string; timeZone: string },
+  incident: {
+    kind: string;
+    title: string;
+    names: string[];
+    openedByName: string;
+    openedAt: string;
+  },
+  url: string,
+): OutboundEmail {
+  const { date, time } = localClock(incident.openedAt, trip.timeZone);
+  const names = incident.names.join(', ');
+  const help = incident.kind === 'help';
+  const ko = {
+    subject: help
+      ? `${trip.name}: ${names} 님이 도움을 요청했습니다`
+      : `${trip.name}: ${incident.openedByName} 인솔자가 사건을 열었습니다 · ${names}`,
+    text: `${organizationName}의 ${trip.name}에서 ${date} ${time}에 ${help ? `${names} 님이 휴대폰에서 도움을 요청했습니다` : `${incident.openedByName} 인솔자가 휴대폰에서 사건을 열었습니다`}.\n\n${incident.title}\n관련 여행자: ${names}\n\n인솔자와 보호자에게는 이미 알렸습니다. 안전 페이지에서 확인하고 해결하세요:\n${url}\n\n이 메일에는 답장할 수 없습니다.`,
+  };
+  const en = {
+    subject: help
+      ? `${trip.name}: ${names} asked for help`
+      : `${trip.name}: incident opened by ${incident.openedByName} · ${names}`,
+    text: `On ${trip.name} (${organizationName}), at ${date} ${time}, ${help ? `${names} asked for help from the phone` : `leader ${incident.openedByName} opened an incident from the phone`}.\n\n${incident.title}\nTravelers: ${names}\n\nThe leaders and the guardians already heard it. Open the Safety page to follow and resolve it:\n${url}\n\nReplies to this email are not read.`,
+  };
+  const t = locale === 'ko' ? ko : en;
+  return { to, subject: t.subject, text: t.text, locale, tag: 'incident' };
+}

@@ -1967,3 +1967,19 @@ Built:
 - Docs: `travel.md`; D41 amendment; captures README; ledger 073 (CI record) and 075; feature flag `mobile.my-room`.
 
 Not done: a traveler's own seat on the bus or the flight; the room on the Plan tab's hotel row; the roommates' groups.
+
+## Slice 076: the organizers' email on a card from the phone
+
+Status: done 2026-10-12. Commit: see git log (`feat(incidents): a card opened from a phone reaches the owners and organizers by email at once; a traveler asks once (slice 076)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D29 (amended: owners and organizers, who have no app, get an email at once), D17, ADR-0007 (the EmailPort). Details: `docs/engineering/notifications.md` (events table, the new section, facts), `incidents.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 40 files, 117 passed (`incidents.test.ts`: the mailbox checks in the 068, 073 and 074 cases, the 409 and the ask-again) |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+Built:
+- Worker: `email/templates.ts` `incidentOpenedEmail` (tag `incident`, both languages; `routes/dev.ts` mailbox schema knows the tag); `lib/organizer-mail.ts` (`organizerRecipients`, `emailOrganizers`, never throws); the open route mails when a participation opened the card, and answers 409 to a traveler with a request still open; `incidents.test.ts` (the three mailbox checks, the 409, the ask-again).
+- Docs: `notifications.md` events row and section; `incidents.md` behaviour, route row and facts; D29 amendment; ledger 074 (CI record) and 076; feature flag `incidents.organizer-email`.
+
+Not done: an email for a head count that closes with people missing (the console's alert carries it); a per-organizer switch for these emails; the production email transport (unchanged, the digest's).

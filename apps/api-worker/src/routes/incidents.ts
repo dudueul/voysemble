@@ -8,6 +8,8 @@
 // a card by hand, naming travelers; the guardians of those travelers and the leaders of their
 // groups hear it at once. Slice 073: a leader opens one for their group. Slice 074: a traveler
 // asks for help for themselves from Today (kind `help`); their leaders and guardians hear it.
+// Slice 076: a card opened from a phone also reaches the owners and organizers by email at once
+// (they have no app), and a traveler asks once: a second request while one is open is 409.
 
 import { createRoute, type OpenAPIHono } from '@hono/zod-openapi';
 import {
@@ -21,8 +23,10 @@ import {
 } from '@voysemble/contracts';
 import { HTTPException } from 'hono/http-exception';
 import { type OrgAccess, organizerName, requireAuth, requireOrgRole } from '../auth/middleware';
+import { incidentOpenedEmail } from '../email/templates';
 import type { AppEnv } from '../env';
 import { notificationBody, notifyTrip } from '../lib/notify';
+import { emailOrganizers } from '../lib/organizer-mail';
 import { nowIso } from '../lib/time';
 import { orgObject } from '../org/client';
 import { ERROR_RESPONSES, SESSION_SECURITY } from './openapi-common';
@@ -37,7 +41,7 @@ const openRoute = createRoute({
   summary:
     'Open an incident card by hand, naming travelers (owner, organizer, a leader for their group, a traveler for themselves)',
   description:
-    'Slice 068 (D17). For anything the head count did not catch: a lost passport, a sick traveler. The card is open, kind `manual`, opened by the organizer; the leaders of the named travelers\' groups and their guardians hear "Incident opened" at once; the rest of the flow is the head count card\'s (a leader confirms, the organizer sends the guardian message, resolves). A guardian, a leader or an unknown id is 404. Slice 073: a trip leader opens one from the phone too, naming travelers of their group only (a whole-trip leader any traveler); the card is opened by their name. Slice 074: a traveler opens one for themselves from Today ("I need help"): kind `help`, naming only themselves (403 otherwise), opened by their name; the leaders of their group and their guardians hear "Help asked: <name>".',
+    'Slice 068 (D17). For anything the head count did not catch: a lost passport, a sick traveler. The card is open, kind `manual`, opened by the organizer; the leaders of the named travelers\' groups and their guardians hear "Incident opened" at once; the rest of the flow is the head count card\'s (a leader confirms, the organizer sends the guardian message, resolves). A guardian, a leader or an unknown id is 404. Slice 073: a trip leader opens one from the phone too, naming travelers of their group only (a whole-trip leader any traveler); the card is opened by their name. Slice 074: a traveler opens one for themselves from Today ("I need help"): kind `help`, naming only themselves (403 otherwise), opened by their name; the leaders of their group and their guardians hear "Help asked: <name>". Slice 076: a card opened from a phone (a traveler\'s or a leader\'s) also reaches every owner and organizer by email at once; a traveler with a request still open is 409.',
   security: SESSION_SECURITY,
   request: {
     params: TripParams,
@@ -49,6 +53,7 @@ const openRoute = createRoute({
     401: ERROR_RESPONSES[401],
     403: ERROR_RESPONSES[403],
     404: ERROR_RESPONSES[404],
+    409: ERROR_RESPONSES[409],
     500: ERROR_RESPONSES[500],
   },
 });
@@ -157,7 +162,8 @@ export function mountIncidentRoutes(app: OpenAPIHono<AppEnv>): void {
     const body = c.req.valid('json');
     const access = await requireOrgRole(c.env, auth, orgId, 'member');
     const org = await orgObject(c.env, orgId);
-    if (!(await org.getTrip(tripId))) throw new HTTPException(404, { message: 'Trip not found.' });
+    const trip = await org.getTrip(tripId);
+    if (!trip) throw new HTTPException(404, { message: 'Trip not found.' });
     const me = await org.participationForAccount(tripId, auth.accountId);
     const traveler = me?.role === 'traveler';
     if (!isStaff(access, me?.role) && !traveler) {
@@ -169,6 +175,12 @@ export function mountIncidentRoutes(app: OpenAPIHono<AppEnv>): void {
     const myId = me?.id;
     if (traveler && body.participationIds.some((id) => id !== myId)) {
       throw new HTTPException(403, { message: 'A traveler asks for help for themselves only.' });
+    }
+    // Slice 076: one request at a time; the Today card already says the leaders know.
+    if (traveler && me && (await org.listIncidents(tripId, me)).some((i) => i.status === 'open')) {
+      throw new HTTPException(409, {
+        message: 'You already asked for help; your leaders and the organizer know.',
+      });
     }
     // Slice 073: a leader names travelers of their own group (a whole-trip leader any traveler).
     if (me?.role === 'leader' && me.groupName !== null) {
@@ -196,6 +208,28 @@ export function mountIncidentRoutes(app: OpenAPIHono<AppEnv>): void {
       });
     }
     await notifyIncidentStatus(c.env, org, orgId, tripId, r.incident, 'opened', byName);
+    // Slice 076: a card opened from a phone (by a participation) reaches the owners and
+    // organizers by email at once; one the organizer opened on the console does not.
+    if (me) {
+      const url = `${new URL(c.req.url).origin}/safety`;
+      const card = r.incident;
+      await emailOrganizers(c.env, orgId, (to) =>
+        incidentOpenedEmail(
+          to.email,
+          to.locale,
+          to.organizationName,
+          { name: trip.name, timeZone: trip.timezone },
+          {
+            kind: card.kind,
+            title: card.title,
+            names: card.people.map((p) => p.displayName),
+            openedByName: byName,
+            openedAt: card.openedAt,
+          },
+          url,
+        ),
+      );
+    }
     return c.json(r.incident, 201);
   });
 

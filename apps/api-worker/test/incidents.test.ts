@@ -10,8 +10,11 @@
 // a guardian id, an unknown id and a blank title are refused; the flow continues as usual. Slice
 // 073: a leader opens one from the phone for travelers of their group, by their own name. Slice
 // 074: a traveler asks for help for themselves (kind help); their leader and guardian hear it;
-// they read their own cards, projected.
+// they read their own cards, projected. Slice 076: a card opened from a phone reaches the owner's
+// mailbox at once (not one the organizer opened on the console); a traveler asks once while a
+// request is open.
 
+import { env } from 'cloudflare:test';
 import type {
   Incident,
   IncidentList,
@@ -21,7 +24,14 @@ import type {
   SyncHeadcountResponse,
 } from '@voysemble/contracts';
 import { describe, expect, it } from 'vitest';
+import { FixtureEmailPort } from '../src/email/EmailPort';
 import { api, createOrg, createTrip, json, SAMPLE_CSV, signIn } from './helpers';
+
+/** The newest message in the fixture mailbox for an address (slice 076). */
+function latestMail(to: string) {
+  if (!env.DEV_MAILBOX) throw new Error('DEV_MAILBOX missing in test env');
+  return FixtureEmailPort.latest(env.DEV_MAILBOX, to);
+}
 
 async function setupTrip() {
   const nate = await signIn('nate-inc@example.com');
@@ -249,12 +259,24 @@ describe('manual incidents (slice 068)', () => {
       openedByName: 'Owner',
     });
     expect(opened.people.map((p) => p.displayName)).toEqual(['Minji Park']);
+    // Slice 076: a card the organizer opened on the console sends no email to the organizers.
+    expect((await latestMail('nate-inc@example.com'))?.tag).toBe('magic-link');
     // Slice 073: Kim (Bus A's leader) opens one naming Minji (Bus A), by her own name; Hana (Bus
     // B) is outside her group; a traveler names only themselves, a guardian cannot open one.
     const byKim = await json<Incident>(
       await api(t.kim).post(t.base, { title: 'Minji feels sick', participationIds: [minjiId] }),
     );
     expect(byKim).toMatchObject({ kind: 'manual', status: 'open', openedByName: 'Kim' });
+    // Slice 076: Kim's card from the phone reaches the owner's mailbox at once, in his language.
+    const kimsMail = await latestMail('nate-inc@example.com');
+    expect([kimsMail?.tag, kimsMail?.locale, kimsMail?.subject]).toEqual([
+      'incident',
+      'en',
+      `${t.trip.name}: incident opened by Kim · Minji Park`,
+    ]);
+    expect(kimsMail?.text).toContain('Minji feels sick');
+    expect(kimsMail?.text).toContain('leader Kim opened an incident from the phone');
+    expect(kimsMail?.text).toContain('/safety');
     expect(
       (await api(t.kim).post(t.base, { title: 'x', participationIds: [t.byName('Lee, Hana')] }))
         .status,
@@ -350,6 +372,19 @@ describe('help from the phone (slice 074)', () => {
       openedByName: 'Minji Park',
     });
     expect(card.people.map((p) => p.displayName)).toEqual(['Minji Park']);
+    // Slice 076: the owner's mailbox hears it at once; a second request while one is open is 409.
+    const mail = await latestMail('nate-inc@example.com');
+    expect([mail?.tag, mail?.locale, mail?.subject]).toEqual([
+      'incident',
+      'en',
+      `${t.trip.name}: Minji Park asked for help`,
+    ]);
+    expect(mail?.text).toContain('I feel sick');
+    expect(mail?.text).toContain('Minji Park asked for help from the phone');
+    expect(mail?.text).toContain('/safety');
+    expect(
+      (await api(t.minji).post(t.base, { title: 'again', participationIds: [minjiId] })).status,
+    ).toBe(409);
     // Kim (Bus A's leader) and Sora (Minji's guardian) hear "Help asked"; Minji herself nothing.
     const inbox = async (c: Parameters<typeof api>[0]) =>
       (
@@ -414,5 +449,10 @@ describe('help from the phone (slice 074)', () => {
     expect((await api(t.minji).post(`${t.base}/${card.id}/resolve`, { note: null })).status).toBe(
       403,
     );
+    // Resolved: she may ask again (slice 076).
+    expect(
+      (await api(t.minji).post(t.base, { title: 'Lost my bag', participationIds: [minjiId] }))
+        .status,
+    ).toBe(201);
   });
 });
