@@ -75,6 +75,37 @@ public data class CreateProposalRequestDto(
     val note: String,
 )
 
+/**
+ * An `add` proposal carries the whole event (slice 035): the server refuses a partial one, and
+ * it reads an absent `end`, `pax` or `note` as missing rather than null. No defaults here, so
+ * every field (nulls included) is on the wire.
+ */
+@Serializable
+public data class AddEventPatchDto(
+    val date: String,
+    val start: String,
+    val end: String?,
+    val timeZone: String,
+    /** flight | bus | meal | activity | hotel | meeting | free */
+    val kind: String,
+    val title: String,
+    val place: String,
+    val pax: Int?,
+    /** scheduled | in_progress | done | delayed | cancelled */
+    val status: String,
+    val note: String?,
+    /** Order within the day; the phone proposes after the day's last event. */
+    val order: Int,
+)
+
+@Serializable
+public data class CreateAddProposalRequestDto(
+    val kind: String = "add",
+    val eventId: String? = null,
+    val patch: AddEventPatchDto,
+    val note: String,
+)
+
 @Serializable
 public data class ItineraryProposalDto(
     val id: String,

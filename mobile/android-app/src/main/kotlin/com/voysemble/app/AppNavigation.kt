@@ -3,7 +3,8 @@
 // In-app routing without a navigation library. The session state (core SessionManager) decides
 // the top level: sign-in, invite, or the app; "sample mode" shows the fixture app without an
 // account. Inside the app: tabs from the Today screen plus two pushed leader and traveler
-// screens (and the Chats tab since slice 033). A real back stack and deep links arrive later.
+// screens (the Chats tab since slice 033, the Plan tab since 035). A real back stack and deep
+// links arrive later.
 
 package com.voysemble.app
 
@@ -34,6 +35,8 @@ import com.voysemble.app.headcount.HeadcountRoute
 import com.voysemble.app.headcount.HeadcountViewModel
 import com.voysemble.app.incidents.IncidentsRoute
 import com.voysemble.app.incidents.IncidentsViewModel
+import com.voysemble.app.plan.PlanRoute
+import com.voysemble.app.plan.PlanViewModel
 import com.voysemble.app.session.AppGraph
 import com.voysemble.app.session.PendingLink
 import com.voysemble.app.session.SessionViewModel
@@ -127,6 +130,13 @@ fun AppScreens(trip: ActiveTrip?, onSignOut: () -> Unit) {
         }
         Screen.MAIN -> when (todayState.tab) {
             MainTab.TODAY -> TodayRoute(today, onOpenHeadcount = { nav.open(Screen.HEADCOUNT) }, onOpenWindow = { nav.open(Screen.WINDOW) }, onOpenIncidents = { nav.open(Screen.INCIDENTS) })
+            MainTab.PLAN -> TabHost(today) {
+                // Slice 035: the published plan by day; leaders propose from any event (D24).
+                val vm: PlanViewModel = viewModel(key = "plan-${trip?.tripId ?: "sample"}") {
+                    if (trip == null) PlanViewModel() else PlanViewModel(api = AppGraph.apiClient, trip = trip)
+                }
+                PlanRoute(vm)
+            }
             MainTab.BULLETIN -> TabHost(today) {
                 val vm: BulletinViewModel = viewModel(key = trip?.tripId ?: "sample") {
                     if (trip == null) BulletinViewModel() else BulletinViewModel(AppGraph.apiClient, trip)

@@ -28,7 +28,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.mutableStateOf
@@ -57,6 +56,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.voysemble.app.ui.AppIcons
 import com.voysemble.app.ui.LabelChip
 import com.voysemble.app.ui.LocalVoysembleColors
+import com.voysemble.core.plan.ProposalKind
+import com.voysemble.core.plan.proposalSentMessage
 import com.voysemble.core.today.AckState
 import com.voysemble.core.today.EventKind
 import com.voysemble.core.today.EventStatus
@@ -68,13 +69,14 @@ import com.voysemble.core.today.TodaySnapshot
 @Composable
 fun TodayRoute(vm: TodayViewModel, onOpenHeadcount: () -> Unit = {}, onOpenWindow: () -> Unit = {}, onOpenIncidents: () -> Unit = {}) {
     val state by vm.state.collectAsStateWithLifecycle()
-    var proposing by remember { mutableStateOf<String?>(null) }
-    proposing?.let { eventId ->
+    // D24: the shared dialog (ProposeChange.kt); change or remove the up-next event.
+    var proposing by remember { mutableStateOf<ProposalTarget?>(null) }
+    proposing?.let { target ->
         ProposeChangeDialog(
-            eventTitle = state.snapshot.events.firstOrNull { it.id == eventId }?.title ?: "",
+            target = target,
             onDismiss = { proposing = null },
-            onSend = { start, note ->
-                vm.propose(eventId, start, note)
+            onSend = { draft ->
+                vm.propose(draft)
                 proposing = null
             },
         )
@@ -86,7 +88,7 @@ fun TodayRoute(vm: TodayViewModel, onOpenHeadcount: () -> Unit = {}, onOpenWindo
         onOpenHeadcount = onOpenHeadcount,
         onOpenWindow = onOpenWindow,
         onOpenIncidents = onOpenIncidents,
-        onPropose = { proposing = it },
+        onPropose = { id -> state.snapshot.events.firstOrNull { it.id == id }?.let { proposing = ProposalTarget.forEvent(it) } },
         onEditCare = { vm.editCare() },
         onCancelCare = vm::cancelCare,
         onSaveCare = { vm.saveCare(it) },
@@ -120,7 +122,7 @@ fun TodayScreen(
         ) {
             item { Header(snap, live = state.live, syncing = state.syncing) }
             if (snap.offline) item { OfflineBanner(snap) }
-            snap.upNext?.let { next -> item { UpNextCard(next, snap.timeZoneLabel, onOpenWindow, onPropose = { onPropose(next.id) }, proposal = state.proposal?.takeIf { it.eventId == next.id }, onDismissProposal = onDismissProposal) } }
+            snap.upNext?.let { next -> item { UpNextCard(next, snap.timeZoneLabel, onOpenWindow, canPropose = state.canPropose, onPropose = { onPropose(next.id) }, proposal = state.proposal?.takeIf { it.eventId == next.id }, onDismissProposal = onDismissProposal) } }
             snap.announcement?.let { a -> item { AnnouncementCard(a, onAcknowledge) } }
             val guardian = state.guardian
             if (guardian != null) {
@@ -201,6 +203,7 @@ private fun UpNextCard(
     e: TodayEvent,
     tz: String,
     onOpenWindow: () -> Unit,
+    canPropose: Boolean = true,
     onPropose: () -> Unit = {},
     proposal: ProposalState? = null,
     onDismissProposal: () -> Unit = {},
@@ -238,12 +241,12 @@ private fun UpNextCard(
                 Text(if (e.isMeetingPoint) "Meeting point" else "Directions")
             }
             // D24: leaders propose; the organizer decides on the console.
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (canPropose) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(onClick = onPropose, enabled = proposal?.sending != true) {
                     Text(
                         when {
                             proposal?.sending == true -> "Sending proposal…"
-                            proposal?.sent == true -> "Proposal sent to the organizer"
+                            proposal?.sent == true -> proposalSentMessage(proposal?.kind ?: ProposalKind.EDIT)
                             else -> "Propose a change"
                         },
                         color = c.onAction,
@@ -253,43 +256,9 @@ private fun UpNextCard(
                     TextButton(onClick = onDismissProposal) { Text("OK", color = c.onAction) }
                 }
             }
-            proposal?.error?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = c.onAction) }
+            if (canPropose) proposal?.error?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = c.onAction) }
         }
     }
-}
-
-/** Minimal proposal form: a new start time (optional) and a note (required). */
-@Composable
-private fun ProposeChangeDialog(eventTitle: String, onDismiss: () -> Unit, onSend: (start: String?, note: String) -> Unit) {
-    var start by remember { mutableStateOf("") }
-    var note by remember { mutableStateOf("") }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Propose a change") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(eventTitle, style = MaterialTheme.typography.bodyMedium)
-                OutlinedTextField(
-                    value = start,
-                    onValueChange = { start = it },
-                    label = { Text("New start (HH:mm, optional)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = note,
-                    onValueChange = { note = it },
-                    label = { Text("Why") },
-                    minLines = 2,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { onSend(start.trim().ifBlank { null }, note) }, enabled = note.isNotBlank()) { Text("Send") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
 }
 
 @Composable
@@ -444,7 +413,7 @@ private fun HeadcountCard(groups: List<HeadcountGroup>, checkedIn: Int, expected
 }
 
 @Composable
-private fun EventRow(e: TodayEvent) {
+internal fun EventRow(e: TodayEvent) {
     val c = LocalVoysembleColors.current
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
@@ -469,7 +438,7 @@ private fun EventRow(e: TodayEvent) {
 }
 
 @Composable
-private fun StatusChip(status: EventStatus) {
+internal fun StatusChip(status: EventStatus) {
     val c = LocalVoysembleColors.current
     val (label, color) = when (status) {
         EventStatus.SCHEDULED -> "Scheduled" to c.textMuted

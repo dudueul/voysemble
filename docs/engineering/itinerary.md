@@ -205,8 +205,74 @@ keeps its fixture card.
   unacknowledged required-ack announcement from the live feed and "Got it" posts to the ack
   route.
 
+## The Plan tab and proposals from both phones (slice 035, D24)
+
+The Plan tab shows the whole published itinerary, one day at a time, on Android and iOS; it was
+the "not built" placeholder until this slice. Everything is derived from the same `GET
+.../itinerary` answer Today uses; no new route.
+
+### Core (`plan/PlanModel.kt`, `plan/ProposalDraft.kt`)
+
+- `planOf(itinerary)` → `TripPlan(tripName, revision, publishedAt, days, offline,
+  minutesSinceSync)`. One `PlanDay` per itinerary day row, in date order: the organizer's label
+  (or "Day n" when blank), `dateLabelOf`, the zone and its label, the day number from the trip
+  start, the day's events in the organizer's order with the Today mapping (`toTodayEvent`), and
+  `nextOrder` (the day's last order + 1, where an added event lands). `emptyTripPlan(tripName)`
+  is the honest state before the first answer; `revisionLine()` reads "Revision 3 · published
+  2026-12-20" or "Not published yet".
+- `TripPlan.initialDayIndex(date)`: the device date when it is a trip day; the first day before
+  the trip, the last day after it; inside a gap, the last day before the date.
+- `ProposalDraft(kind EDIT | ADD | REMOVE, eventId, note, start, end, title, place, date,
+  timeZone, order)` is what the form holds on either phone. `proposalDraftProblem(draft)` names
+  what is missing (note; event; HH:mm clocks; title, start and day for an add) or null.
+  `ApiClient.sendProposal(orgId, tripId, draft)` posts the right body: an edit carries only the
+  start the leader set, a remove carries `{}`, an add carries the whole event with explicit nulls
+  (`AddEventPatchDto`, no defaults) as a scheduled activity for the whole group, because the
+  server refuses a partial add and reads an absent `end`, `pax` or `note` as missing.
+  `proposalFailureMessage(status, code)` (403 → "Only trip leaders propose changes."),
+  `proposalOfflineMessage()` and `proposalSentMessage(kind)` are the fixed lines both phones show.
+
+### Android (`plan/PlanViewModel.kt`, `plan/PlanScreen.kt`, `today/ProposeChange.kt`)
+
+The Plan tab: header with the revision line and the Live / Sample chip, day chips (`D4 ·
+Concert day`), the day's events with the Today row, and for leaders "Propose a change" on each
+event (change time or remove) and "Propose an event for this day" (add). `PlanViewModel` opens
+the device date's day on the first answer and keeps the reader's choice on later refreshes; an
+unreachable server marks the plan offline. The dialog (`ProposeChangeDialog` around
+`ProposeChangeForm`) is shared with Today's up-next card, which now also offers remove and is
+shown only to leaders (`canPropose`; sample mode shows it). `TodayViewModel.propose(draft)` and
+`PlanViewModel.propose(draft)` have the same contract: sample mode lands on "sent" without a
+call, an incomplete draft shows what is missing, and the result line carries OK to clear it.
+
+### iOS (`Plan/PlanView.swift`, `Today/ProposeChange.swift`)
+
+The same tab and the same sheet. `PlanModel` mirrors the Android view model; `TodayModel.propose`
+closes the slice 018 gap (proposing from iOS). `ProposeChangeForm` is a plain view so the capture
+test renders it filled; the app shows it in a sheet (`ProposeChangeSheet`) from the up-next card
+or the Plan tab. `EventRow`, `StatusChip` and `Card` in `TodayView.swift` are shared with the
+Plan tab.
+
+### Facts established by tests (slice 035)
+
+- Core (`PlanModelTest`, `ProposalDraftTest`): days in date order with labels, numbers, the
+  Today event mapping and the next slot; the revision line; the initial day inside and outside
+  the trip; the fixture plan ends on the Today fixture's day; the draft rule's messages; the three
+  wire bodies pinned byte for byte (edit with only the start, remove with `{}`, add with explicit
+  nulls after the last slot); the fixed lines.
+- Android (`PlanViewModelTest`, 5): sample mode shows the fixture on its day and "sends"
+  without the network; live builds the plan and opens the device date's day, a refresh keeps the
+  reader's day; unreachable marks offline and a send says so; a leader's remove and add post the
+  core bodies, an incomplete draft never reaches the network, 403 is explained; travelers are
+  read-only. Screenshots `plan-day.png`, `plan-propose-dark.png`.
+- iOS (`LiveModelsTests`, +3): live Plan starts without days and goes offline when unreachable,
+  a send says so, an incomplete draft never reaches the network, travelers are read-only; sample
+  mode opens the concert day and sends nothing; Today's propose works from iOS in sample mode and
+  says offline when unreachable; guardians never see it. Captures `plan-day.png`,
+  `plan-propose-dark.png`.
+
 ## Not done
 
-Day labels, proposing from iOS, add and remove proposals from the phone, the side-by-side
-revision history view in the console (the stored diffs make it a read-only page), disruption
-drafts (D19 AI), iOS live Today and iOS live announcements, head counts on the live Today.
+Day labels on Today, the side-by-side revision history view in the console (the stored diffs
+make it a read-only page), disruption drafts (D19 AI), head counts on the live Today, choosing
+the kind of an added event (always an activity for the whole group), proposing a new end or
+place for an existing event from the phone.

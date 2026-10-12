@@ -76,6 +76,19 @@ final class CaptureTests: XCTestCase {
         try capture(NavigationStack { ChatsView(model: thread) }, name: "chats-thread-dark", scheme: .dark)
     }
 
+    func testPlan() throws {
+        // Slice 035: the fixture plan on its concert day with the leader's affordances.
+        try capture(NavigationStack { PlanView(model: PlanModel()) }, name: "plan-day")
+        // The proposal form for a new event, filled as a leader would.
+        let day = KoreaConcertTourFixture.shared.plan().days[3]
+        let form = ProposeChangeForm(
+            target: ProposalTarget.forDay(day),
+            prefill: ProposalPrefill(title: "Gelato on the way back", start: "16:15", note: "The group asked; it is on the walk."),
+            onSend: { _ in }, onCancel: {},
+        )
+        try capture(NavigationStack { ScrollView { form.padding(20) } }, name: "plan-propose-dark", scheme: .dark)
+    }
+
     func testSignInAndInvite() throws {
         try capture(SignInView(model: SessionModel()), name: "sign-in")
         try capture(InviteView(model: SessionModel()), name: "invite")

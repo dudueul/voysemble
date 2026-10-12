@@ -24,6 +24,8 @@ final class TodayModel: ObservableObject {
     @Published private(set) var careDraft: CareNoteDto?
     @Published private(set) var careSaving = false
     @Published private(set) var careMessage: String?
+    /// D24: the leader's proposal in flight from the up-next card (slice 018; remove and add since 035).
+    @Published private(set) var proposal: ProposalState?
     private var travelerId: String?
 
     let api: ApiClient?
@@ -168,6 +170,30 @@ extension TodayModel {
             careMessage = "Offline. The care note was not saved."
         }
     }
+}
+
+extension TodayModel {
+    // MARK: - Change proposals (D24; slice 018 edit, slice 035 remove and add)
+
+    /// Leaders propose; travelers and guardians only read. Sample mode shows the affordance.
+    var canPropose: Bool { trip == nil || trip?.role == "leader" }
+
+    /// Sample mode shows "sent" without the network; a bad draft says why; the rest is one core call.
+    func propose(_ draft: ProposalDraft) async {
+        let eventId = draft.eventId ?? ""
+        guard let api, let trip else {
+            proposal = ProposalState(eventId: eventId, sending: false, sent: true, error: nil, kind: draft.kind)
+            return
+        }
+        if let problem = ProposalDraftKt.proposalDraftProblem(d: draft) {
+            proposal = ProposalState(eventId: eventId, sending: false, sent: false, error: problem, kind: draft.kind)
+            return
+        }
+        proposal = ProposalState(eventId: eventId, sending: true, sent: false, error: nil, kind: draft.kind)
+        proposal = await sendProposal(api: api, trip: trip, draft: draft)
+    }
+
+    func dismissProposal() { proposal = nil }
 }
 
 /** Device date and clock in a zone, and ISO -> local HH:mm; one place for the format strings. */

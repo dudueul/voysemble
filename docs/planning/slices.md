@@ -1068,3 +1068,22 @@ Built:
 
 Not done: per-group breakdown; documents completion; Korean strings.
 
+## Slice 035: the Plan tab and proposals from both phones
+
+Status: done 2026-10-12. Commit: see git log (`feat(plan): the Plan tab on both phones with leader proposals (slice 035)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D24 (leaders propose, the organizer decides), D31 (device captures). Details: `docs/engineering/itinerary.md` ("The Plan tab and proposals from both phones").
+
+| Gate | Command | Result |
+|---|---|---|
+| Core JVM tests | `mobile/gradlew -p mobile :core:jvmTest -Pvoysemble.android=false` | adds `PlanModelTest` (3), `ProposalDraftTest` (2) |
+| Android unit + screenshots | CI `mobile` job | `PlanViewModelTest` (5), `plan-day.png`, `plan-propose-dark.png`; Today's sample screenshots keep the leader affordance |
+| iOS | CI `ios` job | `LiveModelsTests` (+3), `CaptureTests.testPlan` (`plan-day.png`, `plan-propose-dark.png`) |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean (no web change) |
+
+Built:
+- Core: `api/Itinerary.kt` `AddEventPatchDto` and `CreateAddProposalRequestDto` (no defaults, nulls on the wire), `ApiClient.createAddProposal`; `plan/PlanModel.kt` (`PlanDay`, `TripPlan`, `planOf`, `emptyTripPlan`, `withOffline`, `initialDayIndex`, `revisionLine`); `plan/ProposalDraft.kt` (`ProposalKind`, `ProposalDraft`, `proposalDraftProblem`, `proposalRequestOf`, `addProposalRequestOf`, `ApiClient.sendProposal`, the fixed lines); fixture `plan()` and `TODAY_DATE`.
+- Android: `plan/PlanViewModel.kt`, `plan/PlanScreen.kt`, the Plan tab in `AppNavigation.kt`; `today/ProposeChange.kt` (shared dialog and form; change, remove, add), `TodayViewModel.propose(draft)` through core, `canPropose` on the up-next card; tests and screenshots.
+- iOS: `Plan/PlanView.swift` (`PlanModel`, `PlanView`), `Today/ProposeChange.swift` (`ProposalState`, `ProposalTarget`, `ProposeChangeForm`, `ProposeChangeSheet`, `sendProposal`), `TodayModel.propose`, the up-next card's affordance, the Plan tab; tests and captures.
+- Docs: itinerary doc section, captures README, mobile README, feature flags `mobile.plan` (new, working) and `mobile.proposals.ios` (working).
+
+Not done: the Memories tab (still a placeholder on both phones); choosing the kind of an added event; Korean strings on the phones.

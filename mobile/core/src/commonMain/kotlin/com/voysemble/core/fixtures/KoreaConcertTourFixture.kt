@@ -24,6 +24,8 @@ import com.voysemble.core.incidents.IncidentCard
 import com.voysemble.core.incidents.IncidentConfirmation
 import com.voysemble.core.incidents.IncidentFeed
 import com.voysemble.core.incidents.IncidentStatus
+import com.voysemble.core.plan.PlanDay
+import com.voysemble.core.plan.TripPlan
 import com.voysemble.core.today.AckState
 import com.voysemble.core.today.EventKind
 import com.voysemble.core.today.EventStatus
@@ -39,6 +41,9 @@ import com.voysemble.core.window.WindowState
 
 public object KoreaConcertTourFixture {
     public const val TRIP_NAME: String = "Korea Concert Tour"
+
+    /** The calendar date the sample screens live on (day 4 of the fixture trip). */
+    public const val TODAY_DATE: String = "2026-12-31"
 
     /** Day 4, Thursday Dec 31 2026, 07:12 Europe/Rome. */
     public fun today(): TodaySnapshot = TodaySnapshot(
@@ -70,6 +75,54 @@ public object KoreaConcertTourFixture {
         headcount = listOf(HeadcountGroup("Bus A", 18, 20), HeadcountGroup("Bus B", 16, 18)),
         minutesSinceSync = 1,
         offline = false,
+    )
+
+    /**
+     * The whole plan (slice 035): four of the trip's days, Dec 28 to Dec 31 in Rome; day 4 is
+     * the Today fixture's list. Revision 3, published before departure.
+     */
+    public fun plan(): TripPlan = TripPlan(
+        tripName = TRIP_NAME,
+        revision = 3,
+        publishedAt = "2026-12-20T09:00:00.000Z",
+        days = listOf(
+            PlanDay(
+                date = "2026-12-28", label = "Arrival", dateLabel = "Monday, Dec 28", timeZone = "Europe/Rome", timeZoneLabel = "Rome", dayNumber = 1,
+                events = listOf(
+                    TodayEvent("d1_1", "06:10", "13:40", EventKind.FLIGHT, "Flight to Rome", "Incheon T2, gate 231", EventStatus.DONE, null, false),
+                    TodayEvent("d1_2", "15:00", "16:00", EventKind.BUS, "Coach to the hotel", "Fiumicino, bus bay 4", EventStatus.DONE, null, false),
+                    TodayEvent("d1_3", "17:30", null, EventKind.HOTEL, "Check-in and room keys", "Hotel de la Ville", EventStatus.DONE, null, false),
+                    TodayEvent("d1_4", "19:30", "21:00", EventKind.MEAL, "Welcome dinner", "Hotel de la Ville, restaurant", EventStatus.DONE, null, false),
+                ),
+                nextOrder = 4,
+            ),
+            PlanDay(
+                date = "2026-12-29", label = "Vatican", dateLabel = "Tuesday, Dec 29", timeZone = "Europe/Rome", timeZoneLabel = "Rome", dayNumber = 2,
+                events = listOf(
+                    TodayEvent("d2_1", "07:30", "08:15", EventKind.MEAL, "Breakfast", "Hotel de la Ville, restaurant", EventStatus.DONE, null, false),
+                    TodayEvent("d2_2", "09:00", "12:30", EventKind.ACTIVITY, "Vatican Museums", "Viale Vaticano entrance", EventStatus.DONE, null, false),
+                    TodayEvent("d2_3", "13:00", "14:00", EventKind.MEAL, "Lunch", "Borgo Pio", EventStatus.DONE, null, false),
+                    TodayEvent("d2_4", "16:00", "18:00", EventKind.ACTIVITY, "Rehearsal", "Auditorium Parco della Musica", EventStatus.DONE, null, false),
+                ),
+                nextOrder = 4,
+            ),
+            PlanDay(
+                date = "2026-12-30", label = "Free day", dateLabel = "Wednesday, Dec 30", timeZone = "Europe/Rome", timeZoneLabel = "Rome", dayNumber = 3,
+                events = listOf(
+                    TodayEvent("d3_1", "07:30", "08:15", EventKind.MEAL, "Breakfast", "Hotel de la Ville, restaurant", EventStatus.DONE, null, false),
+                    TodayEvent("d3_2", "09:00", "17:00", EventKind.FREE, "Free time in groups", "Centro Storico", EventStatus.DONE, "Leaders carry the group phones", false),
+                    TodayEvent("d3_3", "18:30", null, EventKind.MEETING, "Regroup", "Hotel de la Ville, lobby", EventStatus.DONE, null, true),
+                ),
+                nextOrder = 3,
+            ),
+            PlanDay(
+                date = "2026-12-31", label = "Concert day", dateLabel = "Thursday, Dec 31", timeZone = "Europe/Rome", timeZoneLabel = "Rome", dayNumber = 4,
+                events = today().events,
+                nextOrder = 8,
+            ),
+        ),
+        offline = false,
+        minutesSinceSync = 1,
     )
 
     /** Bus A head count opened by leader Kim Daeun at 06:50 device time; 18 of 20 marked present. */

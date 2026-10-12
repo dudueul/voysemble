@@ -11,9 +11,13 @@ import com.voysemble.core.api.ApiClient
 import com.voysemble.core.api.ApiResult
 import com.voysemble.core.api.CareNoteDto
 import com.voysemble.core.api.CareNoteStatusDto
-import com.voysemble.core.api.CreateProposalRequestDto
-import com.voysemble.core.api.ProposalPatchDto
 import com.voysemble.core.fixtures.KoreaConcertTourFixture
+import com.voysemble.core.plan.PROPOSAL_OFFLINE_MESSAGE
+import com.voysemble.core.plan.ProposalDraft
+import com.voysemble.core.plan.ProposalKind
+import com.voysemble.core.plan.proposalDraftProblem
+import com.voysemble.core.plan.proposalFailureMessage
+import com.voysemble.core.plan.sendProposal
 import com.voysemble.core.session.ActiveTrip
 import com.voysemble.core.today.GuardianCard
 import com.voysemble.core.today.TodaySnapshot
@@ -38,7 +42,7 @@ import java.time.format.DateTimeFormatter
 enum class MainTab { TODAY, PLAN, BULLETIN, CHATS, MEMORIES }
 
 /** The leader's change proposal in flight (D24): one at a time, result shown on the card. */
-data class ProposalState(val eventId: String, val sending: Boolean, val sent: Boolean, val error: String? = null)
+data class ProposalState(val eventId: String, val sending: Boolean, val sent: Boolean, val error: String? = null, val kind: ProposalKind = ProposalKind.EDIT)
 
 data class TodayUiState(
     val snapshot: TodaySnapshot,
@@ -47,6 +51,8 @@ data class TodayUiState(
     val syncing: Boolean = false,
     val error: String? = null,
     val proposal: ProposalState? = null,
+    /** D24: leaders propose; travelers and guardians only read. Sample mode shows the affordance. */
+    val canPropose: Boolean = false,
     /** D13: a guardian sees their traveler's status instead of the head count card and leader links. */
     val guardian: GuardianCard? = null,
     /** D27 (slice 032): the guardian's own entry of the care note. Null until the status is known. */
@@ -77,6 +83,7 @@ class TodayViewModel(
         TodayUiState(
             snapshot = if (trip != null && api != null) emptyTodaySnapshot(trip.tripName) else initial,
             live = trip != null && api != null,
+            canPropose = trip == null || trip.role == "leader",
         ),
     )
     val state: StateFlow<TodayUiState> = _state
@@ -102,32 +109,36 @@ class TodayViewModel(
     }
 
     /**
-     * Propose a change to an event (D24): a new start time and/or a note for the organizer. The
-     * draft is untouched until the organizer accepts. Sample mode shows the sent state without a
-     * network call. Returns the job so tests can await it.
+     * Propose a change (D24): a new start, a removal, or a new event (slice 035). The draft is
+     * untouched until the organizer accepts. Sample mode shows the sent state without a network
+     * call; an incomplete draft shows what is missing. Returns the job so tests can await it.
      */
-    fun propose(eventId: String, newStart: String?, note: String): Job {
+    fun propose(draft: ProposalDraft): Job {
+        val eventId = draft.eventId ?: ""
         val a = api
         val t = trip
         if (a == null || t == null) {
-            _state.update { it.copy(proposal = ProposalState(eventId, sending = false, sent = true)) }
+            _state.update { it.copy(proposal = ProposalState(eventId, sending = false, sent = true, kind = draft.kind)) }
             return Job().also { it.complete() }
         }
-        _state.update { it.copy(proposal = ProposalState(eventId, sending = true, sent = false)) }
+        proposalDraftProblem(draft)?.let { problem ->
+            _state.update { it.copy(proposal = ProposalState(eventId, sending = false, sent = false, error = problem, kind = draft.kind)) }
+            return Job().also { it.complete() }
+        }
+        _state.update { it.copy(proposal = ProposalState(eventId, sending = true, sent = false, kind = draft.kind)) }
         return viewModelScope.launch {
-            val body = CreateProposalRequestDto(
-                kind = "edit",
-                eventId = eventId,
-                patch = ProposalPatchDto(start = newStart?.takeIf { it.isNotBlank() }),
-                note = note.trim(),
-            )
-            when (val r = a.createProposal(t.organizationId, t.tripId, body)) {
-                is ApiResult.Ok -> _state.update { it.copy(proposal = ProposalState(eventId, sending = false, sent = true)) }
-                is ApiResult.Failed -> _state.update { it.copy(proposal = ProposalState(eventId, sending = false, sent = false, error = if (r.status == 403) "Only trip leaders propose changes." else "Could not send the proposal (${r.error.code}).")) }
-                is ApiResult.Unreachable -> _state.update { it.copy(proposal = ProposalState(eventId, sending = false, sent = false, error = "Offline. Try again when connected.")) }
+            val outcome = when (val r = a.sendProposal(t.organizationId, t.tripId, draft)) {
+                is ApiResult.Ok -> ProposalState(eventId, sending = false, sent = true, kind = draft.kind)
+                is ApiResult.Failed -> ProposalState(eventId, sending = false, sent = false, error = proposalFailureMessage(r.status, r.error.code), kind = draft.kind)
+                is ApiResult.Unreachable -> ProposalState(eventId, sending = false, sent = false, error = PROPOSAL_OFFLINE_MESSAGE, kind = draft.kind)
             }
+            _state.update { it.copy(proposal = outcome) }
         }
     }
+
+    /** The slice 018 shape: a new start (optional) and a note for one event. */
+    fun propose(eventId: String, newStart: String?, note: String): Job =
+        propose(ProposalDraft(ProposalKind.EDIT, eventId, note, start = newStart))
 
     fun dismissProposal() {
         _state.update { it.copy(proposal = null) }

@@ -178,6 +178,53 @@ final class LiveModelsTests: XCTestCase {
         XCTAssertEqual(live.channels.count, 0)
     }
 
+    func testPlanLiveStartsEmptyAndGoesOfflineWhenUnreachable() async {
+        // Slice 035: live starts without days (no fixture); unreachable marks offline and says so on a send.
+        let model = PlanModel(api: unreachableClient(), trip: trip)
+        XCTAssertTrue(model.live)
+        XCTAssertTrue(model.canPropose)
+        XCTAssertEqual(model.plan.days.count, 0)
+        XCTAssertEqual(model.plan.revisionLine(), "Not published yet")
+        await model.refresh()
+        XCTAssertTrue(model.plan.offline)
+        XCTAssertFalse(model.syncing)
+        await model.propose(ProposalDraft(kind: .remove, eventId: "e1", note: "Why", start: nil, end: nil, title: nil, place: nil, date: nil, timeZone: nil, order: 0))
+        XCTAssertEqual(model.proposal?.error, "Offline. Try again when connected.")
+        XCTAssertEqual(model.proposal?.kind, ProposalKind.remove)
+        // An incomplete draft never reaches the network.
+        await model.propose(ProposalDraft(kind: .add, eventId: nil, note: "Why", start: "", end: nil, title: "Gelato", place: nil, date: "2026-12-31", timeZone: "Europe/Rome", order: 8))
+        XCTAssertEqual(model.proposal?.error, "The start must be HH:mm.")
+        let traveler = ActiveTrip(organizationId: "org1", organizationName: "Seoul Arts High", tripId: "trip1", tripName: "Korea Concert Tour", participationId: "p-minji", role: "traveler")
+        XCTAssertFalse(PlanModel(api: unreachableClient(), trip: traveler).canPropose)
+    }
+
+    func testPlanSampleModeOpensTheConcertDayAndSendsNothing() async {
+        let model = PlanModel()
+        XCTAssertFalse(model.live)
+        XCTAssertEqual(model.plan.days.count, 4)
+        XCTAssertEqual(model.selected, 3)
+        XCTAssertEqual(model.plan.days[3].label, "Concert day")
+        await model.refresh()
+        XCTAssertFalse(model.plan.offline)
+        await model.propose(ProposalDraft(kind: .remove, eventId: "ev_5", note: "Rained out", start: nil, end: nil, title: nil, place: nil, date: nil, timeZone: nil, order: 0))
+        XCTAssertEqual(model.proposal?.sent, true)
+        model.dismissProposal()
+        XCTAssertNil(model.proposal)
+    }
+
+    func testTodayProposeSampleAndUnreachable() async {
+        // Slice 035: iOS proposes from the up-next card like Android (slice 018).
+        let sample = TodayModel()
+        XCTAssertTrue(sample.canPropose)
+        await sample.propose(ProposalDraft(kind: .edit, eventId: "ev_2", note: "Why", start: "07:00", end: nil, title: nil, place: nil, date: nil, timeZone: nil, order: 0))
+        XCTAssertEqual(sample.proposal?.sent, true)
+        let live = TodayModel(api: unreachableClient(), trip: trip)
+        await live.propose(ProposalDraft(kind: .edit, eventId: "e1", note: "Why", start: "07:00", end: nil, title: nil, place: nil, date: nil, timeZone: nil, order: 0))
+        XCTAssertEqual(live.proposal?.error, "Offline. Try again when connected.")
+        let guardian = ActiveTrip(organizationId: "org1", organizationName: "Seoul Arts High", tripId: "trip1", tripName: "Korea Concert Tour", participationId: "p-sora", role: "guardian")
+        XCTAssertFalse(TodayModel(api: unreachableClient(), trip: guardian).canPropose)
+    }
+
     func testClocksFormatWireTimes() {
         XCTAssertEqual(Clocks.localTime("not a date"), "not a date")
         let hhmm = Clocks.localTime("2026-12-31T06:30:00.000Z")

@@ -15,6 +15,9 @@ struct TodayView: View {
     @StateObject private var incidents: IncidentsModel
     @StateObject private var window: MeetingWindowModel
     @StateObject private var chats: ChatsModel
+    // Slice 035: the Plan tab shares the same client and trip.
+    @StateObject private var plan: PlanModel
+    @State private var proposing: ProposalTarget?
 
     init(model: TodayModel) {
         _model = StateObject(wrappedValue: model)
@@ -26,12 +29,14 @@ struct TodayView: View {
             api: model.api, trip: model.trip, locationSource: model.trip == nil ? nil : CoreLocationSource()))
         // Slice 033 (D22): fixed chat channels; live when signed in on a trip, the fixture otherwise.
         _chats = StateObject(wrappedValue: ChatsModel(api: model.api, trip: model.trip))
+        _plan = StateObject(wrappedValue: PlanModel(api: model.api, trip: model.trip))
     }
 
     var body: some View {
         TabView(selection: $model.tab) {
             todayTab.tabItem { Label("Today", systemImage: "calendar") }.tag(MainTab.today)
-            placeholder("Plan").tabItem { Label("Plan", systemImage: "list.bullet.rectangle") }.tag(MainTab.plan)
+            NavigationStack { PlanView(model: plan) }
+                .tabItem { Label("Plan", systemImage: "list.bullet.rectangle") }.tag(MainTab.plan)
             NavigationStack { BulletinView(model: bulletin) }
                 .tabItem { Label("Bulletin", systemImage: "bell") }.tag(MainTab.bulletin)
             NavigationStack { ChatsView(model: chats) }
@@ -49,7 +54,15 @@ struct TodayView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     header(s)
                     if s.offline { offlineBanner }
-                    if let next = s.upNext { UpNextCard(event: next, timeZone: s.timeZoneLabel) }
+                    if let next = s.upNext {
+                        // D24: leaders propose a change to the up-next event; the organizer decides on the console.
+                        UpNextCard(
+                            event: next, timeZone: s.timeZoneLabel, canPropose: model.canPropose,
+                            proposal: model.proposal?.eventId == next.id ? model.proposal : nil,
+                            onPropose: { proposing = ProposalTarget.forEvent(next) },
+                            onDismiss: { model.dismissProposal() },
+                        )
+                    }
                     if let a = s.announcement { AnnouncementCard(announcement: a) { model.acknowledge($0) } }
                     if let g = model.guardian {
                         // D13: the guardian's card replaces the head count card and the leader links.
@@ -74,6 +87,16 @@ struct TodayView: View {
                 .padding(16)
             }
             .background(Color(argb: Tokens.Color.Light.bg))
+            .sheet(item: $proposing) { target in
+                ProposeChangeSheet(
+                    target: target,
+                    onSend: { draft in
+                        proposing = nil
+                        Task { await model.propose(draft) }
+                    },
+                    onCancel: { proposing = nil },
+                )
+            }
         }
     }
 
@@ -138,6 +161,10 @@ struct TodayView: View {
 private struct UpNextCard: View {
     let event: TodayEvent
     let timeZone: String
+    var canPropose = false
+    var proposal: ProposalState? = nil
+    var onPropose: () -> Void = {}
+    var onDismiss: () -> Void = {}
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("UP NEXT").font(.caption2.weight(.semibold)).opacity(0.8)
@@ -155,6 +182,21 @@ private struct UpNextCard: View {
                     .background(RoundedRectangle(cornerRadius: 12).fill(.white.opacity(0.16)))
             }
             .padding(.top, 4)
+            if canPropose {
+                HStack(spacing: 12) {
+                    Button {
+                        onPropose()
+                    } label: {
+                        Text(proposal?.sending == true ? "Sending proposal…"
+                            : proposal?.sent == true ? ProposalDraftKt.proposalSentMessage(kind: proposal?.kind ?? ProposalKind.edit)
+                            : "Propose a change")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .disabled(proposal?.sending == true)
+                    if let p = proposal, !p.sending { Button("OK") { onDismiss() }.font(.subheadline.weight(.semibold)) }
+                }
+                if let error = proposal?.error { Text(error).font(.subheadline) }
+            }
         }
         .foregroundStyle(Color(argb: Tokens.Color.Light.onAction))
         .padding(18)
@@ -301,7 +343,7 @@ private struct HeadcountCard: View {
     }
 }
 
-private struct EventRow: View {
+struct EventRow: View {
     let event: TodayEvent
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
@@ -338,7 +380,7 @@ private struct EventRow: View {
     }
 }
 
-private struct StatusChip: View {
+struct StatusChip: View {
     let status: EventStatus
     var body: some View {
         let (label, color): (String, UInt32) = {
@@ -357,7 +399,7 @@ private struct StatusChip: View {
     }
 }
 
-private struct Card<Content: View>: View {
+struct Card<Content: View>: View {
     @ViewBuilder let content: () -> Content
     var body: some View {
         VStack(alignment: .leading, spacing: 0, content: content)

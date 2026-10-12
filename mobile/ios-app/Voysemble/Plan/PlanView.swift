@@ -1,0 +1,226 @@
+// Copyright 2026- At Day. All rights reserved.
+// Plan tab (slice 035). Mirrors PlanScreen on Android; rules in core (plan/PlanModel.kt). Live
+// with a client and a trip: the published itinerary as a day-by-day plan, the device date's day
+// opened first, and a leader's proposals (change, remove, add) through core. Without a trip: the
+// fixture plan on its own day. The phone never edits the itinerary (D24).
+
+import SwiftUI
+import VoysembleCore
+
+@MainActor
+final class PlanModel: ObservableObject {
+    @Published private(set) var plan: TripPlan
+    /// Index into `plan.days`; 0 on an empty plan.
+    @Published var selected = 0
+    @Published private(set) var syncing = false
+    @Published private(set) var error: String?
+    @Published private(set) var proposal: ProposalState?
+    let api: ApiClient?
+    let trip: ActiveTrip?
+    /// D24: leaders propose; travelers and guardians only read. Sample mode shows the affordance.
+    let canPropose: Bool
+    var live: Bool { api != nil && trip != nil }
+    private let deviceDate: (String) -> String
+
+    init(
+        plan: TripPlan? = nil,
+        api: ApiClient? = nil,
+        trip: ActiveTrip? = nil,
+        deviceDate: @escaping (String) -> String = { zone in Clocks.date(in: zone) },
+        canPropose: Bool? = nil
+    ) {
+        self.api = api
+        self.trip = trip
+        self.deviceDate = deviceDate
+        self.canPropose = canPropose ?? (trip == nil || trip?.role == "leader")
+        if let plan {
+            self.plan = plan
+        } else if let trip, api != nil {
+            self.plan = PlanModelKt.emptyTripPlan(tripName: trip.tripName)
+        } else {
+            self.plan = KoreaConcertTourFixture.shared.plan()
+        }
+        // Sample mode opens the fixture's own day (KoreaConcertTourFixture.TODAY_DATE).
+        if api == nil || trip == nil { selected = Int(self.plan.initialDayIndex(date: "2026-12-31")) }
+    }
+
+    func refresh() async {
+        guard let api, let trip else { return }
+        syncing = true
+        defer { syncing = false }
+        do {
+            let r = try await api.getItinerary(orgId: trip.organizationId, tripId: trip.tripId, correlationId: nil)
+            if let itinerary = (r as? ApiResultOk<ItineraryDto>)?.value {
+                let next = PlanModelKt.planOf(itinerary: itinerary, offline: false, minutesSinceSync: KotlinInt(int: 0))
+                // Open the device date's day on the first answer; keep the reader's choice after.
+                if plan.days.isEmpty {
+                    selected = Int(next.initialDayIndex(date: deviceDate(next.days.first?.timeZone ?? "UTC")))
+                } else {
+                    selected = min(selected, max(next.days.count - 1, 0))
+                }
+                plan = next
+                error = nil
+            } else if let failed = r as? ApiResultFailed {
+                error = "Could not load the plan (\(failed.error.code))."
+            } else {
+                plan = plan.withOffline(offline: true)
+            }
+        } catch {
+            plan = plan.withOffline(offline: true)
+        }
+    }
+
+    /// Same contract as TodayModel.propose: sample mode shows "sent", a bad draft says why.
+    func propose(_ draft: ProposalDraft) async {
+        let eventId = draft.eventId ?? ""
+        guard let api, let trip else {
+            proposal = ProposalState(eventId: eventId, sending: false, sent: true, error: nil, kind: draft.kind)
+            return
+        }
+        if let problem = ProposalDraftKt.proposalDraftProblem(d: draft) {
+            proposal = ProposalState(eventId: eventId, sending: false, sent: false, error: problem, kind: draft.kind)
+            return
+        }
+        proposal = ProposalState(eventId: eventId, sending: true, sent: false, error: nil, kind: draft.kind)
+        proposal = await sendProposal(api: api, trip: trip, draft: draft)
+    }
+
+    func dismissProposal() { proposal = nil }
+}
+
+struct PlanView: View {
+    @ObservedObject var model: PlanModel
+    @State private var proposing: ProposalTarget?
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                header
+                if let error = model.error { Text(error).font(.caption).foregroundStyle(Color(argb: Tokens.Color.Light.danger)) }
+                if model.plan.offline { offlineBanner }
+                if model.plan.days.isEmpty {
+                    Text(model.live && model.syncing ? "Loading the plan…" : "No published plan yet. The organizer publishes it from the console.")
+                        .font(.subheadline).foregroundStyle(.secondary)
+                } else {
+                    dayChips
+                }
+                if model.selected < model.plan.days.count {
+                    dayView(model.plan.days[model.selected])
+                }
+            }
+            .padding(16)
+        }
+        .background(Color(argb: Tokens.Color.Light.bg))
+        .task { await model.refresh() }
+        .sheet(item: $proposing) { target in
+            ProposeChangeSheet(
+                target: target,
+                onSend: { draft in
+                    proposing = nil
+                    Task { await model.propose(draft) }
+                },
+                onCancel: { proposing = nil },
+            )
+        }
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(model.plan.tripName.uppercased()).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+            HStack {
+                Text("Plan").font(.largeTitle.bold())
+                Spacer()
+                statusChip
+            }
+            Text(model.plan.revisionLine() + syncText(model.plan.minutesSinceSync)).font(.subheadline).foregroundStyle(.secondary)
+        }
+    }
+
+    /// "Live" / "Syncing" with the API; "Sample data" on the fixture, as on Android.
+    private var statusChip: some View {
+        let (label, color): (String, UInt32) = model.live
+            ? (model.syncing ? ("Syncing", Tokens.Color.Light.warning) : ("Live", Tokens.Color.Light.success))
+            : ("Sample data", Tokens.Color.Light.pending)
+        return Text(label).font(.caption2.weight(.semibold))
+            .foregroundStyle(Color(argb: color))
+            .padding(.horizontal, 10).padding(.vertical, 3)
+            .background(Capsule().fill(Color(argb: color).opacity(0.1)))
+    }
+
+    private func syncText(_ minutes: KotlinInt?) -> String {
+        guard let m = minutes?.intValue else { return "" }
+        return m == 0 ? " · Synced just now" : " · Synced \(m) min ago"
+    }
+
+    private var offlineBanner: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "wifi.slash")
+            Text("Offline. Showing the last synced plan.")
+        }
+        .font(.subheadline.weight(.semibold))
+        .foregroundStyle(Color(argb: Tokens.Color.Light.warning))
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 12).fill(Color(argb: Tokens.Color.Light.warning).opacity(0.14)))
+    }
+
+    private var dayChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(Array(model.plan.days.enumerated()), id: \.element.date) { i, day in
+                    let on = i == model.selected
+                    Button { model.selected = i } label: {
+                        Text("D\(day.dayNumber) · \(day.label)")
+                            .font(.subheadline.weight(.semibold))
+                            .padding(.horizontal, 12).padding(.vertical, 6)
+                            .background(Capsule().fill(on ? Color(argb: Tokens.Color.Light.action) : Color(argb: Tokens.Color.Light.surface)))
+                            .overlay(Capsule().stroke(Color(argb: Tokens.Color.Light.border)))
+                            .foregroundStyle(on ? Color(argb: Tokens.Color.Light.onAction) : .primary)
+                    }
+                    .accessibilityLabel("Open \(day.label), \(day.dateLabel)")
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func dayView(_ day: PlanDay) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(day.label).font(.title3.bold())
+            Text("\(day.dateLabel) · \(day.timeZoneLabel) · Day \(day.dayNumber)").font(.subheadline).foregroundStyle(.secondary)
+        }
+        if let p = model.proposal { proposalLine(p) }
+        if day.events.isEmpty {
+            Text("Nothing planned for this day yet.").font(.subheadline).foregroundStyle(.secondary)
+        }
+        ForEach(day.events, id: \.id) { e in
+            VStack(alignment: .leading, spacing: 0) {
+                EventRow(event: e)
+                if model.canPropose {
+                    Button("Propose a change") {
+                        proposing = ProposalTarget.forEvent(e, dayLabel: day.label, date: day.date, timeZone: day.timeZone)
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .disabled(model.proposal?.sending == true)
+                    .accessibilityLabel("Propose a change to \(e.title)")
+                }
+            }
+        }
+        if model.canPropose {
+            Button("Propose an event for this day") { proposing = ProposalTarget.forDay(day) }
+                .buttonStyle(.bordered)
+                .disabled(model.proposal?.sending == true)
+        }
+    }
+
+    /// The result of the last proposal, with OK to clear it.
+    private func proposalLine(_ p: ProposalState) -> some View {
+        HStack(spacing: 8) {
+            Text(p.sending ? "Sending proposal…" : p.sent ? ProposalDraftKt.proposalSentMessage(kind: p.kind) : (p.error ?? "Could not send the proposal."))
+                .font(.subheadline)
+                .foregroundStyle(Color(argb: p.sent || p.sending ? Tokens.Color.Light.success : Tokens.Color.Light.warning))
+            Spacer()
+            if !p.sending { Button("OK") { model.dismissProposal() }.font(.subheadline.weight(.semibold)) }
+        }
+    }
+}

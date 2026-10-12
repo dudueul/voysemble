@@ -36,7 +36,7 @@ class TodayScreenshotTest {
     fun today_light() {
         compose.setContent {
             VoysembleTheme(darkTheme = false) {
-                TodayScreen(state = TodayUiState(KoreaConcertTourFixture.today()), onAcknowledge = {}, onSelectTab = {})
+                TodayScreen(state = TodayUiState(KoreaConcertTourFixture.today(), canPropose = true), onAcknowledge = {}, onSelectTab = {})
             }
         }
         compose.onNodeWithText("Acknowledge").assertExists()
@@ -47,7 +47,7 @@ class TodayScreenshotTest {
     fun today_dark() {
         compose.setContent {
             VoysembleTheme(darkTheme = true) {
-                TodayScreen(state = TodayUiState(KoreaConcertTourFixture.today()), onAcknowledge = {}, onSelectTab = {})
+                TodayScreen(state = TodayUiState(KoreaConcertTourFixture.today(), canPropose = true), onAcknowledge = {}, onSelectTab = {})
             }
         }
         compose.onRoot().captureRoboImage("$OUT/today-dark.png")
