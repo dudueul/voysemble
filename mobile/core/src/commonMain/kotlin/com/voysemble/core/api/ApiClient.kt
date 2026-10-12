@@ -317,6 +317,15 @@ public class ApiClient(
             }
         }
 
+    /** GET .../travel/{bookingId}/rooming (D41, slice 059): a hotel's rooming list, for leaders. */
+    public suspend fun rooming(orgId: String, tripId: String, bookingId: String, correlationId: String? = null): ApiResult<RoomingListDto> =
+        call(correlationId) {
+            http.get {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "orgs", orgId, "trips", tripId, "travel", bookingId, "rooming") }
+                common(correlationId)
+            }
+        }
+
     /** GET .../packing/mine (D38, slice 048): my packing list (a guardian's for their traveler). */
     public suspend fun myPacking(orgId: String, tripId: String, correlationId: String? = null): ApiResult<MyPackingListDto> =
         call(correlationId) {

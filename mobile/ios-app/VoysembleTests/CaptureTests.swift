@@ -97,6 +97,12 @@ final class CaptureTests: XCTestCase {
         try capture(NavigationStack { InboxView(model: InboxModel(inbox: read)) }, name: "inbox-all-read-dark", scheme: .dark)
     }
 
+    func testRooming() throws {
+        // Slice 059 (D41): the fixture hotel's rooms, the leader in bold, one person without a room; light and dark.
+        try capture(NavigationStack { RoomingView(model: RoomingModel()) }, name: "rooming-light")
+        try capture(NavigationStack { RoomingView(model: RoomingModel()) }, name: "rooming-dark", scheme: .dark)
+    }
+
     func testPlan() throws {
         // Slice 035: the fixture plan on its concert day with the leader's affordances; slice 047 adds
         // the day's bookings under the events (the hotel night here, the flight and the check-in on arrival).

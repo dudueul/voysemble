@@ -87,6 +87,7 @@
     "mobile.travel": "working",
     "mobile.packing": "working",
     "mobile.inbox": "working",
+    "mobile.rooming": "working",
     "mobile.notification-channels": "working",
     "announcements.publish": "working",
     "announcements.ack-status": "working",

@@ -279,6 +279,22 @@ final class LiveModelsTests: XCTestCase {
         XCTAssertEqual(Clocks.localDayTime("nope"), "nope")
     }
 
+    func testRoomingSampleAndUnreachable() async {
+        // Slice 059 (D41): sample mode reads the fixture rooms; live and unreachable is offline and honest.
+        let sample = RoomingModel()
+        XCTAssertFalse(sample.live)
+        XCTAssertEqual(sample.rooming.byRoom().map { $0.room }, ["412", "415", "501"])
+        XCTAssertEqual(sample.rooming.summary(), "4 of 5 placed · 3 of 21 rooms used")
+        XCTAssertEqual(sample.rooming.unassigned(), ["Lee Hana"])
+        let live = RoomingModel(api: unreachableClient(), trip: trip, bookingId: "h1", hotelName: "Hotel de la Ville")
+        XCTAssertTrue(live.live)
+        XCTAssertEqual(live.rooming.hotelName, "Hotel de la Ville")
+        XCTAssertEqual(live.rooming.people.count, 0)
+        await live.refresh()
+        XCTAssertTrue(live.rooming.offline)
+        XCTAssertEqual(live.error, "Offline. Showing the last list.")
+    }
+
     func testMemoriesSampleAndUnreachable() async {
         // Slice 044 (D18): sample mode is the leader's view of the fixture; a guardian sees the album only.
         let sample = MemoriesModel()

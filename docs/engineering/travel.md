@@ -72,6 +72,19 @@ last answer, and before the first answer the section stays hidden rather than em
 shows the fixture's two flights, two hotels and two buses. Evidence: `android/plan-day.png`,
 `android/plan-arrival.png`, `ios/plan-day.png`, `ios/plan-arrival.png`.
 
+### The rooming list on the leader's phone (slice 059, D41)
+
+A hotel row under a day of the Plan tab carries "Rooms" for a leader (travelers and guardians
+have no bookings section): a read-only screen with the hotel, the summary ("4 of 5 placed · 3 of
+21 rooms used"), one section per room in label order (numbers compare as numbers) with the names
+in it, leaders in bold, and who has no room yet. Core `travel/RoomingModel.kt` (`roomingOf`,
+`byRoom`, `unassigned`, `summary`, `roomLabel`, `spoken`), `ApiClient.rooming`; Android
+`plan/RoomingViewModel.kt` and `RoomingScreen.kt` (`Screen.ROOMING`, the hotel chosen on the
+row), iOS `Plan/RoomingView.swift` (`RoomingDestination` from the row's link). A failure is
+said; offline keeps the last answer; the fixture's list stands in without a trip. Evidence:
+`android/rooming-light.png`, `android/rooming-dark.png`, `ios/rooming-light.png`,
+`ios/rooming-dark.png`.
+
 ## The driver's sealed link (slice 049, D39)
 
 Drivers are not users (D27): they get a sealed, time-limited link, or the printed sheet. An
@@ -149,6 +162,11 @@ lists the rooms and prints. Evidence: `web/<project>/travel-rooming.png`,
   hotel only, its sheet opens with no session (the stay, the rooms with their names sorted, the
   unassigned, the leaders, no email anywhere), the open counts, an unknown token is 404, a revoked
   one too; a removed person loses their room; a deleted hotel takes its rooms and links.
+- Core (slice 059): the wire list decodes; the rooms come in label order with numbers compared
+  as numbers; the unassigned by name; the summary and the spoken rows in both languages; the
+  fixture's three rooms and one person unplaced. Android: sample mode shows the fixture; live
+  loads the hotel's list from its booking route and reads it by room; refused says why,
+  unreachable says offline; the two screenshots. iOS: the same model facts and the captures.
 - Console unit (slice 058): the hotel row unfolds the rooming list, a room saves on Enter with
   the summary following, the hotel link mints with the URL shown once; the hotel sheet page
   posts the token once and lists the rooms, the unassigned and the leaders, and says so for a

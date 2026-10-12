@@ -62,6 +62,7 @@ import com.voysemble.core.plan.PlanDay
 import com.voysemble.core.plan.proposalSentMessage
 import com.voysemble.core.plan.revisionLine
 import com.voysemble.core.travel.DayTravel
+import com.voysemble.core.travel.Hotel
 import com.voysemble.core.travel.bookingsOn
 import com.voysemble.core.travel.detail
 import com.voysemble.core.travel.flightStatusLabel
@@ -69,7 +70,7 @@ import com.voysemble.core.travel.isQuiet
 import com.voysemble.core.travel.title
 
 @Composable
-fun PlanRoute(vm: PlanViewModel) {
+fun PlanRoute(vm: PlanViewModel, onOpenRooming: ((Hotel) -> Unit)? = null) {
     val state by vm.state.collectAsStateWithLifecycle()
     var proposing by remember { mutableStateOf<ProposalTarget?>(null) }
     proposing?.let { target ->
@@ -82,7 +83,7 @@ fun PlanRoute(vm: PlanViewModel) {
             },
         )
     }
-    PlanScreen(state, onSelectDay = vm::selectDay, onPropose = { proposing = it }, onDismissProposal = vm::dismissProposal)
+    PlanScreen(state, onSelectDay = vm::selectDay, onPropose = { proposing = it }, onDismissProposal = vm::dismissProposal, onOpenRooming = onOpenRooming)
 }
 
 @Composable
@@ -91,6 +92,8 @@ fun PlanScreen(
     onSelectDay: (Int) -> Unit,
     onPropose: (ProposalTarget) -> Unit = {},
     onDismissProposal: () -> Unit = {},
+    /** Slice 059 (D41): a leader opens a hotel's rooming list from its row; null hides the way in. */
+    onOpenRooming: ((Hotel) -> Unit)? = null,
 ) {
     val c = LocalVoysembleColors.current
     val plan = state.plan
@@ -167,14 +170,14 @@ fun PlanScreen(
                     }
                 }
             }
-            state.travel?.let { travel -> bookings(travel.bookingsOn(day.date)) }
+            state.travel?.let { travel -> bookings(travel.bookingsOn(day.date), onOpenRooming) }
         }
         item { Spacer(Modifier.height(8.dp)) }
     }
 }
 
 /** The day's bookings (D37): flights, the hotel of the night, every bus. Keys carry a prefix so they never meet an event id. */
-private fun androidx.compose.foundation.lazy.LazyListScope.bookings(onDay: DayTravel) {
+private fun androidx.compose.foundation.lazy.LazyListScope.bookings(onDay: DayTravel, onOpenRooming: ((Hotel) -> Unit)?) {
     item { SectionLabel(tr(Txt.TRAVEL_SECTION)) }
     item { HintText(tr(Txt.TRAVEL_HINT)) }
     if (onDay.isQuiet()) item { HintText(tr(Txt.TRAVEL_QUIET)) }
@@ -182,7 +185,15 @@ private fun androidx.compose.foundation.lazy.LazyListScope.bookings(onDay: DayTr
         BookingRow(AppIcons.Plane, f.title(), f.detail(), spoken = trf(Txt.TRAVEL_FLIGHT_SPOKEN, f.code), status = f.status)
     }
     items(onDay.hotels, key = { "ho-${it.hotel.id}" }) { h ->
-        BookingRow(AppIcons.Hotel, h.hotel.name, h.detail(), spoken = trf(Txt.TRAVEL_HOTEL_SPOKEN, h.hotel.name))
+        BookingRow(AppIcons.Hotel, h.hotel.name, h.detail(), spoken = trf(Txt.TRAVEL_HOTEL_SPOKEN, h.hotel.name)) {
+            // Slice 059 (D41): the leader reads who sleeps where.
+            onOpenRooming?.let { open ->
+                TextButton(
+                    onClick = { open(h.hotel) },
+                    modifier = Modifier.semantics { contentDescription = trf(Txt.ROOMING_OPEN_SPOKEN, h.hotel.name) },
+                ) { Text(tr(Txt.ROOMING_OPEN)) }
+            }
+        }
     }
     items(onDay.buses, key = { "bu-${it.id}" }) { b ->
         BookingRow(AppIcons.Bus, b.label, b.detail(), spoken = trf(Txt.TRAVEL_BUS_SPOKEN, b.label))
@@ -195,7 +206,14 @@ private fun HintText(text: String) {
 }
 
 @Composable
-private fun BookingRow(icon: ImageVector, title: String, detail: String, spoken: String, status: String? = null) {
+private fun BookingRow(
+    icon: ImageVector,
+    title: String,
+    detail: String,
+    spoken: String,
+    status: String? = null,
+    trailing: @Composable () -> Unit = {},
+) {
     val c = LocalVoysembleColors.current
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
@@ -211,6 +229,7 @@ private fun BookingRow(icon: ImageVector, title: String, detail: String, spoken:
             Text(detail, style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
         }
         status?.let { LabelChip(flightStatusLabel(it), flightStatusTint(it, c.textMuted, c.warning, c.danger, c.success)) }
+        trailing()
     }
 }
 

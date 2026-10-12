@@ -257,6 +257,10 @@ struct PlanView: View {
         }
         ForEach(onDay.hotels, id: \.hotel.id) { h in
             BookingRow(symbol: "bed.double", title: h.hotel.name, detail: h.detail(), spoken: tr1(.travelHotelSpoken, h.hotel.name), status: nil)
+            // Slice 059 (D41): the leader reads who sleeps where.
+            NavigationLink(tr(.roomingOpen)) { RoomingDestination(api: model.api, trip: model.trip, hotel: h.hotel) }
+                .font(.subheadline.weight(.semibold))
+                .accessibilityLabel(tr1(.roomingOpenSpoken, h.hotel.name))
         }
         ForEach(onDay.buses, id: \.id) { b in
             BookingRow(symbol: "bus", title: b.label, detail: b.detail(), spoken: tr1(.travelBusSpoken, b.label), status: nil)

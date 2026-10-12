@@ -1598,3 +1598,25 @@ Built:
 Lessons: two links minted the same day share a spoken name ("Revoke the link minted 2026-10-12"), so a test scopes the click to the list it means; the links list is a cached query, so the count of opens made from another browser context reads fresh after a reload (as the driver flow already did).
 
 Not done: rooms on the leader's phone (the Plan tab's hotel night could name the rooms); a rooming list typed as pairs ("204: Minji, Juho") in one go; room types and capacities; the hotel's own contact person.
+
+## Slice 059: the rooming list on the leader's phone
+
+Status: done 2026-10-12. Commit: see git log (`feat(mobile): the rooming list on the leader's phone (slice 059)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D41 (rooming lists; amended), D13 (guardians never see rooms), D31. Details: `docs/engineering/travel.md` (the phones section).
+
+| Gate | Command | Result |
+|---|---|---|
+| Core JVM tests | `./gradlew :core:jvmTest` (CI `mobile` job) | adds `RoomingTest` (1), `RoomingModelTest` (2); `L10nTest` covers the 13 new keys |
+| Android tests + captures | `./gradlew :android-app:testDebugUnitTest` / `recordRoborazziDebug` (CI `mobile` job) | adds `RoomingViewModelTest` (3), `RoomingScreenshotTest` (2: `rooming-light.png`, `rooming-dark.png`) |
+| iOS tests + captures | `xcodebuild test` (CI `ios` job) | adds `LiveModelsTests.testRoomingSampleAndUnreachable`, `CaptureTests.testRooming` |
+| Headers | `pnpm check:headers` | clean |
+
+Gradle and Xcode do not run in this workspace, so the Kotlin and Swift of this slice are verified by the CI `mobile` and `ios` jobs, desk-checked here against the packing and inbox slices' patterns.
+
+Built:
+- Core: `api/Rooming.kt` (`RoomAssignmentDto`, `RoomingHotelDto`, `RoomingListDto`), `ApiClient.rooming`, `travel/RoomingModel.kt` (`RoomPerson`, `RoomGroup`, `Rooming`, `roomingOf`, `emptyRooming`, `withOffline`, `byRoom`, `unassigned`, `assignedCount`, `roomsUsed`, `summary`, `roomLabel`, `spoken`), the fixture's `rooming()` (the same rooms the sample head count carries), 13 `ROOMING_*` strings in both languages.
+- Android: `plan/RoomingViewModel.kt`, `RoomingScreen.kt`, `Screen.ROOMING` with the chosen hotel in `NavViewModel`, the Plan tab's hotel row "Rooms" for leaders (`BookingRow` gains a trailing slot).
+- iOS: `Plan/RoomingView.swift` (`RoomingModel`, `RoomingView`, `RoomingDestination`), the hotel row's link.
+- Docs: `travel.md` phones section and facts, D41 amendment, mobile README, captures README, ledger, feature flag `mobile.rooming` working.
+
+Not done: the room on the head count roster row (the sample head count already carries room numbers; the live one does not); rooms on the Today tab's hotel line.

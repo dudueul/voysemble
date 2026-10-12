@@ -48,6 +48,8 @@ import com.voysemble.app.packing.PackingViewModel
 import com.voysemble.core.packing.summary
 import com.voysemble.app.memories.MemoriesViewModel
 import com.voysemble.app.plan.PlanViewModel
+import com.voysemble.app.plan.RoomingRoute
+import com.voysemble.app.plan.RoomingViewModel
 import com.voysemble.app.session.AppGraph
 import com.voysemble.app.session.PendingLink
 import com.voysemble.app.session.SessionViewModel
@@ -63,12 +65,19 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 
-enum class Screen { MAIN, HEADCOUNT, WINDOW, INCIDENTS, PACKING, INBOX }
+enum class Screen { MAIN, HEADCOUNT, WINDOW, INCIDENTS, PACKING, INBOX, ROOMING }
 
 class NavViewModel : ViewModel() {
     private val _screen = MutableStateFlow(Screen.MAIN)
     val screen: StateFlow<Screen> = _screen
+    /** Slice 059: the hotel whose rooming list is open (its booking id and name). */
+    private val _rooming = MutableStateFlow<Pair<String, String>?>(null)
+    val rooming: StateFlow<Pair<String, String>?> = _rooming
     fun open(s: Screen) = _screen.update { s }
+    fun openRooming(bookingId: String, hotelName: String) {
+        _rooming.update { bookingId to hotelName }
+        _screen.update { Screen.ROOMING }
+    }
     fun back() = _screen.update { Screen.MAIN }
 }
 
@@ -129,6 +138,16 @@ fun AppScreens(trip: ActiveTrip?, onSignOut: () -> Unit) {
             BackHandler { nav.back() }
             InboxRoute(inbox, onBack = nav::back)
         }
+        Screen.ROOMING -> {
+            BackHandler { nav.back() }
+            // Slice 059 (D41): a hotel's rooming list, read by a leader; the fixture's in sample mode.
+            val target by nav.rooming.collectAsStateWithLifecycle()
+            val (bookingId, hotelName) = target ?: ("" to "")
+            val vm: RoomingViewModel = viewModel(key = "rooming-${trip?.tripId ?: "sample"}-$bookingId") {
+                if (trip == null) RoomingViewModel() else RoomingViewModel(api = AppGraph.apiClient, trip = trip, bookingId = bookingId, hotelName = hotelName)
+            }
+            RoomingRoute(vm, onBack = nav::back)
+        }
         Screen.HEADCOUNT -> {
             BackHandler { nav.back() }
             // Live when signed in on a trip; the fixture otherwise. Keyed so switching trips restarts.
@@ -173,7 +192,8 @@ fun AppScreens(trip: ActiveTrip?, onSignOut: () -> Unit) {
                 val vm: PlanViewModel = viewModel(key = "plan-${trip?.tripId ?: "sample"}") {
                     if (trip == null) PlanViewModel() else PlanViewModel(api = AppGraph.apiClient, trip = trip)
                 }
-                PlanRoute(vm)
+                // Slice 059 (D41): a leader opens a hotel's rooming list from its row (travelers have no bookings).
+                PlanRoute(vm, onOpenRooming = if (trip == null || trip.role == "leader") { h -> nav.openRooming(h.id, h.name) } else null)
             }
             MainTab.BULLETIN -> TabHost(today) {
                 val vm: BulletinViewModel = viewModel(key = trip?.tripId ?: "sample") {

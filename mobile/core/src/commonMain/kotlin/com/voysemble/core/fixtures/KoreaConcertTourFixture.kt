@@ -38,6 +38,8 @@ import com.voysemble.core.travel.BusCharter
 import com.voysemble.core.travel.Flight
 import com.voysemble.core.travel.Hotel
 import com.voysemble.core.travel.TripTravel
+import com.voysemble.core.travel.RoomPerson
+import com.voysemble.core.travel.Rooming
 import com.voysemble.core.today.AckState
 import com.voysemble.core.today.EventKind
 import com.voysemble.core.today.EventStatus
@@ -318,6 +320,20 @@ public object KoreaConcertTourFixture {
         buses = listOf(
             BusCharter("bu1", "Bus A", "Roma Coach", seats = 45, groups = listOf("Bus A"), assigned = 20),
             BusCharter("bu2", "Bus B", "Roma Coach", seats = 45, groups = listOf("Bus B"), assigned = 19),
+        ),
+    )
+
+    /** The sample rooming list of the Rome hotel (D41, slice 059): the leader in 501, travelers in 412 and 415, one person still unplaced. */
+    public fun rooming(): Rooming = Rooming(
+        hotelName = "Hotel de la Ville",
+        hotelRooms = 21,
+        people = listOf(
+            // The same rooms the sample head count carries (412, 415); the leader on the floor above.
+            RoomPerson("p-kim", "Kim Daeun", leader = true, group = "Bus A", room = "501"),
+            RoomPerson("p-juho", "Juho Kim", leader = false, group = "Bus A", room = "412"),
+            RoomPerson("p-minji", "Minji Park", leader = false, group = "Bus A", room = "412"),
+            RoomPerson("p-sua", "Sua Lim", leader = false, group = "Bus A", room = "415"),
+            RoomPerson("p-hana", "Lee Hana", leader = false, group = "Bus B", room = null),
         ),
     )
 

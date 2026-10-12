@@ -294,3 +294,9 @@ the hotel's rooming list unfolded, Minji and Juho in room 204, the summary line.
 hotel-sheet.png`: the hotel's sheet opened through the sealed link in a second browser context,
 the stay, room 204 with its two names, the unassigned, the leader by name. Produced by
 `apps/organizer-web/e2e/travel.spec.ts`. No phone change.
+
+## Slice 059 (2026-10-12): the rooming list on the leader's phone
+
+`android/rooming-light.png`, `android/rooming-dark.png` (Roborazzi) and `ios/rooming-light.png`,
+`ios/rooming-dark.png` (CaptureTests): the fixture hotel's rooms (412, 415, the leader's 501),
+the leader in bold, Lee Hana without a room yet, the summary line. No console change.

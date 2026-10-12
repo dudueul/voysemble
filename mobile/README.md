@@ -27,6 +27,7 @@ Design tokens: `packages/design-tokens` generates `core/.../design/Tokens.kt` an
 | Plan (slice 035; proposals from any event) | `android-app/.../plan/PlanScreen.kt` + `today/ProposeChange.kt` | `ios-app/Voysemble/Plan/PlanView.swift` + `Today/ProposeChange.swift` | same, `plan-*.png`; `docs/engineering/itinerary.md` |
 | Bookings on the Plan tab (slice 047; D37 travel) | `android-app/.../plan/PlanScreen.kt` (`bookings`) | `ios-app/Voysemble/Plan/PlanView.swift` (`bookings`, `BookingRow`) | `plan-day.png`, `plan-arrival.png`; `docs/engineering/travel.md` |
 | Packing (slice 048; D38 checklist) | `android-app/.../packing/PackingScreen.kt` | `ios-app/Voysemble/Packing/PackingView.swift` | same, `packing-*.png`; `docs/engineering/packing.md` |
+| Rooming list (slice 059; D41) | `android-app/.../plan/RoomingScreen.kt` | `ios-app/Voysemble/Plan/RoomingView.swift` | same, `rooming-*.png`; `docs/engineering/travel.md` |
 | Inbox (slice 053; D29 lanes) | `android-app/.../notifications/InboxScreen.kt` + `ui/NotificationChannels.kt` | `ios-app/Voysemble/Notifications/InboxView.swift` | same, `inbox-*.png`; the bell in `today-light.png`; `docs/engineering/notifications.md` |
 | Memories (slice 044; D18 photos) | `android-app/.../memories/MemoriesScreen.kt` + `AndroidImages.kt` | `ios-app/Voysemble/Memories/MemoriesView.swift` | same, `memories-*.png`; `docs/engineering/media.md` |
 
