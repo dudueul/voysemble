@@ -358,6 +358,7 @@ export const en = {
     },
     incidents: 'Incidents',
     opened: 'opened',
+    askedForHelp: 'Asked for help from the phone',
     confirmed: (by: string, when: string) => `Confirmed by ${by} ${when}`,
     guardianNotified: 'guardian notified',
     pingLeader: 'Ping leader to confirm',

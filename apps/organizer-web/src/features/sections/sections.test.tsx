@@ -1083,6 +1083,20 @@ describe('sample sections', () => {
       ],
       guardianMessage: null,
     };
+    // Slice 074: a traveler's own request, resolved; the card says where it came from.
+    const HELP = {
+      ...INC,
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      kind: 'help',
+      status: 'resolved',
+      title: 'I feel sick',
+      headcountId: null,
+      people: [{ participationId: 'p5', displayName: 'Minji Park', groupName: 'Bus A' }],
+      openedByName: 'Minji Park',
+      resolvedAt: INC.openedAt,
+      resolvedByName: 'Organizer',
+      confirmations: [],
+    };
     const posted: unknown[] = [];
     let resolved = false;
     let messaged = false;
@@ -1175,6 +1189,7 @@ describe('sample sections', () => {
                     }
                   : INC,
               ]),
+          HELP,
         ],
       }),
       [`POST /v1/orgs/${ORG.id}/trips/${TRIP.id}/incidents/${INC.id}/guardian-message`]: () => {
@@ -1214,6 +1229,10 @@ describe('sample sections', () => {
     const card = await screen.findByTestId(`incident-${INC.id}`);
     await screen.findByTestId('no-window');
     expect(text(card)).toContain('Juho Kim');
+    expect(text(card)).not.toContain('Asked for help from the phone');
+    expect(text(screen.getByTestId(`incident-${HELP.id}`))).toContain(
+      'I feel sick Asked for help from the phone',
+    );
     // Slice 064: the group's and the traveler's channels can be read, audited; Close folds it.
     expect(
       within(card)

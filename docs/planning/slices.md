@@ -1877,7 +1877,7 @@ Not done: a filtered export (the page's filters stay on screen); the export in t
 
 ## Slice 072: the public site describes the product as it is now
 
-Status: done 2026-10-12. Commit: see git log (`feat(public-web): the features as built since slice 040, in both languages (slice 072)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: 5efefed (`feat(public-web): the features as built since slice 040, in both languages (slice 072)`). CI: run 38300056103 green (web, mobile, ios); captures recorded by CI in a23bf4a.
 Spec: D30 (the site describes the decided product thoroughly), D31 (real captures), D42, D39, D41, D22, D23, D27, D29. Details: `docs/engineering/public-web.md` (Refreshed with the product).
 
 | Gate | Command | Result |
@@ -1917,3 +1917,29 @@ Built:
 - Docs: `incidents.md` route row and Mobile paragraph, not-done; captures README; ledger 069 (CI record) and 073; feature flag `incidents.manual-phone` working.
 
 Not done: a note at opening; opening from the head count's missing list in one tap; a traveler's own "I need help" card.
+
+## Slice 074: a traveler asks for help from Today
+
+Status: done 2026-10-12. Commit: see git log (`feat(mobile): a traveler asks for help from Today; the card is an incident of kind help (slice 074)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D17 (amended: a traveler opens a card for themselves), D29 (the leaders and guardians hear it at once), D31. Details: `docs/engineering/incidents.md` (Behaviour, Routes, Mobile, facts).
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 40 files, 116 passed (`incidents.test.ts` +1: the help flow; the traveler's empty list) |
+| Console unit tests | `pnpm --filter @voysemble/organizer-web test` | 22 files, 135 passed (the Safety case reads the help chip) |
+| Core JVM tests | `./gradlew :core:jvmTest` (CI `mobile` job) | `HelpModelTest` (3), `L10nTest` the ten new keys |
+| Android tests + captures | `./gradlew :android-app:testDebugUnitTest` / `recordRoborazziDebug` (CI `mobile` job) | `TodayViewModelTest` +1; `TodayScreenshotTest` +2 (`today-help.png`, `today-help-form.png`) |
+| iOS tests + captures | `xcodebuild test` (CI `ios` job) | `LiveModelsTests` +1 and the sample case; `CaptureTests.testTodayHelp` (`today-help.png`, `today-help-form.png`) |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+Gradle and Xcode do not run in this workspace; the CI `mobile` and `ios` jobs verify the Kotlin and Swift, desk-checked here.
+
+Built:
+- Contracts: `IncidentKind` gains `help`. Worker: `openManualIncident` takes the kind; the open route admits a traveler naming only themselves (kind `help`, by their name, "Help asked: <name>" to their leaders and guardians); the list route admits a traveler with `travelerView`; `incidents.test.ts` gains the help flow (+1) and the traveler's empty list.
+- Core: `today/HelpModel.kt` (`HelpCard`, `HelpStatus`, `helpCardOf`, `helpRequestOf`), ten `TODAY_HELP*` strings in both languages, `HelpModelTest`.
+- Android: `TodayUiState.canAskHelp/help/helpSending/helpError`, `TodayViewModel.askHelp` and the card on refresh; `today/HelpCard.kt` (`HelpCardView`, `HelpForm`, `HelpSheet`); the Today screen's card and sheet; tests and captures.
+- iOS: `TodayModel.canAskHelp/help/helpSending/helpError/askHelp` and the card on refresh; `HelpCardView`, `HelpForm`, the sheet; tests and captures.
+- Console: the Safety card's "Asked for help from the phone" chip on a `help` card; strings EN/KO; the Safety unit case.
+- Docs: `incidents.md`; D17 amendment; captures README; ledger 072 (CI record) and 074; feature flag `incidents.help-from-phone`.
+
+Not done: a one-tap call to the leader from the card (no phone numbers are stored); the traveler's help card on the console's missing list; a guardian's own request for their traveler.

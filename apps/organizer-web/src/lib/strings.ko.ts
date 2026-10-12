@@ -352,6 +352,7 @@ export const ko: Strings = {
     },
     incidents: '사건',
     opened: '발생',
+    askedForHelp: '휴대폰에서 도움 요청',
     confirmed: (by: string, when: string) => `${by}이(가) ${when} 확인`,
     guardianNotified: '보호자에게 알림',
     pingLeader: '인솔자에게 확인 요청',

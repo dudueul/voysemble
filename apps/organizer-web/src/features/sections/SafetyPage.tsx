@@ -76,7 +76,15 @@ function LiveIncident({ orgId, tripId, i }: { orgId: string; tripId: string; i: 
         {open ? <Icons.alert /> : <Icons.check />}
       </span>
       <div className="incident__text">
-        <strong>{i.title}</strong>
+        <strong>
+          {i.title}
+          {i.kind === 'help' ? (
+            <>
+              {' '}
+              <span className="chip chip--delayed">{s.askedForHelp}</span>
+            </>
+          ) : null}
+        </strong>
         <span className="muted small">
           {i.people.map((p) => p.displayName).join(', ')} · {s.opened} {relativeTo(now, i.openedAt)}{' '}
           · {i.openedByName}

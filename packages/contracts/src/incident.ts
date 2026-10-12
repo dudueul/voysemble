@@ -8,7 +8,12 @@
 import { z } from '@hono/zod-openapi';
 import { Id, Timestamp } from './common';
 
-export const IncidentKind = z.enum(['headcount_missing', 'manual']).openapi('IncidentKind');
+/**
+ * `headcount_missing`: opened by a head count that closed with people missing (slice 013);
+ * `manual`: opened by hand by the organizer (slice 068) or a leader (slice 073); `help`: a
+ * traveler asked for help for themselves from Today (slice 074).
+ */
+export const IncidentKind = z.enum(['headcount_missing', 'manual', 'help']).openapi('IncidentKind');
 export type IncidentKind = z.infer<typeof IncidentKind>;
 
 export const IncidentStatus = z.enum(['open', 'resolved']).openapi('IncidentStatus');
@@ -84,7 +89,8 @@ export type IncidentList = z.infer<typeof IncidentList>;
 
 /**
  * Slice 068: the organizer opens a card by hand (a lost passport, a sick traveler), naming the
- * travelers it is about; the rest of the flow is the head count card's.
+ * travelers it is about; the rest of the flow is the head count card's. Slice 073: a leader
+ * names travelers of their group. Slice 074: a traveler names only themselves ("I need help").
  */
 export const OpenIncidentRequest = z
   .object({

@@ -8,7 +8,9 @@
 // card, projected, with the message; a resolved card takes no confirmation. Slice 068: the
 // organizer opens a card by hand naming travelers; leaders and guardians hear it; a leader,
 // a guardian id, an unknown id and a blank title are refused; the flow continues as usual. Slice
-// 073: a leader opens one from the phone for travelers of their group, by their own name.
+// 073: a leader opens one from the phone for travelers of their group, by their own name. Slice
+// 074: a traveler asks for help for themselves (kind help); their leader and guardian hear it;
+// they read their own cards, projected.
 
 import type {
   Incident,
@@ -106,7 +108,8 @@ describe('incidents', () => {
     expect(card.people.map((p) => p.displayName)).toEqual(['Juho Kim']);
     expect(card.people[0]?.groupName).toBe('Bus A');
 
-    expect((await api(minji).get(base)).status).toBe(403);
+    // Slice 074: a traveler lists the cards naming them; this one names Juho, not Minji.
+    expect(await json<IncidentList>(await api(minji).get(base))).toEqual({ incidents: [] });
     expect((await api(kim).get(base)).status).toBe(200);
   });
 
@@ -247,7 +250,7 @@ describe('manual incidents (slice 068)', () => {
     });
     expect(opened.people.map((p) => p.displayName)).toEqual(['Minji Park']);
     // Slice 073: Kim (Bus A's leader) opens one naming Minji (Bus A), by her own name; Hana (Bus
-    // B) is outside her group; a traveler and a guardian cannot open one at all.
+    // B) is outside her group; a traveler names only themselves, a guardian cannot open one.
     const byKim = await json<Incident>(
       await api(t.kim).post(t.base, { title: 'Minji feels sick', participationIds: [minjiId] }),
     );
@@ -256,8 +259,10 @@ describe('manual incidents (slice 068)', () => {
       (await api(t.kim).post(t.base, { title: 'x', participationIds: [t.byName('Lee, Hana')] }))
         .status,
     ).toBe(403);
+    // Slice 074: a traveler names only themselves (Minji naming Juho is refused); a guardian never.
     expect(
-      (await api(t.minji).post(t.base, { title: 'x', participationIds: [minjiId] })).status,
+      (await api(t.minji).post(t.base, { title: 'x', participationIds: [t.byName('Juho Kim')] }))
+        .status,
     ).toBe(403);
     expect(
       (await api(t.sora).post(t.base, { title: 'x', participationIds: [minjiId] })).status,
@@ -318,5 +323,96 @@ describe('manual incidents (slice 068)', () => {
       }),
     );
     expect(resolved.status).toBe('resolved');
+  });
+});
+
+describe('help from the phone (slice 074)', () => {
+  it('a traveler asks for help for themselves; the leader and the guardian hear it; the traveler reads their own card', async () => {
+    const t = await setupTrip();
+    const tripBase = t.base.replace(/\/incidents$/, '');
+    const minjiId = t.byName('Minji Park');
+    const juhoId = t.byName('Juho Kim');
+    // Only themselves: naming someone else, or someone else too, is refused.
+    expect(
+      (await api(t.minji).post(t.base, { title: 'x', participationIds: [juhoId] })).status,
+    ).toBe(403);
+    expect(
+      (await api(t.minji).post(t.base, { title: 'x', participationIds: [minjiId, juhoId] })).status,
+    ).toBe(403);
+    const card = await json<Incident>(
+      await api(t.minji).post(t.base, { title: 'I feel sick', participationIds: [minjiId] }),
+    );
+    expect(card).toMatchObject({
+      kind: 'help',
+      status: 'open',
+      title: 'I feel sick',
+      headcountId: null,
+      openedByName: 'Minji Park',
+    });
+    expect(card.people.map((p) => p.displayName)).toEqual(['Minji Park']);
+    // Kim (Bus A's leader) and Sora (Minji's guardian) hear "Help asked"; Minji herself nothing.
+    const inbox = async (c: Parameters<typeof api>[0]) =>
+      (
+        await json<MyNotifications>(await api(c).get(`${tripBase}/notifications/mine`))
+      ).notifications.map((n) => [n.kind, n.title, n.refId]);
+    expect(await inbox(t.kim)).toContainEqual([
+      'incident_status',
+      'Help asked: Minji Park',
+      card.id,
+    ]);
+    expect(await inbox(t.sora)).toContainEqual([
+      'incident_status',
+      'Help asked: Minji Park',
+      card.id,
+    ]);
+    expect(await inbox(t.minji)).toEqual([]);
+    // Minji reads her own card, projected: her words, herself alone, no trail.
+    const mine = await json<IncidentList>(await api(t.minji).get(t.base));
+    expect(
+      mine.incidents.map((i) => [
+        i.id,
+        i.title,
+        i.status,
+        i.people.map((p) => p.displayName),
+        i.confirmations.length,
+      ]),
+    ).toEqual([[card.id, 'I feel sick', 'open', ['Minji Park'], 0]]);
+    // The leader confirms, the organizer messages the guardian and resolves; Minji sees it
+    // resolved, without the note or the guardian message; Sora reads the status update.
+    expect(
+      (
+        await api(t.kim).post(`${t.base}/${card.id}/confirm`, {
+          status: 'with_group',
+          note: 'Resting on the bus.',
+        })
+      ).status,
+    ).toBe(200);
+    expect((await api(t.nate).post(`${t.base}/${card.id}/guardian-message`)).status).toBe(200);
+    expect(
+      (await api(t.nate).post(`${t.base}/${card.id}/resolve`, { note: 'Felt better after lunch.' }))
+        .status,
+    ).toBe(200);
+    const after = await json<IncidentList>(await api(t.minji).get(t.base));
+    expect(
+      after.incidents.map((i) => [
+        i.id,
+        i.status,
+        i.resolutionNote,
+        i.guardianMessage,
+        i.confirmations.length,
+      ]),
+    ).toEqual([[card.id, 'resolved', null, null, 0]]);
+    const forSora = await json<IncidentList>(await api(t.sora).get(t.base));
+    expect(forSora.incidents.map((i) => [i.id, i.title, i.guardianMessage !== null])).toEqual([
+      [card.id, 'Status update about Minji Park', true],
+    ]);
+    // The organizer's list carries the kind; a traveler still cannot resolve or confirm.
+    const all = await json<IncidentList>(await api(t.nate).get(t.base));
+    expect(all.incidents.map((i) => [i.id, i.kind, i.openedByName])).toEqual([
+      [card.id, 'help', 'Minji Park'],
+    ]);
+    expect((await api(t.minji).post(`${t.base}/${card.id}/resolve`, { note: null })).status).toBe(
+      403,
+    );
   });
 });

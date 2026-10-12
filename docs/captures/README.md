@@ -242,6 +242,10 @@ chips, the tight-connections and proposals cards. `web/<project>/command-center-
 the command center with the same events in its next 48 hours. Produced by
 `apps/organizer-web/e2e/journey-graph.spec.ts`. No phone change.
 
+`android/today-help.png` (the Today screen scrolled to the card, a request on its way), `android/today-help-form.png`,
+`ios/today-help.png` (the card with a request on its way and the card before any request), `ios/today-help-form.png`
+(slice 074): the traveler's "I need help" card and its form; the sample Today captures on iOS (`today-light`,
+`today-dark`, `today-ko`) and Android's `today-offline-pending` gain the card, since the sample is a traveler's phone.
 `android/incidents-new.png`, `ios/incidents-new.png` (slice 073): the form a leader fills to open a card by
 hand, Bus A's travelers as checkboxes. `web/<project>/safety-manual-incident.png` (slice 068): the Safety page after the organizer opened a
 card by hand, leading the list. `android/today-trip-switch.png`, `ios/today-trip-switch.png` (slice 067): the account's trips as the

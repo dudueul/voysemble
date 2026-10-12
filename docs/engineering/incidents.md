@@ -30,13 +30,19 @@ API, and wires the organizer console's Safety page to those cards. Exercised by
   passport, a sick traveler); from there the flow is the same: leaders see it on the phone and
   confirm, the organizer sends the guardian message and resolves, the guardian reads the
   projected card.
+- Slice 074: a traveler asks for help from Today ("I need help", what is wrong optional): a card
+  of kind `help` naming only themselves, opened by their name; the leaders of their group and
+  their guardians hear "Help asked: <name>" at once; from there the flow is the same. A traveler
+  lists the cards naming them, projected further than a guardian's: their own words on a `help`
+  card ("Status update about <name>" otherwise), themselves alone, no trail, no note, no guardian
+  message.
 
 ## Routes
 
 | Route | Who | Behaviour |
 |---|---|---|
-| `GET /v1/orgs/{orgId}/trips/{tripId}/incidents` | staff | Cards, open first. |
-| `POST /v1/orgs/{orgId}/trips/{tripId}/incidents` (slice 068) | owner, organizer; a leader for their group (slice 073) | `OpenIncidentRequest { title (1..160), participationIds (1..50) }`: a card opened by hand, kind `manual`, open, no head count, opened by "Owner" / "Organizer"; every id must be a traveler of the trip (a guardian, a leader or an unknown id is 404); the leaders of the named travelers' groups and their guardians get "Incident opened: <names>" at once (D29). 201 with the card. A leader (slice 073) names travelers of their own group only (a whole-trip leader any traveler; 403 otherwise), and the card is opened by their name. |
+| `GET /v1/orgs/{orgId}/trips/{tripId}/incidents` | staff; a guardian (slice 016) and a traveler (slice 074), projected | Cards, open first. A guardian gets the cards naming their traveler (`guardianView`); a traveler the cards naming themselves (`travelerView`: their own words on a `help` card, "Status update about <name>" otherwise, themselves alone, no trail, no note, no guardian message). |
+| `POST /v1/orgs/{orgId}/trips/{tripId}/incidents` (slice 068) | owner, organizer; a leader for their group (slice 073); a traveler for themselves (slice 074) | `OpenIncidentRequest { title (1..160), participationIds (1..50) }`: a card opened by hand, kind `manual`, open, no head count, opened by "Owner" / "Organizer"; every id must be a traveler of the trip (a guardian, a leader or an unknown id is 404); the leaders of the named travelers' groups and their guardians get "Incident opened: <names>" at once (D29). 201 with the card. A leader (slice 073) names travelers of their own group only (a whole-trip leader any traveler; 403 otherwise), and the card is opened by their name. A traveler (slice 074) names only themselves (403 otherwise): kind `help`, opened by their name, "Help asked: <name>" to the leaders of their group and their guardians. |
 | `POST /v1/orgs/{orgId}/trips/{tripId}/incidents/{incidentId}/resolve` | staff | `{ note }`; returns the resolved card. |
 
 ## Console (Safety page)
@@ -65,6 +71,19 @@ leader's group read off their own row); "Open incident" posts the card (`ApiClie
 and the screen refreshes so the server's card leads the list; sample mode keeps a local card
 (`localIncidentCard`). Android `NewIncidentForm` / `NewIncidentSheet`, iOS `NewIncidentForm` in a
 sheet from the toolbar. Evidence: `android/incidents-new.png`, `ios/incidents-new.png`.
+
+Slice 074 (D17): Today carries a "NEED HELP?" card for a traveler (and in sample mode, since the
+sample is a traveler's phone): before any request, the invitation and "I need help"; the sheet
+takes what is wrong (optional, 160 characters) and sends `helpRequestOf(text, me, default)` (the
+default title "Asked for help" when the words are blank) through `ApiClient.openIncident`; the
+card then reads the request's words and "Your leaders and the organizer know · 07:12" while
+open, "Resolved · 07:40" after, with the button back. The card is `helpCardOf(incidents, me,
+clock)` in the core: the first card the server lists for the traveler (open first), kept across
+refreshes (`listIncidents` for a traveler, projected). Unreachable says "Offline. Find your
+leader or call the number on your card."; a refusal names the code. Android `HelpCardView`,
+`HelpForm`, `HelpSheet` (`today/HelpCard.kt`), iOS `HelpCardView` and `HelpForm` in a sheet.
+Evidence: `android/today-help.png`, `android/today-help-form.png`, `ios/today-help.png`,
+`ios/today-help-form.png`.
 
 
 `SyncHeadcountResponseDto.incidentId` and `HeadcountPushResult.incidentId` carry the card id to
@@ -140,8 +159,28 @@ otherwise), reachable from Today next to "Open head count". iOS `IncidentsView` 
   list. Browser: the same from the Safety page with the capture, and the guardian's projected
   card through the API.
 
+- Slice 073, worker: Kim (Bus A's leader) opens "Minji feels sick" naming Minji, by her own
+  name; Hana (Bus B) is outside her group (403); a traveler naming someone else and a guardian
+  are 403; the organizer resolves Kim's card; Sora reads both cards about Minji as status
+  updates, the open one first. Android: a leader loads Bus A's travelers (Juho, not Hana, not the
+  guardian, not herself), opens a card (the POST names Juho), the refreshed list leads with it;
+  sample mode offers the fixture's three and keeps a local card. iOS: the sample travelers and
+  the local card; unreachable says offline.
+- Slice 074, worker: Minji naming Juho, or Juho and herself, is 403; naming herself opens a
+  `help` card by "Minji Park"; Kim and Sora hear "Help asked: Minji Park", Minji nothing; her
+  list carries her card with her words, herself alone and no trail, not Juho's head count card;
+  after Kim confirms, the organizer messages and resolves, she reads it resolved without the
+  note or the message while Sora reads the status update with the message; the organizer's
+  list carries the kind; she still cannot resolve. Core: the first card naming her, local times,
+  null when none; the request's words or the default, 160 characters, herself alone. Android:
+  the traveler's view model offers the card, posts her words (trimmed) naming only her, tracks
+  the server's card across a refresh, sends the default title for blank words; sample mode
+  keeps a local card at 07:12; a leader's trip has no card. iOS: the sample card; unreachable
+  says offline with no card; a leader has none. Console unit: a `help` card reads "Asked for
+  help from the phone"; the head count's does not.
+
 ## Not done
 
 Push delivery of the guardian message (D29 lane); a guardian-facing screen on the phone beyond
-the Today card; a
-note at opening (the title carries it).
+the Today card; a note at opening (the title carries it); a one-tap call to the leader from the
+help card (no phone numbers are stored, D20); the traveler's card on the console's missing list.

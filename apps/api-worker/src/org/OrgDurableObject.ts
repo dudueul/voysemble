@@ -1992,8 +1992,8 @@ export class OrgDurableObject extends DurableObject<Env> {
 
   /**
    * Slice 068 (D17): a card the organizer opens by hand, naming travelers of the trip. A guardian,
-   * a leader or an unknown id is refused (`notATraveler`); the card is open, kind `manual`,
-   * without a head count.
+   * a leader or an unknown id is refused (`notATraveler`); the card is open, kind `manual`
+   * (slice 074: `help` when a traveler asked for themselves), without a head count.
    */
   async openManualIncident(input: {
     tripId: string;
@@ -2001,6 +2001,7 @@ export class OrgDurableObject extends DurableObject<Env> {
     participationIds: string[];
     byName: string;
     now: string;
+    kind?: 'manual' | 'help';
   }): Promise<{ incident: Incident } | { notFound: true } | { notATraveler: string }> {
     this.requireOrg();
     if (!(await this.getTrip(input.tripId))) return { notFound: true };
@@ -2016,9 +2017,10 @@ export class OrgDurableObject extends DurableObject<Env> {
       sql.exec(
         `INSERT INTO incidents
           (id, trip_id, kind, status, title, headcount_id, opened_at, opened_by_name)
-         VALUES (?, ?, 'manual', 'open', ?, NULL, ?, ?)`,
+         VALUES (?, ?, ?, 'open', ?, NULL, ?, ?)`,
         id,
         input.tripId,
+        input.kind ?? 'manual',
         input.title,
         input.now,
         input.byName,
@@ -2138,8 +2140,19 @@ export class OrgDurableObject extends DurableObject<Env> {
   }
 
   /**
+   * Traveler projection (slice 074): the cards naming them, themselves alone, no trail, no
+   * resolution note and no guardian message (that one is the guardian's); a card they opened
+   * keeps their own words, any other reads as a status update, like the guardian's.
+   */
+  private travelerView(i: Incident, travelerId: string): Incident {
+    const view = this.guardianView(i, travelerId);
+    return { ...view, title: i.kind === 'help' ? i.title : view.title, guardianMessage: null };
+  }
+
+  /**
    * Open cards first, newest first within a status. A guardian viewer gets only the cards
-   * naming their traveler, projected (`guardianView`); staff get everything.
+   * naming their traveler, projected (`guardianView`); a traveler viewer the cards naming
+   * themselves, projected (`travelerView`, slice 074); staff get everything.
    */
   async listIncidents(tripId: string, viewer: Participation | null = null): Promise<Incident[]> {
     this.requireOrg();
@@ -2157,6 +2170,12 @@ export class OrgDurableObject extends DurableObject<Env> {
       return all
         .filter((i) => i.people.some((p) => p.participationId === travelerId))
         .map((i) => this.guardianView(i, travelerId));
+    }
+    if (viewer?.role === 'traveler') {
+      const me = viewer.id;
+      return all
+        .filter((i) => i.people.some((p) => p.participationId === me))
+        .map((i) => this.travelerView(i, me));
     }
     return all;
   }

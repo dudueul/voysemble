@@ -120,6 +120,7 @@ fun TodayRoute(
         onCancelCare = vm::cancelCare,
         onSaveCare = { vm.saveCare(it) },
         onDismissProposal = vm::dismissProposal,
+        onAskHelp = { vm.askHelp(it) },
     )
 }
 
@@ -142,8 +143,12 @@ fun TodayScreen(
     inboxUnread: Int = 0,
     tripSwitch: TripSwitch = TripSwitch(),
     currentTripId: String = "",
+    /** Slice 074 (D17): the traveler's request from the help card's sheet. */
+    onAskHelp: (String) -> Unit = {},
 ) {
     val snap = state.snapshot
+    var askingHelp by remember { mutableStateOf(false) }
+    if (askingHelp) HelpSheet(onSend = onAskHelp, onDismiss = { askingHelp = false })
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = { BottomTabs(selected = state.tab, onSelect = onSelectTab) },
@@ -165,6 +170,8 @@ fun TodayScreen(
                 state.care?.let { care -> item { GuardianCareCard(care, onEditCare, onCancelCare, onSaveCare) } }
             } else {
                 item { HeadcountCard(snap.headcount, snap.checkedIn, snap.expected, onOpenHeadcount, onOpenIncidents) }
+                // Slice 074 (D17): a traveler asks for help; the card tracks the request.
+                if (state.canAskHelp) item { HelpCardView(state.help, state.helpSending, state.helpError) { askingHelp = true } }
             }
             // Slice 048 (D38): everyone packs; the card opens the list and reads its count.
             item { PackingCard(packingSummary, onOpenPacking) }

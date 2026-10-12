@@ -6,6 +6,8 @@
 
 package com.voysemble.app.today
 
+import com.voysemble.core.today.HelpStatus
+import com.voysemble.core.today.HelpCard
 import com.voysemble.core.i18n.AppLocale
 import org.junit.After
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -66,6 +68,29 @@ class TodayScreenshotTest {
         compose.onNodeWithContentDescription("Switch to Spring Choir Exchange").assertExists()
         compose.onNodeWithContentDescription("Korea Concert Tour · Current").assertExists()
         compose.onRoot().captureRoboImage("$OUT/today-trip-switch.png")
+    }
+
+    @Test
+    fun today_help_card_and_form() {
+        // Slice 074 (D17): the traveler's "I need help" card with a request on its way, then the form.
+        val sent = HelpCard("local-help", "I feel sick", HelpStatus.OPEN, "07:12", null)
+        compose.setContent {
+            VoysembleTheme(darkTheme = false) {
+                TodayScreen(state = TodayUiState(KoreaConcertTourFixture.today(), canAskHelp = true, help = sent), onAcknowledge = {}, onSelectTab = {})
+            }
+        }
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText("NEED HELP?"))
+        compose.onNodeWithText("I feel sick").assertExists()
+        compose.onNodeWithText("Your leaders and the organizer know · 07:12").assertExists()
+        compose.onRoot().captureRoboImage("$OUT/today-help.png")
+    }
+
+    @Test
+    fun today_help_form() {
+        compose.setContent { VoysembleTheme(darkTheme = false) { HelpForm(onSend = {}) } }
+        compose.onNodeWithContentDescription("What's wrong (optional)").assertExists()
+        compose.onNodeWithText("Send").assertExists()
+        compose.onRoot().captureRoboImage("$OUT/today-help-form.png")
     }
 
     @Test

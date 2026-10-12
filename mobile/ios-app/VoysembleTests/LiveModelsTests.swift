@@ -55,6 +55,24 @@ final class LiveModelsTests: XCTestCase {
         XCTAssertFalse(model.snapshot.offline)
         model.acknowledge("an_departure")
         XCTAssertEqual(model.snapshot.announcement?.ack, AckState.pending)
+        // Slice 074: the sample traveler asks for help; a local card at the fixture's clock.
+        XCTAssertTrue(model.canAskHelp)
+        await model.askHelp("   ")
+        XCTAssertEqual(model.help?.title, "Asked for help")
+        XCTAssertEqual(model.help?.status, HelpStatus.open)
+        XCTAssertEqual(model.help?.openedAt, "07:12")
+    }
+
+    func testTravelerHelpSaysOfflineWhenUnreachable() async {
+        // Slice 074 (D17): a traveler's request that cannot reach the server says so; a leader has no card.
+        let minji = ActiveTrip(organizationId: "org1", organizationName: "Seoul Arts High", tripId: "trip1", tripName: "Korea Concert Tour", participationId: "p-minji", role: "traveler")
+        let model = TodayModel(api: unreachableClient(), trip: minji)
+        XCTAssertTrue(model.canAskHelp)
+        await model.askHelp("Lost")
+        XCTAssertNil(model.help)
+        XCTAssertEqual(model.helpError, "Offline. Find your leader or call the number on your card.")
+        XCTAssertFalse(model.helpSending)
+        XCTAssertFalse(TodayModel(api: unreachableClient(), trip: trip).canAskHelp)
     }
 
     func testBulletinLiveMarksOfflineWhenUnreachable() async {

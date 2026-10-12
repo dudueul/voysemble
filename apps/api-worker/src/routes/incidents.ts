@@ -3,9 +3,11 @@
 // /v1/orgs/{orgId}/trips/{tripId}/incidents (D17, D25). Cards are auto-created by the head count
 // sync; staff list and resolve them, a leader (or organizer) confirms what they see, and the
 // organizer sends the guardian status message composed from the latest confirmation. Guardians
-// list only the cards about their own traveler, projected to status plus message; travelers see
-// nothing here. Slice 068: the organizer also opens a card by hand, naming travelers; the
-// guardians of those travelers and the leaders of their groups hear it at once.
+// list only the cards about their own traveler, projected to status plus message; travelers
+// (slice 074) the cards naming themselves, projected further. Slice 068: the organizer also opens
+// a card by hand, naming travelers; the guardians of those travelers and the leaders of their
+// groups hear it at once. Slice 073: a leader opens one for their group. Slice 074: a traveler
+// asks for help for themselves from Today (kind `help`); their leaders and guardians hear it.
 
 import { createRoute, type OpenAPIHono } from '@hono/zod-openapi';
 import {
@@ -33,9 +35,9 @@ const openRoute = createRoute({
   path: '/v1/orgs/{orgId}/trips/{tripId}/incidents',
   tags: ['incidents'],
   summary:
-    'Open an incident card by hand, naming travelers (owner, organizer, a leader for their group)',
+    'Open an incident card by hand, naming travelers (owner, organizer, a leader for their group, a traveler for themselves)',
   description:
-    'Slice 068 (D17). For anything the head count did not catch: a lost passport, a sick traveler. The card is open, kind `manual`, opened by the organizer; the leaders of the named travelers\' groups and their guardians hear "Incident opened" at once; the rest of the flow is the head count card\'s (a leader confirms, the organizer sends the guardian message, resolves). A guardian, a leader or an unknown id is 404. Slice 073: a trip leader opens one from the phone too, naming travelers of their group only (a whole-trip leader any traveler); the card is opened by their name.',
+    'Slice 068 (D17). For anything the head count did not catch: a lost passport, a sick traveler. The card is open, kind `manual`, opened by the organizer; the leaders of the named travelers\' groups and their guardians hear "Incident opened" at once; the rest of the flow is the head count card\'s (a leader confirms, the organizer sends the guardian message, resolves). A guardian, a leader or an unknown id is 404. Slice 073: a trip leader opens one from the phone too, naming travelers of their group only (a whole-trip leader any traveler); the card is opened by their name. Slice 074: a traveler opens one for themselves from Today ("I need help"): kind `help`, naming only themselves (403 otherwise), opened by their name; the leaders of their group and their guardians hear "Help asked: <name>".',
   security: SESSION_SECURITY,
   request: {
     params: TripParams,
@@ -55,7 +57,8 @@ const listRoute = createRoute({
   method: 'get',
   path: '/v1/orgs/{orgId}/trips/{tripId}/incidents',
   tags: ['incidents'],
-  summary: 'Incident cards of a trip, open first (owner, organizer, participating leader)',
+  summary:
+    'Incident cards of a trip, open first (owner, organizer, participating leader; a guardian and a traveler get the cards naming their traveler or themselves, projected)',
   security: SESSION_SECURITY,
   request: { params: TripParams },
   responses: {
@@ -140,8 +143,10 @@ export function mountIncidentRoutes(app: OpenAPIHono<AppEnv>): void {
     const org = await orgObject(c.env, orgId);
     if (!(await org.getTrip(tripId))) throw new HTTPException(404, { message: 'Trip not found.' });
     const me = await org.participationForAccount(tripId, auth.accountId);
-    if (!isStaff(access, me?.role) && me?.role !== 'guardian') {
-      throw new HTTPException(403, { message: 'Only organizers and trip leaders see incidents.' });
+    if (!isStaff(access, me?.role) && me?.role !== 'guardian' && me?.role !== 'traveler') {
+      throw new HTTPException(403, {
+        message: 'Only organizers and people on the trip see incidents.',
+      });
     }
     return c.json({ incidents: await org.listIncidents(tripId, me) }, 200);
   });
@@ -154,8 +159,16 @@ export function mountIncidentRoutes(app: OpenAPIHono<AppEnv>): void {
     const org = await orgObject(c.env, orgId);
     if (!(await org.getTrip(tripId))) throw new HTTPException(404, { message: 'Trip not found.' });
     const me = await org.participationForAccount(tripId, auth.accountId);
-    if (!isStaff(access, me?.role)) {
-      throw new HTTPException(403, { message: 'Only organizers and trip leaders open incidents.' });
+    const traveler = me?.role === 'traveler';
+    if (!isStaff(access, me?.role) && !traveler) {
+      throw new HTTPException(403, {
+        message: 'Only organizers, trip leaders and travelers open incidents.',
+      });
+    }
+    // Slice 074: a traveler asks for help for themselves only.
+    const myId = me?.id;
+    if (traveler && body.participationIds.some((id) => id !== myId)) {
+      throw new HTTPException(403, { message: 'A traveler asks for help for themselves only.' });
     }
     // Slice 073: a leader names travelers of their own group (a whole-trip leader any traveler).
     if (me?.role === 'leader' && me.groupName !== null) {
@@ -170,6 +183,7 @@ export function mountIncidentRoutes(app: OpenAPIHono<AppEnv>): void {
     const byName = me?.displayName ?? organizerName(auth, access);
     const r = await org.openManualIncident({
       tripId,
+      kind: traveler ? 'help' : 'manual',
       title: body.title,
       participationIds: body.participationIds,
       byName,
@@ -296,9 +310,11 @@ async function notifyIncidentStatus(
   const groups = [
     ...new Set(incident.people.map((p) => p.groupName).filter((g): g is string => g !== null)),
   ];
+  // Slice 074: a traveler's own request reads "Help asked", not "Incident opened".
+  const line = status === 'opened' && incident.kind === 'help' ? 'Help asked' : statusLine(status);
   await notifyTrip(env, org, orgId, trip, {
     kind: 'incident_status',
-    title: `${statusLine(status)}: ${names}`,
+    title: `${line}: ${names}`,
     body: notificationBody(`${byName}: ${incident.title}`),
     refType: 'incident',
     refId: incident.id,

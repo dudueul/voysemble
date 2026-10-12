@@ -5,6 +5,10 @@
 
 package com.voysemble.app.today
 
+import com.voysemble.core.today.helpRequestOf
+import com.voysemble.core.today.helpCardOf
+import com.voysemble.core.today.HelpStatus
+import com.voysemble.core.today.HelpCard
 import com.voysemble.core.i18n.Txt
 import com.voysemble.core.i18n.tr
 import com.voysemble.core.i18n.trf
@@ -60,6 +64,12 @@ data class TodayUiState(
     val guardian: GuardianCard? = null,
     /** D27 (slice 032): the guardian's own entry of the care note. Null until the status is known. */
     val care: GuardianCareState? = null,
+    /** Slice 074 (D17): a traveler asks for help from Today; sample mode shows the card too. */
+    val canAskHelp: Boolean = false,
+    /** The traveler's own latest card (open, or the last resolved); null when none names them. */
+    val help: HelpCard? = null,
+    val helpSending: Boolean = false,
+    val helpError: String? = null,
 )
 
 /** The guardian's care-note panel: content-free status, the note while editing, one message line. */
@@ -87,6 +97,7 @@ class TodayViewModel(
             snapshot = if (trip != null && api != null) emptyTodaySnapshot(trip.tripName) else initial,
             live = trip != null && api != null,
             canPropose = trip == null || trip.role == "leader",
+            canAskHelp = trip == null || trip.role == "traveler",
         ),
     )
     val state: StateFlow<TodayUiState> = _state
@@ -173,11 +184,20 @@ class TodayViewModel(
                     } else {
                         null
                     }
+                    // Slice 074: a traveler's own help card, from the cards the server lists for them.
+                    var help: HelpCard? = _state.value.help
+                    if (t.role == "traveler") {
+                        when (val inc = a.listIncidents(t.organizationId, t.tripId)) {
+                            is ApiResult.Ok -> help = helpCardOf(inc.value.incidents, t.participationId, ::localTime)
+                            else -> Unit
+                        }
+                    }
                     _state.update {
                         it.copy(
                             snapshot = todaySnapshotOf(r.value, deviceDate(zone), deviceClock(zone), minutesSinceSync = 0)
                                 .withAnnouncement(latest?.toTodayAnnouncement(::localTime)),
                             guardian = guardian ?: it.guardian,
+                            help = help,
                             syncing = false,
                         )
                     }
@@ -185,6 +205,30 @@ class TodayViewModel(
                 }
                 is ApiResult.Failed -> _state.update { it.copy(syncing = false, error = trf(Txt.TODAY_LOAD_FAILED, r.error.code)) }
                 is ApiResult.Unreachable -> _state.update { it.copy(syncing = false, snapshot = it.snapshot.copy(offline = true)) }
+            }
+        }
+    }
+
+    /**
+     * Slice 074 (D17): a traveler asks for help, in their own words or none. The server's card
+     * comes back and the Today card tracks it; sample mode keeps a local card at the fixture's
+     * clock. Returns the job so tests can await it.
+     */
+    fun askHelp(text: String): Job {
+        val a = api
+        val t = trip
+        if (a == null || t == null) {
+            _state.update {
+                it.copy(help = HelpCard("local-help", text.trim().ifBlank { tr(Txt.TODAY_HELP_DEFAULT) }, HelpStatus.OPEN, it.snapshot.now, null), helpError = null)
+            }
+            return Job().also { it.complete() }
+        }
+        _state.update { it.copy(helpSending = true, helpError = null) }
+        return viewModelScope.launch {
+            when (val r = a.openIncident(t.organizationId, t.tripId, helpRequestOf(text, t.participationId, tr(Txt.TODAY_HELP_DEFAULT)))) {
+                is ApiResult.Ok -> _state.update { it.copy(help = helpCardOf(listOf(r.value), t.participationId, ::localTime), helpSending = false) }
+                is ApiResult.Failed -> _state.update { it.copy(helpSending = false, helpError = trf(Txt.TODAY_HELP_FAILED, r.error.code)) }
+                is ApiResult.Unreachable -> _state.update { it.copy(helpSending = false, helpError = tr(Txt.TODAY_HELP_OFFLINE)) }
             }
         }
     }

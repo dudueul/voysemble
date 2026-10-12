@@ -29,6 +29,8 @@ struct TodayView: View {
     // Slice 067: the session, for the trip switch in the header (nil in sample mode and captures).
     private let session: SessionModel?
     @State private var switching = false
+    // Slice 074 (D17): the traveler's help sheet.
+    @State private var askingHelp = false
 
     init(model: TodayModel, session: SessionModel? = nil) {
         self.session = session
@@ -97,6 +99,20 @@ struct TodayView: View {
                             NavigationLink(tr(.todayIncidents), value: TodayPush.incidents)
                         }
                         .font(.subheadline.weight(.semibold))
+                        // Slice 074 (D17): a traveler asks for help; the card tracks the request.
+                        if model.canAskHelp {
+                            HelpCardView(help: model.help, sending: model.helpSending, error: model.helpError) { askingHelp = true }
+                                .sheet(isPresented: $askingHelp) {
+                                    NavigationStack {
+                                        HelpForm { text in
+                                            askingHelp = false
+                                            Task { await model.askHelp(text) }
+                                        }
+                                        .navigationTitle(tr(.todayHelpAsk))
+                                        .navigationBarTitleDisplayMode(.inline)
+                                    }
+                                }
+                        }
                     }
                     // Slice 048 (D38): everyone packs; the card opens the list and reads its count.
                     PackingCard(model: packing)
@@ -496,4 +512,58 @@ extension Color {
 /// The screens the Today tab pushes (slice 061): the path's values, resolved by `navigationDestination`.
 enum TodayPush: Hashable {
     case headcount, window, incidents, packing, inbox
+}
+
+/// Slice 074 (D17): the traveler's "I need help" card on Today: the invitation and the button
+/// before any request, the request's words while it is open, "Resolved" after. Its own view so a
+/// capture renders it without the screen.
+struct HelpCardView: View {
+    let help: HelpCard?
+    let sending: Bool
+    let error: String?
+    let onAsk: () -> Void
+
+    var body: some View {
+        Card {
+            Text(tr(.todayHelp)).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+            if let help {
+                let open = help.status == HelpStatus.open
+                Text(help.title)
+                    .font(.headline)
+                    .foregroundStyle(Color(argb: open ? Tokens.Color.Light.warning : Tokens.Color.Light.action))
+                    .padding(.top, 6)
+                Text(open ? tr1(.todayHelpSent, help.openedAt) : tr1(.todayHelpResolved, help.resolvedAt ?? help.openedAt))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 2)
+            } else {
+                Text(tr(.todayHelpIntro)).font(.subheadline).foregroundStyle(.secondary).padding(.top, 6)
+            }
+            if let error { Text(error).font(.subheadline).foregroundStyle(.red).padding(.top, 6) }
+            if help == nil || help?.status == HelpStatus.resolved {
+                Button(tr(.todayHelpAsk), action: onAsk)
+                    .voyButton(prominent: true)
+                    .disabled(sending)
+                    .padding(.top, 10)
+            }
+        }
+    }
+}
+
+/// The sheet's form: what is wrong (optional) and Send.
+struct HelpForm: View {
+    let onSend: (String) -> Void
+    @State private var text = ""
+
+    var body: some View {
+        Form {
+            Section {
+                Text(tr(.todayHelpIntro)).font(.subheadline).foregroundStyle(.secondary)
+                TextField(tr(.todayHelpWhat), text: $text, axis: .vertical).lineLimit(1...3)
+            }
+            Section {
+                Button(tr(.todayHelpSend)) { onSend(text) }.voyButton(prominent: true)
+            }
+        }
+    }
 }

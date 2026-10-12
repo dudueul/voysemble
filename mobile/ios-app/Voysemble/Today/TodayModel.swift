@@ -26,6 +26,10 @@ final class TodayModel: ObservableObject {
     @Published private(set) var careMessage: String?
     /// D24: the leader's proposal in flight from the up-next card (slice 018; remove and add since 035).
     @Published private(set) var proposal: ProposalState?
+    /// Slice 074 (D17): the traveler's own latest help card (open, or the last resolved); nil when none names them.
+    @Published private(set) var help: HelpCard?
+    @Published private(set) var helpSending = false
+    @Published private(set) var helpError: String?
     private var travelerId: String?
 
     let api: ApiClient?
@@ -44,12 +48,14 @@ final class TodayModel: ObservableObject {
         guardian: GuardianCard? = nil,
         careStatus: CareNoteStatusDto? = nil,
         careDraft: CareNoteDto? = nil,
+        help: HelpCard? = nil,
     ) {
         self.api = api
         self.trip = trip
         self.guardian = guardian
         self.careStatus = careStatus
         self.careDraft = careDraft
+        self.help = help
         self.deviceDate = deviceDate
         self.deviceClock = deviceClock
         if let trip, api != nil {
@@ -98,6 +104,13 @@ final class TodayModel: ObservableObject {
                         guardian = GuardianModelKt.guardianCardOf(status: status, locale: locale, clock: { iso in Clocks.localTime(iso) })
                         travelerId = status.traveler.participationId
                         await loadCare()
+                    }
+                }
+                // Slice 074: a traveler's own help card, from the cards the server lists for them.
+                if trip.role == "traveler" {
+                    let inc = try? await api.listIncidents(orgId: trip.organizationId, tripId: trip.tripId, correlationId: nil)
+                    if let list = (inc as? ApiResultOk<IncidentListDto>)?.value {
+                        help = HelpModelKt.helpCardOf(incidents: list.incidents, me: trip.participationId, clock: { iso in Clocks.localTime(iso) })
                     }
                 }
             } else if let failed = r as? ApiResultFailed {
@@ -177,6 +190,35 @@ extension TodayModel {
 
     /// Leaders propose; travelers and guardians only read. Sample mode shows the affordance.
     var canPropose: Bool { trip == nil || trip?.role == "leader" }
+
+    /// Slice 074 (D17): a traveler asks for help from Today; sample mode shows the card too.
+    var canAskHelp: Bool { trip == nil || trip?.role == "traveler" }
+
+    /// Slice 074: the traveler's words or none; the server's card comes back and the Today card
+    /// tracks it; sample mode keeps a local card at the fixture's clock.
+    func askHelp(_ text: String) async {
+        helpError = nil
+        guard let api, let trip else {
+            let title = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            help = HelpCard(id: "local-help", title: title.isEmpty ? tr(.todayHelpDefault) : title, status: .open, openedAt: snapshot.now, resolvedAt: nil)
+            return
+        }
+        helpSending = true
+        defer { helpSending = false }
+        do {
+            let body = HelpModelKt.helpRequestOf(text: text, me: trip.participationId, defaultTitle: tr(.todayHelpDefault))
+            let r = try await api.openIncident(orgId: trip.organizationId, tripId: trip.tripId, body: body, correlationId: nil)
+            if let card = (r as? ApiResultOk<IncidentDto>)?.value {
+                help = HelpModelKt.helpCardOf(incidents: [card], me: trip.participationId, clock: { iso in Clocks.localTime(iso) })
+            } else if let failed = r as? ApiResultFailed {
+                helpError = tr1(.todayHelpFailed, failed.error.code)
+            } else {
+                helpError = tr(.todayHelpOffline)
+            }
+        } catch {
+            helpError = tr(.todayHelpOffline)
+        }
+    }
 
     /// Sample mode shows "sent" without the network; a bad draft says why; the rest is one core call.
     func propose(_ draft: ProposalDraft) async {

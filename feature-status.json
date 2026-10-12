@@ -59,6 +59,7 @@
     "people.roster-export": "working",
     "public-web.features-current": "working",
     "incidents.manual-phone": "working",
+    "incidents.help-from-phone": "working",
     "travel.bookings": "working",
     "packing.checklist": "working",
     "packing.reminders": "working",
