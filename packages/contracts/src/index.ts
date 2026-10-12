@@ -25,5 +25,6 @@ export * from './organization';
 export * from './person';
 export * from './report';
 export * from './roster';
+export * from './travel';
 export * from './trip';
 export * from './window';

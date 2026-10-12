@@ -19,6 +19,8 @@ import type {
   AckStatus,
   Announcement,
   ApplyFeeRequest,
+  Booking,
+  BusInput,
   CareNote,
   CareNoteStatus,
   ChatChannel,
@@ -35,10 +37,12 @@ import type {
   DocumentSummary,
   FeeLedger,
   FeeRow,
+  FlightInput,
   GuardianFee,
   GuardianStatus,
   HeadcountMark,
   HeadcountSession,
+  HotelInput,
   Incident,
   IncidentStatus,
   Itinerary,
@@ -59,6 +63,7 @@ import type {
   RevisionSummary,
   TimelineEntry,
   TravelerCountStatus,
+  TravelPlan,
   Trip,
   TripRole,
   UpdateFeeRequest,
@@ -70,6 +75,7 @@ import {
   channelIdFor,
   channelMembersOf,
   feeStatusOf,
+  nightsBetween,
   parseChannelId,
   WINDOW_STALE_MS,
   windowStatusOf,
@@ -454,6 +460,22 @@ const MIGRATIONS: { version: number; sql: string }[] = [
       );
     `,
   },
+  {
+    // Slice 046 (D37): travel bookings. One row per flight, hotel or bus charter; the kind's
+    // fields live as JSON (validated by the contracts on the way in). Tier 1; a bus's driver
+    // contact is organizer-only and never leaves the console.
+    version: 17,
+    sql: `
+      CREATE TABLE IF NOT EXISTS travel_bookings (
+        id TEXT PRIMARY KEY,
+        trip_id TEXT NOT NULL REFERENCES trips(id),
+        kind TEXT NOT NULL,
+        data TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS travel_bookings_trip_idx ON travel_bookings(trip_id, created_at);
+    `,
+  },
 ];
 
 type ChatMessageRow = {
@@ -538,6 +560,14 @@ type DocumentItemRow = {
   scan_bytes: number | null;
   scan_uploaded_at: string | null;
   scan_uploaded_by_name: string | null;
+};
+
+type TravelBookingRow = {
+  id: string;
+  trip_id: string;
+  kind: string;
+  data: string;
+  created_at: string;
 };
 
 type ProposalRow = {
@@ -3524,6 +3554,117 @@ export class OrgDurableObject extends DurableObject<Env> {
       missingRequired: list.missingRequired,
       completionPct: requiredItems === 0 ? null : Math.round((requiredDone / requiredItems) * 100),
     };
+  }
+
+  // ---- Travel bookings (D37, slice 046) ------------------------------------------------------
+
+  private bookingOf(r: TravelBookingRow, roster: Participation[]): Booking {
+    const base = { id: r.id, tripId: r.trip_id, createdAt: r.created_at };
+    if (r.kind === 'flight') {
+      return { ...(JSON.parse(r.data) as Omit<FlightInput, 'kind'>), kind: 'flight', ...base };
+    }
+    if (r.kind === 'hotel') {
+      const h = JSON.parse(r.data) as Omit<HotelInput, 'kind'>;
+      return { ...h, kind: 'hotel', ...base, nights: nightsBetween(h.checkIn, h.checkOut) };
+    }
+    const b = JSON.parse(r.data) as Omit<BusInput, 'kind'>;
+    const groups = new Set(b.groups);
+    const assigned = roster.filter(
+      (p) =>
+        (p.role === 'traveler' || p.role === 'leader') &&
+        p.groupName !== null &&
+        groups.has(p.groupName),
+    ).length;
+    return { ...b, kind: 'bus', ...base, assigned };
+  }
+
+  private bookingRow(tripId: string, id: string): TravelBookingRow | null {
+    return (
+      this.ctx.storage.sql
+        .exec<TravelBookingRow>(
+          'SELECT * FROM travel_bookings WHERE id = ? AND trip_id = ?',
+          id,
+          tripId,
+        )
+        .toArray()[0] ?? null
+    );
+  }
+
+  /** Flights, hotels and buses in creation order; the roster's groups and traveler count for the forms. */
+  async travelPlan(tripId: string): Promise<TravelPlan | { notFound: true }> {
+    this.requireOrg();
+    if (!(await this.getTrip(tripId))) return { notFound: true };
+    const roster = await this.listRoster(tripId);
+    const bookings = this.ctx.storage.sql
+      .exec<TravelBookingRow>(
+        'SELECT * FROM travel_bookings WHERE trip_id = ? ORDER BY created_at, id',
+        tripId,
+      )
+      .toArray()
+      .map((r) => this.bookingOf(r, roster));
+    const groups = [
+      ...new Set(roster.map((p) => p.groupName).filter((g): g is string => g !== null)),
+    ].sort();
+    return {
+      flights: bookings.filter(
+        (b): b is Extract<Booking, { kind: 'flight' }> => b.kind === 'flight',
+      ),
+      hotels: bookings.filter((b): b is Extract<Booking, { kind: 'hotel' }> => b.kind === 'hotel'),
+      buses: bookings.filter((b): b is Extract<Booking, { kind: 'bus' }> => b.kind === 'bus'),
+      groups,
+      travelers: roster.filter((p) => p.role === 'traveler').length,
+    };
+  }
+
+  async createBooking(
+    tripId: string,
+    input: FlightInput | HotelInput | BusInput,
+    now: string,
+  ): Promise<Booking | { notFound: true }> {
+    this.requireOrg();
+    if (!(await this.getTrip(tripId))) return { notFound: true };
+    const { kind, ...data } = input;
+    const row: TravelBookingRow = {
+      id: crypto.randomUUID(),
+      trip_id: tripId,
+      kind,
+      data: JSON.stringify(data),
+      created_at: now,
+    };
+    this.ctx.storage.sql.exec(
+      'INSERT INTO travel_bookings (id, trip_id, kind, data, created_at) VALUES (?, ?, ?, ?, ?)',
+      row.id,
+      row.trip_id,
+      row.kind,
+      row.data,
+      row.created_at,
+    );
+    return this.bookingOf(row, await this.listRoster(tripId));
+  }
+
+  /** Any subset of the kind's fields; a patch for another kind is refused. */
+  async updateBooking(
+    tripId: string,
+    id: string,
+    patch: { kind: string } & Record<string, unknown>,
+  ): Promise<Booking | { notFound: true } | { kindMismatch: true }> {
+    this.requireOrg();
+    const row = this.bookingRow(tripId, id);
+    if (!row) return { notFound: true };
+    if (row.kind !== patch.kind) return { kindMismatch: true };
+    const { kind: _kind, ...fields } = patch;
+    const merged = { ...(JSON.parse(row.data) as Record<string, unknown>) };
+    for (const [k, v] of Object.entries(fields)) if (v !== undefined) merged[k] = v;
+    const next: TravelBookingRow = { ...row, data: JSON.stringify(merged) };
+    this.ctx.storage.sql.exec('UPDATE travel_bookings SET data = ? WHERE id = ?', next.data, id);
+    return this.bookingOf(next, await this.listRoster(tripId));
+  }
+
+  async deleteBooking(tripId: string, id: string): Promise<{ deleted: true } | { notFound: true }> {
+    this.requireOrg();
+    if (!this.bookingRow(tripId, id)) return { notFound: true };
+    this.ctx.storage.sql.exec('DELETE FROM travel_bookings WHERE id = ?', id);
+    return { deleted: true };
   }
 
   async personTimeline(tripId: string, participationId: string): Promise<TimelineEntry[] | null> {

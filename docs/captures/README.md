@@ -203,3 +203,9 @@ grid with album chips, "Add photos") and a guardian's album-only view. Produced 
 page with one requirement opened (Minji collected, Juho's PNG scan revealed under the watermark after
 the step-up confirmation, Hana missing) and the add form. Produced by
 `apps/organizer-web/e2e/preparation.spec.ts`. No phone change (D27: never on a phone).
+
+## Slice 046 (2026-10-12): travel bookings
+
+`web/desktop-1440/travel-live.png`, `web/laptop-1280/travel-live.png`: the live Travel page with a
+delayed flight, a hotel and a bus whose seats come from the roster groups it names, each card with
+its add form. Produced by `apps/organizer-web/e2e/travel.spec.ts`. No phone change.

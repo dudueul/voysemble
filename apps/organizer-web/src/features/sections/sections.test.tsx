@@ -1778,3 +1778,138 @@ describe('Preparation on the API (slice 045)', () => {
     localStorage.clear();
   });
 });
+
+describe('Travel on the API (slice 046)', () => {
+  const base = `/v1/orgs/${ORG.id}/trips/${TRIP.id}`;
+  const FLIGHT = {
+    id: '99999999-9999-4999-8999-999999999999',
+    tripId: TRIP.id,
+    kind: 'flight',
+    code: 'DEMO 901',
+    from: 'ICN',
+    to: 'FCO',
+    departsAt: '2026-12-28T13:30',
+    arrivesAt: '2026-12-28T18:55',
+    pax: 42,
+    pnr: 'VYS8K2',
+    status: 'scheduled',
+    createdAt: '2026-10-12T00:00:00.000Z',
+  };
+  const BUS = {
+    id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    tripId: TRIP.id,
+    kind: 'bus',
+    label: 'Bus A',
+    company: 'Roma Coach',
+    seats: 24,
+    driverContact: '+39 333 000 0000',
+    groups: ['Bus A'],
+    assigned: 2,
+    createdAt: '2026-10-12T00:00:00.000Z',
+  };
+
+  it('lists the plan, adds a hotel, sets a flight status, and removes a bus', async () => {
+    let hotels: Record<string, unknown>[] = [];
+    let buses: Record<string, unknown>[] = [BUS];
+    let flight: Record<string, unknown> = FLIGHT;
+    const calls: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const key = `${init?.method ?? 'GET'} ${String(input)}`;
+        calls.push(key);
+        if (key === 'GET /v1/orgs') return Response.json({ organizations: [ORG] });
+        if (key === `GET /v1/orgs/${ORG.id}/trips`) return Response.json({ trips: [TRIP] });
+        if (key === `GET ${base}/travel`)
+          return Response.json({
+            flights: [flight],
+            hotels,
+            buses,
+            groups: ['Bus A', 'Bus B'],
+            travelers: 3,
+          });
+        if (key === `POST ${base}/travel`) {
+          const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+          const created = {
+            ...body,
+            id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+            tripId: TRIP.id,
+            nights: 5,
+            createdAt: '2026-10-12T01:00:00.000Z',
+          };
+          hotels = [...hotels, created];
+          return Response.json(created, { status: 201 });
+        }
+        if (key === `PATCH ${base}/travel/${FLIGHT.id}`) {
+          const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+          flight = { ...flight, ...body };
+          return Response.json(flight);
+        }
+        if (key === `DELETE ${base}/travel/${BUS.id}`) {
+          buses = [];
+          return Response.json({ deleted: true, bookingId: BUS.id });
+        }
+        return Response.json(
+          { error: { code: 'NOT_FOUND', message: key, correlationId: 't' } },
+          { status: 404 },
+        );
+      }),
+    );
+    renderWithQuery(<TravelPage />);
+    await screen.findByText('Live');
+    const row = await screen.findByTestId(`booking-${FLIGHT.id}`);
+    expect(row.textContent).toContain('ICN → FCO');
+    expect(row.textContent).toContain('13:30 → 18:55');
+    expect(row.textContent).toContain('42 seats');
+    expect(text(screen.getByRole('heading', { level: 1 }).parentElement)).toContain(
+      '1 flights · 0 hotels · 1 buses · 3 travelers to move',
+    );
+    expect(screen.getByTestId(`booking-${BUS.id}`).textContent).toContain('2 of 24 seats assigned');
+    expect(screen.getByText('No hotels yet.')).toBeTruthy();
+
+    // Add a hotel: the POST carries the hotel kind; the row reads the nights.
+    const form = screen.getByRole('form', { name: 'Add a hotel' });
+    fireEvent.change(within(form).getByLabelText('Hotel'), {
+      target: { value: 'Hotel de la Ville' },
+    });
+    fireEvent.change(within(form).getByLabelText('City'), { target: { value: 'Rome' } });
+    fireEvent.change(within(form).getByLabelText('Check-in'), {
+      target: { value: '2026-12-28' },
+    });
+    fireEvent.change(within(form).getByLabelText('Check-out'), {
+      target: { value: '2027-01-02' },
+    });
+    fireEvent.change(within(form).getByLabelText('Rooms'), { target: { value: '21' } });
+    fireEvent.submit(form);
+    await waitFor(() => expect(screen.getByText('Hotel de la Ville')).toBeTruthy());
+    const post = vi.mocked(fetch).mock.calls.find(([, init]) => init?.method === 'POST');
+    expect(JSON.parse(String(post?.[1]?.body))).toEqual({
+      kind: 'hotel',
+      name: 'Hotel de la Ville',
+      city: 'Rome',
+      checkIn: '2026-12-28',
+      checkOut: '2027-01-02',
+      rooms: 21,
+      confirmation: '',
+    });
+    expect(
+      screen.getByTestId('booking-bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb').textContent,
+    ).toContain('5 nights');
+
+    // The flight is delayed: a PATCH with the kind and the status.
+    fireEvent.change(screen.getByLabelText('Status of DEMO 901'), {
+      target: { value: 'delayed' },
+    });
+    await waitFor(() => expect(calls).toContain(`PATCH ${base}/travel/${FLIGHT.id}`));
+    const patch = vi.mocked(fetch).mock.calls.find(([, init]) => init?.method === 'PATCH');
+    expect(JSON.parse(String(patch?.[1]?.body))).toEqual({ kind: 'flight', status: 'delayed' });
+    await waitFor(() =>
+      expect(screen.getByTestId(`booking-${FLIGHT.id}`).textContent).toContain('Delayed'),
+    );
+
+    // Remove the bus.
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Bus A' }));
+    await waitFor(() => expect(calls).toContain(`DELETE ${base}/travel/${BUS.id}`));
+    await waitFor(() => expect(screen.getByText('No bus charters yet.')).toBeTruthy());
+  });
+});

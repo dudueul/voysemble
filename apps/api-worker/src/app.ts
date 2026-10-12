@@ -30,6 +30,7 @@ import { mountOrganizationRoutes } from './routes/organizations';
 import { mountPeopleRoutes } from './routes/people';
 import { mountReportRoutes } from './routes/reports';
 import { mountRosterRoutes } from './routes/roster';
+import { mountTravelRoutes } from './routes/travel';
 import { mountTripRoutes } from './routes/trips';
 import { mountWellKnownRoutes } from './routes/wellknown';
 import { mountWindowRoutes } from './routes/windows';
@@ -157,6 +158,7 @@ export function createApp(): OpenAPIHono<AppEnv> {
   mountReportRoutes(app);
   mountMediaRoutes(app);
   mountDocumentRoutes(app);
+  mountTravelRoutes(app);
   mountDevRoutes(app);
   mountWellKnownRoutes(app);
 

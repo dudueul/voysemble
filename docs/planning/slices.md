@@ -1301,3 +1301,28 @@ Built:
 Lesson: the reveal started as a GET; Chromium replayed it on a stale keep-alive socket to `wrangler dev` and the audit counted two reveals for one click (seen as "2 reveals so far" in the browser suite). An action with a record is a POST.
 
 Not done: reminders to guardians; a scaling PDF viewer; the packing checklist on the phones (still a sample card); the owner-held key for tier 3; sealed third-party links (D27).
+
+## Slice 046: travel bookings on the API and the console
+
+Status: done 2026-10-12. Commit: see git log (`feat(travel): flights, hotels and bus charters on the API and the console (slice 046)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D37 (new: travel bookings), D13 (driver contact stays on the console), D31 (device captures). Details: `docs/engineering/travel.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 31 files, 87 tests (adds `travel.test.ts`: 1) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 15 files, 100 tests (adds the live Travel case) |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e -- travel.spec.ts` | 2 passed (desktop-1440, laptop-1280); capture `travel-live.png` |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+No phone change (D37: leaders read bookings on a later slice; D31: web captures only).
+
+Built:
+- Contracts `travel.ts`: `FlightStatus`, the field sets, `FlightInput`/`HotelInput`/`BusInput` with defaults, `CreateBookingRequest` and `UpdateBookingRequest` (discriminated on `kind`; the patch bodies carry no defaults), `Flight`, `Hotel` (+`nights`), `BusCharter` (+`assigned`), `Booking`, `TravelPlan`, `nightsBetween`.
+- Worker: OrgDurableObject schema 17 (`travel_bookings`: a kind plus its fields as JSON) with `travelPlan`, `createBooking`, `updateBooking` (merge over the stored row, kind mismatch), `deleteBooking`; `routes/travel.ts` (plan for leader and up, create/patch/delete for organizer and up, hotel date check, 409 on a kind mismatch).
+- Console: `travelQuery`, `travel.{create,update,remove}`; the live Travel page (three cards with their add forms, a flight's status select beside its chip, bus groups as checkboxes over the roster's groups, a seat meter from the roster, a Remove per row, the counting subtitle); strings EN/KO.
+- Tests: worker (1), console unit (1), browser (1 spec).
+- Docs: `travel.md` (with the partial-defaults lesson), decision D37, captures README, ledger, feature flags `travel.bookings` and `web.travel` working.
+
+Lesson: the first browser capture showed "0 seats" on a flight the spec had just read as 42: a status-only patch parsed through `FlightInput.partial()` still filled `pax` and `pnr` with their defaults and the object merged them in. Patch schemas are built from field sets without defaults; the worker test and the spec now assert the seats and the PNR after the status change. A capture is a gate, not decoration.
+
+Not done: bookings on the leader's phone; the sealed driver link and the printed roster; provider lookups; bookings in the trip report.

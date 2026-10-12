@@ -11,12 +11,14 @@ import type {
   AlbumPhotoRequest,
   Announcement,
   AnnouncementList,
+  Booking,
   CareNote,
   CareNoteStatus,
   ChatChannelList,
   ChatMessage,
   ChatMessageList,
   CreateAnnouncementRequest,
+  CreateBookingRequest,
   CreateDocumentRequirementRequest,
   DeletePhotoResponse,
   DocumentItem,
@@ -50,9 +52,11 @@ import type {
   RosterImportResponse,
   RosterResponse,
   SessionResponse,
+  TravelPlan,
   Trip,
   TripList,
   TripReport,
+  UpdateBookingRequest,
   UpdateDocumentRequirementRequest,
   UpdateOrganizationRequest,
   UpdateParticipationRequest,
@@ -290,6 +294,28 @@ export const documents = {
   /** The reveal (a POST: an audited action) fetches bytes itself; 403 REAUTH_REQUIRED means confirm first (D35). */
   revealPath: (orgId: string, tripId: string, requirementId: string, participationId: string) =>
     `/v1/orgs/${orgId}/trips/${tripId}/documents/${requirementId}/items/${participationId}/scan/reveal`,
+};
+
+/** Travel bookings (D37, slice 046): the flights, hotels and bus charters of the trip. */
+export const travelQuery = (orgId: string, tripId: string) =>
+  queryOptions({
+    queryKey: ['orgs', orgId, 'trips', tripId, 'travel'],
+    queryFn: () => api<TravelPlan>(`/v1/orgs/${orgId}/trips/${tripId}/travel`),
+  });
+
+export const travel = {
+  create: (orgId: string, tripId: string, body: CreateBookingRequest) =>
+    api<Booking>(`/v1/orgs/${orgId}/trips/${tripId}/travel`, { method: 'POST', body }),
+  update: (orgId: string, tripId: string, bookingId: string, body: UpdateBookingRequest) =>
+    api<Booking>(`/v1/orgs/${orgId}/trips/${tripId}/travel/${bookingId}`, {
+      method: 'PATCH',
+      body,
+    }),
+  remove: (orgId: string, tripId: string, bookingId: string) =>
+    api<{ deleted: true; bookingId: string }>(
+      `/v1/orgs/${orgId}/trips/${tripId}/travel/${bookingId}`,
+      { method: 'DELETE' },
+    ),
 };
 
 /** The trip report (slice 034): composed on the server from acks, head counts, incidents, fees. */
