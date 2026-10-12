@@ -4,6 +4,7 @@
 
 import { createApp } from './app';
 
+export { RateLimitDurableObject } from './lib/RateLimitDurableObject';
 export { OrgDurableObject } from './org/OrgDurableObject';
 
 const app = createApp();

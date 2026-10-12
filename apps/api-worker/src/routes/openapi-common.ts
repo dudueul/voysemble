@@ -15,6 +15,7 @@ export const ERROR_RESPONSES = {
   403: json('Not allowed for this account or organization.'),
   404: json('Not found.'),
   409: json('Conflict.'),
+  429: json('Too many attempts; Retry-After says how long to wait (slice 041).'),
   500: json('Unexpected failure.'),
 } as const;
 

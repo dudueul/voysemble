@@ -1130,7 +1130,7 @@ Not done: glass on Android (Material 3 Expressive is a separate decision), a too
 
 ## Slice 038: Korean console
 
-Status: done 2026-10-12. Commit: see git log (`feat(console): Korean, the account language and the top-bar toggle (slice 038)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: 134fbba (`feat(console): Korean, the account language and the top-bar toggle (slice 038)`). CI: run 38248651027 green (web, mobile, ios); captures committed as 4e2b06c (web `command-center-ko.png`, `people-ko.png` at desktop-1440 and laptop-1280).
 Spec: founder rule (KO/EN only); D11 (languages), D21 (one account, its own preference). Details: `docs/engineering/console-i18n.md`.
 
 | Gate | Command | Result |
@@ -1168,3 +1168,43 @@ Built:
 - Docs: `mobile-i18n.md`, console doc pointer, ledger (incl. the CI records for the slice 035 fix, 036 and 037), captures README, mobile README, feature flag `mobile.korean` working.
 
 Not done: a language switch inside the app; plural forms beyond the lines that needed them; Korean fixture content (the sample trip stays as data).
+
+## Slice 040: the public site shows the phones as they are
+
+Status: done 2026-10-12. Commit: see git log (`feat(public): real phone captures and the newest features on the landing (slice 040)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D30 (public site content policy, amended: real phone captures), D31 (device captures). Details: `docs/engineering/public-web.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Site unit tests | `pnpm --filter @voysemble/public-web test` | structure parity, every capture (console and phone) exists, renderers |
+| Site build | `pnpm --filter @voysemble/public-web build` | copies the six phone captures and the four new console captures |
+| Browser E2E | `pnpm --filter @voysemble/public-web test:e2e` | the six gallery images decode; every feature of both languages on the page; captures `landing-*.png` |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+Built:
+- Model: `PhoneShot`, `PhoneGallery` (replacing the drawn `PhoneFrames`), four more console capture names; the renderer's `phoneFrame` and the `phones` section; the build copies `docs/captures/{ios,android}/*.png` the gallery names; styles `.shots`/`.shot`.
+- Content (EN and KO): the gallery (Today and the Plan tab on iPhone, the Plan tab and a head count on Android, Today in Korean, a dark chat thread); new features "Settings that match the decisions" (capture `settings-live`) and "The whole plan in a pocket"; the head count feature gains the console's missing list (capture `safety-missing-live`); chat gains `communication-chat`; reports describe the live numbers and the CSV (capture `reports-live`); the platform cards mention Liquid Glass and the console's language switch.
+- Tests: render tests (shape with shots, phone capture existence, the wider images map), landing spec (gallery images decode).
+- Docs: public-web.md, decision D30 amendment, ledger (incl. the CI record for slice 038), captures README.
+
+Not done: store badges (listings pending); a Korean-first hero capture (the hero stays the English console).
+
+## Slice 041: rate limits on the public endpoints
+
+Status: done 2026-10-12. Commit: see git log (`feat(auth): rate limits on magic links, verify and invite codes (slice 041)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: ADR-0001 (abuse of the public endpoints), the identity doc's open item. Details: `docs/engineering/rate-limits.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 26 files, 74 tests (adds `rate-limit.test.ts`: 4) |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+No client change; no captures (D31 does not apply).
+
+Built:
+- `lib/RateLimitDurableObject.ts` (one object per `scope:subject`, a fixed window, `hit` with an injectable clock, `reset` for the test helpers); registered as `RATE_LIMIT_DO` in every environment, migration `v2`.
+- `lib/rate-limit.ts` (`LIMITS`, `enforceLimits`, `clientIp`, `RateLimitedError`); `app.ts` answers 429 with `Retry-After`; the magic-link request (email, caller address), verify (caller address) and invite redeem (account, caller address) routes enforce; the OpenAPI responses carry 429.
+- Tests: the test sign-in helper forgets the address's link counter first (a test file signs the same address in many times).
+- Docs: `rate-limits.md`, identity doc pointer, feature flag `auth.rate-limit` working.
+
+Not done: per-organization write limits; a refusal dashboard.

@@ -29,6 +29,7 @@ import { accounts, memberships, organizations } from '../db/schema';
 import { createEmailPort } from '../email/EmailPort';
 import { magicLinkEmail } from '../email/templates';
 import type { AppEnv } from '../env';
+import { clientIp, enforceLimits } from '../lib/rate-limit';
 import { orgObject } from '../org/client';
 import { ERROR_RESPONSES, SESSION_SECURITY } from './openapi-common';
 
@@ -44,6 +45,7 @@ const magicLinkRoute = createRoute({
       content: { 'application/json': { schema: MagicLinkAccepted } },
     },
     400: ERROR_RESPONSES[400],
+    429: ERROR_RESPONSES[429],
     500: ERROR_RESPONSES[500],
   },
 });
@@ -61,6 +63,7 @@ const verifyRoute = createRoute({
     },
     400: ERROR_RESPONSES[400],
     401: ERROR_RESPONSES[401],
+    429: ERROR_RESPONSES[429],
     500: ERROR_RESPONSES[500],
   },
 });
@@ -160,6 +163,11 @@ export function mountAuthRoutes(app: OpenAPIHono<AppEnv>): void {
 
   app.openapi(magicLinkRoute, async (c) => {
     const { email, locale } = c.req.valid('json');
+    // Slice 041: five links per address per quarter hour, twenty requests per caller address.
+    await enforceLimits(c, [
+      { scope: 'magicLinkEmail', subject: email, hash: true },
+      { scope: 'magicLinkIp', subject: clientIp(c) },
+    ]);
     const { token } = await issueMagicLink(db(c.env.DB), email, locale);
     // The SPA route /auth/verify reads the fragment and POSTs it to /verify. Fragment, not
     // query: it never reaches server logs or Referer headers.
@@ -170,6 +178,7 @@ export function mountAuthRoutes(app: OpenAPIHono<AppEnv>): void {
 
   app.openapi(verifyRoute, async (c) => {
     const { token, client } = c.req.valid('json');
+    await enforceLimits(c, [{ scope: 'verifyIp', subject: clientIp(c) }]);
     const result = await verifyMagicLink(db(c.env.DB), token, client);
     if (!result.ok) {
       throw new HTTPException(401, { message: 'This sign-in link is not valid any more.' });

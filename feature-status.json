@@ -46,7 +46,7 @@
     "orgs.create": "working",
     "email.fixture-port": "working",
     "email.cloudflare-sending": "deferred",
-    "auth.rate-limit": "deferred",
+    "auth.rate-limit": "working",
     "auth.native-refresh-rotation": "deferred",
     "web.auth.sign-in": "working",
     "web.session-gate": "working",

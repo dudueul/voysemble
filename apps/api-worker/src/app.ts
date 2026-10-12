@@ -11,6 +11,7 @@ import { HTTPException } from 'hono/http-exception';
 import { secureHeaders } from 'hono/secure-headers';
 import { authenticate, WIPE_HEADER } from './auth/middleware';
 import type { AppEnv } from './env';
+import { RateLimitedError } from './lib/rate-limit';
 import { mountAnnouncementRoutes } from './routes/announcements';
 import { mountAuthRoutes } from './routes/auth';
 import { mountCareRoutes } from './routes/care';
@@ -107,6 +108,12 @@ export function createApp(): OpenAPIHono<AppEnv> {
         // D28: the wipe directive rides the 401 of a revoked session (code + header).
         return c.json(errorBody('SESSION_WIPED', err.message, correlationId), 401, {
           [WIPE_HEADER]: '1',
+        });
+      }
+      if (err instanceof RateLimitedError) {
+        // Slice 041: the wait rides the 429 so a client can back off without guessing.
+        return c.json(errorBody('RATE_LIMITED', err.message, correlationId), 429, {
+          'Retry-After': String(err.retryAfterSeconds),
         });
       }
       return c.json(errorBody(code, err.message || 'Request failed.', correlationId), err.status);

@@ -13,7 +13,16 @@ export async function json<T = unknown>(res: Response): Promise<T> {
 }
 
 /** Full magic-link round trip as a native client; returns a bearer token. */
+/** Slice 041: a test file signs the same address in many times; forget its link counter first. */
+async function forgetLinkLimit(email: string): Promise<void> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(email.toLowerCase()));
+  const hash = [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  const stub = env.RATE_LIMIT_DO.get(env.RATE_LIMIT_DO.idFromName(`magicLinkEmail:${hash}`));
+  await stub.reset();
+}
+
 export async function signIn(email: string): Promise<Client> {
+  await forgetLinkLimit(email);
   const req = await SELF.fetch('https://example.com/v1/auth/magic-link', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },

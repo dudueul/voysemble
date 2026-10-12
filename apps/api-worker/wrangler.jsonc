@@ -21,9 +21,15 @@
   ],
   // OrgDO: SQLite-backed canonical store per organization (ADR-0002). Schema managed in-object.
   "durable_objects": {
-    "bindings": [{ "name": "ORG_DO", "class_name": "OrgDurableObject" }]
+    "bindings": [
+      { "name": "ORG_DO", "class_name": "OrgDurableObject" },
+      { "name": "RATE_LIMIT_DO", "class_name": "RateLimitDurableObject" }
+    ]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OrgDurableObject"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["OrgDurableObject"] },
+    { "tag": "v2", "new_sqlite_classes": ["RateLimitDurableObject"] }
+  ],
   // Local-only fixture mailbox for the FixtureEmailPort (magic links land here in dev/tests).
   // Not inherited by named environments: preview/staging/production must bind a real transport.
   "kv_namespaces": [{ "binding": "DEV_MAILBOX", "id": "dev-mailbox-local" }],
@@ -45,7 +51,12 @@
           "migrations_dir": "migrations"
         }
       ],
-      "durable_objects": { "bindings": [{ "name": "ORG_DO", "class_name": "OrgDurableObject" }] },
+      "durable_objects": {
+        "bindings": [
+          { "name": "ORG_DO", "class_name": "OrgDurableObject" },
+          { "name": "RATE_LIMIT_DO", "class_name": "RateLimitDurableObject" }
+        ]
+      },
       "vars": { "ENV_NAME": "preview", "BUILD_ID": "__BUILD_ID__" },
       // Workers AI for announcement translation (ADR-0006). Through AI Gateway when AI_GATEWAY_ID
       // is set as a var or secret. Absent locally on purpose: tests and dev use the fixture port.
@@ -67,7 +78,12 @@
           "migrations_dir": "migrations"
         }
       ],
-      "durable_objects": { "bindings": [{ "name": "ORG_DO", "class_name": "OrgDurableObject" }] },
+      "durable_objects": {
+        "bindings": [
+          { "name": "ORG_DO", "class_name": "OrgDurableObject" },
+          { "name": "RATE_LIMIT_DO", "class_name": "RateLimitDurableObject" }
+        ]
+      },
       "vars": { "ENV_NAME": "staging", "BUILD_ID": "__BUILD_ID__" },
       // Workers AI for announcement translation (ADR-0006). Through AI Gateway when AI_GATEWAY_ID
       // is set as a var or secret. Absent locally on purpose: tests and dev use the fixture port.
@@ -89,7 +105,12 @@
           "migrations_dir": "migrations"
         }
       ],
-      "durable_objects": { "bindings": [{ "name": "ORG_DO", "class_name": "OrgDurableObject" }] },
+      "durable_objects": {
+        "bindings": [
+          { "name": "ORG_DO", "class_name": "OrgDurableObject" },
+          { "name": "RATE_LIMIT_DO", "class_name": "RateLimitDurableObject" }
+        ]
+      },
       "vars": { "ENV_NAME": "production", "BUILD_ID": "__BUILD_ID__" },
       // Workers AI for announcement translation (ADR-0006). Through AI Gateway when AI_GATEWAY_ID
       // is set as a var or secret. Absent locally on purpose: tests and dev use the fixture port.

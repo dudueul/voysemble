@@ -37,6 +37,7 @@ import { db } from '../db/client';
 import { inviteCodes, memberships, organizations } from '../db/schema';
 import type { AppEnv } from '../env';
 import { CsvError, parseCsv } from '../lib/csv';
+import { clientIp, enforceLimits } from '../lib/rate-limit';
 import { isPast, nowIso, plusSeconds, SECONDS } from '../lib/time';
 import { hashInviteCode, randomInviteCode } from '../lib/tokens';
 import { orgObject } from '../org/client';
@@ -217,6 +218,7 @@ const redeemRoute = createRoute({
     401: ERROR_RESPONSES[401],
     404: ERROR_RESPONSES[404],
     409: ERROR_RESPONSES[409],
+    429: ERROR_RESPONSES[429],
     500: ERROR_RESPONSES[500],
   },
 });
@@ -514,6 +516,11 @@ export function mountRosterRoutes(app: OpenAPIHono<AppEnv>): void {
   app.openapi(redeemRoute, async (c) => {
     const auth = requireAuth(c);
     const { code } = c.req.valid('json');
+    // Slice 041: ten codes per account per hour, thirty per caller address; a code is guessable only in theory.
+    await enforceLimits(c, [
+      { scope: 'redeemAccount', subject: auth.accountId },
+      { scope: 'redeemIp', subject: clientIp(c) },
+    ]);
     const d = db(c.env.DB);
     const codeHash = hashInviteCode(code);
     const invite = await d.query.inviteCodes.findFirst({

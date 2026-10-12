@@ -29,9 +29,11 @@ hold SHA-256 of the presented value. Lookups compare hashes, so timing does not 
 4. `POST /v1/auth/logout` sets `revoked_at` and clears the cookie. `GET /v1/me` returns the
    account and its memberships.
 
-Not yet: Apple/Google OIDC, native provider tokens, rate limiting on the request endpoint,
-refresh-token rotation for native (the native session token currently has the same lifetime
-rules as the web cookie). All are tracked in `feature-status.json`.
+Rate limits on the request, verify and redeem endpoints: slice 041, `rate-limits.md`.
+
+Not yet: Apple/Google OIDC, native provider tokens, refresh-token rotation for native (the native
+session token currently has the same lifetime rules as the web cookie). All are tracked in
+`feature-status.json`.
 
 ### Organizations
 
