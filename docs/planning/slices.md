@@ -998,7 +998,7 @@ Not done: reauth before the action; clearing a push token or local database (not
 
 ## Slice 032: leader opens a window from the phone; guardian writes the care note
 
-Status: done 2026-10-12. Commit: see git log (`feat(mobile): leaders open windows and guardians write care notes from the phone (slice 032)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: 7d3e8be (`feat(mobile): leaders open windows and guardians write care notes from the phone (slice 032)`). CI: run 38205444048 red on `ios` only (`LiveModelsTests.testGuardianCareEntryIsHonestWhenUnreachable`: `editCare()` required a traveler id before the local blank-draft path; `mobile` and `web` green, captures uploaded). Fixed in the follow-up commit (`fix(ios): start a blank care draft without a traveler id`); verified by that commit's run.
 Spec: D15 (the leader opens the window at the meeting point), D27 (guardians enter and edit the care note). Details: `docs/engineering/meeting-windows.md` (Phones, leader) and `docs/engineering/care-notes.md` (Phones, guardian entry).
 
 | Gate | Command | Result |

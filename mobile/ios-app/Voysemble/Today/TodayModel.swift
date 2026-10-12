@@ -118,14 +118,16 @@ extension TodayModel {
         if let status = (r as? ApiResultOk<CareNoteStatusDto>)?.value { careStatus = status }
     }
 
-    /// Start editing: an existing note is revealed (audited) to prefill the fields; a new one starts blank.
+    /// Start editing: an existing note is revealed (audited) to prefill the fields; a new one starts
+    /// blank without touching the network (CI run 38205444048 caught the guard ordering).
     func editCare() async {
-        guard let api, let trip, let travelerId, let status = careStatus else { return }
+        guard let status = careStatus else { return }
         careMessage = nil
         guard status.hasCareNote else {
             careDraft = CareNoteDto(allergies: "", medications: "", freeText: "")
             return
         }
+        guard let api, let trip, let travelerId else { return }
         do {
             let r = try await api.revealCareNote(orgId: trip.organizationId, tripId: trip.tripId, participationId: travelerId, correlationId: nil)
             if let ok = (r as? ApiResultOk<RevealCareNoteResponseDto>)?.value {
