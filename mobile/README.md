@@ -34,6 +34,10 @@ iOS evidence: `ios-app/VoysembleTests/CaptureTests.swift` writes `docs/captures/
 simulator (slice 022; iOS 26 with Liquid Glass since slice 037, `docs/engineering/ios-liquid-glass.md`). Live data on iOS (Today, Bulletin, Head count, Incidents): slice 024,
 `docs/engineering/ios-live.md`.
 
+Android view-model tests (`*ViewModelTest.kt`) run with `Dispatchers.setMain(UnconfinedTestDispatcher())`
+and a Ktor `MockEngine`: the first answer may land before the line after the constructor runs, so a
+test awaits `vm.ready` and pins what the answer did, never the state before it (CI run 38280896774).
+
 Shared rules and fixtures: `core/src/commonMain/kotlin/com/voysemble/core/today`, `.../fixtures`.
 User-facing text in both languages: `.../i18n` (slice 039, `docs/engineering/mobile-i18n.md`); screens call
 `tr(Txt.KEY)` on Android and `tr(.key)` on iOS, never a literal.

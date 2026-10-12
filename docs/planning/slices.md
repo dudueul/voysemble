@@ -1463,7 +1463,7 @@ Not done: push delivery (FCM, APNs); the phones' inbox screen; the guardian dige
 
 ## Slice 053: the phones' inbox and the Android lane channels
 
-Status: done 2026-10-12. Commit: see git log (`feat(mobile): the notification inbox on both phones and the Android lane channels (slice 053)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: see git log (`feat(mobile): the notification inbox on both phones and the Android lane channels (slice 053)`, `7e51fc4`). CI: run 38280896774 red on `mobile` only (`web` and `ios` green, so the Swift side, the core JVM facts and the console held first time): two Android view-model tests asserted the state before the first answer (`InboxViewModelTest.live_loads_my_inbox…` and the unchanged `PlanViewModelTest.live_builds_the_plan…`), and the mock answered first on that runner: with the Unconfined main dispatcher the answer resumes on the engine's thread, so "empty until the first answer" is a race, not a fact. The fix commit (`fix(android): never assert the state before the first answer`) removes the three such lines (Plan, Packing, Inbox); the verifying run is recorded there.
 Spec: D29 (notification rules; amended), D31 (captures), D32 (iOS glass chips). Details: `docs/engineering/notifications.md` (Phones).
 
 | Gate | Command | Result |
@@ -1485,7 +1485,7 @@ Not done: push delivery (the channels are its Android half); opening the referen
 
 ## Slice 054: the guardian digest email and its cron
 
-Status: done 2026-10-12. Commit: see git log (`feat(notifications): the guardian digest email from a ten-minute cron (slice 054)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: see git log (`feat(notifications): the guardian digest email from a ten-minute cron (slice 054)`, `201f8e4`). CI: run 38281948740, pending at the time of the Android fix commit (its `mobile` job carries the 053 race until the fix); the result is recorded in the next commit once verified.
 Spec: D29 (notification rules; amended), D11 (plain-text email, KO/EN), ADR-0007 (EmailPort). Details: `docs/engineering/notifications.md` (The guardian digest email).
 
 | Gate | Command | Result |
@@ -1502,6 +1502,6 @@ Built:
 - Tests: worker (3), console unit (the emailed count), browser (unchanged spec, updated capture).
 - Docs: `notifications.md` section and facts, D29 amendment, identity-and-roster bindings note, captures README, ledger, feature flag `notifications.digest-email` working.
 
-Lesson: the revision announcement is written in the organization's language (Korean by default), so a test about the digest's body names the moved event, not the announcement's English title.
+Lesson: the revision announcement is written in the organization's language (Korean by default), so a test about the digest's body names the moved event, not the announcement's English title. Android view-model tests: with `Dispatchers.setMain(UnconfinedTestDispatcher())` and a `MockEngine`, the first answer can land before the line after the constructor runs; a test pins what the answer did, never the state before it.
 
 Not done: the production email transport (the named environments do not bind one yet; the digest goes through the same `EmailPort` as the sign-in link); push delivery; the organization object's own alarm in place of the sweep when there are many organizations; chat mentions; the organizer's mobile digest.

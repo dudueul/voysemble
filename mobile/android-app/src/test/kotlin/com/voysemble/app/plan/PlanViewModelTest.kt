@@ -116,7 +116,8 @@ class PlanViewModelTest {
         val engine = MockEngine { respond(itineraryJson, HttpStatusCode.OK, json) }
         val vm = PlanViewModel(api = client(engine), trip = kim, deviceDate = { "2026-12-31" })
         assertTrue(vm.state.value.live)
-        assertTrue(vm.state.value.plan.days.isEmpty())
+        // The state before the first answer is not asserted: the mock may answer before this line
+        // runs (the Unconfined main dispatcher resumes on the engine's thread). CI run 38280896774.
         vm.ready.join()
         val s = vm.state.value
         assertEquals(listOf("Day 1", "Concert"), s.plan.days.map { it.label })

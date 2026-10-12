@@ -76,7 +76,7 @@ class InboxViewModelTest {
         }
         val vm = InboxViewModel(api = client(engine), trip = kim, clock = clock)
         assertTrue(vm.state.value.live)
-        assertTrue(vm.state.value.inbox.items.isEmpty())
+        // Not asserted before the first answer: the mock may answer first (see PlanViewModelTest).
         vm.ready.join()
         assertEquals("1 unread", vm.state.value.inbox.summary())
         assertEquals(listOf("05:52", "05:40"), vm.state.value.inbox.items.map { it.deliveredAt })

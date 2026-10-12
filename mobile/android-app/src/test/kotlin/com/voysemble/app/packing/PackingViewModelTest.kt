@@ -72,7 +72,7 @@ class PackingViewModelTest {
         }
         val vm = PackingViewModel(api = client(engine), trip = sora, nowIso = { "2026-12-23T00:00:00.000Z" })
         assertTrue(vm.state.value.live)
-        assertTrue(vm.state.value.list.items.isEmpty())
+        // Not asserted before the first answer: the mock may answer first (see PlanViewModelTest).
         vm.ready.join()
         assertEquals("Packing for Minji Park", vm.state.value.list.whose())
         assertEquals("1 of 2 packed", vm.state.value.list.summary())
