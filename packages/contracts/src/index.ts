@@ -10,6 +10,7 @@ export { z } from '@hono/zod-openapi';
 export * from './announcement';
 export * from './auth';
 export * from './care';
+export * from './chat';
 export * from './common';
 export * from './error';
 export * from './fees';

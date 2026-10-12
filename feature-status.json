@@ -35,7 +35,7 @@
     "itinerary.change-proposals": "working",
     "itinerary.disruption-ai": "deferred",
     "retention.crypto-shred": "deferred",
-    "chat.fixed-channels": "deferred",
+    "chat.fixed-channels": "working",
     "billing.fee-ledger": "working",
     "roster.care-notes": "working",
     "documents.sealed-links": "deferred",

@@ -23,6 +23,7 @@ Design tokens: `packages/design-tokens` generates `core/.../design/Tokens.kt` an
 | Meeting window (slice 009, live since 029, leader opens since 032) | `android-app/.../window/MeetingWindowScreen.kt` + `AndroidLocationSource.kt` | `ios-app/Voysemble/Window/MeetingWindowView.swift` + `CoreLocationSource.swift` | same, `window-*.png`; `docs/engineering/meeting-windows.md` |
 | Today, guardian card (slice 025; care-note entry since 032) | `today/TodayScreen.kt` (`GuardianStatusCard`, `GuardianCareCard`) | `Today/TodayView.swift` (`GuardianStatusCard`, `GuardianCareCard`) | `today-guardian.png`, `today-guardian-care.png` on both |
 | Incidents (slice 016) | `android-app/.../incidents/IncidentsScreen.kt` | `ios-app/Voysemble/Incidents/IncidentsView.swift` | same, `incidents-*.png` |
+| Chats (slice 033) | `android-app/.../chat/ChatsScreen.kt` | `ios-app/Voysemble/Chat/ChatsView.swift` | same, `chats-*.png`; `docs/engineering/chat.md` |
 
 iOS evidence: `ios-app/VoysembleTests/CaptureTests.swift` writes `docs/captures/ios/*.png` on the CI
 simulator (slice 022). Live data on iOS (Today, Bulletin, Head count, Incidents): slice 024,

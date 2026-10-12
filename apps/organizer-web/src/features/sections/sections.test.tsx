@@ -682,6 +682,26 @@ describe('sample sections', () => {
       [`GET /v1/orgs/${ORG.id}/trips/${TRIP.id}/announcements`]: () => ({
         announcements: [ANN, REV],
       }),
+      [`GET /v1/orgs/${ORG.id}/trips/${TRIP.id}/chats`]: () => ({
+        channels: [
+          {
+            id: 'trip',
+            kind: 'trip',
+            title: 'Everyone on the trip',
+            subtitle: '3 travelers · 1 leaders · the organizer',
+            unread: 0,
+            lastMessage: null,
+          },
+          {
+            id: 'guardian:p2',
+            kind: 'guardian',
+            title: 'Sora Park',
+            subtitle: 'guardian of Minji Park',
+            unread: 1,
+            lastMessage: null,
+          },
+        ],
+      }),
       [`GET /v1/orgs/${ORG.id}/trips/${TRIP.id}/announcements/${ANN.id}/acks`]: () => ({
         announcementId: ANN.id,
         acked: [],
@@ -717,12 +737,90 @@ describe('sample sections', () => {
     await waitFor(() =>
       expect(text(screen.getByTestId(`unacked-${ANN.id}`))).toContain('Seojun Choi, Jiwoo Han'),
     );
-    expect(within(screen.getByTestId('channel-list')).getAllByRole('listitem')).toHaveLength(5);
+    await waitFor(() =>
+      expect(within(screen.getByTestId('channel-list')).getAllByRole('listitem')).toHaveLength(2),
+    );
+    expect(text(screen.getByTestId('unread-guardian:p2'))).toBe('1');
 
     fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'New' } });
     fireEvent.change(screen.getByLabelText('Message'), { target: { value: 'Body' } });
     fireEvent.click(screen.getByRole('button', { name: 'Publish' }));
     await waitFor(() => expect(posted).toHaveLength(1));
+  });
+
+  it('Communication: a guardian thread opens, shows messages, and sends a reply', async () => {
+    const base = `/v1/orgs/${ORG.id}/trips/${TRIP.id}`;
+    const posted: unknown[] = [];
+    const first = {
+      id: '11111111-aaaa-4aaa-8aaa-111111111111',
+      channelId: 'guardian:p2',
+      senderName: 'Sora Park',
+      senderRole: 'guardian',
+      body: 'Will the bus be late?',
+      sentAt: new Date(Date.now() - 3 * 60_000).toISOString(),
+      mine: false,
+    };
+    const messages = [first];
+    stubApi({
+      'GET /v1/orgs': () => ({ organizations: [ORG] }),
+      [`GET /v1/orgs/${ORG.id}/trips`]: () => ({ trips: [TRIP] }),
+      [`GET ${base}/announcements`]: () => ({ announcements: [] }),
+      [`GET ${base}/chats`]: () => ({
+        channels: [
+          {
+            id: 'guardian:p2',
+            kind: 'guardian',
+            title: 'Sora Park',
+            subtitle: 'guardian of Minji Park',
+            unread: 1,
+            lastMessage: messages[0],
+          },
+        ],
+      }),
+      [`GET ${base}/chats/${encodeURIComponent('guardian:p2')}/messages`]: () => ({
+        channel: {
+          id: 'guardian:p2',
+          kind: 'guardian',
+          title: 'Sora Park',
+          subtitle: 'guardian of Minji Park',
+          unread: 0,
+          lastMessage: null,
+        },
+        messages,
+      }),
+      [`POST ${base}/chats/${encodeURIComponent('guardian:p2')}/messages`]: () => {
+        posted.push(1);
+        const m = {
+          ...first,
+          id: '22222222-aaaa-4aaa-8aaa-222222222222',
+          senderName: 'Owner',
+          senderRole: 'owner',
+          body: 'Ten minutes.',
+          mine: true,
+        };
+        messages.push(m);
+        return m;
+      },
+    });
+    renderWithQuery(<CommunicationPage />);
+    const open = await screen.findByRole('button', { name: 'Open Sora Park' });
+    fireEvent.click(open);
+    await waitFor(() =>
+      expect(text(screen.getByTestId('chat-messages'))).toContain('Will the bus be late?'),
+    );
+    const thread = screen.getByTestId('chat-thread');
+    fireEvent.change(within(thread).getByLabelText('Message'), {
+      target: { value: 'Ten minutes.' },
+    });
+    fireEvent.submit(within(thread).getByRole('form', { name: 'Send' }));
+    await waitFor(() => expect(posted).toHaveLength(1));
+    await waitFor(() =>
+      expect(text(screen.getByTestId('chat-messages'))).toContain('Ten minutes.'),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /All channels/ }));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Open Sora Park' })).toBeTruthy(),
+    );
   });
 
   it('Communication: without a trip it points to setup', () => {

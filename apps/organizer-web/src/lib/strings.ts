@@ -278,6 +278,17 @@ export const strings = {
     channels: 'Channels',
     channelRule:
       'Fixed channels only: everyone, per group, traveler ↔ leader, guardian ↔ organizer. No traveler DMs.',
+    // Live chat (D22, slice 033).
+    chatIntro:
+      'Your channels: everyone on the trip, and one with each guardian. Group and traveler channels belong to the leaders.',
+    noChannels: 'No channels yet. They appear once the roster has guardians.',
+    openChannel: (title: string) => `Open ${title}`,
+    backToChannels: 'All channels',
+    noMessages: 'No messages yet. Say hello.',
+    messageLabel: 'Message',
+    send: 'Send',
+    sendFailed: 'Could not send the message.',
+    unreadBadge: (n: number) => `${n} new`,
   },
   safety: {
     subtitle: 'Meeting windows, head counts, incidents. Guardians never see this page.',

@@ -123,3 +123,11 @@ devices" (status with the new code, the row back to Invited, the timeline fact).
 and `ios/today-guardian-care.png`: the guardian's care-note card in edit mode under the status card. All
 land here through the CI `captures` job.
 
+## Slice 033 (2026-10-12): chat channels
+
+`web/desktop-1440/communication-chat.png`, `web/laptop-1280/communication-chat.png`: the guardian's
+thread on Communication after the organizer's reply. Produced by `e2e/chat.spec.ts`. `android/chats-list.png`,
+`android/chats-thread-dark.png` (Roborazzi) and `ios/chats-list.png`, `ios/chats-thread-dark.png`
+(CaptureTests): the channel list with badges and Minji's thread with a pending message. All land here
+through the CI `captures` job.
+

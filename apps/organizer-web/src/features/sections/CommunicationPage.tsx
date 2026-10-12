@@ -1,10 +1,11 @@
 // Copyright 2026- At Day. All rights reserved.
 // Messages & announcements (gallery #27). Announcements are real (slice 010): list, publish, ack
 // progress, and the unacked names from the API for the active organization's first trip.
-// Channels (D22) remain a fixture until the chat slice and carry their own "Sample data" chip.
+// Channels (D22) are live since slice 033: the organizer's list (the trip and one per guardian),
+// a thread with a composer; the fixture shows without a trip with its "Sample data" chip.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Announcement } from '@voysemble/contracts';
+import type { Announcement, ChatChannel } from '@voysemble/contracts';
 import { type FormEvent, useState } from 'react';
 import { Icons } from '../../app/shell/icons';
 import { FROZEN_NOW } from '../../fixtures/korea-concert-tour';
@@ -16,6 +17,9 @@ import {
   ackStatusQuery,
   announcements as announcementsApi,
   announcementsQuery,
+  chat as chatApi,
+  chatMessagesQuery,
+  chatsQuery,
   orgsQuery,
   pickActiveOrg,
   tripsQuery,
@@ -195,6 +199,164 @@ function Composer({ orgId, tripId }: { orgId: string; tripId: string }) {
   );
 }
 
+/** One channel's messages with the composer (slice 033). Polls every 15 s; opening marks it read. */
+function ChatThread({
+  orgId,
+  tripId,
+  channel,
+  onBack,
+}: {
+  orgId: string;
+  tripId: string;
+  channel: ChatChannel;
+  onBack: () => void;
+}) {
+  const qc = useQueryClient();
+  const q = useQuery(chatMessagesQuery(orgId, tripId, channel.id));
+  const [draft, setDraft] = useState('');
+  const send = useMutation({
+    mutationFn: (body: string) => chatApi.send(orgId, tripId, channel.id, body),
+    onSuccess: () => {
+      setDraft('');
+      void qc.invalidateQueries({
+        queryKey: chatMessagesQuery(orgId, tripId, channel.id).queryKey,
+      });
+      void qc.invalidateQueries({ queryKey: chatsQuery(orgId, tripId).queryKey });
+    },
+  });
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (draft.trim()) send.mutate(draft.trim());
+  };
+  const now = new Date().toISOString();
+  return (
+    <div data-testid="chat-thread">
+      <p className="small">
+        <button type="button" className="linkbtn" onClick={onBack}>
+          ← {s.backToChannels}
+        </button>{' '}
+        · <strong>{channel.title}</strong> <span className="muted">{channel.subtitle}</span>
+      </p>
+      {q.isPending ? (
+        <p className="state__body" role="status">
+          {strings.states.loading}
+        </p>
+      ) : q.isError ? (
+        <p className="field__error" role="alert">
+          {q.error instanceof ApiError ? q.error.message : String(q.error)}
+        </p>
+      ) : q.data.messages.length === 0 ? (
+        <p className="state__body" role="status">
+          {s.noMessages}
+        </p>
+      ) : (
+        <div className="chat-thread" data-testid="chat-messages">
+          {q.data.messages.map((m) => (
+            <div key={m.id} className={`bubble${m.mine ? ' bubble--mine' : ''}`}>
+              {m.mine ? null : (
+                <span className="bubble__meta">
+                  {m.senderName} · {m.senderRole}
+                </span>
+              )}
+              <span>{m.body}</span>
+              <span className="bubble__meta">{relativeTo(now, m.sentAt)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <form className="chat-compose" onSubmit={submit} aria-label={s.send}>
+        <input
+          className="field__input"
+          aria-label={s.messageLabel}
+          placeholder={s.messageLabel}
+          maxLength={1000}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+        />
+        <button
+          type="submit"
+          className="btn btn--primary btn--sm"
+          disabled={send.isPending || !draft.trim()}
+        >
+          {s.send}
+        </button>
+        {send.isError ? (
+          <span className="field__error" role="alert">
+            {send.error instanceof ApiError ? send.error.message : s.sendFailed}
+          </span>
+        ) : null}
+      </form>
+    </div>
+  );
+}
+
+/** The organizer's channels (D22): the whole trip and one per guardian. */
+function LiveChannels({ orgId, tripId }: { orgId: string; tripId: string }) {
+  const list = useQuery(chatsQuery(orgId, tripId));
+  const [openId, setOpenId] = useState<string | null>(null);
+  const open = list.data?.find((c) => c.id === openId) ?? null;
+  if (open)
+    return (
+      <ChatThread orgId={orgId} tripId={tripId} channel={open} onBack={() => setOpenId(null)} />
+    );
+  if (list.isPending) {
+    return (
+      <p className="state__body" role="status">
+        {strings.states.loading}
+      </p>
+    );
+  }
+  if (list.isError) {
+    return (
+      <p className="field__error" role="alert">
+        {list.error instanceof ApiError ? list.error.message : String(list.error)}
+      </p>
+    );
+  }
+  const now = new Date().toISOString();
+  return (
+    <>
+      <p className="muted small">{s.chatIntro}</p>
+      {list.data.length === 0 ? (
+        <p className="state__body" role="status">
+          {s.noChannels}
+        </p>
+      ) : (
+        <ul className="list" data-testid="channel-list">
+          {list.data.map((c) => (
+            <li key={c.id} className="channel">
+              <button
+                type="button"
+                className="channel--button channel"
+                aria-label={s.openChannel(c.title)}
+                onClick={() => setOpenId(c.id)}
+              >
+                <span className="channel__icon" aria-hidden="true">
+                  {c.kind === 'trip' ? <Icons.people /> : <Icons.chat />}
+                </span>
+                <span className="channel__text">
+                  <span className="channel__name">
+                    {c.title}
+                    {c.unread ? (
+                      <span className="badge" data-testid={`unread-${c.id}`}>
+                        {c.unread}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="muted small">{c.lastMessage?.body ?? c.subtitle}</span>
+                </span>
+                <span className="muted small">
+                  {c.lastMessage ? relativeTo(now, c.lastMessage.sentAt) : ''}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
 export function CommunicationPage() {
   const orgs = useQuery(orgsQuery);
   const org = orgs.data ? pickActiveOrg(orgs.data) : null;
@@ -259,34 +421,46 @@ export function CommunicationPage() {
         <Card
           title={s.channels}
           id="comm-channels"
-          action={<span className="chip chip--sample">{strings.dashboard.simulated}</span>}
+          action={
+            org && trip ? (
+              <span className="chip chip--active">{strings.dashboard.live}</span>
+            ) : (
+              <span className="chip chip--sample">{strings.dashboard.simulated}</span>
+            )
+          }
         >
-          <ul className="list" data-testid="channel-list">
-            {channels.map((c) => (
-              <li key={c.id} className="channel">
-                <span className="channel__icon" aria-hidden="true">
-                  {c.kind === 'trip-all' ? (
-                    <Icons.people />
-                  ) : c.kind === 'group' ? (
-                    <Icons.bus />
-                  ) : (
-                    <Icons.chat />
-                  )}
-                </span>
-                <span className="channel__text">
-                  <span className="channel__name">
-                    {c.name}
-                    {c.unread ? <span className="badge">{c.unread}</span> : null}
-                  </span>
-                  <span className="muted small">{c.lastPreview}</span>
-                </span>
-                <span className="muted small">{relativeTo(FROZEN_NOW, c.lastAt)}</span>
-              </li>
-            ))}
-          </ul>
-          <p className="muted small">
-            {s.channelRule} {unreadChannels ? s.unreadNote(unreadChannels) : ''}
-          </p>
+          {org && trip ? (
+            <LiveChannels orgId={org.id} tripId={trip.id} />
+          ) : (
+            <>
+              <ul className="list" data-testid="channel-list">
+                {channels.map((c) => (
+                  <li key={c.id} className="channel">
+                    <span className="channel__icon" aria-hidden="true">
+                      {c.kind === 'trip-all' ? (
+                        <Icons.people />
+                      ) : c.kind === 'group' ? (
+                        <Icons.bus />
+                      ) : (
+                        <Icons.chat />
+                      )}
+                    </span>
+                    <span className="channel__text">
+                      <span className="channel__name">
+                        {c.name}
+                        {c.unread ? <span className="badge">{c.unread}</span> : null}
+                      </span>
+                      <span className="muted small">{c.lastPreview}</span>
+                    </span>
+                    <span className="muted small">{relativeTo(FROZEN_NOW, c.lastAt)}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="muted small">
+                {s.channelRule} {unreadChannels ? s.unreadNote(unreadChannels) : ''}
+              </p>
+            </>
+          )}
         </Card>
       </div>
     </SectionPage>

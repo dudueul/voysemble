@@ -67,6 +67,15 @@ final class CaptureTests: XCTestCase {
         try capture(NavigationStack { MeetingWindowView(model: MeetingWindowModel(window: nil, canOpen: true)) }, name: "window-open-form")
     }
 
+    func testChats() async throws {
+        // Slice 033 (D22): the channel list and Minji's thread with a pending message.
+        try capture(NavigationStack { ChatsView(model: ChatsModel()) }, name: "chats-list")
+        let thread = ChatsModel(deviceClock: { "06:45" }, newId: { "local-1" }, senderName: "Minji Park")
+        await thread.openChannel("traveler:t1")
+        await thread.send("On my way!")
+        try capture(NavigationStack { ChatsView(model: thread) }, name: "chats-thread-dark", scheme: .dark)
+    }
+
     func testSignInAndInvite() throws {
         try capture(SignInView(model: SessionModel()), name: "sign-in")
         try capture(InviteView(model: SessionModel()), name: "invite")

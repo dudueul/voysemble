@@ -157,6 +157,27 @@ final class LiveModelsTests: XCTestCase {
         XCTAssertTrue(model.revokedNotice)
     }
 
+    func testChatsSampleModeAndUnreachable() async {
+        // Slice 033 (D22): sample mode lists the fixture, opens Minji's thread and shows a send as
+        // pending without the network; live and unreachable says so and keeps a send as failed.
+        let sample = ChatsModel(deviceClock: { "06:45" }, newId: { "local-1" }, senderName: "Minji Park")
+        XCTAssertFalse(sample.live)
+        XCTAssertEqual(sample.channels.map { $0.id }, ["trip", "group:Bus A", "traveler:t1"])
+        XCTAssertEqual(sample.unreadTotal, 4)
+        await sample.openChannel("traveler:t1")
+        XCTAssertEqual(sample.open?.messages.count, 4)
+        await sample.send("On my way")
+        XCTAssertEqual(sample.open?.messages.count, 5)
+        XCTAssertEqual(sample.open?.messages.last?.pending, true)
+        sample.close()
+        XCTAssertNil(sample.open)
+        let live = ChatsModel(api: unreachableClient(), trip: trip)
+        XCTAssertTrue(live.live)
+        await live.refresh()
+        XCTAssertEqual(live.error, "Offline. Showing what was last loaded.")
+        XCTAssertEqual(live.channels.count, 0)
+    }
+
     func testClocksFormatWireTimes() {
         XCTAssertEqual(Clocks.localTime("not a date"), "not a date")
         let hhmm = Clocks.localTime("2026-12-31T06:30:00.000Z")

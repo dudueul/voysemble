@@ -202,6 +202,35 @@ public class ApiClient(
             }
         }
 
+    /** GET .../chats: the caller's channels with unread counts (D22, slice 033). */
+    public suspend fun listChats(orgId: String, tripId: String, correlationId: String? = null): ApiResult<ChatChannelListDto> =
+        call(correlationId) {
+            http.get {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "orgs", orgId, "trips", tripId, "chats") }
+                common(correlationId)
+            }
+        }
+
+    /** GET .../chats/{channelId}/messages: the latest 200, oldest first; marks the channel read. */
+    public suspend fun chatMessages(orgId: String, tripId: String, channelId: String, correlationId: String? = null): ApiResult<ChatMessageListDto> =
+        call(correlationId) {
+            http.get {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "orgs", orgId, "trips", tripId, "chats", channelId, "messages") }
+                common(correlationId)
+            }
+        }
+
+    /** POST .../chats/{channelId}/messages. */
+    public suspend fun sendChatMessage(orgId: String, tripId: String, channelId: String, body: String, correlationId: String? = null): ApiResult<ChatMessageDto> =
+        call(correlationId) {
+            http.post {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "orgs", orgId, "trips", tripId, "chats", channelId, "messages") }
+                common(correlationId)
+                contentType(ContentType.Application.Json)
+                setBody(SendChatMessageRequestDto(body))
+            }
+        }
+
     /** GET .../guardian/status: the guardian's view of their traveler (D13, slice 025). */
     public suspend fun guardianStatus(orgId: String, tripId: String, correlationId: String? = null): ApiResult<GuardianStatusDto> =
         call(correlationId) {

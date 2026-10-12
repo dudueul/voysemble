@@ -2477,3 +2477,52 @@ fieldset.filters {
   max-width: 260px;
   font-size: 0.85rem;
 }
+
+/* Live chat on Communication (slice 033, D22). */
+.chat-thread {
+  display: grid;
+  gap: 8px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding: 4px 2px;
+}
+
+.bubble {
+  max-width: 78%;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--vy-color-neutral-400, #94a3b8) 14%, transparent);
+  justify-self: start;
+}
+
+.bubble--mine {
+  justify-self: end;
+  background: var(--vy-brand);
+  color: #fff;
+}
+
+.bubble__meta {
+  display: block;
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.chat-compose {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.chat-compose .field__input {
+  flex: 1;
+}
+
+.channel--button {
+  cursor: pointer;
+  background: none;
+  border: 0;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}

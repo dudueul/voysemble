@@ -14,6 +14,7 @@ struct TodayView: View {
     @StateObject private var headcount: HeadcountModel
     @StateObject private var incidents: IncidentsModel
     @StateObject private var window: MeetingWindowModel
+    @StateObject private var chats: ChatsModel
 
     init(model: TodayModel) {
         _model = StateObject(wrappedValue: model)
@@ -23,6 +24,8 @@ struct TodayView: View {
         // Slice 029: the window reads the API and judges the device's fix in core; sample mode has no fix.
         _window = StateObject(wrappedValue: MeetingWindowModel(
             api: model.api, trip: model.trip, locationSource: model.trip == nil ? nil : CoreLocationSource()))
+        // Slice 033 (D22): fixed chat channels; live when signed in on a trip, the fixture otherwise.
+        _chats = StateObject(wrappedValue: ChatsModel(api: model.api, trip: model.trip))
     }
 
     var body: some View {
@@ -31,7 +34,8 @@ struct TodayView: View {
             placeholder("Plan").tabItem { Label("Plan", systemImage: "list.bullet.rectangle") }.tag(MainTab.plan)
             NavigationStack { BulletinView(model: bulletin) }
                 .tabItem { Label("Bulletin", systemImage: "bell") }.tag(MainTab.bulletin)
-            placeholder("Chats").tabItem { Label("Chats", systemImage: "bubble.left") }.tag(MainTab.chats)
+            NavigationStack { ChatsView(model: chats) }
+                .tabItem { Label("Chats", systemImage: "bubble.left") }.tag(MainTab.chats)
             placeholder("Memories").tabItem { Label("Memories", systemImage: "photo.on.rectangle") }.tag(MainTab.memories)
         }
         .tint(Color(argb: Tokens.Color.Light.brand))

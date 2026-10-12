@@ -3,7 +3,7 @@
 // In-app routing without a navigation library. The session state (core SessionManager) decides
 // the top level: sign-in, invite, or the app; "sample mode" shows the fixture app without an
 // account. Inside the app: tabs from the Today screen plus two pushed leader and traveler
-// screens. A real back stack and deep links arrive with a later slice.
+// screens (and the Chats tab since slice 033). A real back stack and deep links arrive later.
 
 package com.voysemble.app
 
@@ -28,6 +28,8 @@ import com.voysemble.app.auth.InviteScreen
 import com.voysemble.app.auth.SignInScreen
 import com.voysemble.app.bulletin.BulletinRoute
 import com.voysemble.app.bulletin.BulletinViewModel
+import com.voysemble.app.chat.ChatsRoute
+import com.voysemble.app.chat.ChatsViewModel
 import com.voysemble.app.headcount.HeadcountRoute
 import com.voysemble.app.headcount.HeadcountViewModel
 import com.voysemble.app.incidents.IncidentsRoute
@@ -130,6 +132,13 @@ fun AppScreens(trip: ActiveTrip?, onSignOut: () -> Unit) {
                     if (trip == null) BulletinViewModel() else BulletinViewModel(AppGraph.apiClient, trip)
                 }
                 BulletinRoute(vm, tripName = trip?.tripName, onSignOut = onSignOut)
+            }
+            MainTab.CHATS -> TabHost(today) {
+                // Slice 033 (D22): fixed channels; live when signed in on a trip, the fixture otherwise.
+                val vm: ChatsViewModel = viewModel(key = "chats-${trip?.tripId ?: "sample"}") {
+                    if (trip == null) ChatsViewModel() else ChatsViewModel(AppGraph.apiClient, trip)
+                }
+                ChatsRoute(vm)
             }
             else -> TabHost(today) { NotBuilt(todayState.tab.name.lowercase().replaceFirstChar { it.uppercase() }) }
         }

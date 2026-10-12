@@ -6,6 +6,9 @@
 package com.voysemble.core.fixtures
 
 import com.voysemble.core.api.CareNoteDto
+import com.voysemble.core.chat.ChatChannel
+import com.voysemble.core.chat.ChatMessage
+import com.voysemble.core.chat.ChatThread
 import com.voysemble.core.announcements.AnnouncementFeed
 import com.voysemble.core.announcements.AnnouncementItem
 import com.voysemble.core.api.GuardianCountDto
@@ -207,6 +210,24 @@ public object KoreaConcertTourFixture {
     public fun guardianCard(locale: String = "en"): GuardianCard = guardianCardOf(guardianStatus(), locale)
 
     /** Colosseum regroup window 10:45-11:20, 200 m, as seen by traveler Minji (t1), not yet opted in. */
+    /** Minji's channels (D22): everyone, her group, her leaders. */
+    public fun chats(): List<ChatChannel> = listOf(
+        ChatChannel("trip", "trip", "Everyone on the trip", "38 travelers · 2 leaders · the organizer", 0, "Breakfast moved to 06:30, lobby. Bus leaves 07:15.", "05:40"),
+        ChatChannel("group:Bus A", "group", "Bus A", "20 travelers · 1 leader", 3, "Who has the charger?", "06:05"),
+        ChatChannel("traveler:t1", "traveler", "Your leaders", "with Kim Daeun", 1, "We leave at 07:15, be in the lobby.", "06:41"),
+    )
+
+    /** The "Your leaders" thread as Minji sees it. */
+    public fun chatThread(): ChatThread = ChatThread(
+        channel = chats()[2],
+        messages = listOf(
+            ChatMessage("m1", "traveler:t1", "Minji Park", "traveler", "I left my passport at the hotel desk, is that ok?", "06:30", mine = true),
+            ChatMessage("m2", "traveler:t1", "Kim Daeun", "leader", "Yes, the desk keeps them until checkout. Bring it on the last day.", "06:33", mine = false),
+            ChatMessage("m3", "traveler:t1", "Minji Park", "traveler", "Thank you!", "06:34", mine = true),
+            ChatMessage("m4", "traveler:t1", "Kim Daeun", "leader", "We leave at 07:15, be in the lobby.", "06:41", mine = false),
+        ),
+    )
+
     /** Minji's care note as the sample head count reveals it (D27). */
     public fun careNote(): CareNoteDto = CareNoteDto(allergies = "Peanuts", medications = "EpiPen in the red bag", freeText = "Asks for it herself.")
 

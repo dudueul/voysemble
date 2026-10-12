@@ -20,6 +20,11 @@ import type {
   ApplyFeeRequest,
   CareNote,
   CareNoteStatus,
+  ChatChannel,
+  ChatChannelKind,
+  ChatMessage,
+  ChatMessageList,
+  ChatSenderRole,
   Currency,
   FeeLedger,
   FeeRow,
@@ -50,7 +55,10 @@ import type {
 } from '@voysemble/contracts';
 import {
   careNoteIsEmpty,
+  channelIdFor,
+  channelMembersOf,
   feeStatusOf,
+  parseChannelId,
   WINDOW_STALE_MS,
   windowStatusOf,
 } from '@voysemble/contracts';
@@ -350,7 +358,54 @@ const MIGRATIONS: { version: number; sql: string }[] = [
       CREATE INDEX IF NOT EXISTS participation_events_person_idx ON participation_events(participation_id, at);
     `,
   },
+  {
+    // Slice 033 (D22): chat messages in fixed channels derived from the roster, and each
+    // reader's last-read instant per channel (unread counts). Tier 1 content, shredded with the
+    // trip (D20).
+    version: 14,
+    sql: `
+      CREATE TABLE IF NOT EXISTS chat_messages (
+        id TEXT PRIMARY KEY,
+        trip_id TEXT NOT NULL REFERENCES trips(id),
+        channel TEXT NOT NULL,
+        sender_key TEXT NOT NULL,
+        sender_name TEXT NOT NULL,
+        sender_role TEXT NOT NULL,
+        body TEXT NOT NULL,
+        sent_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS chat_messages_channel_idx ON chat_messages(trip_id, channel, sent_at);
+      CREATE TABLE IF NOT EXISTS chat_reads (
+        trip_id TEXT NOT NULL,
+        channel TEXT NOT NULL,
+        reader_key TEXT NOT NULL,
+        last_read_at TEXT NOT NULL,
+        PRIMARY KEY (trip_id, channel, reader_key)
+      );
+    `,
+  },
 ];
+
+type ChatMessageRow = {
+  id: string;
+  trip_id: string;
+  channel: string;
+  sender_key: string;
+  sender_name: string;
+  sender_role: string;
+  body: string;
+  sent_at: string;
+};
+
+/** Who is asking for chat: a participation (phones) or an organizer account (console). */
+export type ChatViewer = {
+  /** Participation id, or `acct:<accountId>` for an organizer without a participation. */
+  readerKey: string;
+  participation: Participation | null;
+  organizer: boolean;
+  name: string;
+  role: ChatSenderRole;
+};
 
 type CareNoteRow = {
   participation_id: string;
@@ -969,6 +1024,7 @@ export class OrgDurableObject extends DurableObject<Env> {
         sql.exec('DELETE FROM care_reveals WHERE participation_id = ?', r.id);
         sql.exec('DELETE FROM care_notes WHERE participation_id = ?', r.id);
         sql.exec('DELETE FROM participation_events WHERE participation_id = ?', r.id);
+        sql.exec('DELETE FROM chat_reads WHERE reader_key = ?', r.id);
         sql.exec('DELETE FROM participations WHERE id = ?', r.id);
       }
     });
@@ -2341,6 +2397,236 @@ export class OrgDurableObject extends DurableObject<Env> {
    * a leader opened, incidents naming the person (open, resolve, guardian message), and
    * confirmations a leader gave. The join entry comes from D1 (invite codes) in the route.
    */
+  // ---- Chat (D22, slice 033) --------------------------------------------------------------
+
+  private chatMessageOf(r: ChatMessageRow, viewer: ChatViewer): ChatMessage {
+    return {
+      id: r.id,
+      channelId: r.channel,
+      senderName: r.sender_name,
+      senderRole: r.sender_role as ChatSenderRole,
+      body: r.body,
+      sentAt: r.sent_at,
+      mine: r.sender_key === viewer.readerKey,
+    };
+  }
+
+  /** The channel's card for one viewer: title, who is in it, unread, the latest message. */
+  private chatChannelCard(
+    tripId: string,
+    id: string,
+    kind: ChatChannelKind,
+    title: string,
+    subtitle: string,
+    viewer: ChatViewer,
+  ): ChatChannel {
+    const sql = this.ctx.storage.sql;
+    const last = sql
+      .exec<ChatMessageRow>(
+        'SELECT * FROM chat_messages WHERE trip_id = ? AND channel = ? ORDER BY sent_at DESC, id DESC LIMIT 1',
+        tripId,
+        id,
+      )
+      .toArray()[0];
+    const read = sql
+      .exec<{ last_read_at: string }>(
+        'SELECT last_read_at FROM chat_reads WHERE trip_id = ? AND channel = ? AND reader_key = ?',
+        tripId,
+        id,
+        viewer.readerKey,
+      )
+      .toArray()[0];
+    const unread = sql
+      .exec<{ n: number }>(
+        'SELECT COUNT(*) AS n FROM chat_messages WHERE trip_id = ? AND channel = ? AND sender_key <> ? AND sent_at > ?',
+        tripId,
+        id,
+        viewer.readerKey,
+        read?.last_read_at ?? '',
+      )
+      .one().n;
+    return {
+      id,
+      kind,
+      title,
+      subtitle,
+      unread,
+      lastMessage: last ? this.chatMessageOf(last, viewer) : null,
+    };
+  }
+
+  /** The viewer's channels in the D22 matrix, derived from the roster; nothing is created. */
+  async chatChannels(tripId: string, viewer: ChatViewer): Promise<ChatChannel[]> {
+    this.requireOrg();
+    const roster = await this.listRoster(tripId);
+    const me = viewer.participation;
+    const travelers = (g: string | null) =>
+      roster.filter((p) => p.role === 'traveler' && (g === null || p.groupName === g));
+    const leadersOf = (g: string | null) =>
+      roster.filter((p) => p.role === 'leader' && (p.groupName === null || p.groupName === g));
+    const names = (ps: Participation[]) => ps.map((p) => p.displayName).join(', ');
+    const out: ChatChannel[] = [];
+    const tripCard = () =>
+      this.chatChannelCard(
+        tripId,
+        channelIdFor('trip'),
+        'trip',
+        'Everyone on the trip',
+        `${travelers(null).length} travelers · ${roster.filter((p) => p.role === 'leader').length} leaders · the organizer`,
+        viewer,
+      );
+    const groupCard = (g: string) =>
+      this.chatChannelCard(
+        tripId,
+        channelIdFor('group', g),
+        'group',
+        g,
+        `${travelers(g).length} travelers · ${leadersOf(g).length} ${leadersOf(g).length === 1 ? 'leader' : 'leaders'}`,
+        viewer,
+      );
+    const travelerCard = (t: Participation, mine: boolean) =>
+      this.chatChannelCard(
+        tripId,
+        channelIdFor('traveler', t.id),
+        'traveler',
+        mine ? 'Your leaders' : t.displayName,
+        mine
+          ? `with ${names(leadersOf(t.groupName)) || 'your leaders'}`
+          : `with ${t.displayName} · ${t.groupName ?? 'no group'}`,
+        viewer,
+      );
+    const guardianCard = (g: Participation, mine: boolean) => {
+      const traveler = roster.find((p) => p.id === g.guardianOf);
+      return this.chatChannelCard(
+        tripId,
+        channelIdFor('guardian', g.id),
+        'guardian',
+        mine ? 'The organizer' : g.displayName,
+        mine ? 'with the trip organizer' : `guardian of ${traveler?.displayName ?? 'a traveler'}`,
+        viewer,
+      );
+    };
+    if (viewer.organizer && !me) {
+      out.push(tripCard());
+      for (const g of roster.filter((p) => p.role === 'guardian')) out.push(guardianCard(g, false));
+      return out;
+    }
+    if (!me) return out;
+    if (me.role === 'guardian') {
+      out.push(guardianCard(me, true));
+      return out;
+    }
+    out.push(tripCard());
+    const groups = [
+      ...new Set(roster.map((p) => p.groupName).filter((g): g is string => g !== null)),
+    ];
+    if (me.role === 'leader') {
+      for (const g of groups)
+        if (me.groupName === null || me.groupName === g) out.push(groupCard(g));
+      for (const t of travelers(me.groupName)) out.push(travelerCard(t, false));
+    } else if (me.role === 'traveler') {
+      if (me.groupName) out.push(groupCard(me.groupName));
+      out.push(travelerCard(me, true));
+    }
+    return out;
+  }
+
+  /** May this viewer read and write the channel; the channel's card when so. */
+  private async chatAccess(
+    tripId: string,
+    channelId: string,
+    viewer: ChatViewer,
+  ): Promise<{ ok: true; card: ChatChannel } | { forbidden: true } | { notFound: true }> {
+    const parsed = parseChannelId(channelId);
+    if (!parsed) return { notFound: true };
+    const roster = await this.listRoster(tripId);
+    const who = channelMembersOf(parsed, roster);
+    if (!who.exists) return { notFound: true };
+    const me = viewer.participation;
+    const allowed = (me && who.members.has(me.id)) || (viewer.organizer && !me && who.organizers);
+    if (!allowed) return { forbidden: true };
+    const card = (await this.chatChannels(tripId, viewer)).find((c) => c.id === channelId);
+    if (!card) return { forbidden: true };
+    return { ok: true, card };
+  }
+
+  /** The latest 200 messages, oldest first; opening a channel marks it read for this viewer. */
+  async chatMessages(
+    tripId: string,
+    channelId: string,
+    viewer: ChatViewer,
+    now: string,
+  ): Promise<ChatMessageList | { forbidden: true } | { notFound: true }> {
+    this.requireOrg();
+    const access = await this.chatAccess(tripId, channelId, viewer);
+    if (!('ok' in access)) return access;
+    const sql = this.ctx.storage.sql;
+    const rows = sql
+      .exec<ChatMessageRow>(
+        'SELECT * FROM chat_messages WHERE trip_id = ? AND channel = ? ORDER BY sent_at DESC, id DESC LIMIT 200',
+        tripId,
+        channelId,
+      )
+      .toArray()
+      .reverse();
+    sql.exec(
+      `INSERT INTO chat_reads (trip_id, channel, reader_key, last_read_at) VALUES (?, ?, ?, ?)
+       ON CONFLICT(trip_id, channel, reader_key) DO UPDATE SET last_read_at = excluded.last_read_at`,
+      tripId,
+      channelId,
+      viewer.readerKey,
+      now,
+    );
+    return {
+      channel: { ...access.card, unread: 0 },
+      messages: rows.map((r) => this.chatMessageOf(r, viewer)),
+    };
+  }
+
+  async sendChatMessage(
+    tripId: string,
+    channelId: string,
+    viewer: ChatViewer,
+    body: string,
+    now: string,
+  ): Promise<ChatMessage | { forbidden: true } | { notFound: true }> {
+    this.requireOrg();
+    const access = await this.chatAccess(tripId, channelId, viewer);
+    if (!('ok' in access)) return access;
+    const row: ChatMessageRow = {
+      id: crypto.randomUUID(),
+      trip_id: tripId,
+      channel: channelId,
+      sender_key: viewer.readerKey,
+      sender_name: viewer.name,
+      sender_role: viewer.role,
+      body: body.trim(),
+      sent_at: now,
+    };
+    const sql = this.ctx.storage.sql;
+    sql.exec(
+      'INSERT INTO chat_messages (id, trip_id, channel, sender_key, sender_name, sender_role, body, sent_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      row.id,
+      row.trip_id,
+      row.channel,
+      row.sender_key,
+      row.sender_name,
+      row.sender_role,
+      row.body,
+      row.sent_at,
+    );
+    // Sending reads the channel up to now for the sender.
+    sql.exec(
+      `INSERT INTO chat_reads (trip_id, channel, reader_key, last_read_at) VALUES (?, ?, ?, ?)
+       ON CONFLICT(trip_id, channel, reader_key) DO UPDATE SET last_read_at = excluded.last_read_at`,
+      tripId,
+      channelId,
+      viewer.readerKey,
+      now,
+    );
+    return this.chatMessageOf(row, viewer);
+  }
+
   // ---- Care notes (D27, slice 030) ---------------------------------------------------------
 
   private async careStatusOf(participationId: string): Promise<CareNoteStatus> {

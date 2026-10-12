@@ -971,7 +971,7 @@ Not done: guardian entry on the phone; edit notifications; documents (tier 3); K
 
 ## Slice 031: lost or stolen device
 
-Status: done 2026-10-12. Commit: see git log (`feat(session): revoke devices with a wipe directive and re-enrolment (slice 031)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: 7c91157 (`feat(session): revoke devices with a wipe directive and re-enrolment (slice 031)`). CI: run 38204945452 green (web, mobile, ios); captures committed as b7f840f (web `people-revoke.png`, Android and iOS `sign-in-revoked.png`).
 Spec: D28 (organizer revokes devices, sessions killed, 401 + wipe directive, re-enrol by invite code with groups restored), ADR-0007 sessions. Details: `docs/engineering/device-revocation.md`.
 
 | Gate | Command | Result |
@@ -1018,4 +1018,31 @@ Built:
 - Docs: meeting-windows and care-notes doc sections, captures README, mobile README, feature flags (`mobile.window-open`, `guardian.care-note-edit`).
 
 Not done: a window per itinerary event; care-note entry during invite redemption; Korean phone strings.
+
+## Slice 033: chat channels
+
+Status: done 2026-10-12. Commit: see git log (`feat(chat): fixed channels on the API, console and phones (slice 033)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D22 (fixed channels: trip, group, traveler ↔ leader, guardian ↔ organizer; no traveler DMs), ADR-0009 matrix, D20 (shredded with the trip). Details: `docs/engineering/chat.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 23 files, 64 tests (adds `chat.test.ts`: 2) |
+| Core JVM tests | `./gradlew :core:jvmTest -Pvoysemble.android=false` | green (adds `ChatModelTest`: 4) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 14 files, 80 tests (adds the guardian thread case; the live Communication case lists live channels) |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e` | `chat.spec.ts` new; capture `communication-chat.png` |
+| Android unit + screenshots | CI `mobile` job | `ChatsViewModelTest` (3), `chats-list.png`, `chats-thread-dark.png` |
+| iOS unit + captures | CI `ios` job | `LiveModelsTests` (+1), `chats-list.png`, `chats-thread-dark.png` |
+
+Facts established by tests: see the engineering doc.
+
+Built:
+- Contracts `chat.ts` (`ChatChannel`, `ChatMessage`, lists, `SendChatMessageRequest`, `channelIdFor`, `parseChannelId`, `channelMembersOf`).
+- Worker: OrgDO schema v14 (`chat_messages`, `chat_reads`), `chatChannels`, `chatMessages`, `sendChatMessage`, membership through the contracts helper; routes list, messages (marks read), send; reads cascade on roster removal.
+- Core: `api/Chat.kt`, `ApiClient.listChats/chatMessages/sendChatMessage`, `chat/ChatModel.kt` (screen models, pending/confirm/fail/merge rules), fixture channels and thread.
+- Android: `ChatsViewModel` (list, open, send, retry, 15 s poll), `ChatsScreen` (list and thread), the Chats tab; tests and screenshots. iOS: `ChatsModel`, `ChatsView`, the Chats tab; test and captures.
+- Console: `chatsQuery`, `chatMessagesQuery`, `chat.send`, live Channels card with thread and composer, strings, styles; unit tests; e2e with capture.
+- Docs: `chat.md`, captures README, mobile README, feature flag (`chat.fixed-channels` working).
+
+Not done: sockets and push; the organizer's audited read on incident; leader moderation; Korean strings.
 

@@ -11,6 +11,9 @@ import type {
   AnnouncementList,
   CareNote,
   CareNoteStatus,
+  ChatChannelList,
+  ChatMessage,
+  ChatMessageList,
   CreateAnnouncementRequest,
   HeadcountList,
   Incident,
@@ -126,6 +129,33 @@ export const care = {
     api<RevealCareNoteResponse>(
       `/v1/orgs/${orgId}/trips/${tripId}/people/${participationId}/care-note/reveal`,
       { method: 'POST' },
+    ),
+};
+
+/** Chat channels (D22, slice 033): the organizer's list, polled while the page is open. */
+export const chatsQuery = (orgId: string, tripId: string) =>
+  queryOptions({
+    queryKey: ['orgs', orgId, 'trips', tripId, 'chats'],
+    queryFn: async () =>
+      (await api<ChatChannelList>(`/v1/orgs/${orgId}/trips/${tripId}/chats`)).channels,
+    refetchInterval: 15_000,
+  });
+
+export const chatMessagesQuery = (orgId: string, tripId: string, channelId: string) =>
+  queryOptions({
+    queryKey: ['orgs', orgId, 'trips', tripId, 'chats', channelId],
+    queryFn: async () =>
+      api<ChatMessageList>(
+        `/v1/orgs/${orgId}/trips/${tripId}/chats/${encodeURIComponent(channelId)}/messages`,
+      ),
+    refetchInterval: 15_000,
+  });
+
+export const chat = {
+  send: (orgId: string, tripId: string, channelId: string, body: string) =>
+    api<ChatMessage>(
+      `/v1/orgs/${orgId}/trips/${tripId}/chats/${encodeURIComponent(channelId)}/messages`,
+      { method: 'POST', body: { body } },
     ),
 };
 
