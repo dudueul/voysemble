@@ -173,3 +173,12 @@ names stay as they are. All land here through the CI `captures` job.
 `public/desktop-1440/landing-en.png`, `landing-ko.png` and the `*-top.png` first viewports re-render with the
 phone gallery (six real captures from `ios/` and `android/` in device frames) and the new feature cards.
 Produced by `apps/public-web/e2e/landing.spec.ts`.
+
+## Slice 042 (2026-10-12): organizer invitations
+
+`web/desktop-1440/settings-invitations.png`, `web/laptop-1280/settings-invitations.png`: the owner's
+Settings after inviting an organizer who joined (members card: owner and organizer; invitations:
+one accepted, one revoked). `web/desktop-1440/invitation-accepted.png`, `web/laptop-1280/
+invitation-accepted.png`: the invitee's landing card after signing in through the emailed link.
+Produced by `apps/organizer-web/e2e/invitations.spec.ts`. No phone change (D21: organizers use the
+console).

@@ -80,6 +80,34 @@ export const memberships = sqliteTable(
   ],
 );
 
+/**
+ * Slice 042 (D33, migration 0004): one-time emailed invitations that make an account an organizer
+ * of the organization. Only the token's hash is stored; the email is PII (tier 2).
+ */
+export const organizationInvitations = sqliteTable(
+  'organization_invitations',
+  {
+    id: text('id').primaryKey(),
+    organizationId: text('organization_id')
+      .notNull()
+      .references(() => organizations.id),
+    /** Lower-cased; the account that accepts must carry it. */
+    email: text('email').notNull(),
+    role: text('role', { enum: ['organizer'] }).notNull(),
+    tokenHash: text('token_hash').notNull().unique(),
+    locale: text('locale').notNull(),
+    invitedBy: text('invited_by')
+      .notNull()
+      .references(() => accounts.id),
+    createdAt: text('created_at').notNull(),
+    expiresAt: text('expires_at').notNull(),
+    acceptedAt: text('accepted_at'),
+    acceptedBy: text('accepted_by').references(() => accounts.id),
+    revokedAt: text('revoked_at'),
+  },
+  (t) => [index('organization_invitations_org_idx').on(t.organizationId)],
+);
+
 export const inviteCodes = sqliteTable(
   'invite_codes',
   {

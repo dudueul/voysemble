@@ -4,6 +4,7 @@
 // encryption keys (ADR-0005). Created by any signed-in account, who becomes its owner (D26).
 
 import { z } from '@hono/zod-openapi';
+import { Email } from './auth';
 import { Id, Locale, OrgRole, Timestamp } from './common';
 import { TimeZone } from './trip';
 
@@ -97,3 +98,68 @@ export type OrgMember = z.infer<typeof OrgMember>;
 
 export const OrgMemberList = z.object({ members: z.array(OrgMember) }).openapi('OrgMemberList');
 export type OrgMemberList = z.infer<typeof OrgMemberList>;
+
+/* ---------- Organizer invitations (slice 042, D33) ---------- */
+
+/** Derived on read: pending until accepted or revoked, expired once past `expiresAt`. */
+export const InvitationStatus = z
+  .enum(['pending', 'accepted', 'expired', 'revoked'])
+  .openapi('InvitationStatus');
+export type InvitationStatus = z.infer<typeof InvitationStatus>;
+
+/**
+ * `POST /v1/orgs/{orgId}/invitations` (owner): email one organizer invitation. The role is
+ * always `organizer`: ownership is never granted by invitation (D33); leaders, travelers and
+ * guardians join by invite code (`InviteRole`) and never gain console authority.
+ */
+export const CreateOrganizerInvitationRequest = z
+  .object({
+    email: Email,
+    /** Language of the email; the organization's default language when absent. */
+    locale: Locale.optional(),
+  })
+  .openapi('CreateOrganizerInvitationRequest');
+export type CreateOrganizerInvitationRequest = z.infer<typeof CreateOrganizerInvitationRequest>;
+
+export const OrganizerInvitation = z
+  .object({
+    id: Id,
+    email: z.string(),
+    role: z.literal('organizer'),
+    status: InvitationStatus,
+    /** Address of the owner who sent it. */
+    invitedBy: z.string(),
+    createdAt: Timestamp,
+    /** Seven days after `createdAt`. */
+    expiresAt: Timestamp,
+    acceptedAt: Timestamp.nullable(),
+    revokedAt: Timestamp.nullable(),
+  })
+  .openapi('OrganizerInvitation');
+export type OrganizerInvitation = z.infer<typeof OrganizerInvitation>;
+
+/** `GET /v1/orgs/{orgId}/invitations` (organizer): newest first. */
+export const OrganizerInvitationList = z
+  .object({ invitations: z.array(OrganizerInvitation) })
+  .openapi('OrganizerInvitationList');
+export type OrganizerInvitationList = z.infer<typeof OrganizerInvitationList>;
+
+/** `POST /v1/invitations/accept`: the token from the emailed link, sent by the signed-in account. */
+export const AcceptInvitationRequest = z
+  .object({
+    token: z.string().min(32).max(128).describe('Opaque token from the emailed link.'),
+  })
+  .openapi('AcceptInvitationRequest');
+export type AcceptInvitationRequest = z.infer<typeof AcceptInvitationRequest>;
+
+export const AcceptInvitationResponse = z
+  .object({
+    organizationId: Id,
+    organizationName: z.string(),
+    /** The caller's role after accepting: organizer, or owner when they already owned it. */
+    role: OrgRole,
+    /** True when the account was already an owner or organizer; nothing changed. */
+    alreadyMember: z.boolean(),
+  })
+  .openapi('AcceptInvitationResponse');
+export type AcceptInvitationResponse = z.infer<typeof AcceptInvitationResponse>;

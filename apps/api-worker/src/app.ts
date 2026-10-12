@@ -22,6 +22,7 @@ import { mountGuardianRoutes } from './routes/guardian';
 import { mountHeadcountRoutes } from './routes/headcounts';
 import { healthHandler, healthRoute } from './routes/health';
 import { mountIncidentRoutes } from './routes/incidents';
+import { mountInvitationRoutes } from './routes/invitations';
 import { mountItineraryRoutes } from './routes/itinerary';
 import { mountOrganizationRoutes } from './routes/organizations';
 import { mountPeopleRoutes } from './routes/people';
@@ -134,6 +135,7 @@ export function createApp(): OpenAPIHono<AppEnv> {
   app.openapi(healthRoute, healthHandler);
   mountAuthRoutes(app);
   mountOrganizationRoutes(app);
+  mountInvitationRoutes(app);
   mountTripRoutes(app);
   mountRosterRoutes(app);
   mountAnnouncementRoutes(app);

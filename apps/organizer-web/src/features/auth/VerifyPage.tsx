@@ -6,6 +6,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useRef } from 'react';
 import { ApiError } from '../../lib/api-client';
+import { readInvitationToken } from '../../lib/invitation-token';
 import { queryClient } from '../../lib/query-client';
 import { auth, meQuery } from '../../lib/session';
 import { strings } from '../../lib/strings';
@@ -24,7 +25,12 @@ export function VerifyPage() {
       // Strip the token from the address bar before anything else renders.
       history.replaceState(null, '', '/auth/verify');
       await queryClient.invalidateQueries({ queryKey: meQuery.queryKey });
-      await navigate({ to: '/setup', replace: true });
+      // An invitee who signed in to accept an organizer invitation (slice 042) goes back to it.
+      if (readInvitationToken()) {
+        await navigate({ to: '/invitations/accept', replace: true });
+      } else {
+        await navigate({ to: '/setup', replace: true });
+      }
     },
   });
 

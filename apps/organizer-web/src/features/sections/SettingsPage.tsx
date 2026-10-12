@@ -2,21 +2,27 @@
 // Settings: organization profile, language (D11), quiet hours and guardian digest hour (D29),
 // wrap-up window before crypto-shred (D20), organization members (D21). Live (slice 036) when
 // the account has an organization: the profile from `GET /v1/orgs/{orgId}`, one Save per card
-// through `PATCH` (owner only; organizers read), the member list from `.../members`. The
-// fixture otherwise. The notification lanes and the shred read these settings when built.
+// through `PATCH` (owner only; organizers read), the member list from `.../members`, and the
+// organizer invitations (slice 042, D33: the owner emails a one-time link; the list shows every
+// invitation; a pending one can be revoked). The fixture otherwise. The notification lanes and
+// the shred read these settings when built.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   Organization,
   OrganizationProfile,
+  OrganizerInvitation,
   OrgMember,
   UpdateOrganizationRequest,
 } from '@voysemble/contracts';
 import { type FormEvent, type ReactNode, useEffect, useState } from 'react';
 import { orgSettings } from '../../fixtures/sections';
+import { ApiError } from '../../lib/api-client';
 import { errorText } from '../../lib/errors';
 import {
+  invitations as invitationsApi,
   org as orgApi,
+  orgInvitationsQuery,
   orgMembersQuery,
   orgProfileQuery,
   orgsQuery,
@@ -282,7 +288,138 @@ function MemberRow({ m }: { m: OrgMember }) {
   );
 }
 
-function LiveMembers({ orgId }: { orgId: string }) {
+/** Owner only: one address, one email with a one-time link (slice 042). */
+function InviteOrganizer({ orgId }: { orgId: string }) {
+  const qc = useQueryClient();
+  const [email, setEmail] = useState('');
+  const [note, setNote] = useState<string | null>(null);
+  const send = useMutation({
+    mutationFn: (value: string) => invitationsApi.create(orgId, value),
+    onSuccess: (inv) => {
+      setNote(s.inviteSent(inv.email));
+      setEmail('');
+      void qc.invalidateQueries({ queryKey: orgInvitationsQuery(orgId).queryKey });
+    },
+    onError: (e) =>
+      setNote(
+        e instanceof ApiError && e.code === 'CONFLICT'
+          ? s.inviteExists
+          : errorText(e, s.inviteFailed),
+      ),
+  });
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    const value = email.trim();
+    if (value) send.mutate(value);
+  };
+  return (
+    <form className="form" onSubmit={submit} aria-label={s.inviteTitle} noValidate>
+      <label className="field">
+        <span className="field__label">{s.inviteEmail}</span>
+        <input
+          className="field__input"
+          type="email"
+          name="inviteEmail"
+          autoComplete="off"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          maxLength={254}
+        />
+      </label>
+      <p className="field__hint">{s.inviteHint}</p>
+      <div className="form__actions">
+        <button
+          type="submit"
+          className="btn btn--primary btn--sm"
+          style={{ whiteSpace: 'nowrap' }}
+          disabled={send.isPending || !email.trim()}
+        >
+          {send.isPending ? s.inviteSending : s.inviteSend}
+        </button>
+      </div>
+      <p className="field__hint" role="status" data-testid="settings-invite-status">
+        {note ?? ''}
+      </p>
+    </form>
+  );
+}
+
+const INVITATION_CHIP: Record<OrganizerInvitation['status'], string> = {
+  pending: 'chip--pending',
+  accepted: 'chip--joined',
+  expired: 'chip--expired',
+  revoked: 'chip--scheduled',
+};
+
+/** Every invitation, newest first; the owner revokes a pending one (slice 042). */
+function InvitationList({ orgId, canEdit }: { orgId: string; canEdit: boolean }) {
+  const qc = useQueryClient();
+  const list = useQuery(orgInvitationsQuery(orgId));
+  const [note, setNote] = useState<string | null>(null);
+  const revoke = useMutation({
+    mutationFn: (invitationId: string) => invitationsApi.revoke(orgId, invitationId),
+    onSuccess: () => {
+      setNote(null);
+      void qc.invalidateQueries({ queryKey: orgInvitationsQuery(orgId).queryKey });
+    },
+    onError: (e) => setNote(errorText(e, s.revokeFailed)),
+  });
+  if (list.isPending) {
+    return (
+      <p className="muted small" role="status">
+        {s.loading}
+      </p>
+    );
+  }
+  if (list.isError) {
+    return (
+      <p className="muted small" role="status">
+        {errorText(list.error, s.invitationsLoadFailed)}
+      </p>
+    );
+  }
+  if (list.data.length === 0) return <p className="muted small">{s.noInvitations}</p>;
+  return (
+    <>
+      <ul className="list" data-testid="invitation-list">
+        {list.data.map((inv) => (
+          <li key={inv.id} className="person" data-testid={`invitation-${inv.status}`}>
+            <span className="channel__text">
+              <span>{inv.email}</span>
+              <span className="muted small">
+                {inv.status === 'pending'
+                  ? s.invitationExpires(inv.expiresAt.slice(0, 10))
+                  : s.invitationSent(inv.createdAt.slice(0, 10))}
+              </span>
+            </span>
+            <span className={`chip ${INVITATION_CHIP[inv.status]}`}>
+              {s.invitationStatus[inv.status] ?? inv.status}
+            </span>
+            {canEdit && inv.status === 'pending' ? (
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                onClick={() => revoke.mutate(inv.id)}
+                disabled={revoke.isPending}
+                aria-label={s.revokeInvitationOf(inv.email)}
+              >
+                {s.revokeInvitation}
+              </button>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+      {note ? (
+        <p className="field__hint" role="status">
+          {note}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
+function LiveMembers({ orgId, canEdit }: { orgId: string; canEdit: boolean }) {
   const members = useQuery(orgMembersQuery(orgId));
   if (members.isPending) {
     return (
@@ -306,6 +443,11 @@ function LiveMembers({ orgId }: { orgId: string }) {
         ))}
       </ul>
       {members.data.length <= 1 ? <p className="muted small">{s.noMembers}</p> : null}
+      {canEdit ? <InviteOrganizer orgId={orgId} /> : null}
+      <h3 className="field__label" style={{ marginTop: 16 }}>
+        {s.invitations}
+      </h3>
+      <InvitationList orgId={orgId} canEdit={canEdit} />
       <p className="muted small">{s.memberRule}</p>
     </>
   );
@@ -344,7 +486,7 @@ function LiveSettings({ org }: { org: Organization }) {
           </Card>
         </div>
         <Card title={s.members} id="set-members">
-          <LiveMembers orgId={org.id} />
+          <LiveMembers orgId={org.id} canEdit={canEdit} />
         </Card>
       </div>
     );

@@ -6,6 +6,7 @@
 
 import { queryOptions } from '@tanstack/react-query';
 import type {
+  AcceptInvitationResponse,
   AckStatus,
   Announcement,
   AnnouncementList,
@@ -25,6 +26,8 @@ import type {
   Organization,
   OrganizationList,
   OrganizationProfile,
+  OrganizerInvitation,
+  OrganizerInvitationList,
   OrgMemberList,
   Participation,
   PersonTimeline,
@@ -79,6 +82,30 @@ export const orgMembersQuery = (orgId: string) =>
 export const org = {
   update: (orgId: string, body: UpdateOrganizationRequest) =>
     api<OrganizationProfile>(`/v1/orgs/${orgId}`, { method: 'PATCH', body }),
+};
+
+/** Organizer invitations (slice 042, D33): the list for owners and organizers, newest first. */
+export const orgInvitationsQuery = (orgId: string) =>
+  queryOptions({
+    queryKey: ['orgs', orgId, 'invitations'],
+    queryFn: async () =>
+      (await api<OrganizerInvitationList>(`/v1/orgs/${orgId}/invitations`)).invitations,
+  });
+
+export const invitations = {
+  /** Owner: email a one-time link; the organization's default language when none is given. */
+  create: (orgId: string, email: string, locale?: 'ko' | 'en') =>
+    api<OrganizerInvitation>(`/v1/orgs/${orgId}/invitations`, {
+      method: 'POST',
+      body: locale ? { email, locale } : { email },
+    }),
+  revoke: (orgId: string, invitationId: string) =>
+    api<OrganizerInvitation>(`/v1/orgs/${orgId}/invitations/${invitationId}`, {
+      method: 'DELETE',
+    }),
+  /** The invitee, signed in with the invited address, with the token from the emailed link. */
+  accept: (token: string) =>
+    api<AcceptInvitationResponse>('/v1/invitations/accept', { method: 'POST', body: { token } }),
 };
 
 export const tripsQuery = (orgId: string) =>

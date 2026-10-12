@@ -13,6 +13,11 @@ capped per subject, in one place.
 | `POST /v1/auth/magic-link/verify` | the caller's address | 15 per 15 minutes |
 | `POST /v1/invites/redeem` | the signed-in account | 10 per hour |
 | `POST /v1/invites/redeem` | the caller's address | 30 per hour |
+| `POST /v1/orgs/{orgId}/invitations` (slice 042) | the organization | 20 per hour |
+
+The organizer invitation (slice 042) is an authenticated owner action, but each one sends an email
+on the organization's behalf, so it is capped per organization (the fifth test in
+`organizer-invitations.test.ts`).
 
 The caller's address is `cf-connecting-ip`, which Cloudflare sets at the edge and nobody else can
 spoof past it. It is absent in the worker tests (which set it by hand when they test an address

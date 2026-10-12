@@ -1208,3 +1208,26 @@ Built:
 - Docs: `rate-limits.md`, identity doc pointer, feature flag `auth.rate-limit` working.
 
 Not done: per-organization write limits; a refusal dashboard.
+
+## Slice 042: organizer invitations by email
+
+Status: done 2026-10-12. Commit: see git log (`feat(org): organizer invitations by email (slice 042)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D33 (new), D21 (owners and organizers use the console), ADR-0007 (invitations), D31 (device captures). Details: `docs/engineering/identity-and-roster.md` ("Organizer invitations"), `docs/engineering/rate-limits.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 27 files, 78 tests (adds `organizer-invitations.test.ts`: 4) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 15 files, 94 tests (adds the invite form and list case, five accept-page cases) |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e -- invitations.spec.ts` | 2 passed (desktop-1440, laptop-1280); captures `settings-invitations.png`, `invitation-accepted.png` |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+No phone change (D21: organizers use the console; D31: web captures only).
+
+Built:
+- Contracts `organization.ts`: `InvitationStatus`, `CreateOrganizerInvitationRequest`, `OrganizerInvitation`, `OrganizerInvitationList`, `AcceptInvitationRequest`, `AcceptInvitationResponse`.
+- Worker: migration `0004_organization_invitations.sql` and the schema table; `routes/invitations.ts` (`POST`/`GET /v1/orgs/{orgId}/invitations`, `DELETE .../{invitationId}`, `POST /v1/invitations/accept`; status derived on read; the accept claim is one atomic UPDATE); `email/templates.ts` `organizerInvitationEmail` (KO/EN, names the organization and the address, not the sender); rate limit `organizerInviteOrg` 20 per hour.
+- Console: `invitations` and `orgInvitationsQuery` in `lib/session.ts`; `lib/invitation-token.ts`; Settings members card with "Invite an organizer" (owner) and the invitation list with Revoke; `features/auth/AcceptInvitationPage.tsx` on the public route `/invitations/accept`; `SignInPage` takes a lead; `VerifyPage` returns to a waiting invitation; strings EN/KO (`settings.invite*`, `invitations.*`).
+- Tests: worker (4), console unit (6), browser (1 spec, two contexts).
+- Docs: identity doc section, rate-limits row, decision D33, captures README, ledger, feature flag `onboarding.organizer-invitations` working.
+
+Not done: ownership transfer and removing a member (an accepted organizer stays until that exists); inviting with a chosen language from the console (the organization's default is used); invitation reminders.

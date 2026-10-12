@@ -9,7 +9,8 @@ import { ApiError } from '../../lib/api-client';
 import { auth } from '../../lib/session';
 import { getLocale, strings } from '../../lib/strings';
 
-export function SignInPage() {
+/** `lead`: a line above the form naming why to sign in (the invitation page, slice 042). */
+export function SignInPage({ lead }: { lead?: string } = {}) {
   const [email, setEmail] = useState('');
   const request = useMutation({
     mutationFn: (value: string) => auth.requestMagicLink(value, getLocale()),
@@ -47,6 +48,11 @@ export function SignInPage() {
               {strings.auth.title}
             </h1>
             <p className="page__subtitle">{strings.auth.subtitle}</p>
+            {lead ? (
+              <p className="field__hint" data-testid="signin-lead">
+                {lead}
+              </p>
+            ) : null}
             <label className="field">
               <span className="field__label">{strings.auth.email}</span>
               <input

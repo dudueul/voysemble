@@ -1,11 +1,13 @@
 // Copyright 2026- At Day. All rights reserved.
 // Code-based TanStack Router tree.
-// Public: /sign-in, /auth/verify. Everything else sits under a pathless layout whose beforeLoad
+// Public: /sign-in, /auth/verify, /invitations/accept (slice 042). Everything else sits under a
+// pathless layout whose beforeLoad
 // requires a session (GET /v1/me) and redirects to /sign-in otherwise. `/` = command center on
 // fixtures; /setup = first-run checklist on the real API; other sections are honest placeholders.
 
 import { createRootRoute, createRoute, createRouter, redirect } from '@tanstack/react-router';
 import { z } from 'zod';
+import { AcceptInvitationPage } from '../features/auth/AcceptInvitationPage';
 import { SignInPage } from '../features/auth/SignInPage';
 import { VerifyPage } from '../features/auth/VerifyPage';
 import { CommandCenterPage } from '../features/command-center/CommandCenterPage';
@@ -39,6 +41,13 @@ const verifyRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/auth/verify',
   component: VerifyPage,
+});
+
+/** The emailed organizer invitation lands here (slice 042); signed out, it shows the sign-in form. */
+const acceptInvitationRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/invitations/accept',
+  component: AcceptInvitationPage,
 });
 
 /** Session gate. Runs before any protected page loads; the shell then reads the cached `me`. */
@@ -132,6 +141,7 @@ export const router = createRouter({
   routeTree: rootRoute.addChildren([
     signInRoute,
     verifyRoute,
+    acceptInvitationRoute,
     appRoute.addChildren([indexRoute, setupRoute, itineraryRoute, ...sectionRoutes, unknownRoute]),
   ]),
   defaultPreload: 'intent',

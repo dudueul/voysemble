@@ -276,8 +276,71 @@ accounts with the role chip and "you".
   is refused on the client, 120 saves, the members card shows the owner as you, and everything
   survives a reload. Capture `settings-live.png`.
 
+## Organizer invitations (slice 042, D33)
+
+D21 says owners and organizers use the console, but until this slice a second organizer had no
+way in: invite codes are for leaders, travelers and guardians and never grant console authority.
+An owner now invites a colleague by email from Settings. The emailed link carries a one-time
+token (only its SHA-256 lives in D1), valid seven days; the console's `/invitations/accept` page
+asks the invitee to sign in (magic link) and then posts the token; the account must carry the
+invited address, so a forwarded link joins nobody else.
+
+### Storage (migration 0004)
+
+`organization_invitations`: `id`, `organization_id`, `email` (lower-cased, PII), `role`
+(`organizer`, never `owner`), `token_hash` (unique), `locale`, `invited_by`, `created_at`,
+`expires_at` (seven days), `accepted_at`, `accepted_by`, `revoked_at`. Status is derived on read:
+accepted, else revoked, else expired when past `expires_at`, else pending.
+
+| Route | Minimum role | Behaviour |
+|---|---|---|
+| `POST /v1/orgs/{orgId}/invitations` | owner | `CreateOrganizerInvitationRequest { email, locale? }`. 409 when the address already owns or organizes the organization. Revokes the address's earlier pending invitation, inserts the new row, emails `organizerInvitationEmail` (the organization's language unless `locale` says otherwise) with `<origin>/invitations/accept#token=…`. 429 past twenty per organization per hour (`rate-limits.md`). Answers `OrganizerInvitation` (201). |
+| `GET /v1/orgs/{orgId}/invitations` | organizer | `OrganizerInvitationList`, newest first, with `invitedBy` (the sender's address) and the derived status. |
+| `DELETE /v1/orgs/{orgId}/invitations/{invitationId}` | owner | Revokes a pending invitation (its link dies); idempotent on a revoked one; 409 on an accepted one; 404 when unknown in this organization. Answers the invitation. |
+| `POST /v1/invitations/accept` | signed in | `AcceptInvitationRequest { token }`. 404 when unknown, revoked, expired or the organization is not active (one answer, nothing to learn); 403 when the signed-in address is not the invited one; 409 when already accepted (the claim is one atomic UPDATE, so a concurrent second accept loses). Membership: none becomes `organizer`; `leader` or `member` is raised; `owner` or `organizer` stays (`alreadyMember: true`). Answers `AcceptInvitationResponse { organizationId, organizationName, role, alreadyMember }`. |
+
+### Console
+
+Settings, members card (owner): "Invite an organizer" (one address, "Send invitation", a status
+line "Invitation sent to …" or "already organizes"), then the invitation list (address, "Link
+works until …" or "Sent …", status chip, "Revoke" on a pending one). Organizers see the list only.
+`orgInvitationsQuery`, `invitations.create / revoke / accept` in `lib/session.ts`.
+
+`/invitations/accept` (public route, `features/auth/AcceptInvitationPage.tsx`): the token from the
+fragment is kept in localStorage (`voysemble.invitation`, `lib/invitation-token.ts`) and the
+fragment stripped; signed out, the sign-in form shows with a lead and the verify page comes back
+here instead of `/setup` while a token waits; signed in, the token is posted once, the card names
+the organization ("You now organize …" or "You already organize …", "Open the console", the new
+organization made active) or says why not (another address with "Sign out and use another
+address", a dead link, an already accepted one, an incomplete link). The token is cleared on
+success and kept for the next account on a wrong-address refusal.
+
+### Facts established by tests (slice 042)
+
+- Worker (`organizer-invitations.test.ts`): the owner invites (201, lower-cased address, pending,
+  seven days, the Korean mail names the organization and carries the link); another account is
+  403 and anonymous 401 on accept; the invitee accepts (organizer, `/v1/me` carries the
+  membership, lists members, cannot PATCH the organization); a spent link is 409; re-inviting an
+  organizer is 409; an organizer cannot invite (403); strangers are 403 on the list and the send.
+  A re-invitation revokes the earlier pending one and sends in the given language; the owner
+  revokes (idempotent, 404 unknown), the revoked and the replaced links are 404; an expired row is
+  404 and listed as expired; unknown tokens 404, a short token 400, a bad address 400; an accepted
+  invitation cannot be revoked (409); an organizer cannot revoke (403). A leader who accepts is
+  raised to organizer with one membership; the owner's own address is 409 to invite, and an owner
+  accepting a row stays owner (`alreadyMember`). The twenty-first invitation of an organization in
+  an hour is 429 with `Retry-After`; another organization of the same owner still sends.
+- Console unit (`sections.test.tsx`, `auth.test.tsx`): the owner's form posts `{ email }`, reports
+  "Invitation sent to …", the pending row shows the expiry and a Revoke button that turns the row
+  revoked; an organizer sees the list without the form or the button. The accept page keeps the
+  token and strips the fragment for a signed-out invitee and shows the sign-in lead; signed in it
+  posts the stored token once, names the organization, clears the token and makes the
+  organization active; another address is named with a sign-out button that returns to the form
+  with the token kept; a dead link and a missing token say so.
+- Browser (`invitations.spec.ts`): the whole flow across two browser contexts, with the captures
+  above; the revoked link's invitee is told the link is dead after signing in.
+
 ## Open items
 
 - Deep links from timeline entries; CSV export of the roster. Care notes: `docs/engineering/care-notes.md` (slice 030). Device revocation: `docs/engineering/device-revocation.md` (slice 031).
-- Invite email delivery (guardian contact) and invite revocation endpoint.
+- Invite email delivery (guardian contact); organizer invitations are slice 042 (above).
 - Organizer-facing web screens for onboarding checklist (D26) are slice 007 candidates.

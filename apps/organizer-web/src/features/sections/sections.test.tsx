@@ -1316,6 +1316,7 @@ describe('Settings on the API (slice 036)', () => {
       'GET /v1/orgs': () => ({ organizations: [ORG] }),
       [`GET /v1/orgs/${ORG.id}`]: () => PROFILE,
       [`GET /v1/orgs/${ORG.id}/members`]: () => MEMBERS,
+      [`GET /v1/orgs/${ORG.id}/invitations`]: () => ({ invitations: [] }),
       [`PATCH /v1/orgs/${ORG.id}`]: () => ({
         ...PROFILE,
         name: 'Seoul Arts High School',
@@ -1361,6 +1362,7 @@ describe('Settings on the API (slice 036)', () => {
       'GET /v1/orgs': () => ({ organizations: [{ ...ORG, role: 'organizer' }] }),
       [`GET /v1/orgs/${ORG.id}`]: () => ({ ...PROFILE, role: 'organizer' }),
       [`GET /v1/orgs/${ORG.id}/members`]: () => MEMBERS,
+      [`GET /v1/orgs/${ORG.id}/invitations`]: () => ({ invitations: [PENDING] }),
     });
     renderWithQuery(<SettingsPage />);
     // The fixture flashes while the organization loads; wait for the live chip.
@@ -1369,5 +1371,68 @@ describe('Settings on the API (slice 036)', () => {
     expect(saves).toHaveLength(3);
     for (const b of saves) expect((b as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByTestId('settings-profile-status').textContent).toContain('Only the owner');
+    // Organizers read the invitations but neither send nor revoke (slice 042).
+    await screen.findByTestId('invitation-pending');
+    expect(screen.queryByRole('form', { name: 'Invite an organizer' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Revoke the invitation/ })).toBeNull();
+  });
+
+  const PENDING = {
+    id: '66666666-6666-4666-8666-666666666666',
+    email: 'kim@example.com',
+    role: 'organizer',
+    status: 'pending',
+    invitedBy: 'nate@example.com',
+    createdAt: '2026-10-12T09:00:00.000Z',
+    expiresAt: '2026-10-19T09:00:00.000Z',
+    acceptedAt: null,
+    revokedAt: null,
+  };
+
+  it('the owner invites an organizer and revokes the pending invitation (slice 042)', async () => {
+    let invitations: unknown[] = [];
+    stubApi({
+      'GET /v1/orgs': () => ({ organizations: [ORG] }),
+      [`GET /v1/orgs/${ORG.id}`]: () => PROFILE,
+      [`GET /v1/orgs/${ORG.id}/members`]: () => MEMBERS,
+      [`GET /v1/orgs/${ORG.id}/invitations`]: () => ({ invitations }),
+      [`POST /v1/orgs/${ORG.id}/invitations`]: () => {
+        invitations = [PENDING];
+        return PENDING;
+      },
+      [`DELETE /v1/orgs/${ORG.id}/invitations/${PENDING.id}`]: () => {
+        const revoked = { ...PENDING, status: 'revoked', revokedAt: '2026-10-12T10:00:00.000Z' };
+        invitations = [revoked];
+        return revoked;
+      },
+    });
+    renderWithQuery(<SettingsPage />);
+    await screen.findByText('Live');
+    expect(await screen.findByText('No invitations yet.')).toBeTruthy();
+    const form = await screen.findByRole('form', { name: 'Invite an organizer' });
+    const send = within(form).getByRole('button', { name: 'Send invitation' }) as HTMLButtonElement;
+    expect(send.disabled).toBe(true);
+    fireEvent.change(within(form).getByLabelText('Email'), {
+      target: { value: 'kim@example.com' },
+    });
+    expect(send.disabled).toBe(false);
+    fireEvent.submit(form);
+    await waitFor(() =>
+      expect(screen.getByTestId('settings-invite-status').textContent).toBe(
+        'Invitation sent to kim@example.com.',
+      ),
+    );
+    const post = vi.mocked(fetch).mock.calls.find(([, init]) => init?.method === 'POST');
+    expect(JSON.parse(String(post?.[1]?.body))).toEqual({ email: 'kim@example.com' });
+    const row = await screen.findByTestId('invitation-pending');
+    expect(row.textContent).toContain('kim@example.com');
+    expect(row.textContent).toContain('Pending');
+    expect(row.textContent).toContain('Link works until 2026-10-19');
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Revoke the invitation of kim@example.com' }),
+    );
+    const revoked = await screen.findByTestId('invitation-revoked');
+    expect(revoked.textContent).toContain('Revoked');
+    expect(screen.queryByRole('button', { name: /^Revoke the invitation/ })).toBeNull();
   });
 });

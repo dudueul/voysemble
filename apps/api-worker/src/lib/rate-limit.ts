@@ -6,7 +6,9 @@
 // name), the caller's address when Cloudflare gives one (`cf-connecting-ip`; absent in the worker
 // tests and loopback under `wrangler dev`, so address limits never bite a developer or the
 // browser suite), and the signed-in account. A refused call
-// is 429 RATE_LIMITED with Retry-After, the same body shape as every other error.
+// is 429 RATE_LIMITED with Retry-After, the same body shape as every other error. Slice 042 adds
+// one authenticated endpoint that sends email on the caller's behalf (organizer invitations), capped
+// per organization.
 
 import type { Context } from 'hono';
 import { HTTPException } from 'hono/http-exception';
@@ -26,6 +28,8 @@ export const LIMITS = {
   redeemAccount: { limit: 10, windowSeconds: 3600 },
   /** Invite codes tried from one address: thirty per hour. */
   redeemIp: { limit: 30, windowSeconds: 3600 },
+  /** Organizer invitations sent by one organization (slice 042): twenty per hour, each an email. */
+  organizerInviteOrg: { limit: 20, windowSeconds: 3600 },
 } as const satisfies Record<string, Limit>;
 
 /** A 429 that carries how long to wait; app.ts turns it into the header. */

@@ -574,7 +574,8 @@ export const en = {
     wrapUp: 'Wrap-up window after trip close (days)',
     wrapUpHint: 'Personal data is crypto-shredded when the window ends. 30 to 365 days.',
     members: 'Members',
-    memberRule: 'Owners and organizers use this console. Leaders join by invite and use the app.',
+    memberRule:
+      'Owners and organizers use this console; the owner invites organizers by email. Leaders join by invite code and use the app.',
     liveSubtitle:
       'Organization profile, language, notification rules, retention, members. Saved on the API.',
     save: 'Save',
@@ -594,6 +595,50 @@ export const en = {
       string,
       string
     >,
+    inviteTitle: 'Invite an organizer',
+    inviteEmail: 'Email',
+    inviteHint:
+      'They get a link that works once, for 7 days, and must sign in with this address. Organizers run trips but cannot change these settings.',
+    inviteSend: 'Send invitation',
+    inviteSending: 'Sending…',
+    inviteSent: (email: string) => `Invitation sent to ${email}.`,
+    inviteFailed: 'Could not send the invitation.',
+    inviteExists: 'This address already organizes the organization.',
+    invitations: 'Invitations',
+    noInvitations: 'No invitations yet.',
+    invitationsLoadFailed: 'Could not load the invitations.',
+    invitationStatus: {
+      pending: 'Pending',
+      accepted: 'Accepted',
+      expired: 'Expired',
+      revoked: 'Revoked',
+    } as Record<string, string>,
+    invitationExpires: (date: string) => `Link works until ${date}`,
+    invitationSent: (date: string) => `Sent ${date}`,
+    revokeInvitation: 'Revoke',
+    revokeInvitationOf: (email: string) => `Revoke the invitation of ${email}`,
+    revokeFailed: 'Could not revoke the invitation.',
+  },
+  invitations: {
+    title: 'Organizer invitation',
+    signInFirst:
+      'Sign in with the address the invitation was sent to. You join the organization as soon as you are in.',
+    accepting: 'Joining the organization…',
+    acceptedTitle: (org: string) => `You now organize ${org}`,
+    acceptedBody:
+      'Its trips, people, communication and reports are yours to run from this console. Settings stay with the owner.',
+    alreadyTitle: (org: string) => `You already organize ${org}`,
+    alreadyBody: 'Nothing changed. The console is ready.',
+    openConsole: 'Open the console',
+    failedTitle: 'This invitation does not work',
+    invalid:
+      'It was revoked, expired after 7 days, or was never valid. Ask the owner for a new one.',
+    alreadyAccepted: 'It was already accepted. Sign in with that address to open the console.',
+    wrongAddress: (email: string) =>
+      `It was sent to another address. You are signed in as ${email}.`,
+    useAnother: 'Sign out and use another address',
+    missing: 'The link is incomplete. Open it from your email again.',
+    failed: (ref: string) => `Could not accept the invitation. Reference ${ref}.`,
   },
   placeholder: {
     title: (section: string) => `${section} is not built yet`,
