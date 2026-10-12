@@ -17,5 +17,6 @@ Founder directive: document details everywhere.
     desktop-1440, laptop-1280, tablet-1024, phone-390 (Playwright, `docs/captures/web/`,
     `docs/captures/public/`); Android at 412x915 light and dark (Roborazzi,
     `docs/captures/android/`); iOS at 393x852 (XCTest `CaptureTests`, `docs/captures/ios/`).
-    CI's `captures` job commits them back to the branch (`[skip ci]`), so pull before pushing.
-    The slice entry links the captures.
+    CI's `captures` job commits them back to the branch (`[skip ci]`), so pull before pushing and
+    never stage `docs/captures/` from a workstation (`git add -A -- . ':!docs/captures'`); local
+    runs only preview. The slice entry links the captures.

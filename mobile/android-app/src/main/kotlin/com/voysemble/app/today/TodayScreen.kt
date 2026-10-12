@@ -339,6 +339,10 @@ internal fun GuardianStatusCard(card: GuardianCard) {
         Text(card.headline, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = tone)
         Spacer(Modifier.height(4.dp))
         Text(card.detail, style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
+        card.balance?.let { b ->
+            Spacer(Modifier.height(4.dp))
+            Text(b, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+        }
         card.message?.let { m ->
             Spacer(Modifier.height(8.dp))
             Text(m, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.fillMaxWidth().background(c.action.copy(alpha = 0.1f), RoundedCornerShape(10.dp)).padding(10.dp))

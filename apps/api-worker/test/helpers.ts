@@ -54,6 +54,12 @@ export function api(client: Client | null) {
         headers,
         body: body === undefined ? null : JSON.stringify(body),
       }),
+    patch: (path: string, body?: unknown) =>
+      SELF.fetch(`https://example.com${path}`, {
+        method: 'PATCH',
+        headers,
+        body: body === undefined ? null : JSON.stringify(body),
+      }),
   };
 }
 

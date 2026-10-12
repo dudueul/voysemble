@@ -281,6 +281,94 @@ describe('sample sections', () => {
     expect(screen.queryByTestId('person-card')).toBeNull();
   });
 
+  it('Billing: live ledger with totals, set fee, save a payment, import CSV', async () => {
+    const base = `/v1/orgs/${ORG.id}/trips/${TRIP.id}`;
+    const posted: { url: string; body: unknown }[] = [];
+    let rows = [
+      {
+        participationId: 'p1',
+        displayName: 'Minji Park',
+        groupName: 'Bus A',
+        currency: 'KRW',
+        amountDueMinor: 450000,
+        paidMinor: 0,
+        refundedMinor: 0,
+        dueOn: '2026-11-30',
+        note: null,
+        status: 'unpaid',
+        updatedAt: '2026-10-12T00:00:00.000Z',
+        updatedByName: 'Owner',
+      },
+    ];
+    const ledger = () => ({
+      currency: 'KRW',
+      rows,
+      withoutFee: 0,
+      totals: {
+        expectedMinor: 450000,
+        collectedMinor: rows[0]?.paidMinor ?? 0,
+        refundedMinor: 0,
+        paid: rows[0]?.status === 'paid' ? 1 : 0,
+        partial: 0,
+        unpaid: rows[0]?.status === 'unpaid' ? 1 : 0,
+        refunded: 0,
+      },
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        const method = init?.method ?? 'GET';
+        if (method === 'GET' && url === '/v1/orgs') return Response.json({ organizations: [ORG] });
+        if (method === 'GET' && url === `/v1/orgs/${ORG.id}/trips`)
+          return Response.json({ trips: [TRIP] });
+        if (method === 'GET' && url === `${base}/fees`) return Response.json(ledger());
+        if (method === 'PATCH' && url === `${base}/fees/p1`) {
+          posted.push({ url, body: JSON.parse(String(init?.body)) });
+          rows = [{ ...(rows[0] as (typeof rows)[number]), paidMinor: 450000, status: 'paid' }];
+          return Response.json(rows[0]);
+        }
+        if (method === 'POST' && url === `${base}/fees/import`) {
+          posted.push({ url, body: JSON.parse(String(init?.body)) });
+          return Response.json({
+            applied: 1,
+            unmatched: ['Nobody'],
+            skipped: [],
+            ledger: ledger(),
+          });
+        }
+        return Response.json(
+          { error: { code: 'NOT_FOUND', message: url, correlationId: 't' } },
+          { status: 404 },
+        );
+      }),
+    );
+    renderWithQuery(<BillingPage />);
+    await waitFor(() => expect(screen.getByTestId('fee-p1')).toBeTruthy());
+    expect(screen.getByText('Live')).toBeTruthy();
+    expect(text(screen.getByTestId('ledger-collected'))).toBe('₩0 of ₩450,000 collected');
+    expect(text(screen.getByTestId('ledger-counts'))).toBe(
+      '0 paid · 0 partial · 1 unpaid · 0 refunded',
+    );
+    expect(text(screen.getByTestId('fee-p1'))).toContain('Unpaid');
+    fireEvent.change(screen.getByLabelText('Paid by Minji Park'), { target: { value: '450,000' } });
+    fireEvent.click(screen.getByLabelText('Save payment for Minji Park'));
+    await waitFor(() => expect(text(screen.getByTestId('fee-p1'))).toContain('Paid'));
+    expect(posted[0]).toEqual({ url: `${base}/fees/p1`, body: { paidMinor: 450000 } });
+    await waitFor(() =>
+      expect(text(screen.getByTestId('ledger-collected'))).toBe('₩450,000 of ₩450,000 collected'),
+    );
+    fireEvent.change(screen.getByLabelText('Bank CSV'), {
+      target: { value: 'name,paid\nNobody,1' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Import rows' }));
+    await waitFor(() =>
+      expect(text(screen.getByTestId('fee-import-status'))).toBe(
+        '1 row applied · unmatched: Nobody',
+      ),
+    );
+  });
+
   it('Communication: real announcements with ack counts, unacked names on demand, publish', async () => {
     const posted: unknown[] = [];
     stubApi({
@@ -472,7 +560,8 @@ describe('sample sections', () => {
   });
 
   it('Billing: ledger totals and per-row status chips', () => {
-    render(<BillingPage />);
+    stubApi({});
+    renderWithQuery(<BillingPage />);
     expect(text(screen.getByTestId('ledger-collected'))).toBe(
       '₩82,800,000 of ₩88,800,000 collected',
     );

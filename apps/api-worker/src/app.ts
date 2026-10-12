@@ -14,6 +14,7 @@ import type { AppEnv } from './env';
 import { mountAnnouncementRoutes } from './routes/announcements';
 import { mountAuthRoutes } from './routes/auth';
 import { mountDevRoutes } from './routes/dev';
+import { mountFeeRoutes } from './routes/fees';
 import { mountGuardianRoutes } from './routes/guardian';
 import { mountHeadcountRoutes } from './routes/headcounts';
 import { healthHandler, healthRoute } from './routes/health';
@@ -124,6 +125,7 @@ export function createApp(): OpenAPIHono<AppEnv> {
   mountItineraryRoutes(app);
   mountGuardianRoutes(app);
   mountPeopleRoutes(app);
+  mountFeeRoutes(app);
   mountDevRoutes(app);
   mountWellKnownRoutes(app);
 

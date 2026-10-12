@@ -17,6 +17,11 @@ import { DurableObject } from 'cloudflare:workers';
 import type {
   AckStatus,
   Announcement,
+  ApplyFeeRequest,
+  Currency,
+  FeeLedger,
+  FeeRow,
+  GuardianFee,
   GuardianStatus,
   HeadcountMark,
   HeadcountSession,
@@ -33,7 +38,9 @@ import type {
   TravelerCountStatus,
   Trip,
   TripRole,
+  UpdateFeeRequest,
 } from '@voysemble/contracts';
+import { feeStatusOf } from '@voysemble/contracts';
 import { nowIso } from '../lib/time';
 
 /** Versioned, idempotent schema steps. Append only; never edit an applied step. */
@@ -232,6 +239,26 @@ const MIGRATIONS: { version: number; sql: string }[] = [
       ALTER TABLE itinerary_revisions ADD COLUMN diff TEXT;
       ALTER TABLE announcements ADD COLUMN kind TEXT NOT NULL DEFAULT 'announcement';
       ALTER TABLE announcements ADD COLUMN revision INTEGER;
+    `,
+  },
+  {
+    // Slice 027: traveler fee ledger (D23). One row per traveler; amounts in minor units (tier 1,
+    // operational: no card data, no bank identifiers, only what the organizer records).
+    version: 10,
+    sql: `
+      CREATE TABLE IF NOT EXISTS fees (
+        participation_id TEXT PRIMARY KEY REFERENCES participations(id),
+        trip_id TEXT NOT NULL REFERENCES trips(id),
+        currency TEXT NOT NULL,
+        amount_due_minor INTEGER NOT NULL,
+        paid_minor INTEGER NOT NULL DEFAULT 0,
+        refunded_minor INTEGER NOT NULL DEFAULT 0,
+        due_on TEXT,
+        note TEXT,
+        updated_at TEXT NOT NULL,
+        updated_by_name TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS fees_trip_idx ON fees(trip_id);
     `,
   },
 ];
@@ -439,6 +466,21 @@ type IncidentRow = {
   guardian_message_ko: string | null;
   guardian_message_sent_at: string | null;
   guardian_message_by_name: string | null;
+};
+
+type FeeRowRecord = {
+  participation_id: string;
+  trip_id: string;
+  currency: string;
+  amount_due_minor: number;
+  paid_minor: number;
+  refunded_minor: number;
+  due_on: string | null;
+  note: string | null;
+  updated_at: string;
+  updated_by_name: string;
+  display_name: string;
+  group_name: string | null;
 };
 
 type ConfirmationRow = {
@@ -1632,6 +1674,224 @@ export class OrgDurableObject extends DurableObject<Env> {
           }
         : null,
       itineraryRevision: this.latestRevision(tripId)?.revision ?? 0,
+      fee: this.feeForTraveler(traveler.id),
+    };
+  }
+
+  /* ---------- Fee ledger (slice 027, D23) ---------- */
+
+  private feeRowFromRow(r: FeeRowRecord): FeeRow {
+    return {
+      participationId: r.participation_id,
+      displayName: r.display_name,
+      groupName: r.group_name,
+      currency: r.currency as Currency,
+      amountDueMinor: r.amount_due_minor,
+      paidMinor: r.paid_minor,
+      refundedMinor: r.refunded_minor,
+      dueOn: r.due_on,
+      note: r.note,
+      status: feeStatusOf(r.amount_due_minor, r.paid_minor, r.refunded_minor),
+      updatedAt: r.updated_at,
+      updatedByName: r.updated_by_name,
+    };
+  }
+
+  /** The ledger: every traveler with a fee row, grouped like the roster, with totals. */
+  async listFees(tripId: string): Promise<FeeLedger> {
+    this.requireOrg();
+    const sql = this.ctx.storage.sql;
+    const rows = sql
+      .exec<FeeRowRecord>(
+        `SELECT f.*, p.display_name, p.group_name FROM fees f JOIN participations p ON p.id = f.participation_id
+         WHERE f.trip_id = ? ORDER BY p.group_name, p.display_name`,
+        tripId,
+      )
+      .toArray()
+      .map((r) => this.feeRowFromRow(r));
+    const travelers = sql
+      .exec<{ n: number }>(
+        "SELECT COUNT(*) AS n FROM participations WHERE trip_id = ? AND role = 'traveler'",
+        tripId,
+      )
+      .toArray()[0]?.n;
+    const count = (status: FeeRow['status']) => rows.filter((r) => r.status === status).length;
+    return {
+      currency: rows[0]?.currency ?? 'KRW',
+      rows,
+      withoutFee: Math.max(0, (travelers ?? 0) - rows.length),
+      totals: {
+        expectedMinor: rows.reduce((n, r) => n + r.amountDueMinor, 0),
+        collectedMinor: rows.reduce((n, r) => n + Math.max(0, r.paidMinor - r.refundedMinor), 0),
+        refundedMinor: rows.reduce((n, r) => n + r.refundedMinor, 0),
+        paid: count('paid'),
+        partial: count('partial'),
+        unpaid: count('unpaid'),
+        refunded: count('refunded'),
+      },
+    };
+  }
+
+  /** Set the fee for every traveler (only those without a row unless told otherwise); paid amounts stay. */
+  async applyFee(tripId: string, input: ApplyFeeRequest, byName: string): Promise<FeeLedger> {
+    this.requireOrg();
+    const sql = this.ctx.storage.sql;
+    const now = nowIso();
+    const travelers = sql
+      .exec<{ id: string }>(
+        "SELECT id FROM participations WHERE trip_id = ? AND role = 'traveler'",
+        tripId,
+      )
+      .toArray();
+    this.ctx.storage.transactionSync(() => {
+      for (const t of travelers) {
+        const existing = sql
+          .exec<{ participation_id: string }>(
+            'SELECT participation_id FROM fees WHERE participation_id = ?',
+            t.id,
+          )
+          .toArray()[0];
+        if (existing) {
+          if (input.onlyWithoutFee) continue;
+          sql.exec(
+            'UPDATE fees SET currency = ?, amount_due_minor = ?, due_on = ?, updated_at = ?, updated_by_name = ? WHERE participation_id = ?',
+            input.currency,
+            input.amountDueMinor,
+            input.dueOn,
+            now,
+            byName,
+            t.id,
+          );
+        } else {
+          sql.exec(
+            'INSERT INTO fees (participation_id, trip_id, currency, amount_due_minor, paid_minor, refunded_minor, due_on, note, updated_at, updated_by_name) VALUES (?, ?, ?, ?, 0, 0, ?, NULL, ?, ?)',
+            t.id,
+            tripId,
+            input.currency,
+            input.amountDueMinor,
+            input.dueOn,
+            now,
+            byName,
+          );
+        }
+      }
+    });
+    return this.listFees(tripId);
+  }
+
+  /** Change one traveler's row; a traveler without a row gets one (amount due defaults to 0). */
+  async updateFee(
+    tripId: string,
+    participationId: string,
+    patch: UpdateFeeRequest,
+    byName: string,
+  ): Promise<FeeRow | { notFound: true }> {
+    this.requireOrg();
+    const sql = this.ctx.storage.sql;
+    const traveler = sql
+      .exec<ParticipationRow>(
+        "SELECT * FROM participations WHERE id = ? AND trip_id = ? AND role = 'traveler'",
+        participationId,
+        tripId,
+      )
+      .toArray()[0];
+    if (!traveler) return { notFound: true };
+    const now = nowIso();
+    const current = sql
+      .exec<FeeRowRecord>(
+        'SELECT f.*, p.display_name, p.group_name FROM fees f JOIN participations p ON p.id = f.participation_id WHERE f.participation_id = ?',
+        participationId,
+      )
+      .toArray()[0];
+    const ledgerCurrency =
+      sql
+        .exec<{ currency: string }>('SELECT currency FROM fees WHERE trip_id = ? LIMIT 1', tripId)
+        .toArray()[0]?.currency ?? 'KRW';
+    const next = {
+      currency: current?.currency ?? ledgerCurrency,
+      amount_due_minor: patch.amountDueMinor ?? current?.amount_due_minor ?? 0,
+      paid_minor: patch.paidMinor ?? current?.paid_minor ?? 0,
+      refunded_minor: patch.refundedMinor ?? current?.refunded_minor ?? 0,
+      due_on: patch.dueOn === undefined ? (current?.due_on ?? null) : patch.dueOn,
+      note: patch.note === undefined ? (current?.note ?? null) : patch.note,
+    };
+    sql.exec(
+      `INSERT INTO fees (participation_id, trip_id, currency, amount_due_minor, paid_minor, refunded_minor, due_on, note, updated_at, updated_by_name)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(participation_id) DO UPDATE SET currency = excluded.currency, amount_due_minor = excluded.amount_due_minor,
+         paid_minor = excluded.paid_minor, refunded_minor = excluded.refunded_minor, due_on = excluded.due_on, note = excluded.note,
+         updated_at = excluded.updated_at, updated_by_name = excluded.updated_by_name`,
+      participationId,
+      tripId,
+      next.currency,
+      next.amount_due_minor,
+      next.paid_minor,
+      next.refunded_minor,
+      next.due_on,
+      next.note,
+      now,
+      byName,
+    );
+    const row = sql
+      .exec<FeeRowRecord>(
+        'SELECT f.*, p.display_name, p.group_name FROM fees f JOIN participations p ON p.id = f.participation_id WHERE f.participation_id = ?',
+        participationId,
+      )
+      .toArray()[0];
+    return this.feeRowFromRow(row as FeeRowRecord);
+  }
+
+  /**
+   * Bank export rows matched to travelers by roster name (case and spaces ignored). `paidMinor`
+   * is the total paid so far (idempotent). Unmatched names are returned, never guessed.
+   */
+  async importPayments(
+    tripId: string,
+    entries: { name: string; paidMinor: number; note: string | null }[],
+    byName: string,
+  ): Promise<{ applied: number; unmatched: string[] }> {
+    this.requireOrg();
+    const travelers = this.ctx.storage.sql
+      .exec<ParticipationRow>(
+        "SELECT * FROM participations WHERE trip_id = ? AND role = 'traveler'",
+        tripId,
+      )
+      .toArray();
+    const key = (name: string) => name.trim().toLowerCase().replace(/\s+/g, ' ');
+    const byKey = new Map(travelers.map((t) => [key(t.display_name), t.id]));
+    const unmatched: string[] = [];
+    let applied = 0;
+    for (const e of entries) {
+      const id = byKey.get(key(e.name));
+      if (!id) {
+        unmatched.push(e.name);
+        continue;
+      }
+      const patch: UpdateFeeRequest = { paidMinor: e.paidMinor };
+      if (e.note !== null) patch.note = e.note;
+      await this.updateFee(tripId, id, patch, byName);
+      applied += 1;
+    }
+    return { applied, unmatched };
+  }
+
+  /** The guardian's view of their traveler's fee (D23); null until a row exists. */
+  private feeForTraveler(participationId: string): GuardianFee | null {
+    const r = this.ctx.storage.sql
+      .exec<FeeRowRecord>(
+        'SELECT f.*, p.display_name, p.group_name FROM fees f JOIN participations p ON p.id = f.participation_id WHERE f.participation_id = ?',
+        participationId,
+      )
+      .toArray()[0];
+    if (!r) return null;
+    return {
+      currency: r.currency as Currency,
+      amountDueMinor: r.amount_due_minor,
+      paidMinor: r.paid_minor,
+      refundedMinor: r.refunded_minor,
+      balanceMinor: Math.max(0, r.amount_due_minor - r.paid_minor + r.refunded_minor),
+      dueOn: r.due_on,
+      status: feeStatusOf(r.amount_due_minor, r.paid_minor, r.refunded_minor),
     };
   }
 

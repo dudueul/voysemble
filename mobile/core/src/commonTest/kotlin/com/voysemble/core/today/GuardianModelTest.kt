@@ -58,4 +58,20 @@ class GuardianModelTest {
         assertEquals("Excused", guardianCardOf(status(present.copy(status = "excused"))).headline)
         assertEquals("아직 인원 점검 전입니다", guardianCardOf(status(GuardianCountDto("not_counted", closed = false)), "ko").headline)
     }
+
+    @Test
+    fun balance_line_and_money_format() {
+        assertEquals("₩450,000", formatMinor(450_000, "KRW"))
+        assertEquals("₩0", formatMinor(0, "KRW"))
+        assertEquals("$120.50", formatMinor(12_050, "USD"))
+        assertEquals("€1,234.05", formatMinor(123_405, "EUR"))
+        assertEquals("¥1,500", formatMinor(1_500, "JPY"))
+        val unpaid = com.voysemble.core.api.GuardianFeeDto("KRW", 450_000, 0, 0, 450_000, "2026-11-30", "unpaid")
+        assertEquals("Balance ₩450,000 · due 2026-11-30", feeLineOf(unpaid, "en"))
+        assertEquals("잔액 ₩450,000 · 2026-11-30까지", feeLineOf(unpaid, "ko"))
+        assertEquals("Paid in full", feeLineOf(unpaid.copy(paidMinor = 450_000, balanceMinor = 0, status = "paid"), "en"))
+        assertEquals("₩450,000 refunded", feeLineOf(unpaid.copy(paidMinor = 450_000, refundedMinor = 450_000, status = "refunded"), "en"))
+        assertEquals("Balance ₩450,000 · due 2026-11-30", guardianCardOf(status(present).copy(fee = unpaid)).balance)
+        assertNull(guardianCardOf(status(present)).balance)
+    }
 }

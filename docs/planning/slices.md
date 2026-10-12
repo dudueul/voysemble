@@ -813,7 +813,7 @@ Not done: proposing from iOS, the meeting window on the API, live captures on th
 
 ## Slice 025: guardian status on Today
 
-Status: done 2026-10-12. Commit `01b4875`. CI: pending at commit time; the run id is recorded in the next commit once verified (verification notes ride on the next feature commit rather than a docs-only push, to spare macOS minutes).
+Status: done 2026-10-12. Commit `01b4875`. **CI verified**: run 38197798818 green (mobile incl. TodayScreenshotTest `today_guardian` and the guardian view model case, ios incl. the `today-guardian` capture, web), 2026-10-12 03:09 UTC. First push green.
 Spec: D13 (guardians see status, not coordinates), D25 (missing at close), D17 (the guardian message), D15 (no location). Details: `docs/engineering/guardian.md`.
 
 | Gate | Command | Result |
@@ -840,7 +840,7 @@ Not done: guardian Bulletin filtering on the phone UI, the approved album, the f
 
 ## Slice 026: person card and timeline
 
-Status: done 2026-10-12. Commit: see git log (`feat(people): person card and timeline ...`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit `d9aef43`. **CI verified**: run 38198495505 green (web incl. people.spec.ts with the card, mobile, ios), 2026-10-12 03:15 UTC. First push green.
 Spec: D17 (per-person timeline: syncs, head counts, acks, notes), D12 (guardian links), D27/D28 named as placeholders. Details: `docs/engineering/identity-and-roster.md` (slice 026 section).
 
 | Gate | Command | Result |
@@ -861,3 +861,32 @@ Built:
 - Docs: roster doc section, captures README, feature flags (`incident.person-timeline`, `web.people.person-card`).
 
 Not done: deep links from entries to the announcement, head count or incident; care notes; device revocation.
+
+## Slice 027: traveler fee ledger
+
+Status: done 2026-10-12. Commit: see git log (`feat(fees): traveler fee ledger ...`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D23 (fees as a ledger, organizer-only billing, guardians see their balance, no card data). Details: `docs/engineering/fees.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 18 files, 54 tests (adds fees.test.ts: 2) |
+| Core JVM tests | `./gradlew :core:jvmTest -Pvoysemble.android=false` | 50 tests (GuardianModelTest adds the balance case) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 13 files, 71 tests (fees-api: 3; live Billing: 1) |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e` | adds `billing.spec.ts`; capture `billing-live.png` |
+| Android + iOS | CI `mobile` and `ios` jobs | guardian captures carry the balance line |
+
+Facts established by tests: see the engineering doc.
+
+Built:
+- Contracts `Currency`, `FeeStatus`, `FeeRow`, `FeeLedger`, `ApplyFeeRequest`, `UpdateFeeRequest`, `FeeImportRequest`,
+  `FeeImportResponse`, `GuardianFee`, and the shared `feeStatusOf` / `minorUnitsOf` rules; OrgDO schema v10 `fees`,
+  `listFees`, `applyFee`, `updateFee`, `importPayments`, `feeForTraveler` (on the guardian status); routes list,
+  apply, patch, import (owner/organizer).
+- Console: `fees-api.ts` (queries, mutations, `formatMoney`, `parseMoney`, `toMajor`), live Billing page (set-fee
+  form, editable paid amounts, bank CSV import, totals), strings, styles.
+- Core `GuardianFeeDto`, `formatMinor`, `feeLineOf`, `GuardianCard.balance`; Android and iOS guardian cards show it.
+- Docs: `fees.md`, captures README (and the rule to never stage captures locally), feature flags
+  (`billing.fee-ledger`, `guardian.balance`, `web.billing` working).
+
+Not done: Stripe for the organizer's license, per-traveler Checkout links, ledger CSV export.

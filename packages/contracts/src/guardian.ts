@@ -6,6 +6,7 @@
 
 import { z } from '@hono/zod-openapi';
 import { Id, Timestamp } from './common';
+import { GuardianFee } from './fees';
 import { GuardianMessage, IncidentStatus } from './incident';
 import { DisplayName, GroupName } from './roster';
 
@@ -45,6 +46,8 @@ export const GuardianStatus = z
       .nullable(),
     /** Published itinerary revision the guardian can read; 0 before the first publish. */
     itineraryRevision: z.number().int(),
+    /** The traveler's fee as the guardian may see it (D23); null until the organizer sets one. */
+    fee: GuardianFee.nullable(),
   })
   .openapi('GuardianStatus');
 export type GuardianStatus = z.infer<typeof GuardianStatus>;

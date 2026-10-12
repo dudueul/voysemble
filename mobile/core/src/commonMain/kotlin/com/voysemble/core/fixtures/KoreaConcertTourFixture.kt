@@ -8,6 +8,7 @@ package com.voysemble.core.fixtures
 import com.voysemble.core.announcements.AnnouncementFeed
 import com.voysemble.core.announcements.AnnouncementItem
 import com.voysemble.core.api.GuardianCountDto
+import com.voysemble.core.api.GuardianFeeDto
 import com.voysemble.core.api.GuardianStatusDto
 import com.voysemble.core.api.GuardianTravelerDto
 import com.voysemble.core.headcount.HeadcountMark
@@ -198,6 +199,7 @@ public object KoreaConcertTourFixture {
         count = GuardianCountDto("present", "hc_busA_20261231_0650", "Bus A", closed = false, atDevice = "06:52", byName = "Kim Daeun", receivedAt = "2026-12-31T05:52:30.000Z"),
         incident = null,
         itineraryRevision = 7,
+        fee = GuardianFeeDto("KRW", 2_400_000, 1_200_000, 0, 1_200_000, "2026-11-30", "partial"),
     )
 
     public fun guardianCard(locale: String = "en"): GuardianCard = guardianCardOf(guardianStatus(), locale)

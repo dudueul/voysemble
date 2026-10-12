@@ -48,7 +48,7 @@ const KNOWN: ReadonlySet<string> = new Set([
 
 export async function api<T>(
   path: string,
-  init: { method?: 'GET' | 'POST' | 'PUT' | 'DELETE'; body?: unknown } = {},
+  init: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown } = {},
 ): Promise<T> {
   let res: Response;
   try {

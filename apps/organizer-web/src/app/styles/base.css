@@ -2339,3 +2339,21 @@ fieldset.filters {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ---------- Billing: live ledger inputs (slice 027) ---------- */
+.field__row--tight {
+  gap: 6px;
+  align-items: center;
+}
+
+.field__input--sm {
+  width: 120px;
+  padding: 4px 8px;
+}
+
+.form--inline {
+  margin: 12px 0 16px;
+  padding: 12px;
+  border: 1px dashed var(--vy-border);
+  border-radius: var(--vy-radius-control);
+}

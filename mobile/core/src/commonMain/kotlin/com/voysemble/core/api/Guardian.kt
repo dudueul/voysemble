@@ -33,10 +33,24 @@ public data class GuardianIncidentDto(
     val message: GuardianMessageDto? = null,
 )
 
+/** The traveler's fee as the guardian may see it (D23): amounts in minor units. */
+@Serializable
+public data class GuardianFeeDto(
+    val currency: String,
+    val amountDueMinor: Long,
+    val paidMinor: Long,
+    val refundedMinor: Long,
+    val balanceMinor: Long,
+    val dueOn: String? = null,
+    /** unpaid | partial | paid | refunded */
+    val status: String,
+)
+
 @Serializable
 public data class GuardianStatusDto(
     val traveler: GuardianTravelerDto,
     val count: GuardianCountDto,
     val incident: GuardianIncidentDto? = null,
     val itineraryRevision: Int,
+    val fee: GuardianFeeDto? = null,
 )

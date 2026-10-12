@@ -36,7 +36,7 @@
     "itinerary.disruption-ai": "deferred",
     "retention.crypto-shred": "deferred",
     "chat.fixed-channels": "deferred",
-    "billing.fee-ledger": "deferred",
+    "billing.fee-ledger": "working",
     "roster.care-notes": "deferred",
     "documents.sealed-links": "deferred",
     "devices.revoke-wipe": "deferred",
@@ -61,7 +61,7 @@
     "web.media": "simulated",
     "web.preparation": "simulated",
     "web.reports": "simulated",
-    "web.billing": "simulated",
+    "web.billing": "working",
     "web.settings": "simulated",
     "web.responsive-layout": "working",
     "mobile.headcount": "working",
@@ -104,6 +104,7 @@
     "roster.invite-status": "working",
     "mobile.bulletin.ios-live": "working",
     "mobile.today.guardian": "working",
-    "web.people.person-card": "working"
+    "web.people.person-card": "working",
+    "guardian.balance": "working"
   }
 }

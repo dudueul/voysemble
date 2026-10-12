@@ -204,6 +204,9 @@ private struct GuardianStatusCard: View {
             }
             Text(card.headline).font(.headline).foregroundStyle(Color(argb: tone)).padding(.top, 6)
             Text(card.detail).font(.subheadline).foregroundStyle(.secondary).padding(.top, 2)
+            if let balance = card.balance {
+                Text(balance).font(.subheadline.weight(.semibold)).padding(.top, 4)
+            }
             if let message = card.message {
                 Text(message).font(.subheadline)
                     .padding(10)

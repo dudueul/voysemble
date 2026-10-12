@@ -65,6 +65,7 @@ class TodayScreenshotTest {
         }
         compose.onNodeWithText("Counted present").assertExists()
         compose.onNodeWithText("Bus A · 06:52 · by Kim Daeun").assertExists()
+        compose.onNodeWithText("Balance ₩1,200,000 · due 2026-11-30").assertExists()
         compose.onAllNodesWithText("Open head count").assertCountEquals(0)
         compose.onRoot().captureRoboImage("$OUT/today-guardian.png")
     }

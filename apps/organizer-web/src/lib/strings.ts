@@ -398,6 +398,40 @@ export const strings = {
     },
     ledgerRule:
       'Guardians see their own balance and due date on mobile. Collection stays with your bank.',
+    noTrip: 'Create an organization and a trip first.',
+    loading: 'Loading the ledger…',
+    loadFailed: 'Could not load the ledger.',
+    empty: 'No fee set yet. Set one for every traveler below.',
+    withoutFee: (n: number) =>
+      n === 1 ? '1 traveler has no fee yet.' : `${n} travelers have no fee yet.`,
+    setFee: 'Set the fee',
+    setFeeHint: 'One amount for every traveler. What was already paid stays.',
+    amount: 'Amount',
+    currency: 'Currency',
+    dueOn: 'Due on',
+    onlyWithoutFee: 'Only travelers without a fee',
+    applyFee: 'Apply to travelers',
+    applied: (n: number) => `Fee set for ${n} ${n === 1 ? 'traveler' : 'travelers'}.`,
+    badAmount: 'Enter an amount as a number.',
+    paidInput: (name: string) => `Paid by ${name}`,
+    savePaid: (name: string) => `Save payment for ${name}`,
+    saved: (name: string) => `Saved ${name}.`,
+    saveFailed: 'Could not save the row.',
+    colDue: 'Due',
+    importTitle: 'Import bank CSV',
+    importHint:
+      'Columns: name, paid, note. "paid" is the total paid so far, so importing the same file twice is harmless.',
+    csvLabel: 'Bank CSV',
+    importRows: 'Import rows',
+    imported: (n: number, unmatched: string[], skipped: number) =>
+      [
+        `${n} ${n === 1 ? 'row' : 'rows'} applied`,
+        unmatched.length ? `unmatched: ${unmatched.join(', ')}` : null,
+        skipped ? `${skipped} skipped` : null,
+      ]
+        .filter(Boolean)
+        .join(' · '),
+    importFailed: 'Could not import the CSV.',
     plan: 'Voysemble plan',
     planName: 'Plan',
     seats: 'Seats',

@@ -7,6 +7,7 @@
 
 package com.voysemble.core.today
 
+import com.voysemble.core.api.GuardianFeeDto
 import com.voysemble.core.api.GuardianStatusDto
 
 public enum class GuardianTone { CALM, GOOD, ATTENTION }
@@ -19,7 +20,34 @@ public data class GuardianCard(
     val tone: GuardianTone,
     /** The organizer's guardian message, once sent, in the reader's language. */
     val message: String?,
+    /** The fee line (D23): the balance and due date, or "paid in full"; null until a fee is set. */
+    val balance: String? = null,
 )
+
+/** Minor units in the currency's own format without platform formatters: ₩450,000, $120.50, €0.00, ¥1,500. */
+public fun formatMinor(minor: Long, currency: String): String {
+    val exponent = if (currency == "KRW" || currency == "JPY") 0 else 2
+    val symbol = when (currency) { "KRW" -> "₩"; "USD" -> "$"; "EUR" -> "€"; "JPY" -> "¥"; else -> "$currency " }
+    val divisor = if (exponent == 0) 1L else 100L
+    val major = minor / divisor
+    val cents = (minor % divisor).toString().padStart(exponent, '0')
+    val grouped = major.toString().reversed().chunked(3).joinToString(",").reversed()
+    return if (exponent == 0) "$symbol$grouped" else "$symbol$grouped.$cents"
+}
+
+/** The fee line for the guardian card in the reader's language. */
+public fun feeLineOf(fee: GuardianFeeDto, locale: String): String {
+    val ko = locale == "ko"
+    return when (fee.status) {
+        "paid" -> if (ko) "납부 완료" else "Paid in full"
+        "refunded" -> if (ko) "${formatMinor(fee.refundedMinor, fee.currency)} 환불됨" else "${formatMinor(fee.refundedMinor, fee.currency)} refunded"
+        else -> {
+            val amount = formatMinor(fee.balanceMinor, fee.currency)
+            val due = fee.dueOn?.let { if (ko) " · ${it}까지" else " · due $it" } ?: ""
+            if (ko) "잔액 $amount$due" else "Balance $amount$due"
+        }
+    }
+}
 
 /** `clock` renders an ISO instant as local HH:mm (incident open time); `locale` is "ko" or "en". */
 public fun guardianCardOf(status: GuardianStatusDto, locale: String = "en", clock: (iso: String) -> String = { it }): GuardianCard {
@@ -31,11 +59,28 @@ public fun guardianCardOf(status: GuardianStatusDto, locale: String = "en", cloc
     val incident = status.incident
     val message = incident?.message?.let { if (ko) it.bodyKo else it.bodyEn }
     val resolved = incident?.status == "resolved"
+    val balance = status.fee?.let { feeLineOf(it, locale) }
+    return cardWithoutFee(status, locale, clock, t, c, group, where, incident, message, resolved).copy(balance = balance)
+}
+
+private fun cardWithoutFee(
+    status: GuardianStatusDto,
+    locale: String,
+    clock: (iso: String) -> String,
+    t: com.voysemble.core.api.GuardianTravelerDto,
+    c: com.voysemble.core.api.GuardianCountDto,
+    group: String,
+    where: String,
+    incident: com.voysemble.core.api.GuardianIncidentDto?,
+    message: String?,
+    resolved: Boolean,
+): GuardianCard {
+    val ko = locale == "ko"
     return when {
         message != null -> GuardianCard(
             t.displayName, t.groupName,
             headline = if (ko) "인솔자의 확인 소식" else "Update from the leaders",
-            detail = if (ko) "${clock(incident.openedAt)}에 열린 확인 요청" else "Opened at ${clock(incident.openedAt)}",
+            detail = if (ko) "${clock(incident?.openedAt ?: "")}에 열린 확인 요청" else "Opened at ${clock(incident?.openedAt ?: "")}",
             tone = if (resolved) GuardianTone.GOOD else GuardianTone.ATTENTION,
             message = message,
         )
