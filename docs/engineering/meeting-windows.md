@@ -49,9 +49,8 @@ place, radius, start, end, groups, meeting point) and the recent closed windows 
 "Earlier windows". The list is polled every 30 seconds while the page is open. Without a trip the
 fixture card shows with its "Sample data" chip. Evidence: `web/<project>/safety-window-live.png`.
 
-The organizer opening a window from the console is this slice's way to make the feature usable
-end to end; the leader's "open a window" screen on the phone is not built yet (the traveler side
-is). The console form takes the meeting point as numbers because there are no map tiles (D15).
+The organizer can open a window from the console too; the console form takes the meeting point as
+numbers because there are no map tiles (D15). Leaders open windows from the phone (slice 032, below).
 
 ## Phones
 
@@ -64,6 +63,12 @@ fixture): the current window from the API, the schematic map from the states, th
 - Switch off: send `opted_out` and stop reading fixes.
 - No window open or scheduled: "No meeting window is open right now." with the live chip.
 - A closed window (409) shows "This window has ended."; an unreachable server says offline.
+- Leader (slice 032): without a window the screen offers "Open a window here": label, place, radius
+  (200 m), duration (30 min), groups (prefilled with the leader's own group from the roster; empty
+  means every traveler). The phone's fix is the meeting point, read once when the leader presses
+  the button (the leader stands where the group should gather); without a fix nothing is sent and
+  the screen says so. While a window is open the leader has "Close window now". Evidence:
+  `android/window-open-form.png`, `ios/window-open-form.png`.
 
 | Piece | Android | iOS |
 |---|---|---|
@@ -90,5 +95,5 @@ read only while the screen is on and the switch is on.
 
 ## Not done
 
-Leader "open a window" on the phone; a window per itinerary event (one tap from "Meeting point" on
-Today); push to travelers when a window opens; Korean strings on the phones.
+A window per itinerary event (one tap from "Meeting point" on Today); push to travelers when a
+window opens; Korean strings on the phones.

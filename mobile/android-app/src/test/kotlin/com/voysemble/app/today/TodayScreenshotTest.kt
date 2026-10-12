@@ -15,6 +15,7 @@ import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.voysemble.app.ui.VoysembleTheme
+import com.voysemble.core.api.CareNoteStatusDto
 import com.voysemble.core.fixtures.KoreaConcertTourFixture
 import org.junit.Rule
 import org.junit.Test
@@ -68,6 +69,28 @@ class TodayScreenshotTest {
         compose.onNodeWithText("Balance ₩1,200,000 · due 2026-11-30").assertExists()
         compose.onAllNodesWithText("Open head count").assertCountEquals(0)
         compose.onRoot().captureRoboImage("$OUT/today-guardian.png")
+    }
+
+    @Test
+    fun today_guardian_editing_care_note() {
+        // Slice 032 (D27): the guardian's care-note card in edit mode, prefilled from a reveal.
+        val care = GuardianCareState(
+            travelerId = "t1",
+            status = CareNoteStatusDto("t1", hasCareNote = true, updatedAt = "2026-12-30T10:00:00.000Z", updatedByName = "Sora Park", reveals = 2),
+            draft = KoreaConcertTourFixture.careNote(),
+        )
+        compose.setContent {
+            VoysembleTheme(darkTheme = false) {
+                TodayScreen(
+                    state = TodayUiState(KoreaConcertTourFixture.today(), live = true, guardian = KoreaConcertTourFixture.guardianCard(), care = care),
+                    onAcknowledge = {},
+                    onSelectTab = {},
+                )
+            }
+        }
+        compose.onNodeWithText("On file · 2 reveals").assertExists()
+        compose.onNodeWithText("Save care note").assertExists()
+        compose.onRoot().captureRoboImage("$OUT/today-guardian-care.png")
     }
 
     @Test

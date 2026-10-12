@@ -46,6 +46,25 @@ class MeetingWindowScreenshotTest {
     }
 
     @Test
+    fun window_open_form_for_a_leader_light() {
+        // Slice 032: a leader on a trip without a window sees the form to open one here.
+        compose.setContent {
+            VoysembleTheme(darkTheme = false) {
+                MeetingWindowScreen(
+                    window = null,
+                    now = "10:45",
+                    status = WindowScreenStatus(live = true, canOpen = true, ownGroup = "Bus A"),
+                    onSharingChange = {},
+                    onBack = {},
+                )
+            }
+        }
+        compose.onNodeWithText("Open window here").assertExists()
+        compose.onNodeWithText("Bus A").assertExists()
+        compose.onRoot().captureRoboImage("$OUT/window-open-form.png")
+    }
+
+    @Test
     fun window_none_light() {
         // Slice 029: a trip without an open or scheduled window.
         val vm = MeetingWindowViewModel(initial = null)

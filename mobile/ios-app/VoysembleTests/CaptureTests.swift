@@ -27,6 +27,14 @@ final class CaptureTests: XCTestCase {
     func testTodayGuardian() throws {
         // D13: the guardian's card in place of the head count and leader links.
         try capture(TodayView(model: TodayModel(guardian: KoreaConcertTourFixture.shared.guardianCard(locale: "en"))), name: "today-guardian")
+        // Slice 032 (D27): the guardian's care-note card in edit mode, prefilled from a reveal.
+        let status = CareNoteStatusDto(participationId: "t1", hasCareNote: true, updatedAt: "2026-12-30T10:00:00.000Z", updatedByName: "Sora Park", reveals: 2)
+        let editing = TodayModel(
+            guardian: KoreaConcertTourFixture.shared.guardianCard(locale: "en"),
+            careStatus: status,
+            careDraft: KoreaConcertTourFixture.shared.careNote(),
+        )
+        try capture(TodayView(model: editing), name: "today-guardian-care")
     }
 
     func testHeadcountOpenAndClosed() throws {
@@ -55,6 +63,8 @@ final class CaptureTests: XCTestCase {
         sharing.setSharing(true)
         try capture(NavigationStack { MeetingWindowView(model: sharing) }, name: "window-sharing-dark", scheme: .dark)
         try capture(NavigationStack { MeetingWindowView(model: MeetingWindowModel(window: nil)) }, name: "window-none")
+        // Slice 032: a leader without a window sees the form to open one here.
+        try capture(NavigationStack { MeetingWindowView(model: MeetingWindowModel(window: nil, canOpen: true)) }, name: "window-open-form")
     }
 
     func testSignInAndInvite() throws {

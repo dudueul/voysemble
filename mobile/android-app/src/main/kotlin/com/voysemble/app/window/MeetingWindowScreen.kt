@@ -10,6 +10,15 @@ package com.voysemble.app.window
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Button
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -55,7 +64,18 @@ import com.voysemble.core.window.MeetingWindow
 import com.voysemble.core.window.WindowState
 
 /** Live/sample status for the header chip and the error line; the default is the fixture. */
-data class WindowScreenStatus(val live: Boolean = false, val syncing: Boolean = false, val error: String? = null)
+data class WindowScreenStatus(
+    val live: Boolean = false,
+    val syncing: Boolean = false,
+    val error: String? = null,
+    /** A leader may open a window here and close the current one (slice 032). */
+    val canOpen: Boolean = false,
+    val ownGroup: String? = null,
+    val opening: Boolean = false,
+)
+
+/** What the leader typed into the open form; the meeting point is the phone's fix. */
+data class WindowDraft(val label: String, val place: String, val radiusMeters: Int, val minutes: Int, val groups: List<String>)
 
 @Composable
 fun MeetingWindowRoute(vm: MeetingWindowViewModel, onBack: () -> Unit) {
@@ -63,15 +83,30 @@ fun MeetingWindowRoute(vm: MeetingWindowViewModel, onBack: () -> Unit) {
     val context = LocalContext.current
     // The switch asks for location once; whatever the answer, the person chose to share, and a
     // device without permission reports "uncertain" (never a position).
-    val permissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { vm.setSharing(true) }
+    // One launcher serves both asks: the traveler's switch and the leader's "open here".
+    var pendingDraft by remember { mutableStateOf<WindowDraft?>(null) }
+    val permissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        val d = pendingDraft
+        pendingDraft = null
+        if (d == null) vm.setSharing(true) else vm.openWindow(d.label, d.place, d.radiusMeters, d.minutes, d.groups)
+    }
     MeetingWindowScreen(
         window = state.window,
         now = state.now,
-        status = WindowScreenStatus(live = state.live, syncing = state.syncing, error = state.error),
+        status = WindowScreenStatus(live = state.live, syncing = state.syncing, error = state.error, canOpen = state.canOpen, ownGroup = state.ownGroup, opening = state.opening),
         onSharingChange = { on ->
             if (on && state.live && !hasLocationPermission(context)) permissions.launch(AndroidLocationSource.PERMISSIONS) else vm.setSharing(on)
         },
         onBack = onBack,
+        onOpenWindow = { d ->
+            if (hasLocationPermission(context)) {
+                vm.openWindow(d.label, d.place, d.radiusMeters, d.minutes, d.groups)
+            } else {
+                pendingDraft = d
+                permissions.launch(AndroidLocationSource.PERMISSIONS)
+            }
+        },
+        onCloseWindow = { vm.closeWindow() },
     )
 }
 
@@ -82,10 +117,12 @@ fun MeetingWindowScreen(
     onSharingChange: (Boolean) -> Unit,
     onBack: () -> Unit,
     status: WindowScreenStatus = WindowScreenStatus(),
+    onOpenWindow: (WindowDraft) -> Unit = {},
+    onCloseWindow: () -> Unit = {},
 ) {
     val c = LocalVoysembleColors.current
     if (window == null) {
-        NoWindow(status, onBack)
+        NoWindow(status, onBack, onOpenWindow)
         return
     }
     val open = window.isOpenAt(now)
@@ -104,6 +141,11 @@ fun MeetingWindowScreen(
             ) { StatusChip(status) }
         }
         status.error?.let { item { Text(it, style = MaterialTheme.typography.bodyMedium, color = c.danger) } }
+        if (status.canOpen && open) {
+            item {
+                OutlinedButton(onClick = onCloseWindow, shape = MaterialTheme.shapes.small) { Text("Close window now") }
+            }
+        }
         item {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (open) LabelChip("Open · $minutesLeft min left", c.success, AppIcons.Clock) else LabelChip("Closed", c.textMuted, AppIcons.Clock)
@@ -150,12 +192,12 @@ private fun StatusChip(status: WindowScreenStatus) {
     if (!status.live) SampleDataChip() else LabelChip(if (status.syncing) "Syncing" else "Live", c.info, AppIcons.Check)
 }
 
-/** Live mode without an open or scheduled window: the leader has not opened one for this trip. */
+/** Live mode without an open or scheduled window; a leader gets the form to open one here. */
 @Composable
-private fun NoWindow(status: WindowScreenStatus, onBack: () -> Unit) {
+private fun NoWindow(status: WindowScreenStatus, onBack: () -> Unit, onOpenWindow: (WindowDraft) -> Unit) {
     val c = LocalVoysembleColors.current
     Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         ScreenHeader(eyebrow = "Meeting window", title = "No window open", subtitle = null, onBack = onBack) { StatusChip(status) }
@@ -164,11 +206,44 @@ private fun NoWindow(status: WindowScreenStatus, onBack: () -> Unit) {
             Text("No meeting window is open right now.", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(4.dp))
             Text(
-                "When a leader opens one, it appears here with its time range and zone. Sharing is per window, only while it is open, and stops automatically.",
+                if (status.canOpen) "Open one here: this phone's position becomes the meeting point. Travelers opt in per window; leaders see inside or outside, never a track."
+                else "When a leader opens one, it appears here with its time range and zone. Sharing is per window, only while it is open, and stops automatically.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = c.textMuted,
             )
         }
+        if (status.canOpen) OpenWindowForm(status, onOpenWindow)
+    }
+}
+
+/** The leader's form (slice 032): label, place, radius, duration, groups; the point is the phone's fix. */
+@Composable
+private fun OpenWindowForm(status: WindowScreenStatus, onOpenWindow: (WindowDraft) -> Unit) {
+    val c = LocalVoysembleColors.current
+    var label by remember { mutableStateOf("Regroup") }
+    var place by remember { mutableStateOf("") }
+    var radius by remember { mutableStateOf("200") }
+    var minutes by remember { mutableStateOf("30") }
+    var groups by remember(status.ownGroup) { mutableStateOf(status.ownGroup ?: "") }
+    VyCard {
+        SectionLabel("Open a window here")
+        Spacer(Modifier.height(8.dp))
+        OutlinedTextField(value = label, onValueChange = { label = it }, label = { Text("Label") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = place, onValueChange = { place = it }, label = { Text("Place") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(value = radius, onValueChange = { radius = it.filter(Char::isDigit) }, label = { Text("Radius (m)") }, singleLine = true, modifier = Modifier.weight(1f))
+            OutlinedTextField(value = minutes, onValueChange = { minutes = it.filter(Char::isDigit) }, label = { Text("Minutes") }, singleLine = true, modifier = Modifier.weight(1f))
+        }
+        OutlinedTextField(value = groups, onValueChange = { groups = it }, label = { Text("Groups (comma separated; empty = everyone)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        Spacer(Modifier.height(8.dp))
+        Button(
+            onClick = { onOpenWindow(WindowDraft(label, place, radius.toIntOrNull() ?: 200, minutes.toIntOrNull() ?: 30, groups.split(','))) },
+            enabled = !status.opening,
+            colors = ButtonDefaults.buttonColors(containerColor = c.action, contentColor = c.onAction),
+            shape = MaterialTheme.shapes.small,
+        ) { Text(if (status.opening) "Opening…" else "Open window here") }
+        Spacer(Modifier.height(4.dp))
+        Text("Uses this phone's position once as the meeting point. Stand where the group should gather.", style = MaterialTheme.typography.bodySmall, color = c.textMuted)
     }
 }
 

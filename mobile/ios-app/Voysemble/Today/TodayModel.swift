@@ -18,6 +18,13 @@ final class TodayModel: ObservableObject {
     @Published private(set) var error: String?
     /// D13: a guardian sees their traveler's status instead of the head count card and leader links.
     @Published private(set) var guardian: GuardianCard?
+    /// D27 (slice 032): the guardian's own entry of the care note; nil until the status is known.
+    @Published private(set) var careStatus: CareNoteStatusDto?
+    /// The note being edited (prefilled from an audited reveal); nil when not editing.
+    @Published private(set) var careDraft: CareNoteDto?
+    @Published private(set) var careSaving = false
+    @Published private(set) var careMessage: String?
+    private var travelerId: String?
 
     let api: ApiClient?
     let trip: ActiveTrip?
@@ -33,10 +40,14 @@ final class TodayModel: ObservableObject {
         deviceDate: @escaping (String) -> String = { zone in Clocks.date(in: zone) },
         deviceClock: @escaping (String) -> String = { zone in Clocks.time(in: zone) },
         guardian: GuardianCard? = nil,
+        careStatus: CareNoteStatusDto? = nil,
+        careDraft: CareNoteDto? = nil,
     ) {
         self.api = api
         self.trip = trip
         self.guardian = guardian
+        self.careStatus = careStatus
+        self.careDraft = careDraft
         self.deviceDate = deviceDate
         self.deviceClock = deviceClock
         if let trip, api != nil {
@@ -83,6 +94,8 @@ final class TodayModel: ObservableObject {
                     if let status = (g as? ApiResultOk<GuardianStatusDto>)?.value {
                         let locale = Locale.current.language.languageCode?.identifier ?? "en"
                         guardian = GuardianModelKt.guardianCardOf(status: status, locale: locale, clock: { iso in Clocks.localTime(iso) })
+                        travelerId = status.traveler.participationId
+                        await loadCare()
                     }
                 }
             } else if let failed = r as? ApiResultFailed {
@@ -92,6 +105,65 @@ final class TodayModel: ObservableObject {
             }
         } catch {
             snapshot = snapshot.withOffline(offline: true)
+        }
+    }
+}
+
+extension TodayModel {
+    // MARK: - Care note, guardian entry (D27, slice 032)
+
+    func loadCare() async {
+        guard let api, let trip, let travelerId else { return }
+        let r = try? await api.careNoteStatus(orgId: trip.organizationId, tripId: trip.tripId, participationId: travelerId, correlationId: nil)
+        if let status = (r as? ApiResultOk<CareNoteStatusDto>)?.value { careStatus = status }
+    }
+
+    /// Start editing: an existing note is revealed (audited) to prefill the fields; a new one starts blank.
+    func editCare() async {
+        guard let api, let trip, let travelerId, let status = careStatus else { return }
+        careMessage = nil
+        guard status.hasCareNote else {
+            careDraft = CareNoteDto(allergies: "", medications: "", freeText: "")
+            return
+        }
+        do {
+            let r = try await api.revealCareNote(orgId: trip.organizationId, tripId: trip.tripId, participationId: travelerId, correlationId: nil)
+            if let ok = (r as? ApiResultOk<RevealCareNoteResponseDto>)?.value {
+                careDraft = ok.note
+            } else if let failed = r as? ApiResultFailed {
+                careMessage = "Could not open the care note (\(failed.error.code))."
+            } else {
+                careMessage = "Offline. The care note needs one connection."
+            }
+        } catch {
+            careMessage = "Offline. The care note needs one connection."
+        }
+    }
+
+    func cancelCare() {
+        careDraft = nil
+        careMessage = nil
+    }
+
+    /// Save (a blank note clears it). The content is sealed on the server; the phone keeps nothing.
+    func saveCare(_ note: CareNoteDto) async {
+        guard let api, let trip, let travelerId else { return }
+        careSaving = true
+        careMessage = nil
+        defer { careSaving = false }
+        do {
+            let r = try await api.putCareNote(orgId: trip.organizationId, tripId: trip.tripId, participationId: travelerId, note: note, correlationId: nil)
+            if let status = (r as? ApiResultOk<CareNoteStatusDto>)?.value {
+                careStatus = status
+                careDraft = nil
+                careMessage = status.hasCareNote ? "Care note saved. Leaders of \(guardian?.groupName ?? "the group") can reveal it." : "Care note cleared."
+            } else if let failed = r as? ApiResultFailed {
+                careMessage = "Could not save the care note (\(failed.error.code))."
+            } else {
+                careMessage = "Offline. The care note was not saved."
+            }
+        } catch {
+            careMessage = "Offline. The care note was not saved."
         }
     }
 }

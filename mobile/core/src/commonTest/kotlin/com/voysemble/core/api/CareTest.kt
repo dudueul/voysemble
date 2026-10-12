@@ -35,6 +35,15 @@ class CareTest {
     }
 
     @Test
+    fun status_decodes_without_optional_keys_and_blank_notes_are_blank() {
+        val st = json.decodeFromString<CareNoteStatusDto>("""{"participationId":"p1","hasCareNote":false,"updatedAt":null,"updatedByName":null,"reveals":0}""")
+        assertTrue(!st.hasCareNote)
+        assertEquals(0, st.reveals)
+        assertTrue(CareNoteDto("  ", "", "").isBlank())
+        assertTrue(!CareNoteDto(medications = "Inhaler").isBlank())
+    }
+
+    @Test
     fun reveal_response_decodes() {
         val r = json.decodeFromString<RevealCareNoteResponseDto>(
             """{"participationId":"p1","note":{"allergies":"Peanuts","medications":"","freeText":""},"updatedAt":"2026-10-12T04:00:00.000Z","updatedByName":"Sora Park","revealedAt":"2026-10-12T04:05:00.000Z"}""",

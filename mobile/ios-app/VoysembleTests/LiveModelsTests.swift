@@ -33,6 +33,20 @@ final class LiveModelsTests: XCTestCase {
         XCTAssertFalse(model.syncing)
     }
 
+    func testGuardianCareEntryIsHonestWhenUnreachable() async {
+        // Slice 032 (D27): a seeded status offers Add (blank draft); saving while unreachable says so.
+        let sora = ActiveTrip(organizationId: "org1", organizationName: "Seoul Arts High", tripId: "trip1", tripName: "Korea Concert Tour", participationId: "p-sora", role: "guardian")
+        let status = CareNoteStatusDto(participationId: "p1", hasCareNote: false, updatedAt: nil, updatedByName: nil, reveals: 0)
+        let model = TodayModel(api: unreachableClient(), trip: sora, careStatus: status)
+        await model.editCare()
+        XCTAssertEqual(model.careDraft?.allergies, "")
+        model.cancelCare()
+        XCTAssertNil(model.careDraft)
+        // No traveler id yet (the guardian status never loaded): saving is a no-op, not a crash.
+        await model.saveCare(CareNoteDto(allergies: "Peanuts", medications: "", freeText: ""))
+        XCTAssertNil(model.careMessage)
+    }
+
     func testTodaySampleModeKeepsTheFixtureAndNeverSyncs() async {
         let model = TodayModel()
         XCTAssertFalse(model.live)
@@ -95,6 +109,21 @@ final class LiveModelsTests: XCTestCase {
         model.setSharing(true)
         await model.report()
         XCTAssertNil(model.window)
+    }
+
+    func testLeaderOpenWithoutAFixSendsNothingAndUnreachableSaysOffline() async {
+        // Slice 032: a leader's model offers the form; no fix means no request; unreachable is honest.
+        let leader = ActiveTrip(organizationId: "org1", organizationName: "Seoul Arts High", tripId: "trip1", tripName: "Korea Concert Tour", participationId: "p-kim", role: "leader")
+        let noFix = MeetingWindowModel(api: unreachableClient(), trip: leader, locationSource: FakeLocationSource(fix: nil))
+        XCTAssertTrue(noFix.canOpen)
+        await noFix.openWindow(label: "Regroup", place: "", radiusMeters: 200, minutes: 30, groups: [])
+        XCTAssertEqual(noFix.error, "Could not read this phone's position. Stand at the meeting point and allow location.")
+        let here = MeetingWindowModel(api: unreachableClient(), trip: leader, locationSource: FakeLocationSource(fix: LocationFix(lat: 41.89, lng: 12.49, accuracyMeters: 8)))
+        await here.openWindow(label: "Regroup", place: "", radiusMeters: 200, minutes: 30, groups: ["Bus A"])
+        XCTAssertEqual(here.error, "Offline. A window needs one connection to open.")
+        XCTAssertNil(here.window)
+        let traveler = ActiveTrip(organizationId: "org1", organizationName: "Seoul Arts High", tripId: "trip1", tripName: "Korea Concert Tour", participationId: "p-minji", role: "traveler")
+        XCTAssertFalse(MeetingWindowModel(api: unreachableClient(), trip: traveler).canOpen)
     }
 
     func testMeetingWindowSampleModeFlipsTheFixtureAndNeverSyncs() async {

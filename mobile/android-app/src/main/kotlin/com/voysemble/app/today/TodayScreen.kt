@@ -9,6 +9,7 @@ package com.voysemble.app.today
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import com.voysemble.core.api.CareNoteDto
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -86,6 +87,9 @@ fun TodayRoute(vm: TodayViewModel, onOpenHeadcount: () -> Unit = {}, onOpenWindo
         onOpenWindow = onOpenWindow,
         onOpenIncidents = onOpenIncidents,
         onPropose = { proposing = it },
+        onEditCare = { vm.editCare() },
+        onCancelCare = vm::cancelCare,
+        onSaveCare = { vm.saveCare(it) },
         onDismissProposal = vm::dismissProposal,
     )
 }
@@ -100,6 +104,9 @@ fun TodayScreen(
     onOpenIncidents: () -> Unit = {},
     onPropose: (eventId: String) -> Unit = {},
     onDismissProposal: () -> Unit = {},
+    onEditCare: () -> Unit = {},
+    onCancelCare: () -> Unit = {},
+    onSaveCare: (CareNoteDto) -> Unit = {},
 ) {
     val snap = state.snapshot
     Scaffold(
@@ -119,6 +126,8 @@ fun TodayScreen(
             if (guardian != null) {
                 // D13: the guardian's card replaces the head count card and the leader links.
                 item { GuardianStatusCard(guardian) }
+                // D27 (slice 032): the guardian writes the care note here; leaders reveal it at the count.
+                state.care?.let { care -> item { GuardianCareCard(care, onEditCare, onCancelCare, onSaveCare) } }
             } else {
                 item { HeadcountCard(snap.headcount, snap.checkedIn, snap.expected, onOpenHeadcount, onOpenIncidents) }
             }
@@ -346,6 +355,55 @@ internal fun GuardianStatusCard(card: GuardianCard) {
         card.message?.let { m ->
             Spacer(Modifier.height(8.dp))
             Text(m, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.fillMaxWidth().background(c.action.copy(alpha = 0.1f), RoundedCornerShape(10.dp)).padding(10.dp))
+        }
+    }
+}
+
+@Composable
+internal fun GuardianCareCard(care: GuardianCareState, onEdit: () -> Unit, onCancel: () -> Unit, onSave: (CareNoteDto) -> Unit) {
+    val c = LocalVoysembleColors.current
+    Card {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("CARE NOTE", style = MaterialTheme.typography.labelSmall, color = c.textMuted)
+            Spacer(Modifier.weight(1f))
+            Text(
+                if (care.status.hasCareNote) "On file · ${care.status.reveals} ${if (care.status.reveals == 1) "reveal" else "reveals"}" else "Not on file",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        val draft = care.draft
+        if (draft == null) {
+            Text(
+                if (care.status.hasCareNote) "Allergies, medications and what a leader should know. Sealed; only your traveler's leaders and the organizer can reveal it, and every reveal is recorded."
+                else "Add allergies, medications and anything a leader should know in one tap at lunch. Sealed on the server; never kept on a phone.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = c.textMuted,
+            )
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(onClick = onEdit, shape = MaterialTheme.shapes.small) { Text(if (care.status.hasCareNote) "Edit care note" else "Add care note") }
+        } else {
+            var allergies by remember(draft) { mutableStateOf(draft.allergies) }
+            var medications by remember(draft) { mutableStateOf(draft.medications) }
+            var freeText by remember(draft) { mutableStateOf(draft.freeText) }
+            OutlinedTextField(value = allergies, onValueChange = { allergies = it.take(200) }, label = { Text("Allergies") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = medications, onValueChange = { medications = it.take(200) }, label = { Text("Medications") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = freeText, onValueChange = { freeText = it.take(500) }, label = { Text("Anything else a leader should know") }, modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = { onSave(CareNoteDto(allergies, medications, freeText)) },
+                    enabled = !care.saving,
+                    colors = ButtonDefaults.buttonColors(containerColor = c.action, contentColor = c.onAction),
+                    shape = MaterialTheme.shapes.small,
+                ) { Text(if (care.saving) "Saving…" else "Save care note") }
+                OutlinedButton(onClick = onCancel, enabled = !care.saving, shape = MaterialTheme.shapes.small) { Text("Cancel") }
+            }
+        }
+        care.message?.let { m ->
+            Spacer(Modifier.height(6.dp))
+            Text(m, style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
         }
     }
 }

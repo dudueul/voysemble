@@ -182,6 +182,26 @@ public class ApiClient(
             }
         }
 
+    /** GET .../people/{id}/care-note: is a note on file (staff, the traveler, a bound guardian). */
+    public suspend fun careNoteStatus(orgId: String, tripId: String, participationId: String, correlationId: String? = null): ApiResult<CareNoteStatusDto> =
+        call(correlationId) {
+            http.get {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "orgs", orgId, "trips", tripId, "people", participationId, "care-note") }
+                common(correlationId)
+            }
+        }
+
+    /** PUT .../people/{id}/care-note: a bound guardian (or the organizer) writes or clears the note (slice 032). */
+    public suspend fun putCareNote(orgId: String, tripId: String, participationId: String, note: CareNoteDto, correlationId: String? = null): ApiResult<CareNoteStatusDto> =
+        call(correlationId) {
+            http.put {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "orgs", orgId, "trips", tripId, "people", participationId, "care-note") }
+                common(correlationId)
+                contentType(ContentType.Application.Json)
+                setBody(note)
+            }
+        }
+
     /** GET .../guardian/status: the guardian's view of their traveler (D13, slice 025). */
     public suspend fun guardianStatus(orgId: String, tripId: String, correlationId: String? = null): ApiResult<GuardianStatusDto> =
         call(correlationId) {

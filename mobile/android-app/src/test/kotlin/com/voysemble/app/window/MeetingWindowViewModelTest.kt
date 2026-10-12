@@ -131,6 +131,69 @@ class MeetingWindowViewModelTest {
         vm.setSharing(true).join()
     }
 
+    private val kim = ActiveTrip("org_1", "Seoul Arts High", "trip_1", "Korea Concert Tour", "p-kim", "leader")
+
+    @Test
+    fun a_leader_opens_a_window_at_the_phone_and_closes_it() = runTest {
+        // Slice 032: the phone's fix is the meeting point, the window starts now for 30 minutes, the
+        // leader's own group is prefilled from the roster; close posts and refreshes.
+        var opened = false
+        val posts = mutableListOf<String>()
+        val engine = MockEngine { req ->
+            val path = req.url.encodedPath
+            when {
+                path.endsWith("/roster") -> respond(
+                    """{"participations":[{"id":"p-kim","tripId":"trip_1","role":"leader","displayName":"Kim","groupName":"Bus A","guardianOf":null,"accountId":"a","createdAt":"2026-10-11T00:00:00.000Z"}]}""",
+                    HttpStatusCode.OK, json,
+                )
+                path.endsWith("/close") -> { opened = false; respond(window(status = "closed"), HttpStatusCode.OK, json) }
+                path.endsWith("/windows") && req.method == HttpMethod.Post -> {
+                    posts += (req.body as TextContent).text
+                    opened = true
+                    respond(window(), HttpStatusCode.Created, json)
+                }
+                else -> respond(if (opened) """{"windows":[${window()}]}""" else """{"windows":[]}""", HttpStatusCode.OK, json)
+            }
+        }
+        val here = LocationSource { LocationFix(41.8902, 12.4922, 8.0) }
+        val vm = MeetingWindowViewModel(
+            ApiClient(ApiClientConfig("h", "t") { "tok" }, engine), kim, here,
+            deviceClock = { "10:45" }, tickMs = Long.MAX_VALUE,
+            isoClock = { java.time.Instant.parse("2026-12-31T09:45:00Z") },
+        )
+        vm.ready.join()
+        assertTrue(vm.state.value.canOpen)
+        assertEquals("Bus A", vm.state.value.ownGroup)
+        assertNull(vm.state.value.window)
+        vm.openWindow("Colosseum regroup", "Colosseum, main entrance", 200, 30, listOf("Bus A")).join()
+        assertEquals(1, posts.size)
+        assertEquals(
+            """{"label":"Colosseum regroup","place":"Colosseum, main entrance","radiusMeters":200,"startsAt":"2026-12-31T09:45:00Z","endsAt":"2026-12-31T10:15:00Z","groups":["Bus A"],"center":{"lat":41.8902,"lng":12.4922}}""",
+            posts[0],
+        )
+        assertEquals("Colosseum regroup", vm.state.value.window?.label)
+        assertNull(vm.state.value.error)
+        vm.closeWindow().join()
+        assertNull(vm.state.value.window)
+    }
+
+    @Test
+    fun opening_without_a_fix_sends_nothing() = runTest {
+        var posts = 0
+        val engine = MockEngine { req ->
+            if (req.method == HttpMethod.Post) posts += 1
+            respond("""{"windows":[]}""", HttpStatusCode.OK, json)
+        }
+        val vm = MeetingWindowViewModel(ApiClient(ApiClientConfig("h", "t") { "tok" }, engine), kim, LocationSource { null }, tickMs = Long.MAX_VALUE)
+        vm.ready.join()
+        vm.openWindow("Regroup", "", 200, 30, emptyList()).join()
+        assertEquals(0, posts)
+        assertEquals("Could not read this phone's position. Stand at the meeting point and allow location.", vm.state.value.error)
+        // A traveler never gets the form.
+        val traveler = MeetingWindowViewModel(ApiClient(ApiClientConfig("h", "t") { "tok" }, engine), minji, null, tickMs = Long.MAX_VALUE)
+        assertTrue(!traveler.state.value.canOpen)
+    }
+
     @Test
     fun unreachable_server_says_offline() = runTest {
         val api = ApiClient(ApiClientConfig("h", "t") { "tok" }, MockEngine { throw IllegalStateException("no route") })

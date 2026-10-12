@@ -27,6 +27,12 @@ final class MeetingWindowModel: ObservableObject {
     private var current: MeetingWindowDto?
     /// Re-judge and refresh cadence while the screen is on; tests never reach it.
     static let tickSeconds: Double = 60
+    /// A leader on a trip may open a window here and close the current one (slice 032).
+    let canOpen: Bool
+    /// The leader's own group, prefilled in the open form (from the roster, once).
+    @Published private(set) var ownGroup: String?
+    @Published private(set) var opening = false
+    private var groupKnown = false
 
     var now: String { live ? Clocks.now() : fixedNow }
 
@@ -37,13 +43,15 @@ final class MeetingWindowModel: ObservableObject {
         now: String = "10:52",
         api: ApiClient? = nil,
         trip: ActiveTrip? = nil,
-        locationSource: DeviceLocationSource? = nil
+        locationSource: DeviceLocationSource? = nil,
+        canOpen: Bool? = nil
     ) {
         self.api = api
         self.trip = trip
         self.locationSource = locationSource
         self.fixedNow = now
         self.window = (api != nil && trip != nil) ? nil : window
+        self.canOpen = canOpen ?? (api != nil && trip?.role == "leader")
     }
 
     func refresh() async {
@@ -57,6 +65,7 @@ final class MeetingWindowModel: ObservableObject {
                 let dto = WindowRulesKt.currentWindowOf(windows: list.windows)
                 current = dto
                 window = dto?.toMeetingWindow(selfId: trip.participationId, clock: { iso in Clocks.localTime(iso) })
+                if canOpen && !groupKnown { await loadOwnGroup(api, trip) }
             } else if let failed = r as? ApiResultFailed {
                 error = failed.status == 403 ? "Guardians do not take part in meeting windows." : "Could not load the meeting window (\(failed.error.code))."
             } else {
@@ -76,6 +85,62 @@ final class MeetingWindowModel: ObservableObject {
             if Task.isCancelled { return }
             if window?.selfOptedIn == true { await report() }
             await refresh()
+        }
+    }
+
+    private func loadOwnGroup(_ api: ApiClient, _ trip: ActiveTrip) async {
+        let r = try? await api.listRoster(orgId: trip.organizationId, tripId: trip.tripId, correlationId: nil)
+        if let roster = (r as? ApiResultOk<RosterResponseDto>)?.value {
+            groupKnown = true
+            ownGroup = roster.participations.first { $0.id == trip.participationId }?.groupName
+        }
+    }
+
+    /// A leader opens a window here and now (slice 032, D15): the phone's fix is the meeting
+    /// point, the window starts now and lasts `minutes`. Without a fix nothing is sent.
+    func openWindow(label: String, place: String, radiusMeters: Int, minutes: Int, groups: [String]) async {
+        guard let api, let trip else { return }
+        opening = true
+        error = nil
+        defer { opening = false }
+        guard let fix = await locationSource?.fix() else {
+            error = "Could not read this phone's position. Stand at the meeting point and allow location."
+            return
+        }
+        let start = Date()
+        let f = ISO8601DateFormatter()
+        let body = OpenWindowRequestDto(
+            label: label.trimmingCharacters(in: .whitespaces).isEmpty ? "Regroup" : label.trimmingCharacters(in: .whitespaces),
+            place: place.trimmingCharacters(in: .whitespaces).isEmpty ? "Meeting point" : place.trimmingCharacters(in: .whitespaces),
+            radiusMeters: Int32(min(max(radiusMeters, 25), 2000)),
+            startsAt: f.string(from: start),
+            endsAt: f.string(from: start.addingTimeInterval(Double(min(max(minutes, 5), 240)) * 60)),
+            groups: groups.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty },
+            center: GeoPointDto(lat: fix.lat, lng: fix.lng),
+        )
+        do {
+            let r = try await api.openWindow(orgId: trip.organizationId, tripId: trip.tripId, body: body, correlationId: nil)
+            if let dto = (r as? ApiResultOk<MeetingWindowDto>)?.value {
+                current = dto
+                window = dto.toMeetingWindow(selfId: trip.participationId, clock: { iso in Clocks.localTime(iso) })
+            } else if let failed = r as? ApiResultFailed {
+                error = failed.status == 403 ? "Only trip leaders open windows." : "The server refused the window (\(failed.error.code))."
+            } else {
+                error = "Offline. A window needs one connection to open."
+            }
+        } catch {
+            self.error = "Offline. A window needs one connection to open."
+        }
+    }
+
+    /// A leader closes the current window early; the server erases the meeting point.
+    func closeWindow() async {
+        guard let api, let trip, let dto = current else { return }
+        do {
+            let r = try await api.closeWindow(orgId: trip.organizationId, tripId: trip.tripId, windowId: dto.id, correlationId: nil)
+            if r is ApiResultOk<MeetingWindowDto> { await refresh() } else { error = "Could not close the window." }
+        } catch {
+            self.error = "Offline. The window closes itself at its end time."
         }
     }
 
@@ -144,8 +209,11 @@ struct MeetingWindowView: View {
             }
             if let error = model.error { Text(error).font(.caption).foregroundStyle(.red) }
             Text("No meeting window is open right now.").font(.headline)
-            Text("When a leader opens one, it appears here with its time range and zone. Sharing is per window, only while it is open, and stops automatically.")
+            Text(model.canOpen
+                ? "Open one here: this phone's position becomes the meeting point. Travelers opt in per window; leaders see inside or outside, never a track."
+                : "When a leader opens one, it appears here with its time range and zone. Sharing is per window, only while it is open, and stops automatically.")
                 .font(.subheadline).foregroundStyle(.secondary)
+            if model.canOpen { OpenWindowForm(model: model) }
         }
     }
 
@@ -162,6 +230,9 @@ struct MeetingWindowView: View {
         Label(open ? "Open · \(w.minutesLeftAt(now: now)) min left" : "Closed", systemImage: "clock")
             .font(.caption).foregroundStyle(open ? .green : .secondary)
         if let error = model.error { Text(error).font(.caption).foregroundStyle(.red) }
+        if model.canOpen && open {
+            Button("Close window now") { Task { await model.closeWindow() } }.buttonStyle(.bordered)
+        }
         Canvas { ctx, size in
             let center = CGPoint(x: size.width / 2, y: size.height / 2)
             let r = min(size.width, size.height) * 0.36
@@ -223,3 +294,43 @@ struct MeetingWindowView: View {
         }
     }
 }
+
+/// The leader's form (slice 032): label, place, radius, duration, groups; the point is the phone's fix.
+private struct OpenWindowForm: View {
+    @ObservedObject var model: MeetingWindowModel
+    @State private var label = "Regroup"
+    @State private var place = ""
+    @State private var radius = "200"
+    @State private var minutes = "30"
+    @State private var groups = ""
+    @State private var seeded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("OPEN A WINDOW HERE").font(.caption).foregroundStyle(.secondary)
+            TextField("Label", text: $label).textFieldStyle(.roundedBorder)
+            TextField("Place", text: $place).textFieldStyle(.roundedBorder)
+            HStack {
+                TextField("Radius (m)", text: $radius).textFieldStyle(.roundedBorder).keyboardType(.numberPad)
+                TextField("Minutes", text: $minutes).textFieldStyle(.roundedBorder).keyboardType(.numberPad)
+            }
+            TextField("Groups (comma separated; empty = everyone)", text: $groups).textFieldStyle(.roundedBorder)
+            Button(model.opening ? "Opening…" : "Open window here") {
+                Task {
+                    await model.openWindow(
+                        label: label, place: place, radiusMeters: Int(radius) ?? 200, minutes: Int(minutes) ?? 30,
+                        groups: groups.split(separator: ",").map(String.init),
+                    )
+                }
+            }
+            .buttonStyle(.borderedProminent).disabled(model.opening)
+            Text("Uses this phone's position once as the meeting point. Stand where the group should gather.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 12).fill(Color.secondary.opacity(0.08)))
+        .onChange(of: model.ownGroup) { _, g in if !seeded, let g { groups = g; seeded = true } }
+        .onAppear { if !seeded, let g = model.ownGroup { groups = g; seeded = true } }
+    }
+}
+

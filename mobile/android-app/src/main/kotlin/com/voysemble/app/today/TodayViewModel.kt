@@ -9,6 +9,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.voysemble.core.api.ApiClient
 import com.voysemble.core.api.ApiResult
+import com.voysemble.core.api.CareNoteDto
+import com.voysemble.core.api.CareNoteStatusDto
 import com.voysemble.core.api.CreateProposalRequestDto
 import com.voysemble.core.api.ProposalPatchDto
 import com.voysemble.core.fixtures.KoreaConcertTourFixture
@@ -47,6 +49,18 @@ data class TodayUiState(
     val proposal: ProposalState? = null,
     /** D13: a guardian sees their traveler's status instead of the head count card and leader links. */
     val guardian: GuardianCard? = null,
+    /** D27 (slice 032): the guardian's own entry of the care note. Null until the status is known. */
+    val care: GuardianCareState? = null,
+)
+
+/** The guardian's care-note panel: content-free status, the note while editing, one message line. */
+data class GuardianCareState(
+    val travelerId: String,
+    val status: CareNoteStatusDto,
+    /** The note being edited (prefilled from an audited reveal); null when not editing. */
+    val draft: CareNoteDto? = null,
+    val saving: Boolean = false,
+    val message: String? = null,
 )
 
 class TodayViewModel(
@@ -133,9 +147,13 @@ class TodayViewModel(
                         else -> null
                     }
                     // D13: guardians get their traveler's status (never coordinates) on the same screen.
+                    var travelerId: String? = null
                     val guardian = if (t.role == "guardian") {
                         when (val g = a.guardianStatus(t.organizationId, t.tripId)) {
-                            is ApiResult.Ok -> guardianCardOf(g.value, locale, ::localTime)
+                            is ApiResult.Ok -> {
+                                travelerId = g.value.traveler.participationId
+                                guardianCardOf(g.value, locale, ::localTime)
+                            }
                             else -> null
                         }
                     } else {
@@ -149,9 +167,56 @@ class TodayViewModel(
                             syncing = false,
                         )
                     }
+                    if (travelerId != null) loadCare(a, t, travelerId)
                 }
                 is ApiResult.Failed -> _state.update { it.copy(syncing = false, error = "Could not load the itinerary (${r.error.code}).") }
                 is ApiResult.Unreachable -> _state.update { it.copy(syncing = false, snapshot = it.snapshot.copy(offline = true)) }
+            }
+        }
+    }
+
+    // ---- Care note, guardian entry (D27, slice 032) -------------------------------------------
+
+    private suspend fun loadCare(a: ApiClient, t: ActiveTrip, travelerId: String) {
+        when (val r = a.careNoteStatus(t.organizationId, t.tripId, travelerId)) {
+            is ApiResult.Ok -> _state.update { it.copy(care = GuardianCareState(travelerId, r.value, draft = it.care?.draft, message = it.care?.message)) }
+            else -> Unit
+        }
+    }
+
+    /** Start editing: an existing note is revealed (audited) to prefill the fields; a new one starts blank. */
+    fun editCare(): Job {
+        val a = api ?: return Job().also { it.complete() }
+        val t = trip ?: return Job().also { it.complete() }
+        val care = _state.value.care ?: return Job().also { it.complete() }
+        if (!care.status.hasCareNote) {
+            _state.update { it.copy(care = care.copy(draft = CareNoteDto(), message = null)) }
+            return Job().also { it.complete() }
+        }
+        return viewModelScope.launch {
+            when (val r = a.revealCareNote(t.organizationId, t.tripId, care.travelerId)) {
+                is ApiResult.Ok -> _state.update { it.copy(care = it.care?.copy(draft = r.value.note, message = null)) }
+                is ApiResult.Failed -> _state.update { it.copy(care = it.care?.copy(message = "Could not open the care note (${r.error.code}).")) }
+                is ApiResult.Unreachable -> _state.update { it.copy(care = it.care?.copy(message = "Offline. The care note needs one connection.")) }
+            }
+        }
+    }
+
+    fun cancelCare() = _state.update { it.copy(care = it.care?.copy(draft = null, message = null)) }
+
+    /** Save (a blank note clears it). The content is sealed on the server; the phone keeps nothing. */
+    fun saveCare(note: CareNoteDto): Job {
+        val a = api ?: return Job().also { it.complete() }
+        val t = trip ?: return Job().also { it.complete() }
+        val care = _state.value.care ?: return Job().also { it.complete() }
+        _state.update { it.copy(care = care.copy(saving = true, message = null)) }
+        return viewModelScope.launch {
+            when (val r = a.putCareNote(t.organizationId, t.tripId, care.travelerId, note)) {
+                is ApiResult.Ok -> _state.update {
+                    it.copy(care = GuardianCareState(care.travelerId, r.value, draft = null, message = if (r.value.hasCareNote) "Care note saved. Leaders of ${it.guardian?.groupName ?: "the group"} can reveal it." else "Care note cleared."))
+                }
+                is ApiResult.Failed -> _state.update { it.copy(care = care.copy(saving = false, message = "Could not save the care note (${r.error.code}).")) }
+                is ApiResult.Unreachable -> _state.update { it.copy(care = care.copy(saving = false, message = "Offline. The care note was not saved.")) }
             }
         }
     }

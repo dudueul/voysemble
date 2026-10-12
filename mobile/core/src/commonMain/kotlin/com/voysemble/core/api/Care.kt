@@ -10,6 +10,19 @@ import kotlinx.serialization.Serializable
 @Serializable
 public data class CareNoteDto(val allergies: String = "", val medications: String = "", val freeText: String = "")
 
+/** Whether a note is on file and who set it; never the content (D27). */
+@Serializable
+public data class CareNoteStatusDto(
+    val participationId: String,
+    val hasCareNote: Boolean,
+    val updatedAt: String? = null,
+    val updatedByName: String? = null,
+    val reveals: Int = 0,
+)
+
+/** True when every field is blank: a PUT with it clears the note (same rule as the server). */
+public fun CareNoteDto.isBlank(): Boolean = allergies.isBlank() && medications.isBlank() && freeText.isBlank()
+
 @Serializable
 public data class RevealCareNoteResponseDto(
     val participationId: String,

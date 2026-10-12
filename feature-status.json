@@ -108,6 +108,8 @@
     "guardian.balance": "working",
     "roster.edit": "working",
     "roster.remove": "working",
-    "invites.revoke": "working"
+    "invites.revoke": "working",
+    "mobile.window-open": "working",
+    "guardian.care-note-edit": "working"
   }
 }

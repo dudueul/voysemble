@@ -944,7 +944,7 @@ Not done: leader "open a window" on the phone; a window per itinerary event; pus
 
 ## Slice 030: care notes
 
-Status: done 2026-10-12. Commit: see git log (`feat(care): sealed care notes with audited reveals (slice 030)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: 30d95f1 (`feat(care): sealed care notes with audited reveals (slice 030)`). CI: run 38203545690 green (web, mobile, ios); captures committed as 758c616 (web `people-care.png`, Android and iOS `headcount-care.png`).
 Spec: D27 (care note = PII tier, decrypted for the traveler's group leaders and the organizer, behind an eye icon, every reveal audited; guardians write it), ADR-0001 tiers, ADR-0009 matrix. Details: `docs/engineering/care-notes.md`.
 
 | Gate | Command | Result |
@@ -995,4 +995,27 @@ Built:
 - Docs: `device-revocation.md`, roster doc pointer, captures README, mobile README, feature flag (`devices.revoke-wipe` working).
 
 Not done: reauth before the action; clearing a push token or local database (nothing to clear yet); Korean strings.
+
+## Slice 032: leader opens a window from the phone; guardian writes the care note
+
+Status: done 2026-10-12. Commit: see git log (`feat(mobile): leaders open windows and guardians write care notes from the phone (slice 032)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D15 (the leader opens the window at the meeting point), D27 (guardians enter and edit the care note). Details: `docs/engineering/meeting-windows.md` (Phones, leader) and `docs/engineering/care-notes.md` (Phones, guardian entry).
+
+| Gate | Command | Result |
+|---|---|---|
+| Core JVM tests | `./gradlew :core:jvmTest -Pvoysemble.android=false` | green (`CareTest` +1) |
+| Android unit + screenshots | CI `mobile` job | `MeetingWindowViewModelTest` (+2), `TodayViewModelTest` (+1), `window-open-form.png`, `today-guardian-care.png` |
+| iOS unit + captures | CI `ios` job | `LiveModelsTests` (+2), `window-open-form.png`, `today-guardian-care.png` |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean (no web change) |
+
+No server change: the routes of slices 029 and 030 already accept both actions (`openWindow` by a
+participating leader; `PUT care-note` by a bound guardian), proven by `windows.test.ts` and `care.test.ts`.
+
+Built:
+- Core: `CareNoteStatusDto`, `CareNoteDto.isBlank`, `ApiClient.careNoteStatus/putCareNote`.
+- Android: `MeetingWindowViewModel.openWindow/closeWindow` (+ own group from the roster, `isoClock`), the open form and "Close window now" on the screen (location permission through the same launcher); `TodayViewModel` care state (`GuardianCareState`, `editCare/cancelCare/saveCare`), `GuardianCareCard`; tests and screenshots.
+- iOS: `MeetingWindowModel.openWindow/closeWindow/ownGroup/canOpen`, `OpenWindowForm`; `TodayModel` care state and actions, `GuardianCareCard`; tests and captures.
+- Docs: meeting-windows and care-notes doc sections, captures README, mobile README, feature flags (`mobile.window-open`, `guardian.care-note-edit`).
+
+Not done: a window per itinerary event; care-note entry during invite redemption; Korean phone strings.
 

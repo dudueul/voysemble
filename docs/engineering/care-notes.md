@@ -56,6 +56,14 @@ D27 allows. 403 reads "Only this group's leaders see the care note.", 404 "No ca
 no network "Offline. Care notes are never cached on the device." Sample mode reveals the fixture
 note for Minji Park. Evidence: `android/headcount-care.png`, `ios/headcount-care.png`.
 
+## Phones (guardian entry, slice 032)
+
+Under the guardian's status card on Today sits the care-note card: "Not on file" with "Add care
+note", or "On file · N reveals" with "Edit care note". Add starts blank; Edit reveals the current
+note (audited, like any reveal) to prefill the three fields. Save sends the three fields; a blank
+note clears it; the message names the group whose leaders can reveal it. The phone keeps nothing
+after the save. Evidence: `android/today-guardian-care.png`, `ios/today-guardian-care.png`.
+
 ## Facts established by tests
 
 - Sealing: round trip; two seals of the same text differ; a flipped byte is refused; the secret is
@@ -71,6 +79,9 @@ note for Minji Park. Evidence: `android/headcount-care.png`, `ios/headcount-care
 - Android: sample reveal shows the fixture line and hide removes it; live reveal posts to the care
   route and shows the line; 403 explains itself.
 - iOS: sample reveal shows the fixture line; live and unreachable says offline and caches nothing.
+- Guardian entry (slice 032): Android loads the status with the card, Add starts blank, Save PUTs
+  the three fields to the traveler's care route and the status follows, Edit reveals to prefill;
+  iOS offers Add on a seeded status, cancels, and saving without a traveler id is a no-op.
 - Console unit: save sends the three fields, status reads "Set by Owner", content shows without a
   reveal; Hide then Reveal (audited) counts one reveal; the roster button counts another; Clear
   sends blanks and the status returns to "No care note on file.".
@@ -79,6 +90,6 @@ note for Minji Park. Evidence: `android/headcount-care.png`, `ios/headcount-care
 
 ## Not done
 
-Guardian entry on the phone during invite redemption and from the guardian view (the API accepts
-it; the screen is a later slice); edit notifications to the organizer; documents (passport and
-consent scans, tier 3, web only); reveal from the person card's timeline entries; Korean strings.
+Guardian entry during invite redemption (the Today card covers it right after joining); edit
+notifications to the organizer; documents (passport and consent scans, tier 3, web only); reveal
+from the person card's timeline entries; Korean strings.

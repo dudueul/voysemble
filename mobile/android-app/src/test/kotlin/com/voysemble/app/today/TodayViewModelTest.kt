@@ -7,6 +7,7 @@ package com.voysemble.app.today
 
 import com.voysemble.core.api.ApiClient
 import com.voysemble.core.api.ApiClientConfig
+import com.voysemble.core.api.CareNoteDto
 import com.voysemble.core.session.ActiveTrip
 import com.voysemble.core.today.AckState
 import io.ktor.client.engine.mock.MockEngine
@@ -196,5 +197,58 @@ class TodayViewModelTest {
         leader.ready.join()
         assertNull(leader.state.value.guardian)
         assertTrue(paths.none { it.endsWith("/guardian/status") })
+    }
+
+    @Test
+    fun guardian_writes_the_care_note_from_today() = runTest {
+        // Slice 032 (D27): the status loads with the card; Add starts blank; Save PUTs the three
+        // fields to the traveler's care route and the status follows; Edit reveals to prefill.
+        val guardianJson = """{"traveler":{"participationId":"p1","displayName":"Minji Park","groupName":"Bus A"},
+          "count":{"status":"present","headcountId":"hc1","groupLabel":"Bus A","closed":false,"atDevice":"06:52","byName":"Kim","receivedAt":"2026-12-31T05:52:00.000Z"},
+          "incident":null,"itineraryRevision":1}"""
+        var stored: String? = null
+        val puts = mutableListOf<String>()
+        val engine = MockEngine { req ->
+            val path = req.url.encodedPath
+            when {
+                path.endsWith("/guardian/status") -> respond(guardianJson, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+                path.endsWith("/announcements") -> respond(announcementsJson, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+                path.endsWith("/care-note/reveal") -> respond(
+                    """{"participationId":"p1","note":$stored,"updatedAt":"2026-12-31T06:00:00.000Z","updatedByName":"Sora Park","revealedAt":"2026-12-31T06:01:00.000Z"}""",
+                    HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+                path.endsWith("/care-note") && req.method == HttpMethod.Put -> {
+                    val body = (req.body as TextContent).text
+                    puts += body
+                    assertEquals("/v1/orgs/org_1/trips/trip_1/people/p1/care-note", path)
+                    stored = body
+                    respond("""{"participationId":"p1","hasCareNote":true,"updatedAt":"2026-12-31T06:00:00.000Z","updatedByName":"Sora Park","reveals":0}""", HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+                }
+                path.endsWith("/care-note") -> respond(
+                    if (stored == null) """{"participationId":"p1","hasCareNote":false,"updatedAt":null,"updatedByName":null,"reveals":0}"""
+                    else """{"participationId":"p1","hasCareNote":true,"updatedAt":"2026-12-31T06:00:00.000Z","updatedByName":"Sora Park","reveals":0}""",
+                    HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"),
+                )
+                else -> respond(itineraryJson, HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "application/json"))
+            }
+        }
+        val vm = TodayViewModel(
+            api = ApiClient(ApiClientConfig("h", "t") { "tok" }, engine),
+            trip = trip.copy(participationId = "p-sora", role = "guardian"),
+            deviceDate = { "2026-12-31" },
+            deviceClock = { "08:00" },
+            locale = "en",
+        )
+        vm.ready.join()
+        assertEquals(false, vm.state.value.care?.status?.hasCareNote)
+        vm.editCare().join()
+        assertEquals(CareNoteDto(), vm.state.value.care?.draft)
+        vm.saveCare(CareNoteDto("Peanuts", "EpiPen in the red bag", "")).join()
+        assertEquals(listOf("""{"allergies":"Peanuts","medications":"EpiPen in the red bag","freeText":""}"""), puts)
+        assertEquals(true, vm.state.value.care?.status?.hasCareNote)
+        assertNull(vm.state.value.care?.draft)
+        assertEquals("Care note saved. Leaders of Bus A can reveal it.", vm.state.value.care?.message)
+        vm.editCare().join()
+        assertEquals("Peanuts", vm.state.value.care?.draft?.allergies)
     }
 }

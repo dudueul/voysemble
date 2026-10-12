@@ -50,6 +50,8 @@ struct TodayView: View {
                     if let g = model.guardian {
                         // D13: the guardian's card replaces the head count card and the leader links.
                         GuardianStatusCard(card: g)
+                        // D27 (slice 032): the guardian writes the care note here; leaders reveal it at the count.
+                        if model.careStatus != nil { GuardianCareCard(model: model) }
                     } else {
                         HeadcountCard(groups: s.headcount, checkedIn: Int(s.checkedIn), expected: Int(s.expected))
                         // Slice 009: leader and traveler screens reachable from Today, as on Android.
@@ -190,6 +192,53 @@ private struct AnnouncementCard: View {
 }
 
 /// D13: status, never coordinates. Tone picks the colour; the words come from core.
+private struct GuardianCareCard: View {
+    @ObservedObject var model: TodayModel
+    @State private var allergies = ""
+    @State private var medications = ""
+    @State private var freeText = ""
+
+    var body: some View {
+        let status = model.careStatus
+        let onFile = status?.hasCareNote ?? false
+        let reveals = Int(status?.reveals ?? 0)
+        Card {
+            HStack {
+                Text("CARE NOTE").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                Spacer()
+                Text(onFile ? "On file · \(reveals) \(reveals == 1 ? "reveal" : "reveals")" : "Not on file").font(.subheadline.weight(.semibold))
+            }
+            if let draft = model.careDraft {
+                TextField("Allergies", text: $allergies).textFieldStyle(.roundedBorder)
+                TextField("Medications", text: $medications).textFieldStyle(.roundedBorder)
+                TextField("Anything else a leader should know", text: $freeText, axis: .vertical).textFieldStyle(.roundedBorder)
+                HStack {
+                    Button(model.careSaving ? "Saving…" : "Save care note") {
+                        Task { await model.saveCare(CareNoteDto(allergies: allergies, medications: medications, freeText: freeText)) }
+                    }
+                    .buttonStyle(.borderedProminent).disabled(model.careSaving)
+                    Button("Cancel") { model.cancelCare() }.buttonStyle(.bordered).disabled(model.careSaving)
+                }
+                .onAppear {
+                    allergies = draft.allergies
+                    medications = draft.medications
+                    freeText = draft.freeText
+                }
+            } else {
+                Text(onFile
+                    ? "Allergies, medications and what a leader should know. Sealed; only your traveler's leaders and the organizer can reveal it, and every reveal is recorded."
+                    : "Add allergies, medications and anything a leader should know in one tap at lunch. Sealed on the server; never kept on a phone.")
+                    .font(.subheadline).foregroundStyle(.secondary).padding(.top, 4)
+                Button(onFile ? "Edit care note" : "Add care note") { Task { await model.editCare() } }
+                    .buttonStyle(.bordered).padding(.top, 6)
+            }
+            if let message = model.careMessage {
+                Text(message).font(.subheadline).foregroundStyle(.secondary).padding(.top, 4)
+            }
+        }
+    }
+}
+
 private struct GuardianStatusCard: View {
     let card: GuardianCard
     var body: some View {

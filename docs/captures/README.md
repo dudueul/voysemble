@@ -116,3 +116,10 @@ devices" (status with the new code, the row back to Invited, the timeline fact).
 `e2e/revoke.spec.ts`. `android/sign-in-revoked.png` (Roborazzi) and `ios/sign-in-revoked.png`
 (CaptureTests): the sign-in screen with the revocation notice. Both land here through the CI `captures` job.
 
+## Slice 032 (2026-10-12): leader opens a window, guardian writes the care note
+
+`android/window-open-form.png` (Roborazzi) and `ios/window-open-form.png` (CaptureTests): the leader's
+"Open a window here" form on a trip without a window (group prefilled). `android/today-guardian-care.png`
+and `ios/today-guardian-care.png`: the guardian's care-note card in edit mode under the status card. All
+land here through the CI `captures` job.
+

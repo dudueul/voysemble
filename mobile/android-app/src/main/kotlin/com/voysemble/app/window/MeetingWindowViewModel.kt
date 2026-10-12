@@ -10,7 +10,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.voysemble.core.api.ApiClient
 import com.voysemble.core.api.ApiResult
+import com.voysemble.core.api.GeoPointDto
 import com.voysemble.core.api.MeetingWindowDto
+import com.voysemble.core.api.OpenWindowRequestDto
 import com.voysemble.core.fixtures.KoreaConcertTourFixture
 import com.voysemble.core.session.ActiveTrip
 import com.voysemble.core.window.LocationSource
@@ -41,6 +43,11 @@ data class MeetingWindowUiState(
     val live: Boolean = false,
     val syncing: Boolean = false,
     val error: String? = null,
+    /** A leader on a trip may open and close windows from the phone (slice 032). */
+    val canOpen: Boolean = false,
+    /** The leader's own group, prefilled in the open form; null for a whole-trip leader. */
+    val ownGroup: String? = null,
+    val opening: Boolean = false,
 )
 
 class MeetingWindowViewModel(
@@ -52,8 +59,12 @@ class MeetingWindowViewModel(
     private val deviceClock: () -> String = { "10:52" },
     /** Re-judge and refresh cadence while the screen lives; tests pass Long.MAX_VALUE to switch it off. */
     private val tickMs: Long = 60_000,
+    /** ISO instant for the window a leader opens; injected for tests. */
+    private val isoClock: () -> Instant = { Instant.now() },
 ) : ViewModel() {
-    private val _state = MutableStateFlow(MeetingWindowUiState(initial, deviceClock(), live = trip != null && api != null))
+    private val _state = MutableStateFlow(
+        MeetingWindowUiState(initial, deviceClock(), live = trip != null && api != null, canOpen = trip?.role == "leader" && api != null),
+    )
     val state: StateFlow<MeetingWindowUiState> = _state
 
     /** The wire window behind the screen model: the meeting point and the id live here, never in the UI state. */
@@ -82,6 +93,7 @@ class MeetingWindowViewModel(
                     val dto = currentWindowOf(r.value.windows)
                     current = dto
                     _state.update { it.copy(window = dto?.toMeetingWindow(t.participationId, ::localTime), now = deviceClock(), syncing = false) }
+                    if (_state.value.canOpen && !groupKnown) loadOwnGroup(a, t)
                 }
                 is ApiResult.Failed -> _state.update {
                     it.copy(syncing = false, error = if (r.status == 403) "Guardians do not take part in meeting windows." else "Could not load the meeting window (${r.error.code}).")
@@ -98,6 +110,71 @@ class MeetingWindowViewModel(
     fun setSharing(on: Boolean): Job {
         _state.update { it.copy(window = it.window?.let { w -> if (on) w.optIn() else w.optOut() }) }
         return if (on) report() else send("opted_out")
+    }
+
+    private var groupKnown = false
+
+    /** The leader's own group from the roster, once, to prefill the open form. */
+    private suspend fun loadOwnGroup(a: ApiClient, t: ActiveTrip) {
+        when (val r = a.listRoster(t.organizationId, t.tripId)) {
+            is ApiResult.Ok -> {
+                groupKnown = true
+                _state.update { it.copy(ownGroup = r.value.participations.firstOrNull { p -> p.id == t.participationId }?.groupName) }
+            }
+            else -> Unit
+        }
+    }
+
+    /**
+     * A leader opens a window here and now (slice 032, D15): the phone's fix is the meeting point
+     * (the leader stands at it), the window starts now and lasts `minutes`. Without a fix nothing
+     * is sent: a window needs a point. Empty `groups` means every traveler of the trip.
+     */
+    fun openWindow(label: String, place: String, radiusMeters: Int, minutes: Int, groups: List<String>): Job {
+        val a = api ?: return completed()
+        val t = trip ?: return completed()
+        _state.update { it.copy(opening = true, error = null) }
+        return viewModelScope.launch {
+            val fix = locationSource?.fix()
+            if (fix == null) {
+                _state.update { it.copy(opening = false, error = "Could not read this phone's position. Stand at the meeting point and allow location.") }
+                return@launch
+            }
+            val start = isoClock()
+            val body = OpenWindowRequestDto(
+                label = label.trim().ifEmpty { "Regroup" },
+                place = place.trim().ifEmpty { "Meeting point" },
+                radiusMeters = radiusMeters.coerceIn(25, 2000),
+                startsAt = start.toString(),
+                endsAt = start.plusSeconds(minutes.coerceIn(5, 240) * 60L).toString(),
+                groups = groups.map { it.trim() }.filter { it.isNotEmpty() },
+                center = GeoPointDto(fix.lat, fix.lng),
+            )
+            when (val r = a.openWindow(t.organizationId, t.tripId, body)) {
+                is ApiResult.Ok -> {
+                    current = r.value
+                    _state.update { it.copy(window = r.value.toMeetingWindow(t.participationId, ::localTime), now = deviceClock(), opening = false) }
+                }
+                is ApiResult.Failed -> _state.update {
+                    it.copy(opening = false, error = if (r.status == 403) "Only trip leaders open windows." else "The server refused the window (${r.error.code}).")
+                }
+                is ApiResult.Unreachable -> _state.update { it.copy(opening = false, error = "Offline. A window needs one connection to open.") }
+            }
+        }
+    }
+
+    /** A leader closes the current window early; the server erases the meeting point. */
+    fun closeWindow(): Job {
+        val a = api ?: return completed()
+        val t = trip ?: return completed()
+        val dto = current ?: return completed()
+        return viewModelScope.launch {
+            when (a.closeWindow(t.organizationId, t.tripId, dto.id)) {
+                is ApiResult.Ok -> refresh().join()
+                is ApiResult.Failed -> _state.update { it.copy(error = "Could not close the window.") }
+                is ApiResult.Unreachable -> _state.update { it.copy(error = "Offline. The window closes itself at its end time.") }
+            }
+        }
     }
 
     /** Judge the device's fix now and send the state; uncertain without permission or a fix. */
