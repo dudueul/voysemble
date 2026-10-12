@@ -69,6 +69,14 @@ the fixture's `inbox()` is a leader's concert morning with two unread. Evidence:
 `android/inbox-light.png`, `android/inbox-all-read-dark.png`, `ios/inbox-light.png`,
 `ios/inbox-all-read-dark.png`; `today-light.png` on both carries the badge.
 
+"Open" on a row (slice 061) reads it and leads to what it points at: an announcement or a
+revision to the Bulletin tab, a decided proposal to the Plan tab, a head count or an incident to
+the leader's screens (a guardian reads the status on the Today card instead, so their rows show
+no Open), a packing reminder to the packing list; a document reminder opens nothing (documents
+never live on a phone). The rule is core's `InboxItem.target(role)`; Android resolves it through
+`NavViewModel` and the Today tab's `selectTab`, iOS through the Today stack's path
+(`TodayPush`, `navigationDestination`).
+
 Android creates the three lane channels at launch (`ui/NotificationChannels.kt`: `lane.priority`
 high, `lane.normal` default, `lane.digest` low; names and descriptions in the app's language), so
 the phone's settings show them before the first push and a later push can name its channel. The
@@ -131,7 +139,7 @@ alarm when the number of organizations makes the sweep the wrong shape.
 ## Not done
 
 Push delivery (FCM and APNs: a token per device, the Android channels are there, an opaque event
-id per push); opening the thing a row points at from the inbox (the reference is there; the
-phones' navigation is still tab-and-push); the production email transport (the digest goes
+id per push); opening the exact announcement or incident rather than its tab or screen (the
+reference is there; the screens open on their own first item); the production email transport (the digest goes
 through the same `EmailPort` as the sign-in link, which named environments do not bind yet);
 chat mentions; the organizer's mobile digest; packing reminders.

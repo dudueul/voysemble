@@ -1555,7 +1555,7 @@ Not done: a reminder schedule the organizer sets; a nudge from the organizer to 
 
 ## Slice 057: the revision history
 
-Status: done 2026-10-12. Commit: see git log (`feat(itinerary): the revision history page, every publish kept as it went out (slice 057)`, `47209f1`). CI: run 38285240535 red on `web` only (`mobile` and `ios` green): `responsive.spec.ts` found the itinerary editor 84 px too wide on the phone project, because the new "History" button joined the header's meta row, which did not wrap. The fix commit (`fix(console): the page header's meta row wraps on a phone`) lets `.page__meta` wrap; the verifying run is recorded there. The browser suite's other 94 cases, the history spec among them, passed on that run.
+Status: done 2026-10-12. Commit: see git log (`feat(itinerary): the revision history page, every publish kept as it went out (slice 057)`, `47209f1`). CI: run 38285240535 red on `web` only (`mobile` and `ios` green): `responsive.spec.ts` found the itinerary editor 84 px too wide on the phone project, because the new "History" button joined the header's meta row, which did not wrap. The fix commit (`fix(console): the page header's meta row wraps on a phone`, `92cf98e`) lets `.page__meta` wrap; verified by run 38287080366 green (web incl. the thirteen responsive cases, mobile, ios), 2026-10-12 18:01 UTC; captures commit `187d0e1` carries `itinerary-history.png` for both desktop projects. The browser suite's other 94 cases, the history spec among them, had passed on the red run too.
 Spec: D19 (old revisions kept; amended), D31. Details: `docs/engineering/itinerary.md` (Revision history).
 
 | Gate | Command | Result |
@@ -1578,7 +1578,7 @@ Not done: a side-by-side view of two snapshots; restoring a past revision into t
 
 ## Slice 058: rooming lists and the hotel's sealed link
 
-Status: done 2026-10-12. Commit: see git log (`feat(travel): rooming lists and the hotel's sealed link (slice 058)`, `3e31783`). CI: its run carries the 057 phone overflow (the History button) until the fix commit; the result is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: see git log (`feat(travel): rooming lists and the hotel's sealed link (slice 058)`, `3e31783`). CI: run 38286876183 red on `web` only, the 057 phone overflow (`responsive.spec.ts`), `mobile` and `ios` green; the fix run 38287080366 at `92cf98e`, which carries this slice's code, is green on all three (incl. `travel.spec.ts` with the rooming list and the hotel sheet); captures commit `187d0e1` carries `travel-rooming.png` and `hotel-sheet.png` for both desktop projects.
 Spec: D41 (new), D27 (sealed third-party links; amended), D39 (the driver's link, the shape), D13 (guardians never see rooms), D31. Details: `docs/engineering/travel.md` (Rooming lists and the hotel's sealed link), `rate-limits.md`.
 
 | Gate | Command | Result |
@@ -1642,3 +1642,25 @@ Built:
 - Docs: `documents.md` route row, console paragraph and facts, `notifications.md` tables, D27 amendment, ledger, feature flag `documents.reminders` working.
 
 Not done: a reminder schedule (the mornings before the due date, like the packing reminders); the nudge from the person card; the guardian's own view of what is missing on the phone (the inbox row names it).
+
+## Slice 061: the inbox row opens its target on both phones
+
+Status: done 2026-10-12. Commit: see git log (`feat(mobile): "Open" on an inbox row leads to what it points at (slice 061)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D29 (the inbox; amended in 053), D13 (what a guardian reads where), D27 (documents never on a phone), D31. Details: `docs/engineering/notifications.md` (Phones).
+
+| Gate | Command | Result |
+|---|---|---|
+| Core JVM tests | `./gradlew :core:jvmTest` (CI `mobile` job) | `InboxModelTest` gains the target rule (+1); `L10nTest` the two new keys |
+| Android tests + captures | `./gradlew :android-app:testDebugUnitTest` / `recordRoborazziDebug` (CI `mobile` job) | `InboxScreenshotTest.inbox_light` presses "Open" on the head-count row; `inbox-light.png` updated |
+| iOS tests + captures | `xcodebuild test` (CI `ios` job) | `LiveModelsTests.testInboxSampleAndUnreachable` pins the target by role; `CaptureTests.testInbox` renders the button |
+| Headers | `pnpm check:headers` | clean |
+
+Gradle and Xcode do not run in this workspace; the CI `mobile` and `ios` jobs verify the Kotlin and Swift, desk-checked here. The iOS Today tab moved to a path-driven `NavigationStack` so a pushed inbox can hand a target back to the stack; the four existing links became value links.
+
+Built:
+- Core: `InboxTarget`, `InboxItem.target(role)`, `openSpoken`, strings `INBOX_OPEN_ROW` and `INBOX_OPEN_ROW_SPOKEN` in both languages.
+- Android: `InboxScreen` rows carry "Open" when the row leads somewhere for the reader's role (`InboxUiState.role`); `AppNavigation` reads the row, switches the tab (`selectTab`) or pushes the screen.
+- iOS: `InboxView(onOpen:)`, `InboxBell` as a value link; `TodayView` with `todayPath` and `navigationDestination(for: TodayPush.self)`; `openFromInbox`.
+- Docs: `notifications.md` Phones paragraph and not-done, captures README, ledger, feature flag `mobile.inbox.open` working.
+
+Not done: opening the exact announcement or incident (the screens open on their first item); a deep link from a push (push delivery is deferred).

@@ -24,6 +24,8 @@ struct TodayView: View {
     // Slice 053 (D29): my inbox; the header's bell reads its unread count, the pushed screen reads.
     @StateObject private var inbox: InboxModel
     @State private var proposing: ProposalTarget?
+    // Slice 061: the Today tab's pushed screens as a path, so the inbox can lead to one of them.
+    @State private var todayPath: [TodayPush] = []
 
     init(model: TodayModel) {
         _model = StateObject(wrappedValue: model)
@@ -60,7 +62,7 @@ struct TodayView: View {
 
     private var todayTab: some View {
         let s = model.snapshot
-        return NavigationStack {
+        return NavigationStack(path: $todayPath) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     header(s)
@@ -84,11 +86,11 @@ struct TodayView: View {
                         HeadcountCard(groups: s.headcount, checkedIn: Int(s.checkedIn), expected: Int(s.expected))
                         // Slice 009: leader and traveler screens reachable from Today, as on Android.
                         HStack {
-                            NavigationLink(tr(.todayOpenHeadCount)) { HeadcountView(model: headcount) }
+                            NavigationLink(tr(.todayOpenHeadCount), value: TodayPush.headcount)
                             Spacer()
-                            NavigationLink(tr(.todayMeetingWindow)) { MeetingWindowView(model: window) }
+                            NavigationLink(tr(.todayMeetingWindow), value: TodayPush.window)
                             Spacer()
-                            NavigationLink(tr(.todayIncidents)) { IncidentsView(model: incidents) }
+                            NavigationLink(tr(.todayIncidents), value: TodayPush.incidents)
                         }
                         .font(.subheadline.weight(.semibold))
                     }
@@ -100,6 +102,15 @@ struct TodayView: View {
                 .padding(16)
             }
             .background(Color(argb: Tokens.Color.Light.bg))
+            .navigationDestination(for: TodayPush.self) { push in
+                switch push {
+                case .headcount: HeadcountView(model: headcount)
+                case .window: MeetingWindowView(model: window)
+                case .incidents: IncidentsView(model: incidents)
+                case .packing: PackingView(model: packing)
+                case .inbox: InboxView(model: inbox, onOpen: openFromInbox)
+                }
+            }
             .sheet(item: $proposing) { target in
                 ProposeChangeSheet(
                     target: target,
@@ -110,6 +121,23 @@ struct TodayView: View {
                     onCancel: { proposing = nil },
                 )
             }
+        }
+    }
+
+    /// Slice 061: a row's "Open" reads it and leads to a tab or a pushed screen of this stack.
+    private func openFromInbox(_ item: InboxItem) {
+        Task { await inbox.markRead(item.id) }
+        switch item.target(role: model.trip?.role ?? "leader") {
+        case .bulletin:
+            todayPath = []
+            model.tab = .bulletin
+        case .plan:
+            todayPath = []
+            model.tab = .plan
+        case .headcount: todayPath = [.headcount]
+        case .incidents: todayPath = [.incidents]
+        case .packing: todayPath = [.packing]
+        default: break
         }
     }
 
@@ -342,7 +370,7 @@ private struct PackingCard: View {
                     Text(model.list.summary()).font(.subheadline.weight(.semibold))
                 }
             }
-            NavigationLink(tr(.packOpen)) { PackingView(model: model) }
+            NavigationLink(tr(.packOpen), value: TodayPush.packing)
                 .font(.subheadline.weight(.semibold))
                 .padding(.top, 6)
         }
@@ -451,4 +479,9 @@ extension Color {
         let b = Double(argb & 0xFF) / 255
         self.init(.sRGB, red: r, green: g, blue: b, opacity: a)
     }
+}
+
+/// The screens the Today tab pushes (slice 061): the path's values, resolved by `navigationDestination`.
+enum TodayPush: Hashable {
+    case headcount, window, incidents, packing, inbox
 }

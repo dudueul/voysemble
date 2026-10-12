@@ -265,6 +265,10 @@ final class LiveModelsTests: XCTestCase {
         XCTAssertEqual(sample.inbox.summary(), "1 unread")
         XCTAssertNil(sample.notice)
         XCTAssertEqual(InboxModelKt.bellSpoken(unread: 1), "Inbox, 1 unread")
+        // Slice 061: where a row leads, by role.
+        XCTAssertEqual(sample.inbox.items.first?.target(role: "leader"), .headcount)
+        XCTAssertEqual(sample.inbox.items.first?.target(role: "guardian"), InboxTarget.none)
+        XCTAssertEqual(sample.inbox.items.first?.openSpoken(), "Open Head count: Bus A")
         let live = InboxModel(api: unreachableClient(), trip: trip)
         XCTAssertTrue(live.live)
         XCTAssertEqual(live.inbox.items.count, 0)

@@ -300,3 +300,9 @@ the stay, room 204 with its two names, the unassigned, the leader by name. Produ
 `android/rooming-light.png`, `android/rooming-dark.png` (Roborazzi) and `ios/rooming-light.png`,
 `ios/rooming-dark.png` (CaptureTests): the fixture hotel's rooms (412, 415, the leader's 501),
 the leader in bold, Lee Hana without a room yet, the summary line. No console change.
+
+## Slice 061 (2026-10-12): the inbox row opens its target
+
+`android/inbox-light.png` and `ios/inbox-light.png` (updated): each row that leads somewhere now
+carries "Open" beside "Mark read" (the head-count call, the announcement, the plan update, the
+proposal and the incident rows of a leader's inbox). No console change.

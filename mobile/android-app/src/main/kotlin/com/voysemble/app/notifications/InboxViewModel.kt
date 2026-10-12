@@ -42,6 +42,8 @@ data class InboxUiState(
     val notice: String? = null,
     /** Rows whose read is on its way; they are disabled meanwhile. */
     val pending: Set<String> = emptySet(),
+    /** Slice 061: the reader's role decides where a row can lead (sample mode is the leader's view). */
+    val role: String = "leader",
 )
 
 class InboxViewModel(
@@ -51,7 +53,7 @@ class InboxViewModel(
     private val clock: (iso: String) -> String = { iso -> deviceLabel(iso) },
 ) : ViewModel() {
     private val live = api != null && trip != null
-    private val _state = MutableStateFlow(InboxUiState(inbox = if (live) emptyInbox() else initial, live = live))
+    private val _state = MutableStateFlow(InboxUiState(inbox = if (live) emptyInbox() else initial, live = live, role = trip?.role ?: "leader"))
     val state: StateFlow<InboxUiState> = _state
 
     /** The first inbox (live); completed at once in sample mode. Tests await it. */

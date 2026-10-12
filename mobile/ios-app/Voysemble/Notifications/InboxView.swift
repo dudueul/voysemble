@@ -83,6 +83,10 @@ final class InboxModel: ObservableObject {
 
 struct InboxView: View {
     @ObservedObject var model: InboxModel
+    /// Slice 061: leads to what a row points at (the row is read as it opens); nil hides "Open".
+    var onOpen: ((InboxItem) -> Void)? = nil
+    /// The reader's role decides where a row can lead; sample mode is the leader's view.
+    var role: String { model.trip?.role ?? "leader" }
 
     var body: some View {
         List {
@@ -105,9 +109,12 @@ struct InboxView: View {
                     Text(tr(.inboxNone)).font(.subheadline).foregroundStyle(.secondary)
                 }
                 ForEach(model.inbox.items, id: \.id) { item in
-                    InboxRow(item: item, pending: model.pending.contains(item.id)) {
-                        Task { await model.markRead(item.id) }
-                    }
+                    InboxRow(
+                        item: item,
+                        pending: model.pending.contains(item.id),
+                        onRead: { Task { await model.markRead(item.id) } },
+                        onOpen: openAction(for: item),
+                    )
                 }
             } footer: {
                 Text(tr(.inboxPushNote))
@@ -115,6 +122,12 @@ struct InboxView: View {
         }
         .navigationTitle(tr(.inboxTitle))
         .task { if model.live { await model.refresh() } }
+    }
+
+    /// Slice 061: the row's "Open" when it leads somewhere for the reader's role; nil otherwise.
+    private func openAction(for item: InboxItem) -> (() -> Void)? {
+        guard let onOpen, item.target(role: role) != InboxTarget.none else { return nil }
+        return { onOpen(item) }
     }
 
     /// "Live" / "Syncing" with the API; "Sample data" on the fixture, as on Android.
@@ -133,6 +146,7 @@ private struct InboxRow: View {
     let item: InboxItem
     let pending: Bool
     let onRead: () -> Void
+    var onOpen: (() -> Void)? = nil
 
     private var laneColor: Color {
         switch item.lane {
@@ -143,7 +157,8 @@ private struct InboxRow: View {
     }
 
     var body: some View {
-        Button(action: onRead) {
+        // A tap on the row reads it; "Open" is a button of its own, so a read row still opens.
+        VStack(alignment: .leading, spacing: 6) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
                     Text(InboxModelKt.laneLabel(lane: item.lane)).font(.caption2.weight(.semibold))
@@ -156,15 +171,28 @@ private struct InboxRow: View {
                 Text(item.title).font(item.read ? .body : .body.weight(.semibold))
                     .foregroundStyle(item.read ? .secondary : .primary)
                 if !item.body.isEmpty { Text(item.body).font(.caption).foregroundStyle(.secondary) }
-                if !item.read {
-                    Text(tr(.inboxMarkRead)).font(.subheadline.weight(.semibold))
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { if !item.read && !pending { onRead() } }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(item.spoken())
+            .accessibilityAddTraits(item.read ? [] : .isButton)
+            HStack(spacing: 12) {
+                if let onOpen {
+                    Button(tr(.inboxOpenRow), action: onOpen)
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Color(argb: Tokens.Color.Light.action))
+                        .accessibilityLabel(item.openSpoken())
+                }
+                if !item.read {
+                    Button(tr(.inboxMarkRead), action: onRead)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color(argb: Tokens.Color.Light.action))
+                        .disabled(pending)
                 }
             }
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
-        .disabled(item.read || pending)
-        .accessibilityLabel(item.spoken())
     }
 }
 
@@ -174,9 +202,9 @@ struct InboxBell: View {
 
     var body: some View {
         let unread = Int(model.inbox.unreadCount())
-        NavigationLink {
-            InboxView(model: model)
-        } label: {
+        // Slice 061: the Today stack resolves `.inbox` (TodayView.navigationDestination), so the
+        // inbox can hand a row's target back to the stack.
+        NavigationLink(value: TodayPush.inbox) {
             Image(systemName: unread > 0 ? "bell.badge" : "bell")
                 .font(.title3)
                 .foregroundStyle(Color(argb: Tokens.Color.Light.brand))

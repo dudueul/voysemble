@@ -71,6 +71,17 @@ class InboxModelTest {
     }
 
     @Test
+    fun a_row_leads_somewhere_by_role() {
+        // Slice 061: where "Open" goes; a guardian reads head counts and incidents on the Today card instead.
+        val fixture = KoreaConcertTourFixture.inbox()
+        assertEquals(listOf(InboxTarget.HEADCOUNT, InboxTarget.BULLETIN, InboxTarget.BULLETIN, InboxTarget.PLAN, InboxTarget.INCIDENTS), fixture.items.map { it.target("leader") })
+        assertEquals(listOf(InboxTarget.NONE, InboxTarget.BULLETIN, InboxTarget.BULLETIN, InboxTarget.PLAN, InboxTarget.NONE), fixture.items.map { it.target("guardian") })
+        assertEquals(InboxTarget.PACKING, inboxItemOf(dto.notifications[0].copy(refType = "packing"), clock).target("traveler"))
+        assertEquals(InboxTarget.NONE, inboxItemOf(dto.notifications[0].copy(refType = "document"), clock).target("traveler"))
+        assertEquals("Open Head count: Bus A", fixture.items[0].openSpoken())
+    }
+
+    @Test
     fun fixture_and_korean() {
         val fixture = KoreaConcertTourFixture.inbox()
         assertEquals(5, fixture.items.size)

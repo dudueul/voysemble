@@ -393,6 +393,8 @@ internal val EN: Map<Txt, String> = mapOf(
     ROOMING_PERSON_SPOKEN to "{0}, room {1}",
     ROOMING_PERSON_UNASSIGNED_SPOKEN to "{0}, no room yet",
     INBOX_KIND_DOCUMENT to "Documents",
+    INBOX_OPEN_ROW to "Open",
+    INBOX_OPEN_ROW_SPOKEN to "Open {0}",
 )
 
 internal val KO: Map<Txt, String> = mapOf(
@@ -779,4 +781,6 @@ internal val KO: Map<Txt, String> = mapOf(
     ROOMING_PERSON_SPOKEN to "{0}, {1}호",
     ROOMING_PERSON_UNASSIGNED_SPOKEN to "{0}, 아직 객실 없음",
     INBOX_KIND_DOCUMENT to "서류",
+    INBOX_OPEN_ROW to "열기",
+    INBOX_OPEN_ROW_SPOKEN to "{0} 열기",
 )

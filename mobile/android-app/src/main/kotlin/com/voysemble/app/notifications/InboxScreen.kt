@@ -1,8 +1,8 @@
 // Copyright 2026- At Day. All rights reserved.
 // Notification inbox screen (D29, slice 053): the unread count, the lane rule in a line, one row
 // per notification with its lane, kind and time, the title and the short body; a tap on an unread
-// row marks it read. Reached from the bell in the Today header. What arrives here is the server's
-// decision; the phone shows and reads, nothing more.
+// row marks it read; "Open" (slice 061) leads to what the row points at. Reached from the bell in
+// the Today header. What arrives here is the server's decision; the phone shows, reads and opens.
 
 package com.voysemble.app.notifications
 
@@ -42,20 +42,24 @@ import com.voysemble.app.ui.VyCard
 import com.voysemble.core.i18n.Txt
 import com.voysemble.core.i18n.tr
 import com.voysemble.core.notifications.InboxItem
+import com.voysemble.core.notifications.InboxTarget
 import com.voysemble.core.notifications.Lane
 import com.voysemble.core.notifications.kindLabel
 import com.voysemble.core.notifications.laneLabel
+import com.voysemble.core.notifications.openSpoken
 import com.voysemble.core.notifications.spoken
 import com.voysemble.core.notifications.summary
+import com.voysemble.core.notifications.target
 
 @Composable
-fun InboxRoute(vm: InboxViewModel, onBack: () -> Unit) {
+fun InboxRoute(vm: InboxViewModel, onBack: () -> Unit, onOpen: ((InboxItem) -> Unit)? = null) {
     val state by vm.state.collectAsStateWithLifecycle()
-    InboxScreen(state, onRead = { vm.markRead(it) }, onBack = onBack)
+    InboxScreen(state, onRead = { vm.markRead(it) }, onBack = onBack, onOpen = onOpen)
 }
 
+/** Slice 061: `onOpen` leads to what a row points at (the row is read as it opens); null hides "Open". */
 @Composable
-fun InboxScreen(state: InboxUiState, onRead: (String) -> Unit, onBack: (() -> Unit)?) {
+fun InboxScreen(state: InboxUiState, onRead: (String) -> Unit, onBack: (() -> Unit)?, onOpen: ((InboxItem) -> Unit)? = null) {
     val c = LocalVoysembleColors.current
     val inbox = state.inbox
     LazyColumn(
@@ -78,7 +82,7 @@ fun InboxScreen(state: InboxUiState, onRead: (String) -> Unit, onBack: (() -> Un
             item { Text(tr(Txt.INBOX_NONE), style = MaterialTheme.typography.bodyMedium, color = c.textMuted) }
         }
         items(inbox.items, key = { it.id }) { item ->
-            InboxRow(item, pending = item.id in state.pending, onRead = { onRead(item.id) })
+            InboxRow(item, pending = item.id in state.pending, onRead = { onRead(item.id) }, onOpen = onOpen?.takeIf { item.target(state.role) != InboxTarget.NONE }?.let { open -> { open(item) } })
         }
         item { Text(tr(Txt.INBOX_PUSH_NOTE), style = MaterialTheme.typography.bodySmall, color = c.textMuted) }
         item { Spacer(Modifier.height(8.dp)) }
@@ -86,7 +90,7 @@ fun InboxScreen(state: InboxUiState, onRead: (String) -> Unit, onBack: (() -> Un
 }
 
 @Composable
-private fun InboxRow(item: InboxItem, pending: Boolean, onRead: () -> Unit) {
+private fun InboxRow(item: InboxItem, pending: Boolean, onRead: () -> Unit, onOpen: (() -> Unit)? = null) {
     val c = LocalVoysembleColors.current
     val laneColor = when (item.lane) {
         Lane.PRIORITY -> c.danger
@@ -114,10 +118,16 @@ private fun InboxRow(item: InboxItem, pending: Boolean, onRead: () -> Unit) {
             color = if (item.read) c.textMuted else MaterialTheme.colorScheme.onSurface,
         )
         if (item.body.isNotBlank()) Text(item.body, style = MaterialTheme.typography.bodySmall, color = c.textMuted)
-        if (!item.read) {
+        if (!item.read || onOpen != null) {
             Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
                 Spacer(Modifier.width(1.dp))
-                TextButton(onClick = onRead, enabled = !pending) { Text(tr(Txt.INBOX_MARK_READ)) }
+                onOpen?.let { open ->
+                    TextButton(
+                        onClick = open,
+                        modifier = Modifier.semantics { contentDescription = item.openSpoken() },
+                    ) { Text(tr(Txt.INBOX_OPEN_ROW)) }
+                }
+                if (!item.read) TextButton(onClick = onRead, enabled = !pending) { Text(tr(Txt.INBOX_MARK_READ)) }
             }
         }
     }

@@ -117,3 +117,24 @@ public fun InboxItem.spoken(): String = if (read) trf(Txt.INBOX_READ_SPOKEN, tit
 
 /** The bell's label: "Inbox, 2 unread". */
 public fun bellSpoken(unread: Int): String = trf(Txt.INBOX_BELL_SPOKEN, unread)
+
+/** Where a row leads on the phone (slice 061): a tab, a pushed screen, or nowhere. */
+public enum class InboxTarget { BULLETIN, PLAN, HEADCOUNT, INCIDENTS, PACKING, NONE }
+
+/**
+ * What a row opens for a role: an announcement or a revision the Bulletin tab, a decided proposal
+ * the Plan tab, a head count or an incident the leader's screens (a guardian reads the status on
+ * the Today card instead), a packing reminder the packing list; a document reminder opens nothing
+ * (documents never live on a phone, D27).
+ */
+public fun InboxItem.target(role: String): InboxTarget = when (refType) {
+    "announcement" -> InboxTarget.BULLETIN
+    "proposal" -> InboxTarget.PLAN
+    "headcount" -> if (role == "leader") InboxTarget.HEADCOUNT else InboxTarget.NONE
+    "incident" -> if (role == "leader") InboxTarget.INCIDENTS else InboxTarget.NONE
+    "packing" -> InboxTarget.PACKING
+    else -> InboxTarget.NONE
+}
+
+/** The row's "Open" as a screen reader says it: "Open Head count: Bus A". */
+public fun InboxItem.openSpoken(): String = trf(Txt.INBOX_OPEN_ROW_SPOKEN, title)

@@ -92,7 +92,7 @@ final class CaptureTests: XCTestCase {
 
     func testInbox() throws {
         // Slice 053 (D29): a leader's inbox on the concert morning with two unread; the same, all read, dark.
-        try capture(NavigationStack { InboxView(model: InboxModel()) }, name: "inbox-light")
+        try capture(NavigationStack { InboxView(model: InboxModel(), onOpen: { _ in }) }, name: "inbox-light")
         let read = KoreaConcertTourFixture.shared.inbox().withRead(id: "nt1").withRead(id: "nt2")
         try capture(NavigationStack { InboxView(model: InboxModel(inbox: read)) }, name: "inbox-all-read-dark", scheme: .dark)
     }

@@ -42,6 +42,8 @@ import com.voysemble.app.plan.PlanRoute
 import com.voysemble.app.memories.MemoriesRoute
 import com.voysemble.app.notifications.InboxRoute
 import com.voysemble.app.notifications.InboxViewModel
+import com.voysemble.core.notifications.InboxTarget
+import com.voysemble.core.notifications.target
 import com.voysemble.core.notifications.unreadCount
 import com.voysemble.app.packing.PackingRoute
 import com.voysemble.app.packing.PackingViewModel
@@ -136,7 +138,22 @@ fun AppScreens(trip: ActiveTrip?, onSignOut: () -> Unit) {
         }
         Screen.INBOX -> {
             BackHandler { nav.back() }
-            InboxRoute(inbox, onBack = nav::back)
+            // Slice 061: "Open" reads the row and leads to what it points at (a tab or a pushed screen).
+            InboxRoute(
+                inbox,
+                onBack = nav::back,
+                onOpen = { item ->
+                    inbox.markRead(item.id)
+                    when (item.target(trip?.role ?: "leader")) {
+                        InboxTarget.BULLETIN -> { today.selectTab(MainTab.BULLETIN); nav.back() }
+                        InboxTarget.PLAN -> { today.selectTab(MainTab.PLAN); nav.back() }
+                        InboxTarget.HEADCOUNT -> nav.open(Screen.HEADCOUNT)
+                        InboxTarget.INCIDENTS -> nav.open(Screen.INCIDENTS)
+                        InboxTarget.PACKING -> nav.open(Screen.PACKING)
+                        InboxTarget.NONE -> Unit
+                    }
+                },
+            )
         }
         Screen.ROOMING -> {
             BackHandler { nav.back() }
