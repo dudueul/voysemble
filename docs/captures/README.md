@@ -248,3 +248,10 @@ the command center with the same events in its next 48 hours. Produced by
 the Journey Graph page after Breakfast slipped twenty minutes and the moves were applied to the
 draft (the bus node at 10:20, the propagation list, the status line). Produced by
 `apps/organizer-web/e2e/journey-graph.spec.ts`. No phone change.
+
+## Slice 052 (2026-10-12): the notification log
+
+`web/desktop-1440/notifications-log.png`, `web/laptop-1280/notifications-log.png`: the log the
+bell leads to, with a shared required-ack announcement (three travelers in priority, two guardians
+in normal) and a plain one (three travelers in normal). Produced by
+`apps/organizer-web/e2e/notifications.spec.ts`. No phone change.

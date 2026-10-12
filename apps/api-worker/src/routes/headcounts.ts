@@ -16,6 +16,7 @@ import {
 import { HTTPException } from 'hono/http-exception';
 import { type OrgAccess, requireAuth, requireOrgRole } from '../auth/middleware';
 import type { AppEnv } from '../env';
+import { notificationBody, notifyTrip } from '../lib/notify';
 import { orgObject } from '../org/client';
 import { ERROR_RESPONSES, SESSION_SECURITY } from './openapi-common';
 import { TripParams } from './trips';
@@ -92,6 +93,42 @@ export function mountHeadcountRoutes(app: OpenAPIHono<AppEnv>): void {
     });
     if ('conflict' in result) {
       throw new HTTPException(409, { message: 'This head count id belongs to another trip.' });
+    }
+    // D29 (slice 052): a head-count call reaches the group's travelers and leaders at once; a
+    // close that leaves people missing tells their guardians and the group's leaders.
+    const trip = await org.getTrip(tripId);
+    if (trip && result.opened) {
+      const scope = result.session.groupName ?? 'Whole trip';
+      await notifyTrip(c.env, org, orgId, trip, {
+        kind: 'headcount_call',
+        title: `Head count: ${scope}`,
+        body: notificationBody(
+          `${result.session.openedByName} is counting ${scope} now. Find your leader.`,
+        ),
+        refType: 'headcount',
+        refId: result.session.id,
+        audience: {
+          roles: ['traveler', 'leader'],
+          ...(result.session.groupName ? { groupNames: [result.session.groupName] } : {}),
+        },
+      });
+    }
+    if (trip && result.incidentOpened && result.incidentId) {
+      const missing = result.session.missing.map((m) => m.participationId);
+      await notifyTrip(c.env, org, orgId, trip, {
+        kind: 'incident_status',
+        title: `Missing after the head count: ${result.session.missing.map((m) => m.displayName).join(', ')}`,
+        body: notificationBody(
+          `${result.session.openedByName} closed the count with ${missing.length} missing. Leaders are on it.`,
+        ),
+        refType: 'incident',
+        refId: result.incidentId,
+        audience: {
+          roles: ['leader'],
+          ...(result.session.groupName ? { groupNames: [result.session.groupName] } : {}),
+          guardiansOf: missing,
+        },
+      });
     }
     return c.json(result, 200);
   });

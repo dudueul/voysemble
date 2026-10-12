@@ -513,6 +513,32 @@ export const en = {
     driverLinkRevokeOf: (minted: string) => `Revoke the link minted ${minted}`,
     driverLinkFailed: 'Could not mint the link.',
   },
+  notifications: {
+    title: 'Notifications',
+    subtitle: 'What the lanes sent for the active trip, and what waits for quiet hours.',
+    liveSubtitle: (n: number) => (n === 1 ? '1 event sent' : `${n} events sent`),
+    log: 'Sent by lane',
+    lanesRule:
+      'Priority goes at once, through quiet hours: required-ack announcements and head-count calls to travelers; head counts, incidents and decided proposals to leaders; incident status to guardians. Normal goes at once outside quiet hours. Digest goes at the guardian digest hour.',
+    none: 'Nothing sent yet. Announcements, head counts, incidents and decided proposals show here as they go out.',
+    colWhen: 'When',
+    colWhat: 'Event',
+    colPriority: 'Priority',
+    colNormal: 'Normal',
+    colDigest: 'Digest',
+    colHeld: 'Held',
+    heldCount: (n: number) => `${n} until quiet hours end`,
+    kind: {
+      announcement: 'announcement',
+      itinerary_revision: 'itinerary revision',
+      headcount_call: 'head-count call',
+      incident_status: 'incident status',
+      proposal_decided: 'proposal decided',
+    },
+    pushNote:
+      'Phones read their inbox from the API; push delivery through the stores is not set up yet, so a notification shows when the app opens.',
+    loadFailed: 'Could not load the notification log.',
+  },
   driver: {
     title: 'Bus sheet',
     loading: 'Opening the sheet…',

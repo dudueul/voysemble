@@ -72,10 +72,10 @@ export function TopBar({
       >
         {localeName[other]}
       </button>
-      <button type="button" className="iconbtn" aria-label={strings.topbar.notifications}>
+      <a className="iconbtn" aria-label={strings.topbar.notifications} href="/notifications">
         <Icons.bell />
         {hasAlerts ? <span className="iconbtn__dot" aria-hidden="true" /> : null}
-      </button>
+      </a>
       <button
         type="button"
         className="avatar"

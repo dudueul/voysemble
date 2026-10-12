@@ -27,6 +27,7 @@ import { HTTPException } from 'hono/http-exception';
 import { aiPort, detectLocale, otherLocale } from '../ai/AiPort';
 import { type OrgAccess, requireAuth, requireOrgRole } from '../auth/middleware';
 import type { AppEnv, AuthContext } from '../env';
+import { notificationBody, notifyTrip } from '../lib/notify';
 import { orgObject } from '../org/client';
 import type { OrgDurableObject } from '../org/OrgDurableObject';
 import { ERROR_RESPONSES, SESSION_SECURITY } from './openapi-common';
@@ -179,6 +180,23 @@ export function mountAnnouncementRoutes(app: OpenAPIHono<AppEnv>): void {
         ? { locale: target, body: translated, provider: 'machine', editedBy: null }
         : null,
     });
+    // D29 (slice 052): travelers and leaders hear about it; guardians only when it is shared.
+    const trip = await org.getTrip(tripId);
+    if (trip) {
+      await notifyTrip(c.env, org, orgId, trip, {
+        kind: 'announcement',
+        title: body.title,
+        body: notificationBody(body.body),
+        refType: 'announcement',
+        refId: created.id,
+        flags: { requiresAck: body.requiresAck, sharedWithGuardians: body.sharedWithGuardians },
+        audience: {
+          roles: body.sharedWithGuardians
+            ? ['traveler', 'leader', 'guardian']
+            : ['traveler', 'leader'],
+        },
+      });
+    }
     return c.json(created, 201);
   });
 

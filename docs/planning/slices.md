@@ -1435,3 +1435,28 @@ Built:
 - Docs: `journey-graph.md` section and facts, D19 amendment, captures README, ledger, feature flag `graph.proposal` working.
 
 Not done: Workers AI suggestions for a disruption (`itinerary.disruption-ai`); a disruption across days; publishing from the graph page.
+
+## Slice 052: notification lanes on the server and the console's log
+
+Status: done 2026-10-12. Commit: see git log (`feat(notifications): the lanes of D29 on the server, the inbox and the console's log (slice 052)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D29 (notification rules; amended), D19 (revision announcements), D25 (incidents from head counts), D17 (guardian status), D31 (captures). Details: `docs/engineering/notifications.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 34 files, 95 tests (adds `notification-rules.test.ts`: 4, `notifications.test.ts`: 1) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 17 files, 111 tests (adds `NotificationsPage.test.tsx`: 3) |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e -- notifications.spec.ts` | 2 passed (desktop-1440, laptop-1280); capture `notifications-log.png` |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+No phone change yet (the inbox routes are there; the phones' screen and push delivery follow).
+
+Built:
+- Contracts `notifications.ts` (`NotificationLane`, `NotificationKind`, `Notification`, `MyNotifications`, `NotificationEvent`, `NotificationLog`).
+- Worker: `lib/notification-rules.ts` (`laneFor`, `inQuietHours`, `deliverAt`), `lib/time.ts` (`localClock`, `zonedToIso`, `plusDays`), `lib/notify.ts` (`notifyTrip`, `notificationBody`); OrgDurableObject schema 20 (`notifications`) with `notify` (the fan-out by roles, groups, named participations and guardians-of), `myNotifications`, `markNotificationRead`, `notificationLog`; `syncHeadcount` reports `opened` and `incidentOpened`; `decideProposal` returns the proposer; the hooks in the announcement, itinerary publish and decide, head count and incident routes; `routes/notifications.ts` (mine, read, log).
+- Console: `notificationLogQuery`; the Notifications page on `/notifications` (the bell links there); strings EN/KO.
+- Tests: worker (5), console unit (3), browser (1 spec).
+- Docs: `notifications.md`, D29 amendment, captures README, ledger, feature flags `notifications.lanes` working and `notifications.push` deferred.
+
+Lesson: the first run of the worker test read an empty inbox for the leader: the normal lane was held because the test trip lives in Seoul, where it was past 23:00. A test about lanes sets the quiet hours it means (a zero-length window first, a window around now at the end).
+
+Not done: push delivery (FCM, APNs); the phones' inbox screen; the guardian digest email and its cron; chat mentions; the organizer's mobile digest.

@@ -37,6 +37,7 @@ import type {
   IssueInvitesResponse,
   MeetingWindow,
   MeResponse,
+  NotificationLog,
   OpenWindowRequest,
   Organization,
   OrganizationList,
@@ -324,6 +325,13 @@ export const packing = {
       method: 'DELETE',
     }),
 };
+
+/** Notification lanes (D29, slice 052): the log of what went out, with its lane counts. */
+export const notificationLogQuery = (orgId: string, tripId: string) =>
+  queryOptions({
+    queryKey: ['orgs', orgId, 'trips', tripId, 'notifications'],
+    queryFn: () => api<NotificationLog>(`/v1/orgs/${orgId}/trips/${tripId}/notifications`),
+  });
 
 /** Travel bookings (D37, slice 046): the flights, hotels and bus charters of the trip. */
 export const travelQuery = (orgId: string, tripId: string) =>

@@ -18,6 +18,7 @@ import {
 import { HTTPException } from 'hono/http-exception';
 import { type OrgAccess, requireAuth, requireOrgRole } from '../auth/middleware';
 import type { AppEnv } from '../env';
+import { notificationBody, notifyTrip } from '../lib/notify';
 import { orgObject } from '../org/client';
 import { ERROR_RESPONSES, SESSION_SECURITY } from './openapi-common';
 import { TripParams } from './trips';
@@ -145,6 +146,15 @@ export function mountIncidentRoutes(app: OpenAPIHono<AppEnv>): void {
     if ('resolved' in result) {
       throw new HTTPException(409, { message: 'This incident is already resolved.' });
     }
+    await notifyIncidentStatus(
+      c.env,
+      org,
+      orgId,
+      tripId,
+      result.incident,
+      body.status,
+      me?.displayName ?? 'Organizer',
+    );
     return c.json(result.incident, 200);
   });
 
@@ -192,6 +202,61 @@ export function mountIncidentRoutes(app: OpenAPIHono<AppEnv>): void {
     if ('alreadyResolved' in result) {
       throw new HTTPException(409, { message: 'This incident is already resolved.' });
     }
+    await notifyIncidentStatus(
+      c.env,
+      org,
+      orgId,
+      tripId,
+      result.incident,
+      'resolved',
+      me?.displayName ?? 'Organizer',
+    );
     return c.json(result.incident, 200);
   });
+}
+
+/** D29 (slice 052): an incident's status reaches the guardians of the people on it and the leaders of their groups, at once. */
+async function notifyIncidentStatus(
+  env: Env,
+  org: Awaited<ReturnType<typeof orgObject>>,
+  orgId: string,
+  tripId: string,
+  incident: Incident,
+  status: string,
+  byName: string,
+): Promise<void> {
+  const trip = await org.getTrip(tripId);
+  if (!trip) return;
+  const names = incident.people.map((p) => p.displayName).join(', ');
+  const groups = [
+    ...new Set(incident.people.map((p) => p.groupName).filter((g): g is string => g !== null)),
+  ];
+  await notifyTrip(env, org, orgId, trip, {
+    kind: 'incident_status',
+    title: `${statusLine(status)}: ${names}`,
+    body: notificationBody(`${byName}: ${incident.title}`),
+    refType: 'incident',
+    refId: incident.id,
+    audience: {
+      roles: ['leader'],
+      ...(groups.length > 0 ? { groupNames: groups } : {}),
+      guardiansOf: incident.people.map((p) => p.participationId),
+    },
+  });
+}
+
+/** The confirmation statuses (D17) and the resolution as a notification title's first words. */
+function statusLine(status: string): string {
+  switch (status) {
+    case 'with_group':
+      return 'With the group';
+    case 'not_with_group':
+      return 'Not with the group';
+    case 'unknown':
+      return 'Still unknown';
+    case 'resolved':
+      return 'Resolved';
+    default:
+      return `Incident: ${status}`;
+  }
 }

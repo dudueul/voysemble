@@ -25,6 +25,7 @@ import { type OrgAccess, requireAuth, requireOrgRole } from '../auth/middleware'
 import { db } from '../db/client';
 import { organizations } from '../db/schema';
 import type { AppEnv } from '../env';
+import { notificationBody, notifyTrip } from '../lib/notify';
 import { orgObject } from '../org/client';
 import { ERROR_RESPONSES, SESSION_SECURITY } from './openapi-common';
 import { TripParams } from './trips';
@@ -259,6 +260,29 @@ export function mountItineraryRoutes(app: OpenAPIHono<AppEnv>): void {
     if ('nothing' in result) {
       throw new HTTPException(409, { message: 'Nothing to publish.' });
     }
+    // D29 (slice 052): the revision announcement goes out as an itinerary revision; guardians
+    // get it in their digest, travelers and leaders at once (quiet hours allowing).
+    if (result.announcementId) {
+      const announcement = await org.getAnnouncement(result.announcementId, null);
+      if (announcement) {
+        await notifyTrip(c.env, org, orgId, trip, {
+          kind: 'itinerary_revision',
+          title: announcement.title,
+          body: notificationBody(announcement.body),
+          refType: 'announcement',
+          refId: announcement.id,
+          flags: {
+            requiresAck: announcement.requiresAck,
+            sharedWithGuardians: announcement.sharedWithGuardians,
+          },
+          audience: {
+            roles: announcement.sharedWithGuardians
+              ? ['traveler', 'leader', 'guardian']
+              : ['traveler', 'leader'],
+          },
+        });
+      }
+    }
     return c.json(result, 200);
   });
 
@@ -332,6 +356,23 @@ export function mountItineraryRoutes(app: OpenAPIHono<AppEnv>): void {
       throw new HTTPException(409, {
         message: 'The event this proposal is about no longer exists; reject it instead.',
       });
+    }
+    // D29 (slice 052): the leader who proposed hears the decision at once.
+    if (result.proposerId) {
+      const trip = await org.getTrip(tripId);
+      if (trip) {
+        await notifyTrip(c.env, org, orgId, trip, {
+          kind: 'proposal_decided',
+          title:
+            body.decision === 'accept'
+              ? `Proposal accepted: ${result.proposal.eventTitle ?? result.proposal.kind}`
+              : `Proposal rejected: ${result.proposal.eventTitle ?? result.proposal.kind}`,
+          body: notificationBody(body.note ?? result.proposal.note),
+          refType: 'proposal',
+          refId: result.proposal.id,
+          audience: { participationIds: [result.proposerId] },
+        });
+      }
     }
     return c.json(result.proposal, 200);
   });

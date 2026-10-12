@@ -21,6 +21,7 @@ export * from './health';
 export * from './incident';
 export * from './itinerary';
 export * from './media';
+export * from './notifications';
 export * from './organization';
 export * from './packing';
 export * from './person';

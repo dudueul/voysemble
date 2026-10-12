@@ -52,8 +52,12 @@ import type {
   ItineraryEventInput,
   ItineraryProposal,
   MeetingWindow,
+  MyNotifications,
   MyPackingItem,
   MyPackingList,
+  Notification,
+  NotificationEvent,
+  NotificationLog,
   OpenWindowRequest,
   PackingItem,
   PackingList,
@@ -89,6 +93,14 @@ import {
 } from '@voysemble/contracts';
 import type { Bindings } from '../env';
 import { careKeyFrom, seal, unseal } from '../lib/care-crypto';
+import {
+  type AudienceRole,
+  deliverAt,
+  type LaneFlags,
+  laneFor,
+  type NotificationKind,
+  type QuietHours,
+} from '../lib/notification-rules';
 import { nowIso } from '../lib/time';
 
 /** Versioned, idempotent schema steps. Append only; never edit an applied step. */
@@ -524,6 +536,28 @@ const MIGRATIONS: { version: number; sql: string }[] = [
       CREATE INDEX IF NOT EXISTS driver_links_booking_idx ON driver_links(booking_id, created_at);
     `,
   },
+  {
+    // Notification lanes (D29, slice 052): one row per recipient and event, with its lane and delivery time.
+    version: 20,
+    sql: `
+      CREATE TABLE IF NOT EXISTS notifications (
+        id TEXT PRIMARY KEY,
+        trip_id TEXT NOT NULL REFERENCES trips(id),
+        participation_id TEXT NOT NULL REFERENCES participations(id),
+        lane TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        title TEXT NOT NULL,
+        body TEXT NOT NULL,
+        ref_type TEXT NOT NULL,
+        ref_id TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        deliver_at TEXT NOT NULL,
+        read_at TEXT
+      );
+      CREATE INDEX IF NOT EXISTS notifications_participation_idx ON notifications(participation_id, deliver_at);
+      CREATE INDEX IF NOT EXISTS notifications_trip_idx ON notifications(trip_id, created_at);
+    `,
+  },
 ];
 
 type ChatMessageRow = {
@@ -616,6 +650,21 @@ type TravelBookingRow = {
   kind: string;
   data: string;
   created_at: string;
+};
+
+type NotificationRow = {
+  id: string;
+  trip_id: string;
+  participation_id: string;
+  lane: string;
+  kind: string;
+  title: string;
+  body: string;
+  ref_type: string;
+  ref_id: string;
+  created_at: string;
+  deliver_at: string;
+  read_at: string | null;
 };
 
 type DriverLinkRow = {
@@ -1255,6 +1304,7 @@ export class OrgDurableObject extends DurableObject<Env> {
         sql.exec('DELETE FROM participation_events WHERE participation_id = ?', r.id);
         sql.exec('DELETE FROM document_items WHERE participation_id = ?', r.id);
         sql.exec('DELETE FROM packing_ticks WHERE participation_id = ?', r.id);
+        sql.exec('DELETE FROM notifications WHERE participation_id = ?', r.id);
         sql.exec('DELETE FROM chat_reads WHERE reader_key = ?', r.id);
         sql.exec('DELETE FROM participations WHERE id = ?', r.id);
       }
@@ -1752,7 +1802,15 @@ export class OrgDurableObject extends DurableObject<Env> {
     closedAtDevice: string | null;
     marks: { participationId: string; mark: HeadcountMark }[];
   }): Promise<
-    | { session: HeadcountSession; applied: boolean; incidentId: string | null }
+    | {
+        session: HeadcountSession;
+        applied: boolean;
+        incidentId: string | null;
+        /** True when this call created the session (slice 052: the head-count call goes out). */
+        opened: boolean;
+        /** True when this call opened the incident (slice 052: the status goes out). */
+        incidentOpened: boolean;
+      }
     | { conflict: 'other-trip' }
   > {
     this.requireOrg();
@@ -1768,6 +1826,8 @@ export class OrgDurableObject extends DurableObject<Env> {
           session: this.headcountFromRow(existing),
           applied: false,
           incidentId: this.incidentForHeadcount(existing.id),
+          opened: false,
+          incidentOpened: false,
         };
       }
     }
@@ -1816,8 +1876,15 @@ export class OrgDurableObject extends DurableObject<Env> {
     const row = sql.exec<HeadcountRow>('SELECT * FROM headcounts WHERE id = ?', input.id).one();
     const session = this.headcountFromRow(row);
     // D25: a close that leaves travelers missing opens one incident card naming them.
+    const hadIncident = this.incidentForHeadcount(session.id) !== null;
     const incidentId = session.closedWithMissing ? this.openHeadcountIncident(session) : null;
-    return { session, applied: true, incidentId };
+    return {
+      session,
+      applied: true,
+      incidentId,
+      opened: !existing,
+      incidentOpened: incidentId !== null && !hadIncident,
+    };
   }
 
   private incidentForHeadcount(headcountId: string): string | null {
@@ -4116,6 +4183,188 @@ export class OrgDurableObject extends DurableObject<Env> {
     };
   }
 
+  // ---- Notification lanes (D29, slice 052) ----
+
+  private notificationOf(r: NotificationRow): Notification {
+    return {
+      id: r.id,
+      tripId: r.trip_id,
+      lane: r.lane as Notification['lane'],
+      kind: r.kind as Notification['kind'],
+      title: r.title,
+      body: r.body,
+      refType: r.ref_type as Notification['refType'],
+      refId: r.ref_id,
+      createdAt: r.created_at,
+      deliverAt: r.deliver_at,
+      readAt: r.read_at,
+    };
+  }
+
+  /**
+   * One event fans out to its audience: every participation of the trip in the given roles (all
+   * three when none given), narrowed to groups when given, plus the named participations and the
+   * guardians of the named travelers. Each recipient gets the lane D29 gives their role for the
+   * kind (none means no row) and the lane's delivery time. Returns the counts per lane and how
+   * many normal-lane rows wait for quiet hours to end.
+   */
+  async notify(input: {
+    tripId: string;
+    kind: NotificationKind;
+    title: string;
+    body: string;
+    refType: Notification['refType'];
+    refId: string;
+    flags?: LaneFlags;
+    audience: {
+      roles?: AudienceRole[];
+      groupNames?: string[];
+      participationIds?: string[];
+      guardiansOf?: string[];
+    };
+    now: string;
+    timeZone: string;
+    quietHours: QuietHours;
+    digestAt: string;
+  }): Promise<
+    { priority: number; normal: number; digest: number; held: number } | { notFound: true }
+  > {
+    this.requireOrg();
+    if (!(await this.getTrip(input.tripId))) return { notFound: true };
+    const roster = this.ctx.storage.sql
+      .exec<ParticipationRow>('SELECT * FROM participations WHERE trip_id = ?', input.tripId)
+      .toArray();
+    const roles = new Set<string>(input.audience.roles ?? ['traveler', 'leader', 'guardian']);
+    const groups = input.audience.groupNames ? new Set(input.audience.groupNames) : null;
+    const named = new Set(input.audience.participationIds ?? []);
+    const wards = new Set(input.audience.guardiansOf ?? []);
+    const recipients = roster.filter(
+      (p) =>
+        named.has(p.id) ||
+        (p.guardian_of !== null && wards.has(p.guardian_of)) ||
+        (roles.has(p.role) &&
+          (groups === null || (p.group_name !== null && groups.has(p.group_name)))),
+    );
+    const counts = { priority: 0, normal: 0, digest: 0, held: 0 };
+    const sql = this.ctx.storage.sql;
+    this.ctx.storage.transactionSync(() => {
+      for (const p of recipients) {
+        const role = p.role as AudienceRole;
+        if (role !== 'traveler' && role !== 'leader' && role !== 'guardian') continue;
+        const lane = laneFor(role, input.kind, input.flags ?? {});
+        if (!lane) continue;
+        const at = deliverAt(lane, input.now, input.timeZone, input.quietHours, input.digestAt);
+        sql.exec(
+          `INSERT INTO notifications (id, trip_id, participation_id, lane, kind, title, body, ref_type, ref_id, created_at, deliver_at, read_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
+          crypto.randomUUID(),
+          input.tripId,
+          p.id,
+          lane,
+          input.kind,
+          input.title,
+          input.body,
+          input.refType,
+          input.refId,
+          input.now,
+          at,
+        );
+        counts[lane] += 1;
+        if (lane === 'normal' && at > input.now) counts.held += 1;
+      }
+    });
+    return counts;
+  }
+
+  /** The caller's inbox: what has been delivered by `now`, newest first, with the unread count. */
+  async myNotifications(
+    tripId: string,
+    participationId: string,
+    now: string,
+  ): Promise<MyNotifications> {
+    this.requireOrg();
+    const rows = this.ctx.storage.sql
+      .exec<NotificationRow>(
+        'SELECT * FROM notifications WHERE trip_id = ? AND participation_id = ? AND deliver_at <= ? ORDER BY deliver_at DESC, id LIMIT 100',
+        tripId,
+        participationId,
+        now,
+      )
+      .toArray();
+    return {
+      notifications: rows.map((r) => this.notificationOf(r)),
+      unread: rows.filter((r) => r.read_at === null).length,
+    };
+  }
+
+  async markNotificationRead(
+    tripId: string,
+    participationId: string,
+    id: string,
+    now: string,
+  ): Promise<Notification | { notFound: true }> {
+    this.requireOrg();
+    const row =
+      this.ctx.storage.sql
+        .exec<NotificationRow>(
+          'SELECT * FROM notifications WHERE id = ? AND trip_id = ? AND participation_id = ?',
+          id,
+          tripId,
+          participationId,
+        )
+        .toArray()[0] ?? null;
+    if (!row) return { notFound: true };
+    const next: NotificationRow = { ...row, read_at: row.read_at ?? now };
+    this.ctx.storage.sql.exec(
+      'UPDATE notifications SET read_at = ? WHERE id = ?',
+      next.read_at,
+      id,
+    );
+    return this.notificationOf(next);
+  }
+
+  /** The organizer's log: the last fifty events, each with its lane counts and what still waits. */
+  async notificationLog(
+    tripId: string,
+    now: string,
+  ): Promise<NotificationLog | { notFound: true }> {
+    this.requireOrg();
+    if (!(await this.getTrip(tripId))) return { notFound: true };
+    const rows = this.ctx.storage.sql
+      .exec<NotificationRow>(
+        'SELECT * FROM notifications WHERE trip_id = ? ORDER BY created_at DESC, id',
+        tripId,
+      )
+      .toArray();
+    const events = new Map<string, NotificationEvent>();
+    for (const r of rows) {
+      const key = `${r.created_at}|${r.ref_type}|${r.ref_id}|${r.kind}`;
+      let e = events.get(key);
+      if (!e) {
+        if (events.size >= 50) continue;
+        e = {
+          createdAt: r.created_at,
+          kind: r.kind as NotificationEvent['kind'],
+          title: r.title,
+          refType: r.ref_type as NotificationEvent['refType'],
+          refId: r.ref_id,
+          lanes: { priority: 0, normal: 0, digest: 0 },
+          held: 0,
+          recipients: 0,
+        };
+        events.set(key, e);
+      }
+      e.lanes[
+        r.lane as NotificationEvent['lanes'] extends infer _
+          ? 'priority' | 'normal' | 'digest'
+          : never
+      ] += 1;
+      e.recipients += 1;
+      if (r.lane === 'normal' && r.deliver_at > now) e.held += 1;
+    }
+    return { events: [...events.values()] };
+  }
+
   async personTimeline(tripId: string, participationId: string): Promise<TimelineEntry[] | null> {
     this.requireOrg();
     const me = await this.getParticipation(participationId);
@@ -4659,7 +4908,10 @@ export class OrgDurableObject extends DurableObject<Env> {
     note: string | null;
     byName: string;
   }): Promise<
-    { proposal: ItineraryProposal } | { notFound: true } | { decided: true } | { gone: true }
+    | { proposal: ItineraryProposal; proposerId: string | null }
+    | { notFound: true }
+    | { decided: true }
+    | { gone: true }
   > {
     this.requireOrg();
     const sql = this.ctx.storage.sql;
@@ -4720,6 +4972,9 @@ export class OrgDurableObject extends DurableObject<Env> {
     const updated = sql
       .exec<ProposalRow>('SELECT * FROM itinerary_proposals WHERE id = ?', input.proposalId)
       .one();
-    return { proposal: this.proposalFromRow(updated) };
+    return {
+      proposerId: row.proposed_by_participation_id,
+      proposal: this.proposalFromRow(updated),
+    };
   }
 }

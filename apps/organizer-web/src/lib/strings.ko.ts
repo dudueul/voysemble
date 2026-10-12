@@ -504,6 +504,32 @@ export const ko: Strings = {
     driverLinkRevokeOf: (minted: string) => `${minted}에 만든 링크 취소`,
     driverLinkFailed: '링크를 만들지 못했습니다.',
   },
+  notifications: {
+    title: '알림',
+    subtitle: '활성 여행에서 각 레인이 보낸 알림과 방해 금지 시간에 대기 중인 알림.',
+    liveSubtitle: (n: number) => `보낸 이벤트 ${n}건`,
+    log: '레인별 발송',
+    lanesRule:
+      '우선 레인은 방해 금지 시간에도 즉시 보냅니다. 여행자에게는 확인 필수 공지와 인원 점검 호출, 인솔자에게는 인원 점검·사고·결정된 제안, 보호자에게는 사고 상태입니다. 일반 레인은 방해 금지 시간 밖에서 즉시, 다이제스트 레인은 보호자 다이제스트 시각에 보냅니다.',
+    none: '아직 보낸 알림이 없습니다. 공지, 인원 점검, 사고, 결정된 제안이 발송되면 여기에 표시됩니다.',
+    colWhen: '시각',
+    colWhat: '이벤트',
+    colPriority: '우선',
+    colNormal: '일반',
+    colDigest: '다이제스트',
+    colHeld: '대기',
+    heldCount: (n: number) => `${n}건, 방해 금지 종료까지`,
+    kind: {
+      announcement: '공지',
+      itinerary_revision: '일정 개정',
+      headcount_call: '인원 점검 호출',
+      incident_status: '사고 상태',
+      proposal_decided: '제안 결정',
+    },
+    pushNote:
+      '휴대폰은 API에서 받은편지함을 읽습니다. 스토어 푸시 전달은 아직 설정되지 않아 앱을 열 때 알림이 표시됩니다.',
+    loadFailed: '알림 기록을 불러오지 못했습니다.',
+  },
   driver: {
     title: '버스 명단',
     loading: '명단을 여는 중…',

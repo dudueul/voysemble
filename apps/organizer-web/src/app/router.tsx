@@ -15,6 +15,7 @@ import { VerifyPage } from '../features/auth/VerifyPage';
 import { CommandCenterPage } from '../features/command-center/CommandCenterPage';
 import { DriverSheetPage } from '../features/driver/DriverSheetPage';
 import { ItineraryPage } from '../features/itinerary/ItineraryPage';
+import { NotificationsPage } from '../features/notifications/NotificationsPage';
 import { PlaceholderPage } from '../features/placeholder/PlaceholderPage';
 import { BillingPage } from '../features/sections/BillingPage';
 import { CommunicationPage } from '../features/sections/CommunicationPage';
@@ -144,6 +145,13 @@ const sectionRoutes = (Object.keys(SECTION_PAGES) as (keyof typeof SECTION_PAGES
   createRoute({ getParentRoute: () => appRoute, path: `/${key}`, component: SECTION_PAGES[key] }),
 );
 
+/** The notification log (slice 052, D29); the top bar's bell leads here. */
+const notificationsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: '/notifications',
+  component: NotificationsPage,
+});
+
 /** Anything else under the shell stays an honest placeholder. */
 const unknownRoute = createRoute({
   getParentRoute: () => appRoute,
@@ -161,7 +169,14 @@ export const router = createRouter({
     reauthRoute,
     acceptInvitationRoute,
     driverRoute,
-    appRoute.addChildren([indexRoute, setupRoute, itineraryRoute, ...sectionRoutes, unknownRoute]),
+    appRoute.addChildren([
+      indexRoute,
+      setupRoute,
+      itineraryRoute,
+      notificationsRoute,
+      ...sectionRoutes,
+      unknownRoute,
+    ]),
   ]),
   defaultPreload: 'intent',
 });
