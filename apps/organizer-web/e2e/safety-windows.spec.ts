@@ -64,7 +64,8 @@ test('meeting window: opened on the console, a traveler reports inside, closed',
   await form.getByRole('button', { name: 'Open window' }).click();
   await expect(page.getByText('Meeting window: Colosseum regroup')).toBeVisible();
   await expect(page.getByTestId('window-status')).toHaveText('Open');
-  await expect(page.getByText('Live', { exact: true })).toBeVisible();
+  // The window card and the missing list (slice 034) both carry a Live chip.
+  await expect(page.getByText('Live', { exact: true }).first()).toBeVisible();
   await expect(page.getByTestId('win-opted_out')).toHaveText('2');
   await expect(page.getByTestId('window-members').getByRole('listitem')).toHaveCount(2);
 

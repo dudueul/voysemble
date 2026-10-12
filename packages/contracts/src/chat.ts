@@ -8,7 +8,7 @@
 // poll (no sockets yet) and keep nothing beyond the session.
 
 import { z } from '@hono/zod-openapi';
-import { Id, Timestamp } from './common';
+import { Timestamp } from './common';
 
 export const ChatChannelKind = z
   .enum(['trip', 'group', 'traveler', 'guardian'])

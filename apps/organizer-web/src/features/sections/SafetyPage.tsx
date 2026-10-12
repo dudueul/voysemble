@@ -8,7 +8,7 @@
 // list stays a fixture with its own "Sample data" chip. Guardians never see this page's content.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Incident, MeetingWindow } from '@voysemble/contracts';
+import { type Incident, latestMissingOf, type MeetingWindow } from '@voysemble/contracts';
 import { type FormEvent, useState } from 'react';
 import { Icons } from '../../app/shell/icons';
 import { FROZEN_NOW } from '../../fixtures/korea-concert-tour';
@@ -21,6 +21,7 @@ import {
 import { ApiError } from '../../lib/api-client';
 import { formatTime, relativeTo } from '../../lib/format';
 import {
+  headcountsQuery,
   incidents as incidentsApi,
   incidentsQuery,
   orgsQuery,
@@ -634,6 +635,60 @@ function LiveWindows({
   );
 }
 
+/** D25 on the console (slice 034): per group, the latest closed head count that left travelers missing. */
+function LiveMissing({ orgId, tripId }: { orgId: string; tripId: string }) {
+  const q = useQuery(headcountsQuery(orgId, tripId));
+  if (q.isPending) {
+    return (
+      <p className="state__body" role="status">
+        {strings.states.loading}
+      </p>
+    );
+  }
+  if (q.isError) {
+    return (
+      <p className="field__error" role="alert">
+        {s.missingLoadFailed}
+      </p>
+    );
+  }
+  const groups = latestMissingOf(q.data);
+  const now = new Date().toISOString();
+  return (
+    <>
+      <p className="muted small">{s.missingLive}</p>
+      {groups.length === 0 ? (
+        <p className="state__body" role="status" data-testid="missing-none">
+          {s.missingNone}
+        </p>
+      ) : (
+        <ul className="list" data-testid="missing-list">
+          {groups.map((g) =>
+            g.missing.map((m) => (
+              <li key={`${g.headcountId}-${m.participationId}`} className="missing">
+                <Initials name={m.displayName} />
+                <div className="incident__text">
+                  <strong>{m.displayName}</strong>
+                  <span className="muted small">
+                    {s.missingClosed(
+                      g.groupName ?? 'Whole trip',
+                      g.closedAtDevice,
+                      g.openedByName,
+                      g.missing.length,
+                    )}{' '}
+                    · {relativeTo(now, g.receivedAt)}
+                  </span>
+                </div>
+                <span className="chip chip--delayed">{s.mark[m.mark]}</span>
+              </li>
+            )),
+          )}
+        </ul>
+      )}
+    </>
+  );
+}
+
 export function SafetyPage() {
   const orgs = useQuery(orgsQuery);
   const org = orgs.data ? pickActiveOrg(orgs.data) : null;
@@ -684,34 +739,44 @@ export function SafetyPage() {
           </Card>
         </div>
         <div className="stack">
-          <Card title={s.missing} id="safety-missing" action={<SampleChip />}>
-            <p className="muted small">{s.missingIntro}</p>
-            <ul className="list" data-testid="missing-list">
-              {headcountMissing.map((m) => (
-                <li key={m.name} className="missing">
-                  <Initials name={m.name} />
-                  <div className="incident__text">
-                    <strong>{m.name}</strong>
-                    <span className="muted small">
-                      {s.room} {m.room} · {s.lastAck} {relativeTo(FROZEN_NOW, m.lastAck)} ·{' '}
-                      {s.state[m.windowState]}
-                    </span>
-                  </div>
-                  <div className="missing__actions">
-                    <button type="button" className="btn btn--ghost btn--sm">
-                      {s.call}
-                    </button>
-                    <button type="button" className="btn btn--ghost btn--sm">
-                      {s.push}
-                    </button>
-                    <button type="button" className="btn btn--ghost btn--sm">
-                      {s.excuse}
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </Card>
+          {org && trip ? (
+            <Card
+              title={s.missing}
+              id="safety-missing"
+              action={<span className="chip chip--active">{strings.dashboard.live}</span>}
+            >
+              <LiveMissing orgId={org.id} tripId={trip.id} />
+            </Card>
+          ) : (
+            <Card title={s.missing} id="safety-missing" action={<SampleChip />}>
+              <p className="muted small">{s.missingIntro}</p>
+              <ul className="list" data-testid="missing-list">
+                {headcountMissing.map((m) => (
+                  <li key={m.name} className="missing">
+                    <Initials name={m.name} />
+                    <div className="incident__text">
+                      <strong>{m.name}</strong>
+                      <span className="muted small">
+                        {s.room} {m.room} · {s.lastAck} {relativeTo(FROZEN_NOW, m.lastAck)} ·{' '}
+                        {s.state[m.windowState]}
+                      </span>
+                    </div>
+                    <div className="missing__actions">
+                      <button type="button" className="btn btn--ghost btn--sm">
+                        {s.call}
+                      </button>
+                      <button type="button" className="btn btn--ghost btn--sm">
+                        {s.push}
+                      </button>
+                      <button type="button" className="btn btn--ghost btn--sm">
+                        {s.excuse}
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
           <Card title={s.emergency} id="safety-emergency">
             <ul className="list list--plain">
               <li>

@@ -131,3 +131,10 @@ thread on Communication after the organizer's reply. Produced by `e2e/chat.spec.
 (CaptureTests): the channel list with badges and Minji's thread with a pending message. All land here
 through the CI `captures` job.
 
+## Slice 034 (2026-10-12): live report and missing list
+
+`web/desktop-1440/reports-live.png`, `web/laptop-1280/reports-live.png`: the live Reports page after one
+closed head count and one announcement (tiles, the day charts). `web/desktop-1440/safety-missing-live.png`,
+`web/laptop-1280/safety-missing-live.png`: Safety with Juho missing from Bus A's latest closed count.
+Produced by `e2e/reports.spec.ts`.
+

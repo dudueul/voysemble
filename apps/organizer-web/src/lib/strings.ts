@@ -366,6 +366,19 @@ export const strings = {
       open === 0 ? 'No open incidents' : `${open} open incident${open === 1 ? '' : 's'}`,
     missing: 'Missing at last head count',
     missingIntro: 'Bus B, 06:50, closed with 2 missing. One tap each.',
+    // Live missing list (slice 034, D25).
+    missingLive:
+      'Per group, the latest closed head count that left travelers missing. Leaders act from the phone.',
+    missingNone: 'Nobody missing at the last head count.',
+    missingClosed: (group: string, at: string, by: string, n: number) =>
+      `${group} · closed ${at} by ${by} · ${n} missing`,
+    missingLoadFailed: 'Could not load the head counts.',
+    mark: {
+      missing: 'Missing',
+      present: 'Present',
+      with_other_group: 'Other group',
+      excused: 'Excused',
+    },
     room: 'Room',
     lastAck: 'last ack',
     call: 'Call',
@@ -465,6 +478,17 @@ export const strings = {
     retention: 'After the trip',
     retentionBody:
       'At trip close a 90-day wrap-up window starts. Then names, contacts, photos, and chat are crypto-shredded; these statistics and the itinerary template stay.',
+    // Live report (slice 034).
+    liveSubtitle:
+      'Trip so far. Numbers derive from acks, head counts, incidents, and the fee ledger.',
+    openIncidents: 'Open incidents',
+    feesCollected: 'Fees collected',
+    headcountsClosed: 'Head counts closed',
+    noData: 'No facts yet. Numbers appear with the first announcement or head count.',
+    none: '—',
+    loadFailed: 'Could not load the report.',
+    noTrip: 'Create an organization and a trip first.',
+    csvHeader: 'day,date,announcements_sent,ack_rate_pct,headcounts,avg_close_minutes,missing',
   },
   billing: {
     subtitle:

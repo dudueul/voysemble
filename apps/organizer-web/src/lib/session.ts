@@ -35,6 +35,7 @@ import type {
   SessionResponse,
   Trip,
   TripList,
+  TripReport,
   UpdateParticipationRequest,
   WindowList,
 } from '@voysemble/contracts';
@@ -131,6 +132,13 @@ export const care = {
       { method: 'POST' },
     ),
 };
+
+/** The trip report (slice 034): composed on the server from acks, head counts, incidents, fees. */
+export const reportQuery = (orgId: string, tripId: string) =>
+  queryOptions({
+    queryKey: ['orgs', orgId, 'trips', tripId, 'report'],
+    queryFn: async () => api<TripReport>(`/v1/orgs/${orgId}/trips/${tripId}/report`),
+  });
 
 /** Chat channels (D22, slice 033): the organizer's list, polled while the page is open. */
 export const chatsQuery = (orgId: string, tripId: string) =>

@@ -12,7 +12,7 @@ import { JourneyGraphPage } from './JourneyGraphPage';
 import { MediaPage } from './MediaPage';
 import { PeoplePage } from './PeoplePage';
 import { PreparationPage } from './PreparationPage';
-import { ReportsPage } from './ReportsPage';
+import { ReportsPage, reportCsv } from './ReportsPage';
 import { SafetyPage } from './SafetyPage';
 import { SettingsPage } from './SettingsPage';
 import { TravelPage } from './TravelPage';
@@ -893,6 +893,7 @@ describe('sample sections', () => {
       'GET /v1/orgs': () => ({ organizations: [ORG] }),
       [`GET /v1/orgs/${ORG.id}/trips`]: () => ({ trips: [TRIP] }),
       [`GET /v1/orgs/${ORG.id}/trips/${TRIP.id}/incidents`]: () => ({ incidents: [] }),
+      [`GET /v1/orgs/${ORG.id}/trips/${TRIP.id}/headcounts`]: () => ({ headcounts: [] }),
       [`GET /v1/orgs/${ORG.id}/trips/${TRIP.id}/windows`]: () => ({
         windows: closed
           ? [{ ...WIN, status: 'closed', closedAt: WIN.endsAt, center: null }]
@@ -954,6 +955,8 @@ describe('sample sections', () => {
         if (key === `GET /v1/orgs/${ORG.id}/trips`) return Response.json({ trips: [TRIP] });
         if (key === `GET /v1/orgs/${ORG.id}/trips/${TRIP.id}/incidents`)
           return Response.json({ incidents: [] });
+        if (key === `GET /v1/orgs/${ORG.id}/trips/${TRIP.id}/headcounts`)
+          return Response.json({ headcounts: [] });
         if (key === `GET /v1/orgs/${ORG.id}/trips/${TRIP.id}/windows`)
           return Response.json({ windows: opened ? [WIN] : [] });
         if (key === `POST /v1/orgs/${ORG.id}/trips/${TRIP.id}/windows`) {
@@ -1027,6 +1030,7 @@ describe('sample sections', () => {
       'GET /v1/orgs': () => ({ organizations: [ORG] }),
       [`GET /v1/orgs/${ORG.id}/trips`]: () => ({ trips: [TRIP] }),
       [`GET /v1/orgs/${ORG.id}/trips/${TRIP.id}/windows`]: () => ({ windows: [] }),
+      [`GET /v1/orgs/${ORG.id}/trips/${TRIP.id}/headcounts`]: () => ({ headcounts: [] }),
       [`GET /v1/orgs/${ORG.id}/trips/${TRIP.id}/incidents`]: () => ({
         incidents: resolved
           ? [
@@ -1102,8 +1106,141 @@ describe('sample sections', () => {
     );
   });
 
+  it('Safety: the live missing list names the latest closed head count per group', async () => {
+    stubApi({
+      'GET /v1/orgs': () => ({ organizations: [ORG] }),
+      [`GET /v1/orgs/${ORG.id}/trips`]: () => ({ trips: [TRIP] }),
+      [`GET /v1/orgs/${ORG.id}/trips/${TRIP.id}/incidents`]: () => ({ incidents: [] }),
+      [`GET /v1/orgs/${ORG.id}/trips/${TRIP.id}/windows`]: () => ({ windows: [] }),
+      [`GET /v1/orgs/${ORG.id}/trips/${TRIP.id}/headcounts`]: () => ({
+        headcounts: [
+          {
+            id: '11111111-bbbb-4bbb-8bbb-111111111111',
+            tripId: TRIP.id,
+            groupName: 'Bus A',
+            openedByName: 'Kim',
+            openedAtDevice: '06:50',
+            closedAtDevice: '06:58',
+            receivedAt: new Date(Date.now() - 4 * 60_000).toISOString(),
+            expected: 2,
+            present: 1,
+            accounted: 1,
+            missing: [
+              {
+                participationId: 'p2',
+                displayName: 'Juho Kim',
+                groupName: 'Bus A',
+                mark: 'missing',
+              },
+            ],
+            closedWithMissing: true,
+          },
+          {
+            id: '22222222-bbbb-4bbb-8bbb-222222222222',
+            tripId: TRIP.id,
+            groupName: 'Bus A',
+            openedByName: 'Kim',
+            openedAtDevice: '06:00',
+            closedAtDevice: '06:05',
+            receivedAt: new Date(Date.now() - 60 * 60_000).toISOString(),
+            expected: 2,
+            present: 0,
+            accounted: 0,
+            missing: [
+              {
+                participationId: 'p1',
+                displayName: 'Minji Park',
+                groupName: 'Bus A',
+                mark: 'missing',
+              },
+              {
+                participationId: 'p2',
+                displayName: 'Juho Kim',
+                groupName: 'Bus A',
+                mark: 'missing',
+              },
+            ],
+            closedWithMissing: true,
+          },
+        ],
+      }),
+    });
+    renderWithQuery(<SafetyPage />);
+    // The fixture list shows while the organization loads; wait for the live group line.
+    await screen.findByText(/Bus A · closed 06:58 by Kim · 1 missing/);
+    const list = screen.getByTestId('missing-list');
+    const items = within(list).getAllByRole('listitem');
+    expect(items).toHaveLength(1);
+    expect(text(items[0] ?? null)).toContain('Juho Kim');
+    expect(text(items[0] ?? null)).toContain('Bus A · closed 06:58 by Kim · 1 missing');
+    expect(text(items[0] ?? null)).toContain('Missing');
+  });
+
+  it('Reports: the live report fills the tiles and the day charts, and exports CSV', async () => {
+    const REPORT = {
+      generatedAt: '2026-12-29T09:00:00.000Z',
+      announcements: { total: 3, requiringAck: 2, avgAckRate: 80 },
+      headcounts: {
+        total: 3,
+        closed: 2,
+        closedWithMissing: 1,
+        avgCloseMinutes: 10,
+        lastCloseMinutes: 12,
+      },
+      incidents: { open: 1, resolved: 1, avgResolveMinutes: 30 },
+      fees: {
+        currency: 'KRW',
+        expectedMinor: 1000,
+        collectedMinor: 250,
+        refundedMinor: 0,
+        paid: 0,
+        partial: 1,
+        unpaid: 3,
+        refunded: 0,
+        collectedPct: 25,
+      },
+      byDay: [
+        {
+          day: 1,
+          date: '2026-12-28',
+          announcementsSent: 1,
+          ackRate: 70,
+          headcounts: 1,
+          avgCloseMinutes: 8,
+          missing: 0,
+        },
+        {
+          day: 2,
+          date: '2026-12-29',
+          announcementsSent: 2,
+          ackRate: 90,
+          headcounts: 2,
+          avgCloseMinutes: 12,
+          missing: 1,
+        },
+      ],
+      missingNow: [],
+    };
+    stubApi({
+      'GET /v1/orgs': () => ({ organizations: [ORG] }),
+      [`GET /v1/orgs/${ORG.id}/trips`]: () => ({ trips: [TRIP] }),
+      [`GET /v1/orgs/${ORG.id}/trips/${TRIP.id}/report`]: () => REPORT,
+    });
+    renderWithQuery(<ReportsPage />);
+    await waitFor(() => expect(text(screen.getByTestId('kpi-Average ack rate'))).toBe('80%'));
+    expect(text(screen.getByTestId('kpi-Last head count closed in'))).toBe('12 min');
+    expect(text(screen.getByTestId('kpi-Open incidents'))).toBe('1');
+    expect(text(screen.getByTestId('kpi-Fees collected'))).toBe('25%');
+    expect(screen.getAllByText('Live').length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'D2: 90%' })).toBeTruthy();
+    expect(reportCsv(REPORT.byDay)).toBe(
+      'day,date,announcements_sent,ack_rate_pct,headcounts,avg_close_minutes,missing\n1,2026-12-28,1,70,1,8,0\n2,2026-12-29,2,90,2,12,1\n',
+    );
+  });
+
   it('Reports: KPIs derive from day metrics and documents', () => {
-    render(<ReportsPage />);
+    stubApi({ 'GET /v1/orgs': () => ({ organizations: [] }) });
+    renderWithQuery(<ReportsPage />);
     expect(text(screen.getByTestId('kpi-Average ack rate'))).toBe('86%');
     expect(text(screen.getByTestId('kpi-Last head count closed in'))).toBe('6 min');
     expect(text(screen.getByTestId('kpi-Required documents'))).toBe('97%');

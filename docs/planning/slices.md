@@ -998,7 +998,7 @@ Not done: reauth before the action; clearing a push token or local database (not
 
 ## Slice 032: leader opens a window from the phone; guardian writes the care note
 
-Status: done 2026-10-12. Commit: 7d3e8be (`feat(mobile): leaders open windows and guardians write care notes from the phone (slice 032)`). CI: run 38205444048 red on `ios` only (`LiveModelsTests.testGuardianCareEntryIsHonestWhenUnreachable`: `editCare()` required a traveler id before the local blank-draft path; `mobile` and `web` green, captures uploaded). Fixed in the follow-up commit (`fix(ios): start a blank care draft without a traveler id`); verified by that commit's run.
+Status: done 2026-10-12. Commit: 7d3e8be (`feat(mobile): leaders open windows and guardians write care notes from the phone (slice 032)`). CI: run 38205444048 red on `ios` only (`LiveModelsTests.testGuardianCareEntryIsHonestWhenUnreachable`: `editCare()` required a traveler id before the local blank-draft path; `mobile` and `web` green, captures uploaded). Fixed in 31d45dd (`fix(ios): start a blank care draft without a traveler id`); verified by run 38206656606 green (web, mobile, ios); captures committed as a6cb195 (Android and iOS `window-open-form.png` and `today-guardian-care.png`).
 Spec: D15 (the leader opens the window at the meeting point), D27 (guardians enter and edit the care note). Details: `docs/engineering/meeting-windows.md` (Phones, leader) and `docs/engineering/care-notes.md` (Phones, guardian entry).
 
 | Gate | Command | Result |
@@ -1021,7 +1021,7 @@ Not done: a window per itinerary event; care-note entry during invite redemption
 
 ## Slice 033: chat channels
 
-Status: done 2026-10-12. Commit: see git log (`feat(chat): fixed channels on the API, console and phones (slice 033)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: 3a55430 (`feat(chat): fixed channels on the API, console and phones (slice 033)`). CI: run 38206598829 red on `ios` only (the slice 032 `editCare()` test, fixed one commit later in 31d45dd; `web` and `mobile` green); verified by run 38206656606 green at 31d45dd (web, mobile, ios), which carries the same chat code; captures committed as a6cb195 (web `communication-chat.png`, Android and iOS `chats-list.png` and `chats-thread-dark.png`).
 Spec: D22 (fixed channels: trip, group, traveler ↔ leader, guardian ↔ organizer; no traveler DMs), ADR-0009 matrix, D20 (shredded with the trip). Details: `docs/engineering/chat.md`.
 
 | Gate | Command | Result |
@@ -1045,4 +1045,26 @@ Built:
 - Docs: `chat.md`, captures README, mobile README, feature flag (`chat.fixed-channels` working).
 
 Not done: sockets and push; the organizer's audited read on incident; leader moderation; Korean strings.
+
+## Slice 034: live report and the Safety missing list
+
+Status: done 2026-10-12. Commit: see git log (`feat(reports): the trip report and the Safety missing list from existing facts (slice 034)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D25 (missing list on the console from the latest closed head count), D16/D14 (acks and head counts as the report's sources), D23 (fee totals). Details: `docs/engineering/reports.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 24 files, 68 tests (adds `report.test.ts`: 4) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 14 files, 82 tests (adds the live missing list and live report cases) |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e` | `reports.spec.ts` new; captures `reports-live.png`, `safety-missing-live.png` |
+
+No phone change (D31: web captures only).
+
+Built:
+- Contracts `report.ts` (`TripReport`, `ReportDay`, `MissingNow`, `minutesBetweenDeviceTimes`, `dateInZone`, `tripDayIndex`, `latestMissingOf`).
+- Worker: `lib/report.ts` (pure builder), route `GET .../report` (owner, organizer) over the Durable Object's lists.
+- Console: `reportQuery`, live Reports page (tiles, day charts, CSV export, honest empty state), live Safety missing list, strings; unit tests; e2e with captures.
+- Docs: `reports.md`, captures README, feature flags (`web.reports`, `web.safety` working).
+
+Not done: per-group breakdown; documents completion; Korean strings.
 
