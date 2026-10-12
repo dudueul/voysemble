@@ -1394,3 +1394,24 @@ Built:
 - Docs: `travel.md` section and facts, decision D39, rate-limits row, captures README, documents doc pointer, ledger, feature flags `documents.sealed-links` and `travel.driver-links` working.
 
 Not done: a sealed link for a hotel (the rooming list); a Korean sheet by the driver's choice; a QR of the link on the console.
+
+## Slice 050: the live journey graph and the command center's movements
+
+Status: done 2026-10-12. Commit: see git log (`feat(console): the journey graph and the next-48h movements read the itinerary (slice 050)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D40 (new: the journey graph from the itinerary), D19 (disruption entry point, still the fixture's story), D31 (captures). Details: `docs/engineering/journey-graph.md`, `command-center-live.md` (movements).
+
+| Gate | Command | Result |
+|---|---|---|
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 16 files, 107 tests (adds `zonedToIso`, the movements mapping, the live journey case) |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e -- journey-graph.spec.ts` | 2 passed (desktop-1440, laptop-1280); captures `journey-graph-live.png`, `command-center-movements.png` |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+No API change (the itinerary and proposals routes already existed); no phone change.
+
+Built:
+- `lib/format.ts` `zonedToIso` (a wall-clock time in a zone to its instant, one daylight-saving correction); `lib/live-dashboard.ts` reads the itinerary and maps its events to movements (`movementsFromItinerary`).
+- `JourneyGraphPage` live: `pickDayDate`, `todayIn`, `graphOfDay` (nodes, slack edges, the risk rule), the day chips, the shared `GraphSvg` and `Legend`, the tight-connections card and the pending-proposals card; the fixture page kept for sample mode; strings EN/KO.
+- Tests: unit (+4), browser (1 spec).
+- Docs: `journey-graph.md`, `command-center-live.md` section, decision D40, captures README, ledger, feature flags `web.journey-graph` and `web.command-center.movements` working.
+
+Not done: the disruption flow from the graph (D19); deciding proposals from this page; flights and buses from the bookings as graph nodes.

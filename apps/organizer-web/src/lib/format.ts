@@ -62,3 +62,33 @@ export function tripDayNumber(startDate: string, nowIso: string, timeZone: strin
     86_400_000;
   return Math.floor(diff) + 1;
 }
+
+/** The zone's offset from UTC, in minutes, at an instant (positive east of Greenwich). */
+function offsetMinutesAt(instantMs: number, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).formatToParts(new Date(instantMs));
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? '0');
+  const wall = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'));
+  return Math.round((wall - instantMs) / 60_000);
+}
+
+/**
+ * The instant of a wall-clock time in a zone: ("2026-12-31", "07:15", "Europe/Rome") is
+ * 2026-12-31T06:15:00.000Z. One correction pass covers a daylight-saving change on the day.
+ */
+export function zonedToIso(date: string, time: string, timeZone: string): string {
+  const [y = 0, mo = 1, d = 1] = date.split('-').map(Number);
+  const [h = 0, mi = 0] = time.split(':').map(Number);
+  const guess = Date.UTC(y, mo - 1, d, h, mi);
+  let instant = guess - offsetMinutesAt(guess, timeZone) * 60_000;
+  const again = offsetMinutesAt(instant, timeZone);
+  if (guess - again * 60_000 !== instant) instant = guess - again * 60_000;
+  return new Date(instant).toISOString();
+}

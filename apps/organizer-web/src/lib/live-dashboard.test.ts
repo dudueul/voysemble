@@ -10,6 +10,7 @@ import {
   buildDashboard,
   destinationFromTimeZone,
   latestHeadcountGroups,
+  movementsFromItinerary,
   organizerNameFrom,
   tripStatusOn,
 } from './live-dashboard';
@@ -200,5 +201,71 @@ describe('live dashboard mapping', () => {
     ]);
     expect(d.alerts.map((a) => a.title)).toEqual([incident.title]);
     expect(d.headcount).toEqual([{ label: 'Bus A', checkedIn: 1, expected: 2 }]);
+  });
+});
+
+describe('movements from the itinerary (slice 050)', () => {
+  const event = (over: Record<string, unknown>) => ({
+    id: '66666666-6666-4666-8666-666666666666',
+    tripId: 'trip_1',
+    date: '2026-12-31',
+    start: '07:15',
+    end: '08:00',
+    timeZone: 'Europe/Rome',
+    kind: 'bus' as const,
+    title: 'Bus to Colosseum',
+    place: 'Hotel de la Ville, lobby',
+    pax: null,
+    status: 'scheduled' as const,
+    note: null,
+    order: 1,
+    published: true,
+    ...over,
+  });
+  const itinerary = {
+    tripId: 'trip_1',
+    tripName: 'Korea Concert Tour 2026',
+    startDate: '2026-12-28',
+    endDate: '2027-01-09',
+    revision: 2,
+    publishedAt: NOW,
+    view: 'draft' as const,
+    days: [{ date: '2026-12-31', timeZone: 'Europe/Rome', label: 'Concert day' }],
+    events: [
+      event({}),
+      event({
+        id: '77777777-7777-4777-8777-777777777777',
+        kind: 'free',
+        pax: 12,
+        note: 'In groups',
+        status: 'in_progress',
+      }),
+      event({ id: '88888888-8888-4888-8888-888888888888', status: 'cancelled' }),
+    ],
+    unpublished: 0,
+  };
+
+  it('maps every event but the cancelled ones, at its instant, whole group as the traveler count', () => {
+    const movements = movementsFromItinerary(itinerary, 38);
+    expect(movements.map((m) => [m.kind, m.at, m.pax, m.status, m.note])).toEqual([
+      ['bus', '2026-12-31T06:15:00.000Z', 38, 'scheduled', undefined],
+      ['activity', '2026-12-31T06:15:00.000Z', 12, 'in_progress', 'In groups'],
+    ]);
+  });
+
+  it('rides on the dashboard when the itinerary is there, stays empty otherwise', () => {
+    const base = {
+      me: null,
+      org: ORG,
+      trips: [TRIP],
+      activeTripId: 'trip_1',
+      roster: [],
+      announcements: [],
+      headcounts: [],
+      incidents: [],
+      now: NOW,
+    };
+    expect(buildDashboard(base).movements).toEqual([]);
+    expect(buildDashboard({ ...base, itinerary }).movements).toHaveLength(2);
   });
 });

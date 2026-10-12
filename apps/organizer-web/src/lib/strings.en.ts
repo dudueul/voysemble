@@ -412,6 +412,28 @@ export const en = {
     proposal1Body: 'Filed offline on Bus A at 06:58. Diff against revision 7.',
     accept: 'Accept into draft',
     reject: 'Reject',
+    liveSubtitle: (n: number, risky: number, day: string) =>
+      risky
+        ? `${n} movements on ${day} · ${risky} tight connection${risky === 1 ? '' : 's'}`
+        : `${n} movements on ${day}`,
+    liveDay: (label: string, day: number, date: string) => `${label} · Day ${day} · ${date}`,
+    liveDayPlain: (day: number, date: string) => `Day ${day} · ${date}`,
+    pickDay: 'Pick a day',
+    dayChip: (day: number) => `D${day}`,
+    noEvents: 'No events on this day yet. Add them on the Itinerary page.',
+    loadFailed: 'Could not load the itinerary.',
+    tight: 'Tight connections',
+    tightLabel: 'Tight',
+    tightNone: 'No tight connections on this day: every change has more than 20 minutes of slack.',
+    tightLine: (from: string, to: string, min: number) => `${from} → ${to} · ${min} min`,
+    tightRule:
+      "Slack is the gap between one event's end and the next one's start. Ten minutes or less is a risk; twenty or less is tight.",
+    proposalsNone: 'No pending proposals from the leaders.',
+    openItinerary: (pending: number) =>
+      pending ? `Decide on the Itinerary page (${pending})` : 'Open the Itinerary page',
+    proposalRemove: 'remove',
+    proposalAdd: 'add',
+    proposalChange: 'change',
   },
   travel: {
     subtitle: 'Flights, hotels, and bus charters for the active trip.',

@@ -9,7 +9,7 @@ offline) still comes from the fixture through `?state=` and stays capturable.
 
 | Piece | File | Notes |
 |---|---|---|
-| Mapper | `lib/live-dashboard.ts` `buildDashboard` | Pure. Trips (status from dates, destination from the time zone's city, hue from the id), traveler count from the roster, ack-requiring announcements with their counts, open incidents as red alerts, newest head count per group. `movements` is empty until the itinerary slice. |
+| Mapper | `lib/live-dashboard.ts` `buildDashboard` | Pure. Trips (status from dates, destination from the time zone's city, hue from the id), traveler count from the roster, ack-requiring announcements with their counts, open incidents as red alerts, newest head count per group. `movements` from the itinerary since slice 050: every event but the cancelled ones at its instant (`zonedToIso` of the wall-clock start in the event's zone), free time as an activity, "whole group" as the traveler count; the panel keeps the next 48 hours. |
 | Fetch | `fetchLiveDashboard` | One `Promise.all` over roster, announcements, head counts, incidents of the active trip. |
 | Page | `features/command-center/CommandCenterPage.tsx` | Live when `state === 'live'` and a trip exists; fixture otherwise (sample mode without a trip, simulated states with `?state=`). |
 | View | `CommandCenterView` | `data.live` swaps the "Sample data" chip for "Live". Panels show an explanatory line when empty. |
@@ -32,7 +32,7 @@ offline) still comes from the fixture through `?state=` and stays capturable.
 - Unit (`live-dashboard.test.ts`): status by date; destination and name helpers; newest session
   per group with the whole-trip label; open incidents become red alerts naming the people and
   the opener; `buildDashboard` is live, counts travelers only, keeps ack-requiring announcements
-  only, and carries no movements.
+  only; its movements come from the itinerary (slice 050).
 - Unit (`CommandCenterView.test.tsx`): a live dashboard shows "Live" and no "Sample data"; empty
   panels explain themselves; the head count total reads 0/0.
 - Browser (`headcounts.spec.ts`): after the leader's closed head count, the organizer's Today
@@ -41,6 +41,15 @@ offline) still comes from the fixture through `?state=` and stays capturable.
 
 ## Not done
 
-Movements on the API (itinerary slice), trip switching, a display name on accounts, the
+Trip switching, a display name on accounts, the
 "Open Safety" alert action as a real link, offline handling of the live dashboard (a network
 error shows the error state with a reference).
+
+## Movements (slice 050)
+
+`fetchLiveDashboard` also reads `GET .../itinerary` (the organizer's draft view) and
+`movementsFromItinerary` maps each event to a movement: kind (free time counts as an activity),
+title, place, the instant of its wall-clock start in the event's zone, its status, its pax or the
+traveler count, its note. Cancelled events are left out. `MovementsPanel` keeps what is between
+ninety minutes ago and forty-eight hours ahead, grouped by local day. Evidence:
+`web/<project>/command-center-movements.png` (a trip that is on today, three events tomorrow).

@@ -1099,7 +1099,8 @@ describe('sample sections', () => {
   });
 
   it('Journey graph: ten nodes today, tight connections flagged', () => {
-    render(<JourneyGraphPage />);
+    stubApi({});
+    renderWithQuery(<JourneyGraphPage />);
     expect(screen.getAllByTestId(/^node-/)).toHaveLength(10);
     expect(text(screen.getByRole('heading', { level: 1 }).parentElement)).toContain(
       '3 tight connections',
@@ -2054,5 +2055,123 @@ describe('Packing checklist on the API (slice 048)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove Passport + copy' }));
     await waitFor(() => expect(calls).toContain(`DELETE ${base}/packing/${ITEM.id}`));
     await waitFor(() => expect(screen.queryByTestId(`packing-${ITEM.id}`)).toBeNull());
+  });
+});
+
+describe('Journey graph on the API (slice 050)', () => {
+  const base = `/v1/orgs/${ORG.id}/trips/${TRIP.id}`;
+  const event = (
+    id: string,
+    start: string,
+    end: string | null,
+    title: string,
+    kind = 'activity',
+    status = 'scheduled',
+    date = '2026-12-28',
+  ) => ({
+    id,
+    tripId: TRIP.id,
+    date,
+    start,
+    end,
+    timeZone: 'Europe/Rome',
+    kind,
+    title,
+    place: 'Rome',
+    pax: null,
+    status,
+    note: null,
+    order: Number(start.replace(':', '')),
+    published: true,
+  });
+  const ITINERARY = {
+    tripId: TRIP.id,
+    tripName: 'Tour',
+    startDate: '2026-12-26',
+    endDate: '2026-12-28',
+    revision: 1,
+    publishedAt: '2026-10-12T00:00:00.000Z',
+    view: 'draft',
+    days: [
+      { date: '2026-12-26', timeZone: 'Europe/Rome', label: 'Day 1' },
+      { date: '2026-12-27', timeZone: 'Europe/Rome', label: 'Day 2' },
+      { date: '2026-12-28', timeZone: 'Europe/Rome', label: 'Arrival' },
+    ],
+    events: [
+      event('aaaaaaaa-0000-4000-8000-000000000001', '09:00', '10:00', 'Breakfast', 'meal', 'done'),
+      event('aaaaaaaa-0000-4000-8000-000000000002', '10:10', null, 'Bus to Colosseum', 'bus'),
+      event('aaaaaaaa-0000-4000-8000-000000000003', '12:30', '13:30', 'Lunch', 'meal'),
+      event(
+        'aaaaaaaa-0000-4000-8000-000000000004',
+        '15:00',
+        null,
+        'Cancelled walk',
+        'activity',
+        'cancelled',
+      ),
+      event(
+        'aaaaaaaa-0000-4000-8000-000000000005',
+        '08:00',
+        '08:30',
+        'Day 2 coffee',
+        'meal',
+        'scheduled',
+        '2026-12-27',
+      ),
+    ],
+    unpublished: 0,
+  };
+
+  it('draws the first day with events, flags the ten-minute gap, switches days, counts proposals', async () => {
+    stubApi({
+      'GET /v1/orgs': () => ({ organizations: [ORG] }),
+      [`GET /v1/orgs/${ORG.id}/trips`]: () => ({ trips: [TRIP] }),
+      [`GET ${base}/itinerary`]: () => ITINERARY,
+      [`GET ${base}/itinerary/proposals`]: () => ({
+        proposals: [
+          {
+            id: 'bbbbbbbb-0000-4000-8000-000000000001',
+            tripId: TRIP.id,
+            kind: 'remove',
+            eventId: 'aaaaaaaa-0000-4000-8000-000000000001',
+            eventTitle: 'Breakfast',
+            patch: {},
+            note: 'Rained out',
+            status: 'pending',
+            proposedByName: 'Kim Daeun',
+            proposedAt: '2026-10-12T01:00:00.000Z',
+            decidedAt: null,
+            decidedByName: null,
+            decisionNote: null,
+          },
+        ],
+      }),
+    });
+    renderWithQuery(<JourneyGraphPage />);
+    await screen.findByText('Live');
+    // Today (2026-10-12) is before the trip: the first day with events is Day 2 (2026-12-27).
+    await waitFor(() => expect(screen.getAllByTestId(/^node-/)).toHaveLength(1));
+    expect(text(screen.getByRole('heading', { level: 1 }).parentElement)).toContain(
+      '1 movements on Day 2',
+    );
+    // Day 3: three nodes, the cancelled walk left out, the bus at risk after a ten-minute gap.
+    fireEvent.click(screen.getByRole('button', { name: 'D3' }));
+    await waitFor(() => expect(screen.getAllByTestId(/^node-/)).toHaveLength(3));
+    expect(
+      screen.getByTestId('node-aaaaaaaa-0000-4000-8000-000000000002').getAttribute('data-status'),
+    ).toBe('risk');
+    expect(
+      screen.getByTestId('node-aaaaaaaa-0000-4000-8000-000000000001').getAttribute('data-status'),
+    ).toBe('done');
+    expect(text(screen.getByRole('heading', { level: 1 }).parentElement)).toContain(
+      '3 movements on Arrival · 1 tight connection',
+    );
+    expect(screen.getByTestId('tight').textContent).toContain(
+      '10:00 Breakfast → 10:10 Bus to Colosseum · 10 min',
+    );
+    expect(screen.getByTestId('pending-proposals').textContent).toContain(
+      'Kim Daeun: remove Breakfast',
+    );
+    expect(screen.getByRole('link', { name: 'Decide on the Itinerary page (1)' })).toBeTruthy();
   });
 });

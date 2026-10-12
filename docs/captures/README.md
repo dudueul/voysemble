@@ -233,3 +233,11 @@ card. Produced by `PackingScreenshotTest` and `CaptureTests.testPacking`.
 driver opens from the link (names only, printable). `web/<project>/travel-live.png` (updated): the
 bus row with the minted link, its URL shown once, and the link list with its opens. Produced by
 `apps/organizer-web/e2e/travel.spec.ts`. No phone change.
+
+## Slice 050 (2026-10-12): the live journey graph and movements
+
+`web/desktop-1440/journey-graph-live.png`, `web/laptop-1280/journey-graph-live.png`: the Journey
+Graph page on a trip day with three itinerary events, the ten-minute gap flagged at risk, the day
+chips, the tight-connections and proposals cards. `web/<project>/command-center-movements.png`:
+the command center with the same events in its next 48 hours. Produced by
+`apps/organizer-web/e2e/journey-graph.spec.ts`. No phone change.

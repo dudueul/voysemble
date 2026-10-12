@@ -404,6 +404,26 @@ export const ko: Strings = {
     proposal1Body: '06:58 버스 A에서 오프라인으로 제출. 7판 기준 차이.',
     accept: '초안에 반영',
     reject: '거절',
+    liveSubtitle: (n: number, risky: number, day: string) =>
+      risky ? `${day} 이동 ${n}건 · 빠듯한 연결 ${risky}건` : `${day} 이동 ${n}건`,
+    liveDay: (label: string, day: number, date: string) => `${label} · ${day}일차 · ${date}`,
+    liveDayPlain: (day: number, date: string) => `${day}일차 · ${date}`,
+    pickDay: '날짜 선택',
+    dayChip: (day: number) => `D${day}`,
+    noEvents: '이날은 아직 일정이 없습니다. 일정 페이지에서 추가하세요.',
+    loadFailed: '일정을 불러오지 못했습니다.',
+    tight: '빠듯한 연결',
+    tightLabel: '빠듯함',
+    tightNone: '이날은 빠듯한 연결이 없습니다. 모든 이동에 20분 넘는 여유가 있습니다.',
+    tightLine: (from: string, to: string, min: number) => `${from} → ${to} · ${min}분`,
+    tightRule:
+      '여유 시간은 한 일정의 끝과 다음 일정의 시작 사이 간격입니다. 10분 이하는 위험, 20분 이하는 빠듯함입니다.',
+    proposalsNone: '인솔자의 대기 중인 제안이 없습니다.',
+    openItinerary: (pending: number) =>
+      pending ? `일정 페이지에서 결정하기 (${pending})` : '일정 페이지 열기',
+    proposalRemove: '삭제',
+    proposalAdd: '추가',
+    proposalChange: '변경',
   },
   travel: {
     subtitle: '활성 여행의 항공편, 호텔, 전세 버스.',

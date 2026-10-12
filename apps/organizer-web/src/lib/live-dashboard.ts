@@ -2,12 +2,14 @@
 //
 // Command center on the API (slice 014). `buildDashboard` is a pure mapping from real API
 // shapes to the `Dashboard` the view already renders; `fetchLiveDashboard` gathers the inputs.
-// Movements stay empty until the itinerary moves onto the API; everything else is live:
-// trips, traveler count, acknowledgment rate, open incidents as alerts, latest head count per
-// group (amber when short), and the announcements' ack progress.
+// Everything is live: trips, traveler count, acknowledgment rate, open incidents as alerts,
+// latest head count per group (amber when short), the announcements' ack progress and, since
+// slice 050, the movements from the itinerary (every event but the cancelled ones, as instants;
+// the panel keeps the next 48 hours).
 
 import type {
   Announcement as ApiAnnouncement,
+  Itinerary as ApiItinerary,
   Trip as ApiTrip,
   HeadcountList,
   HeadcountSession,
@@ -23,9 +25,11 @@ import type {
   Announcement,
   Dashboard,
   HeadcountGroup,
+  Movement,
   Trip,
 } from '../fixtures/korea-concert-tour';
 import { api } from './api-client';
+import { zonedToIso } from './format';
 import { strings } from './strings';
 
 export const WHOLE_TRIP = 'Whole trip';
@@ -39,8 +43,31 @@ export interface LiveDashboardInput {
   announcements: ApiAnnouncement[];
   headcounts: HeadcountSession[];
   incidents: Incident[];
+  /** The active trip's itinerary (slice 050); null before it loads or when it failed. */
+  itinerary?: ApiItinerary | null;
   /** ISO instant; injected so tests and captures are deterministic. */
   now: string;
+}
+
+/**
+ * The itinerary's events as movements: each at its instant (the wall-clock start in the event's
+ * zone), cancelled ones left out, "whole group" as the traveler count, free time as an activity.
+ */
+export function movementsFromItinerary(itinerary: ApiItinerary, travelers: number): Movement[] {
+  return itinerary.events
+    .filter((e) => e.status !== 'cancelled')
+    .map((e) => ({
+      id: e.id,
+      tripId: e.tripId,
+      kind: e.kind === 'free' ? 'activity' : e.kind,
+      title: e.title,
+      place: e.place,
+      at: zonedToIso(e.date, e.start, e.timeZone),
+      timeZone: e.timeZone,
+      status: e.status === 'cancelled' ? 'scheduled' : e.status,
+      pax: e.pax ?? travelers,
+      ...(e.note ? { note: e.note } : {}),
+    }));
 }
 
 /** Derived from dates only; trips carry no explicit status (same rule as the shell). */
@@ -134,7 +161,7 @@ export function buildDashboard(input: LiveDashboardInput): Dashboard {
     live: true,
     trips,
     activeTripId: input.activeTripId,
-    movements: [],
+    movements: input.itinerary ? movementsFromItinerary(input.itinerary, travelers) : [],
     alerts: alertsFromIncidents(input.incidents, input.activeTripId),
     headcount: latestHeadcountGroups(input.headcounts),
     announcements,
@@ -149,11 +176,12 @@ export async function fetchLiveDashboard(
   now: () => string = () => new Date().toISOString(),
 ): Promise<Dashboard> {
   const base = `/v1/orgs/${org.id}/trips/${activeTripId}`;
-  const [roster, announcements, headcounts, incidents] = await Promise.all([
+  const [roster, announcements, headcounts, incidents, itinerary] = await Promise.all([
     api<RosterResponse>(`${base}/roster`),
     api<{ announcements: ApiAnnouncement[] }>(`${base}/announcements`),
     api<HeadcountList>(`${base}/headcounts`),
     api<IncidentList>(`${base}/incidents`),
+    api<ApiItinerary>(`${base}/itinerary`),
   ]);
   return buildDashboard({
     me,
@@ -164,6 +192,7 @@ export async function fetchLiveDashboard(
     announcements: announcements.announcements,
     headcounts: headcounts.headcounts,
     incidents: incidents.incidents,
+    itinerary,
     now: now(),
   });
 }
