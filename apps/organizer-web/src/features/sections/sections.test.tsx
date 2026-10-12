@@ -1480,6 +1480,38 @@ describe('Settings on the API (slice 036)', () => {
     ],
   };
 
+  it("the account card saves the organizer's own name (slice 069)", async () => {
+    const patched: unknown[] = [];
+    let me = {
+      accountId: '4',
+      email: 'nate@example.com',
+      locale: 'en',
+      displayName: null as string | null,
+      memberships: [],
+    };
+    stubApi({
+      'GET /v1/orgs': () => ({ organizations: [ORG] }),
+      'GET /v1/me': () => me,
+      'PATCH /v1/me': () => {
+        patched.push(1);
+        me = { ...me, displayName: 'Nate Kim' };
+        return me;
+      },
+      [`GET /v1/orgs/${ORG.id}`]: () => PROFILE,
+      [`GET /v1/orgs/${ORG.id}/members`]: () => MEMBERS,
+      [`GET /v1/orgs/${ORG.id}/invitations`]: () => ({ invitations: [] }),
+    });
+    renderWithQuery(<SettingsPage />);
+    const form = await screen.findByRole('form', { name: 'Your account' });
+    fireEvent.change(within(form).getByLabelText('Your name'), { target: { value: ' Nate Kim ' } });
+    fireEvent.submit(form);
+    await waitFor(() => expect(patched).toHaveLength(1));
+    await waitFor(() =>
+      expect(screen.getByTestId('settings-account-status').textContent).toBe('Saved.'),
+    );
+    expect((within(form).getByLabelText('Your name') as HTMLInputElement).value).toBe('Nate Kim');
+  });
+
   it('loads the profile and members, saves the profile card, and reports Saved.', async () => {
     stubApi({
       'GET /v1/orgs': () => ({ organizations: [ORG] }),
@@ -1537,8 +1569,10 @@ describe('Settings on the API (slice 036)', () => {
     // The fixture flashes while the organization loads; wait for the live chip.
     await screen.findByText('Live');
     const saves = await screen.findAllByRole('button', { name: 'Save' });
-    expect(saves).toHaveLength(3);
-    for (const b of saves) expect((b as HTMLButtonElement).disabled).toBe(true);
+    // Slice 069: the account card's Save is the organizer's own; the three organization cards stay owner-only.
+    expect(saves).toHaveLength(4);
+    expect((saves[0] as HTMLButtonElement).disabled).toBe(false);
+    for (const b of saves.slice(1)) expect((b as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByTestId('settings-profile-status').textContent).toContain('Only the owner');
     // Organizers read the invitations but neither send nor revoke (slice 042).
     await screen.findByTestId('invitation-pending');
@@ -1845,6 +1879,7 @@ describe('Preparation on the API (slice 045)', () => {
             accountId: 'a',
             email: 'nate@example.com',
             locale: 'en',
+            displayName: null,
             memberships: [],
           });
         if (key === `GET ${base}/documents`)
@@ -1953,6 +1988,7 @@ describe('Preparation on the API (slice 045)', () => {
         accountId: 'a',
         email: 'nate@example.com',
         locale: 'en',
+        displayName: null,
         memberships: [],
       }),
       [`GET ${base}/documents`]: () => ({ requirements: [REQ], travelers: 3, missingRequired: 2 }),

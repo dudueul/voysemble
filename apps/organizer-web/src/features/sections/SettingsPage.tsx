@@ -20,7 +20,9 @@ import { orgSettings } from '../../fixtures/sections';
 import { ApiError } from '../../lib/api-client';
 import { errorText } from '../../lib/errors';
 import {
+  auth,
   invitations as invitationsApi,
+  meQuery,
   org as orgApi,
   orgInvitationsQuery,
   orgMembersQuery,
@@ -453,6 +455,55 @@ function LiveMembers({ orgId, canEdit }: { orgId: string; canEdit: boolean }) {
   );
 }
 
+/** Slice 069: the account's own name, for everyone on a trip to read; any member sets their own. */
+function AccountForm() {
+  const qc = useQueryClient();
+  const me = useQuery(meQuery);
+  const [name, setName] = useState('');
+  const [note, setNote] = useState<string | null>(null);
+  const current = me.data?.displayName ?? '';
+  useEffect(() => setName(current), [current]);
+  const save = useMutation({
+    mutationFn: (displayName: string | null) => auth.updateDisplayName(displayName),
+    onSuccess: (updated) => {
+      setNote(s.saved);
+      qc.setQueryData(meQuery.queryKey, updated);
+    },
+    onError: (e) => setNote(errorText(e, s.saveFailed)),
+  });
+  return (
+    <form
+      className="form"
+      aria-label={s.account}
+      onSubmit={(e) => {
+        e.preventDefault();
+        setNote(null);
+        save.mutate(name.trim() || null);
+      }}
+    >
+      <label className="field">
+        <span className="field__label">{s.displayName}</span>
+        <input
+          className="field__input"
+          name="displayName"
+          maxLength={80}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+      </label>
+      <p className="field__hint">{s.displayNameHint}</p>
+      <div className="field__row field__row--tight">
+        <button type="submit" className="btn btn--primary btn--sm" disabled={save.isPending}>
+          {save.isPending ? s.saving : s.save}
+        </button>
+        <span className="field__hint" role="status" data-testid="settings-account-status">
+          {note ?? ''}
+        </span>
+      </div>
+    </form>
+  );
+}
+
 function LiveSettings({ org }: { org: Organization }) {
   const profile = useQuery(orgProfileQuery(org.id));
   const live = <span className="chip chip--active">{strings.dashboard.live}</span>;
@@ -475,6 +526,9 @@ function LiveSettings({ org }: { org: Organization }) {
     body = (
       <div className="grid">
         <div className="stack">
+          <Card title={s.account} id="set-account">
+            <AccountForm />
+          </Card>
           <Card title={s.profile} id="set-profile">
             <ProfileForm orgId={org.id} profile={p} canEdit={canEdit} />
           </Card>

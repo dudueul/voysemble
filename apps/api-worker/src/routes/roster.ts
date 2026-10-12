@@ -31,7 +31,7 @@ import {
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { HTTPException } from 'hono/http-exception';
 import { z } from 'zod';
-import { requireAuth, requireOrgRole } from '../auth/middleware';
+import { organizerName, requireAuth, requireOrgRole } from '../auth/middleware';
 import { revokeSessions } from '../auth/service';
 import { db } from '../db/client';
 import { inviteCodes, memberships, organizations } from '../db/schema';
@@ -377,7 +377,7 @@ export function mountRosterRoutes(app: OpenAPIHono<AppEnv>): void {
     if (!(await org.getTrip(tripId))) throw new HTTPException(404, { message: 'Trip not found.' });
     const now = nowIso();
     const me = await org.participationForAccount(tripId, auth.accountId);
-    const byName = me?.displayName ?? (access.role === 'owner' ? 'Owner' : 'Organizer');
+    const byName = me?.displayName ?? organizerName(auth, access);
     const unbound = await org.unbindAccount(tripId, participationId, byName, now);
     if ('notFound' in unbound) throw new HTTPException(404, { message: 'Person not found.' });
     if ('notJoined' in unbound)

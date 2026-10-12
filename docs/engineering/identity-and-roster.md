@@ -14,6 +14,18 @@ below is exercised by `apps/api-worker/test/{auth,organizations,roster-invites,c
 Secrets are never stored. `sessions.token_hash`, `magic_links.token_hash`, `invite_codes.code_hash`
 hold SHA-256 of the presented value. Lookups compare hashes, so timing does not depend on the secret.
 
+## The account's own name (slice 069)
+
+`accounts.display_name` (migration 0006, 1..80 characters, null until set) is how an owner or
+organizer is named on a trip: `organizerName(auth, access)` in `auth/middleware.ts` answers it,
+else the role label that stood in before ("Owner" / "Organizer"), and every route that writes
+who did something uses it (a chat message's sender, an incident card's opener, a fee row's
+`updatedByName`, the audit trail of care notes, documents, photos, windows and roster changes);
+a route acting as a participation keeps the participation's display name. `GET /v1/me` carries
+`displayName`; `PATCH /v1/me` takes `displayName` beside `locale` (absent fields stay; null
+clears it). The console's Settings page has "Your account" with the name (any member sets their
+own); the Today page greets by it and the top bar's initials follow it; the email stays private.
+
 ## Flows
 
 ### Magic-link sign-in

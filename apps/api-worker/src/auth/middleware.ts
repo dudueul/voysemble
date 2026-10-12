@@ -35,6 +35,7 @@ export const authenticate = createMiddleware<AppEnv>(async (c, next) => {
         accountId: resolved.account.id,
         email: resolved.account.email,
         locale: resolved.account.locale === 'en' ? 'en' : 'ko',
+        displayName: resolved.account.displayName ?? null,
         sessionId: resolved.session.id,
         client: resolved.session.client,
         reauthedAt: resolved.session.reauthedAt,
@@ -115,4 +116,12 @@ export async function requireOrgRole(
     throw new HTTPException(403, { message: `Requires ${minimum} role.` });
   }
   return { organizationId, organizationName: row.organizationName, role: row.role };
+}
+
+/**
+ * Slice 069: how an owner or organizer is named on a trip: their account's own name, else the
+ * role label that stood in before it. Routes that act as a participation keep its display name.
+ */
+export function organizerName(auth: AuthContext, access: { role: string }): string {
+  return auth.displayName ?? (access.role === 'owner' ? 'Owner' : 'Organizer');
 }

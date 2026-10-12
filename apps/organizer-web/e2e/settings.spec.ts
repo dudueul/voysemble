@@ -17,6 +17,13 @@ test('settings: the owner edits the organization and the values persist', async 
   await page.goto('/settings');
   await expect(page.getByText('Live', { exact: true })).toBeVisible();
 
+  // Slice 069: the account's own name; the Today page greets by it.
+  const account = page.getByRole('form', { name: 'Your account' });
+  await account.getByLabel('Your name').fill('Nate Kim');
+  await account.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByTestId('settings-account-status')).toHaveText('Saved.');
+  await expect(page.getByRole('button', { name: 'Account: Nate Kim' })).toHaveText('NA');
+
   // Profile: defaults from the decisions, then a rename and a new zone.
   const profile = page.getByRole('form', { name: 'Organization' });
   await expect(profile.getByLabel('Name')).toHaveValue('Seoul Arts High');

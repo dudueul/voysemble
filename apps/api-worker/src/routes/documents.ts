@@ -24,7 +24,12 @@ import {
 import { eq } from 'drizzle-orm';
 import { HTTPException } from 'hono/http-exception';
 import { z } from 'zod';
-import { requireAuth, requireOrgRole, requireRecentReauth } from '../auth/middleware';
+import {
+  organizerName,
+  requireAuth,
+  requireOrgRole,
+  requireRecentReauth,
+} from '../auth/middleware';
 import { db } from '../db/client';
 import { organizations } from '../db/schema';
 import type { AppEnv, AuthContext } from '../env';
@@ -268,7 +273,7 @@ async function organizerFor(
   const access = await requireOrgRole(env, auth, orgId, 'organizer');
   const org = await orgObject(env, orgId);
   if (!(await org.getTrip(tripId))) throw new HTTPException(404, { message: 'Trip not found.' });
-  return { org, byName: access.role === 'owner' ? 'Owner' : 'Organizer' };
+  return { org, byName: organizerName(auth, access) };
 }
 
 const objectKey = (orgId: string, tripId: string, requirementId: string, participationId: string) =>

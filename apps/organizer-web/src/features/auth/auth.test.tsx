@@ -79,6 +79,7 @@ describe('AcceptInvitationPage (slice 042)', () => {
     accountId: '44444444-4444-4444-8444-444444444444',
     email: 'kim@example.com',
     locale: 'en',
+    displayName: null,
     memberships: [],
   };
   const ORG_ID = '11111111-1111-4111-8111-111111111111';
@@ -193,7 +194,13 @@ describe('AcceptInvitationPage (slice 042)', () => {
 
 describe('ReauthPage (slice 045)', () => {
   const TOKEN = 'r'.repeat(43);
-  const ME = { accountId: '4', email: 'nate@example.com', locale: 'en', memberships: [] };
+  const ME = {
+    accountId: '4',
+    email: 'nate@example.com',
+    locale: 'en',
+    displayName: null,
+    memberships: [],
+  };
 
   it('signed in: posts the token once, clears the stored return path and goes there', async () => {
     localStorage.setItem('voysemble.reauth.next', '/preparation');

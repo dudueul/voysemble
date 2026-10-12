@@ -82,6 +82,7 @@ export function AppShell() {
           activeTripId={activeTrip?.id ?? null}
           tripStatus={activeTrip ? tripStatusOn(activeTrip, new Date()) : null}
           accountLabel={me.data?.email ?? ''}
+          accountName={me.data?.displayName ?? null}
           hasAlerts={hasAlerts}
           onSignOut={() => void signOut()}
           onMenu={() => setNavOpen((v) => !v)}

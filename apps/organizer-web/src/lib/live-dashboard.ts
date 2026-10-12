@@ -154,7 +154,8 @@ export function buildDashboard(input: LiveDashboardInput): Dashboard {
       publishedAt: a.publishedAt,
     }));
   return {
-    organizerName: organizerNameFrom(input.me?.email),
+    // Slice 069: the account's own name when set; the email's first word stood in before it.
+    organizerName: input.me?.displayName ?? organizerNameFrom(input.me?.email),
     organizationName: input.org.name,
     now: input.now,
     lastSyncAt: input.now,

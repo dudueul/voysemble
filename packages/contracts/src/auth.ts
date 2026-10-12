@@ -64,13 +64,23 @@ export const MeResponse = z
     accountId: Id,
     email: Email,
     locale: Locale,
+    /** Slice 069: the account's own name, shown wherever it acts on a trip; null until set. */
+    displayName: z.string().nullable(),
     memberships: z.array(MembershipSummary),
   })
   .openapi('MeResponse');
 export type MeResponse = z.infer<typeof MeResponse>;
 
-/** `PATCH /v1/me` (slice 038): the account's own language for the console and the emails it gets. */
-export const UpdateMeRequest = z.object({ locale: Locale }).openapi('UpdateMeRequest');
+/**
+ * `PATCH /v1/me` (slice 038): the account's own language for the console and the emails it gets;
+ * slice 069: the account's own name (1..80 characters; null clears it). Absent fields stay.
+ */
+export const UpdateMeRequest = z
+  .object({
+    locale: Locale.optional(),
+    displayName: z.string().trim().min(1).max(80).nullable().optional(),
+  })
+  .openapi('UpdateMeRequest');
 export type UpdateMeRequest = z.infer<typeof UpdateMeRequest>;
 
 export const LogoutResponse = z.object({ loggedOut: z.literal(true) }).openapi('LogoutResponse');

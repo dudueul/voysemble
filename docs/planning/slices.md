@@ -1816,3 +1816,22 @@ Built:
 - Docs: `incidents.md` route row, behaviour, console paragraph, facts and not-done; D17 amendment; captures README; ledger 066 (CI record) and 068; feature flag `incidents.manual` working.
 
 Not done: a manual card from the leader's phone; a note at opening; closing the composer with Escape.
+
+## Slice 069: the account's own name
+
+Status: done 2026-10-12. Commit: see git log (`feat(accounts): the organizer's own name on everything they do (slice 069)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D21 (owners and organizers on the console), D13 (what travelers and guardians read), D17/D22/D23/D27 (where the name shows). Details: `docs/engineering/identity-and-roster.md` (The account's own name).
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 40 files, 113 tests (`auth.test.ts` +1; `schema.test.ts` sees the new column) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 22 files, 135 tests (the Settings account case, `TopBar` initials, `buildDashboard` with a name; the organizer's Settings case counts four Save buttons, the account's enabled) |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e -- settings.spec.ts` | 2 passed on desktop-1440 (`settings.spec.ts` sets the name and reads the avatar; `headcounts.spec.ts` still greets by the email's first word without a name; `settings-live.png` regenerated) |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+Built:
+- Worker: migration `0006_account_display_name.sql`; `accounts.displayName`; `AuthContext.displayName`; `organizerName(auth, access)` and its use in the eight routes that named the organizer "Owner" / "Organizer" (windows, media, documents, chat, roster, incidents, fees, care); `GET /v1/me` carries it, `PATCH /v1/me` sets or clears it beside the language; `auth.test.ts` +1 (set, kept across a language change, blank and too long refused, cleared; a fee row and a chat message carry it, "Owner" again once cleared). Contracts: `MeResponse.displayName`, `UpdateMeRequest` with optional fields.
+- Console: `auth.updateDisplayName`; the Settings page's "Your account" card (`AccountForm`); the Today greeting and the top bar's initials and title read the name; strings EN/KO; `TopBar.test.tsx` +1, the Settings unit case, `live-dashboard.test.ts`; `settings.spec.ts` sets the name and reads the greeting.
+- Docs: `identity-and-roster.md` section; ledger; feature flag `accounts.display-name` working.
+
+Not done: the name on the phones' own account (participations carry theirs); a name at sign-up; the organizer's initials from two words.

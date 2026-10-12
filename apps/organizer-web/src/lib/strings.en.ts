@@ -924,6 +924,11 @@ export const en = {
     badWindow: 'Between 30 and 365 days.',
     timezoneHint: 'IANA zone, e.g. Asia/Seoul or Europe/Rome. Trips carry their own.',
     you: 'you',
+    // Slice 069: the account's own name.
+    account: 'Your account',
+    displayName: 'Your name',
+    displayNameHint:
+      'Shown to travelers, leaders and guardians wherever you act on a trip: chats, incident cards, fee rows, the audit trail. Your email stays private.',
     noMembers: 'No one else yet. Leaders appear here when they redeem their invite code.',
     membersLoadFailed: 'Could not load the members.',
     loadFailed: 'Could not load the organization.',

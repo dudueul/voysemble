@@ -148,9 +148,9 @@ const updateMeRoute = createRoute({
   method: 'patch',
   path: '/v1/me',
   tags: ['auth'],
-  summary: 'Change the account language (console and emails)',
+  summary: 'Change the account language (console and emails) or its own name',
   description:
-    'Slice 038. The console reads it on sign-in; the magic-link and digest emails use it. Answers the same shape as GET /v1/me.',
+    'Slice 038. The console reads the language on sign-in; the magic-link and digest emails use it. Slice 069: `displayName` (1..80, null clears it) is how the owner or organizer is named on a trip: chats, incident cards, fee rows, the audit trail. Absent fields stay. Answers the same shape as GET /v1/me.',
   security: SESSION_SECURITY,
   request: { body: { content: { 'application/json': { schema: UpdateMeRequest } } } },
   responses: {
@@ -281,9 +281,17 @@ export function mountAuthRoutes(app: OpenAPIHono<AppEnv>): void {
 
   app.openapi(updateMeRoute, async (c) => {
     const auth = requireAuth(c);
-    const { locale } = c.req.valid('json');
-    await db(c.env.DB).update(accounts).set({ locale }).where(eq(accounts.id, auth.accountId));
-    return c.json(await meResponse(c.env, auth.accountId, auth.email, locale), 200);
+    const body = c.req.valid('json');
+    const patch: { locale?: 'ko' | 'en'; displayName?: string | null } = {};
+    if (body.locale !== undefined) patch.locale = body.locale;
+    if (body.displayName !== undefined) patch.displayName = body.displayName;
+    if (Object.keys(patch).length > 0) {
+      await db(c.env.DB).update(accounts).set(patch).where(eq(accounts.id, auth.accountId));
+    }
+    return c.json(
+      await meResponse(c.env, auth.accountId, auth.email, body.locale ?? auth.locale),
+      200,
+    );
   });
 }
 
@@ -303,10 +311,16 @@ async function meResponse(
     .innerJoin(organizations, eq(organizations.id, memberships.organizationId))
     .where(eq(memberships.accountId, accountId))
     .all();
+  const account = await db(env.DB)
+    .select({ displayName: accounts.displayName })
+    .from(accounts)
+    .where(eq(accounts.id, accountId))
+    .get();
   return {
     accountId,
     email,
     locale: locale === 'en' ? ('en' as const) : ('ko' as const),
+    displayName: account?.displayName ?? null,
     memberships: rows,
   };
 }

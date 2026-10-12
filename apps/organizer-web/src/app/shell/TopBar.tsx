@@ -18,14 +18,17 @@ export function TopBar({
   menuOpen,
   onSwitchLocale,
   onSwitchTrip,
+  accountName = null,
 }: {
   orgName: string;
   /** The organization's trips; the active one is named, the rest are a switch away. */
   trips: { id: string; name: string }[];
   activeTripId: string | null;
   tripStatus: 'active' | 'planning' | 'completed' | null;
-  /** Email of the signed-in account; initials derive from it. */
+  /** Email of the signed-in account; initials derive from the name when set, else from it. */
   accountLabel: string;
+  /** Slice 069: the account's own name, null until set. */
+  accountName?: string | null;
   hasAlerts: boolean;
   onSignOut: () => void;
   onMenu: () => void;
@@ -36,7 +39,7 @@ export function TopBar({
   onSwitchTrip: (tripId: string) => void;
 }) {
   const activeTrip = trips.find((t) => t.id === activeTripId) ?? null;
-  const initials = accountLabel.slice(0, 2).toUpperCase();
+  const initials = (accountName ?? accountLabel).slice(0, 2).toUpperCase();
   const other = otherLocale(getLocale());
   return (
     <header className="topbar">
@@ -103,8 +106,8 @@ export function TopBar({
       <button
         type="button"
         className="avatar"
-        aria-label={`${strings.topbar.account}: ${accountLabel}`}
-        title={accountLabel}
+        aria-label={`${strings.topbar.account}: ${accountName ?? accountLabel}`}
+        title={accountName ? `${accountName} · ${accountLabel}` : accountLabel}
       >
         {initials}
       </button>

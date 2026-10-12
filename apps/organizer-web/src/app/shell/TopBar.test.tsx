@@ -54,6 +54,28 @@ describe('TopBar', () => {
     expect(onSwitchTrip).toHaveBeenCalledWith('tr_winter');
   });
 
+  it('initials come from the account name when set (slice 069)', () => {
+    render(
+      <TopBar
+        orgName="Seoul Arts High"
+        trips={[]}
+        activeTripId={null}
+        tripStatus={null}
+        accountLabel="nate@example.com"
+        accountName="Nate Kim"
+        hasAlerts={false}
+        onSignOut={() => undefined}
+        onMenu={() => undefined}
+        menuOpen={false}
+        onSwitchLocale={() => undefined}
+        onSwitchTrip={() => undefined}
+      />,
+    );
+    const avatar = screen.getByRole('button', { name: 'Account: Nate Kim' });
+    expect(avatar.textContent).toBe('NA');
+    expect(avatar.getAttribute('title')).toBe('Nate Kim · nate@example.com');
+  });
+
   it('shows the organization alone without a trip', () => {
     bar([], null);
     expect(screen.getByText('Seoul Arts High')).toBeTruthy();

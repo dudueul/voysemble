@@ -904,6 +904,10 @@ export const ko: Strings = {
     badWindow: '30일에서 365일 사이여야 합니다.',
     timezoneHint: 'IANA 시간대, 예: Asia/Seoul 또는 Europe/Rome. 여행은 각자의 시간대를 가집니다.',
     you: '나',
+    account: '내 계정',
+    displayName: '이름',
+    displayNameHint:
+      '대화, 사건 카드, 참가비 행, 감사 기록 등 여행에서 하는 일에 여행자·인솔자·보호자에게 보이는 이름입니다. 이메일은 공개되지 않습니다.',
     noMembers: '아직 다른 구성원이 없습니다. 인솔자가 초대 코드를 쓰면 여기에 나타납니다.',
     membersLoadFailed: '구성원을 불러오지 못했습니다.',
     loadFailed: '조직을 불러오지 못했습니다.',

@@ -15,7 +15,7 @@ import {
 } from '@voysemble/contracts';
 import { HTTPException } from 'hono/http-exception';
 import { z } from 'zod';
-import { requireAuth, requireOrgRole } from '../auth/middleware';
+import { organizerName, requireAuth, requireOrgRole } from '../auth/middleware';
 import type { AppEnv } from '../env';
 import { nowIso } from '../lib/time';
 import { orgObject } from '../org/client';
@@ -125,7 +125,7 @@ export function mountWindowRoutes(app: OpenAPIHono<AppEnv>): void {
       org,
       me,
       staff,
-      byName: me?.displayName ?? (access.role === 'owner' ? 'Owner' : 'Organizer'),
+      byName: me?.displayName ?? organizerName(auth, access),
     };
   };
 

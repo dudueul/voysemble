@@ -18,7 +18,7 @@ import {
   z,
 } from '@voysemble/contracts';
 import { HTTPException } from 'hono/http-exception';
-import { type OrgAccess, requireAuth, requireOrgRole } from '../auth/middleware';
+import { type OrgAccess, organizerName, requireAuth, requireOrgRole } from '../auth/middleware';
 import type { AppEnv } from '../env';
 import { notificationBody, notifyTrip } from '../lib/notify';
 import { nowIso } from '../lib/time';
@@ -151,7 +151,7 @@ export function mountIncidentRoutes(app: OpenAPIHono<AppEnv>): void {
     const body = c.req.valid('json');
     const access = await requireOrgRole(c.env, auth, orgId, 'organizer');
     const org = await orgObject(c.env, orgId);
-    const byName = access.role === 'owner' ? 'Owner' : 'Organizer';
+    const byName = organizerName(auth, access);
     const r = await org.openManualIncident({
       tripId,
       title: body.title,

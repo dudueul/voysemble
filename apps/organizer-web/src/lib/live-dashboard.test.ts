@@ -72,6 +72,27 @@ describe('live dashboard mapping', () => {
     expect(destinationFromTimeZone('America/New_York')).toBe('New York');
     expect(organizerNameFrom('nate.kim@example.com')).toBe('Nate');
     expect(organizerNameFrom(undefined)).toBe('Organizer');
+    // Slice 069: a set name wins over the email's first word.
+    expect(
+      buildDashboard({
+        me: {
+          accountId: 'acc',
+          email: 'nate@example.com',
+          locale: 'en',
+          displayName: 'Nate Kim',
+          memberships: [],
+        },
+        org: { id: 'org', name: 'Seoul Arts High', role: 'owner' } as never,
+        trips: [],
+        activeTripId: 'x',
+        roster: [],
+        announcements: [],
+        headcounts: [],
+        incidents: [],
+        itinerary: null,
+        now: '2026-12-31T06:12:00Z',
+      }).organizerName,
+    ).toBe('Nate Kim');
   });
 
   it('latest session per group wins; whole-trip sessions get their own label', () => {
@@ -110,7 +131,13 @@ describe('live dashboard mapping', () => {
 
   it('buildDashboard: live, travelers from roster, ack-requiring announcements only, no movements', () => {
     const d = buildDashboard({
-      me: { accountId: 'acc', email: 'nate@example.com', locale: 'en', memberships: [] },
+      me: {
+        accountId: 'acc',
+        email: 'nate@example.com',
+        locale: 'en',
+        displayName: null,
+        memberships: [],
+      },
       org: ORG,
       trips: [
         TRIP,

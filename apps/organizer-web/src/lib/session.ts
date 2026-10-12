@@ -577,6 +577,9 @@ export const auth = {
   /** Slice 038: the account's language, read back by /v1/me on the next sign-in. */
   updateLocale: (locale: 'ko' | 'en') =>
     api<MeResponse>('/v1/me', { method: 'PATCH', body: { locale } }),
+  /** Slice 069: the account's own name; null clears it. */
+  updateDisplayName: (displayName: string | null) =>
+    api<MeResponse>('/v1/me', { method: 'PATCH', body: { displayName } }),
   /** Slice 045 (D35): a confirmation link to the account's own address, then its token. */
   reauth: () => api<ReauthAccepted>('/v1/auth/reauth', { method: 'POST' }),
   reauthVerify: (token: string) =>

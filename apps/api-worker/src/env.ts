@@ -34,6 +34,8 @@ export type AuthContext = {
   accountId: string;
   email: string;
   locale: 'ko' | 'en';
+  /** Slice 069: the account's own name; null until set (then a role label stands in). */
+  displayName: string | null;
   sessionId: string;
   client: 'web' | 'native';
   /** Slice 045 (D35): the session's last step-up confirmation; null until one. */

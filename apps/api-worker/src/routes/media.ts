@@ -24,7 +24,7 @@ import {
 import { HTTPException } from 'hono/http-exception';
 import { z } from 'zod';
 import { aiPort } from '../ai/AiPort';
-import { requireAuth, requireOrgRole } from '../auth/middleware';
+import { organizerName, requireAuth, requireOrgRole } from '../auth/middleware';
 import type { AppEnv, AuthContext } from '../env';
 import { sniffImageType, stripMetadata } from '../lib/image-strip';
 import { mediaKeyFrom, sealBytes, unsealBytes } from '../lib/media-crypto';
@@ -219,7 +219,7 @@ async function viewerFor(
       }
     : {
         key: `acct:${auth.accountId}`,
-        name: access.role === 'owner' ? 'Owner' : 'Organizer',
+        name: organizerName(auth, access),
         role: access.role === 'owner' ? 'owner' : 'organizer',
         guardianOf: null,
       };

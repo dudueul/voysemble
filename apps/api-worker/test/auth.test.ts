@@ -6,7 +6,7 @@ import { env, SELF } from 'cloudflare:test';
 import { ErrorEnvelope, MeResponse, SessionResponse } from '@voysemble/contracts';
 import { describe, expect, it } from 'vitest';
 import { FixtureEmailPort } from '../src/email/EmailPort';
-import { api, json, signIn } from './helpers';
+import { api, createOrg, createTrip, json, SAMPLE_CSV, signIn } from './helpers';
 
 async function requestLink(email: string): Promise<string> {
   const res = await SELF.fetch('https://example.com/v1/auth/magic-link', {
@@ -104,6 +104,46 @@ describe('magic link sign-in', () => {
     expect((await json<{ locale: string }>(await api(nate).get('/v1/me'))).locale).toBe('ko');
     expect((await api(nate).patch('/v1/me', { locale: 'fr' })).status).toBe(400);
     expect((await api(null).patch('/v1/me', { locale: 'ko' })).status).toBe(401);
+  });
+
+  it('PATCH /v1/me sets the account name, which names the organizer on a trip (slice 069)', async () => {
+    const nate = await signIn('nate-name@example.com');
+    expect((await json<MeResponse>(await api(nate).get('/v1/me'))).displayName).toBeNull();
+    const named = await json<MeResponse>(
+      await api(nate).patch('/v1/me', { displayName: '  Nate Kim ' }),
+    );
+    expect(named).toMatchObject({ displayName: 'Nate Kim', locale: 'en' });
+    // A language change keeps the name; blank and too long are 400; null clears it.
+    expect(
+      (await json<MeResponse>(await api(nate).patch('/v1/me', { locale: 'ko' }))).displayName,
+    ).toBe('Nate Kim');
+    expect((await api(nate).patch('/v1/me', { displayName: '   ' })).status).toBe(400);
+    expect((await api(nate).patch('/v1/me', { displayName: 'x'.repeat(81) })).status).toBe(400);
+    expect((await api(nate).patch('/v1/me', {})).status).toBe(200);
+    expect((await json<MeResponse>(await api(nate).get('/v1/me'))).displayName).toBe('Nate Kim');
+    // On a trip, what the organizer does carries the name instead of "Owner".
+    const org = await createOrg(nate);
+    const trip = await createTrip(nate, org.id);
+    const base = `/v1/orgs/${org.id}/trips/${trip.id}`;
+    const imported = await json<{ participations: { id: string; displayName: string }[] }>(
+      await api(nate).post(`${base}/roster/import`, { csv: SAMPLE_CSV }),
+    );
+    const minji = imported.participations.find((p) => p.displayName === 'Minji Park')?.id ?? '';
+    const fee = await json<{ updatedByName: string }>(
+      await api(nate).patch(`${base}/fees/${minji}`, { amountDueMinor: 1000, paidMinor: 1000 }),
+    );
+    expect(fee.updatedByName).toBe('Nate Kim');
+    const sent = await json<{ senderName: string; senderRole: string }>(
+      await api(nate).post(`${base}/chats/trip/messages`, { body: 'Welcome aboard.' }),
+    );
+    expect(sent).toMatchObject({ senderName: 'Nate Kim', senderRole: 'owner' });
+    expect(
+      (await json<MeResponse>(await api(nate).patch('/v1/me', { displayName: null }))).displayName,
+    ).toBeNull();
+    const again = await json<{ senderName: string }>(
+      await api(nate).post(`${base}/chats/trip/messages`, { body: 'And again.' }),
+    );
+    expect(again.senderName).toBe('Owner');
   });
 
   it('/v1/me without a session is 401; logout revokes the token', async () => {

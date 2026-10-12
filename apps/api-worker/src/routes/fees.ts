@@ -19,7 +19,7 @@ import {
 } from '@voysemble/contracts';
 import { HTTPException } from 'hono/http-exception';
 import { z } from 'zod';
-import { requireAuth, requireOrgRole } from '../auth/middleware';
+import { organizerName, requireAuth, requireOrgRole } from '../auth/middleware';
 import type { AppEnv } from '../env';
 import { CsvError, csvLine, parseCsv } from '../lib/csv';
 import { localClock, nowIso } from '../lib/time';
@@ -219,7 +219,7 @@ export function mountFeeRoutes(app: OpenAPIHono<AppEnv>): void {
     const access = await requireOrgRole(c.env, auth, orgId, 'organizer');
     const org = await orgObject(c.env, orgId);
     if (!(await org.getTrip(tripId))) throw new HTTPException(404, { message: 'Trip not found.' });
-    return { org, byName: access.role === 'owner' ? 'Owner' : 'Organizer' };
+    return { org, byName: organizerName(auth, access) };
   };
 
   app.openapi(listRoute, async (c) => {

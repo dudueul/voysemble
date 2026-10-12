@@ -18,7 +18,7 @@ import {
 } from '@voysemble/contracts';
 import { HTTPException } from 'hono/http-exception';
 import { z } from 'zod';
-import { requireAuth, requireOrgRole } from '../auth/middleware';
+import { organizerName, requireAuth, requireOrgRole } from '../auth/middleware';
 import type { AppEnv, AuthContext } from '../env';
 import { nowIso } from '../lib/time';
 import { orgObject } from '../org/client';
@@ -126,7 +126,7 @@ async function viewerFor(
     readerKey: me?.id ?? `acct:${auth.accountId}`,
     participation: me,
     organizer,
-    name: me?.displayName ?? (access.role === 'owner' ? 'Owner' : 'Organizer'),
+    name: me?.displayName ?? organizerName(auth, access),
     role: me ? (me.role as ChatViewer['role']) : access.role === 'owner' ? 'owner' : 'organizer',
     locale: auth.locale,
   };

@@ -12,6 +12,8 @@ export const accounts = sqliteTable('accounts', {
   locale: text('locale').notNull().default('ko'),
   createdAt: text('created_at').notNull(),
   lastLoginAt: text('last_login_at'),
+  /** Slice 069: the account's own name for whatever it does on a trip; null until set. */
+  displayName: text('display_name'),
 });
 
 export const sessions = sqliteTable(
