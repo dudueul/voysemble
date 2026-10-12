@@ -1350,7 +1350,7 @@ Not done: a traveler's own seat or room; the sealed driver link; bookings in the
 
 ## Slice 048: the packing checklist
 
-Status: done 2026-10-12. Commit: see git log (`feat(packing): the checklist on the console and the phones (slice 048)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: see git log (`feat(packing): the checklist on the console and the phones (slice 048)`, `e3cef82`). CI: run 38274322563 red on `mobile` only at compile time (`TodayScreenshotTest.kt` imported `onAllNodes`, which is a member of the test rule, not a top-level function; the 047 fix had added it); `web` (incl. `preparation.spec.ts` with the packing steps) and `ios` (incl. `testPacking`) green. The one-line fix (`fix(android): onAllNodes is a member of the test rule, not an import`) follows; its run id is recorded in the next commit once verified.
 Spec: D38 (new: packing checklist), ADR-0001 (tier 1), D13 (guardians), D31 (device captures). Details: `docs/engineering/packing.md`.
 
 | Gate | Command | Result |
