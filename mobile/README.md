@@ -25,6 +25,7 @@ Design tokens: `packages/design-tokens` generates `core/.../design/Tokens.kt` an
 | Incidents (slice 016) | `android-app/.../incidents/IncidentsScreen.kt` | `ios-app/Voysemble/Incidents/IncidentsView.swift` | same, `incidents-*.png` |
 | Chats (slice 033) | `android-app/.../chat/ChatsScreen.kt` | `ios-app/Voysemble/Chat/ChatsView.swift` | same, `chats-*.png`; `docs/engineering/chat.md` |
 | Plan (slice 035; proposals from any event) | `android-app/.../plan/PlanScreen.kt` + `today/ProposeChange.kt` | `ios-app/Voysemble/Plan/PlanView.swift` + `Today/ProposeChange.swift` | same, `plan-*.png`; `docs/engineering/itinerary.md` |
+| Bookings on the Plan tab (slice 047; D37 travel) | `android-app/.../plan/PlanScreen.kt` (`bookings`) | `ios-app/Voysemble/Plan/PlanView.swift` (`bookings`, `BookingRow`) | `plan-day.png`, `plan-arrival.png`; `docs/engineering/travel.md` |
 | Memories (slice 044; D18 photos) | `android-app/.../memories/MemoriesScreen.kt` + `AndroidImages.kt` | `ios-app/Voysemble/Memories/MemoriesView.swift` | same, `memories-*.png`; `docs/engineering/media.md` |
 
 iOS evidence: `ios-app/VoysembleTests/CaptureTests.swift` writes `docs/captures/ios/*.png` on the CI

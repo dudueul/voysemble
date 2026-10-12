@@ -1326,3 +1326,24 @@ Built:
 Lesson: the first browser capture showed "0 seats" on a flight the spec had just read as 42: a status-only patch parsed through `FlightInput.partial()` still filled `pax` and `pnr` with their defaults and the object merged them in. Patch schemas are built from field sets without defaults; the worker test and the spec now assert the seats and the PNR after the status change. A capture is a gate, not decoration.
 
 Not done: bookings on the leader's phone; the sealed driver link and the printed roster; provider lookups; bookings in the trip report.
+
+## Slice 047: bookings on the leader's phone
+
+Status: done 2026-10-12. Commit: see git log (`feat(mobile): the day's bookings on the Plan tab for leaders (slice 047)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D37 (travel bookings; the driver contact never leaves the console), D13 (what guardians and phones never see), D31 (device captures). Details: `docs/engineering/travel.md` ("On the phones").
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker exec vitest run test/travel.test.ts` | 1 file, 1 test (adds the leader's `driverContact: null` fact) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 15 files, 100 tests (the console reads a nullable contact) |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+| Core JVM, Android, iOS | CI `mobile` and `ios` jobs | not runnable here (the Android Gradle plugin is behind a blocked host); verified by CI, recorded in the next commit |
+
+Built:
+- Contracts: `BusCharter.driverContact` nullable (null for a leader). Worker: the plan route answers a leader with every bus's `driverContact: null`; the organizer keeps the string.
+- Core: `api/Travel.kt` (`FlightDto`, `HotelDto`, `BusDto`, `TravelPlanDto`), `ApiClient.travelPlan`, `travel/TravelModel.kt` (`Flight`, `Hotel`, `BusCharter`, `TripTravel`, `HotelStay`, `DayTravel`, `travelOf`, `bookingsOn(date)`, `isQuiet`, the labels, `flightStatusLabel`), the fixture's `travel()`, 15 `TRAVEL_*` strings in both languages; tests `TravelModelTest` (3), `TravelTest` (1).
+- Android: `PlanUiState.canSeeTravel/travel`, `PlanViewModel.loadTravel` after the itinerary for leaders, the `bookings` section of `PlanScreen` (`BookingRow` with the flight status chip); `PlanViewModelTest` (+1, sample and unreachable facts), `PlanScreenshotTest` (bookings on the concert day; the arrival day captured as `plan-arrival.png`).
+- iOS: `PlanModel.travel/canSeeTravel/loadTravel`, the `bookings` section and `BookingRow` in `PlanView`; `CaptureTests.testPlan` (+`plan-arrival`), `LiveModelsTests` (sample bookings, unreachable keeps the section hidden, a traveler never asks).
+- Docs: `travel.md` phones section and facts, D37 row, captures README, mobile README, ledger, feature flag `mobile.travel` working.
+
+Not done: a traveler's own seat or room; the sealed driver link; bookings in the trip report.

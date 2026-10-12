@@ -208,4 +208,11 @@ the step-up confirmation, Hana missing) and the add form. Produced by
 
 `web/desktop-1440/travel-live.png`, `web/laptop-1280/travel-live.png`: the live Travel page with a
 delayed flight, a hotel and a bus whose seats come from the roster groups it names, each card with
-its add form. Produced by `apps/organizer-web/e2e/travel.spec.ts`. No phone change.
+its add form. Produced by `apps/organizer-web/e2e/travel.spec.ts`. Phones follow in slice 047.
+
+## Slice 047 (2026-10-12): bookings on the leader's phone
+
+`android/plan-day.png`, `ios/plan-day.png` (updated): the concert day now ends with its bookings
+(the hotel's night 4 of 5, the two buses with their roster seats). `android/plan-arrival.png`,
+`ios/plan-arrival.png` (new): the arrival day with the flight from ICN and the hotel check-in.
+Produced by `PlanScreenshotTest.plan_day_light` and `CaptureTests.testPlan`.

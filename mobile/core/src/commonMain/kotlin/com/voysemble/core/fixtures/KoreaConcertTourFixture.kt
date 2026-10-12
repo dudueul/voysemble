@@ -28,6 +28,10 @@ import com.voysemble.core.incidents.IncidentFeed
 import com.voysemble.core.incidents.IncidentStatus
 import com.voysemble.core.plan.PlanDay
 import com.voysemble.core.plan.TripPlan
+import com.voysemble.core.travel.BusCharter
+import com.voysemble.core.travel.Flight
+import com.voysemble.core.travel.Hotel
+import com.voysemble.core.travel.TripTravel
 import com.voysemble.core.today.AckState
 import com.voysemble.core.today.EventKind
 import com.voysemble.core.today.EventStatus
@@ -292,6 +296,22 @@ public object KoreaConcertTourFixture {
             Memory("ph4", "Sua Lim", mine = false, day = 3, status = "pool", flag = null, taggedNames = emptyList(), wholeGroup = false, thumbnailPath = "", contentPath = ""),
             Memory("ph5", "Juho Kim", mine = false, day = 3, status = "pool", flag = null, taggedNames = emptyList(), wholeGroup = false, thumbnailPath = "", contentPath = ""),
             Memory("ph6", "Kim Daeun", mine = true, day = 2, status = "pool", flag = null, taggedNames = emptyList(), wholeGroup = false, thumbnailPath = "", contentPath = ""),
+        ),
+    )
+
+    /** The sample bookings (D37, slice 047): the two flights, two hotels and two buses of the tour. */
+    public fun travel(): TripTravel = TripTravel(
+        flights = listOf(
+            Flight("fl1", "DEMO 901", "ICN", "FCO", "2026-12-28T13:30", "2026-12-28T18:55", pax = 42, pnr = "VYS8K2", status = "done"),
+            Flight("fl2", "DEMO 902", "FCO", "ICN", "2027-01-06T21:10", "2027-01-07T16:05", pax = 42, pnr = "VYS8K2", status = "scheduled"),
+        ),
+        hotels = listOf(
+            Hotel("ho1", "Hotel de la Ville", "Rome", "2026-12-28", "2027-01-02", rooms = 21, confirmation = "HDLV-2026-1228", nights = 5),
+            Hotel("ho2", "Hotel Brunelleschi", "Florence", "2027-01-02", "2027-01-06", rooms = 21, confirmation = "HBR-2027-0102", nights = 4),
+        ),
+        buses = listOf(
+            BusCharter("bu1", "Bus A", "Roma Coach", seats = 45, groups = listOf("Bus A"), assigned = 20),
+            BusCharter("bu2", "Bus B", "Roma Coach", seats = 45, groups = listOf("Bus B"), assigned = 19),
         ),
     )
 

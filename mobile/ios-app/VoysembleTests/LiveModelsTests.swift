@@ -183,11 +183,15 @@ final class LiveModelsTests: XCTestCase {
         let model = PlanModel(api: unreachableClient(), trip: trip)
         XCTAssertTrue(model.live)
         XCTAssertTrue(model.canPropose)
+        XCTAssertTrue(model.canSeeTravel)
+        XCTAssertNil(model.travel)
         XCTAssertEqual(model.plan.days.count, 0)
         XCTAssertEqual(model.plan.revisionLine(), "Not published yet")
         await model.refresh()
         XCTAssertTrue(model.plan.offline)
         XCTAssertFalse(model.syncing)
+        // Slice 047: the bookings never loaded, so the section stays hidden rather than empty.
+        XCTAssertNil(model.travel)
         await model.propose(ProposalDraft(kind: .remove, eventId: "e1", note: "Why", start: nil, end: nil, title: nil, place: nil, date: nil, timeZone: nil, order: 0))
         XCTAssertEqual(model.proposal?.error, "Offline. Try again when connected.")
         XCTAssertEqual(model.proposal?.kind, ProposalKind.remove)
@@ -196,6 +200,7 @@ final class LiveModelsTests: XCTestCase {
         XCTAssertEqual(model.proposal?.error, "The start must be HH:mm.")
         let traveler = ActiveTrip(organizationId: "org1", organizationName: "Seoul Arts High", tripId: "trip1", tripName: "Korea Concert Tour", participationId: "p-minji", role: "traveler")
         XCTAssertFalse(PlanModel(api: unreachableClient(), trip: traveler).canPropose)
+        XCTAssertFalse(PlanModel(api: unreachableClient(), trip: traveler).canSeeTravel)
     }
 
     func testPlanSampleModeOpensTheConcertDayAndSendsNothing() async {
@@ -204,6 +209,12 @@ final class LiveModelsTests: XCTestCase {
         XCTAssertEqual(model.plan.days.count, 4)
         XCTAssertEqual(model.selected, 3)
         XCTAssertEqual(model.plan.days[3].label, "Concert day")
+        // Slice 047: the fixture bookings, read off per day through core.
+        XCTAssertEqual(model.travel?.buses.count, 2)
+        let concert = model.travel?.bookingsOn(date: "2026-12-31")
+        XCTAssertEqual(concert?.flights.count, 0)
+        XCTAssertEqual(concert?.hotels.first?.detail(), "Night 4 of 5 · Rome · 21 rooms")
+        XCTAssertEqual(model.travel?.bookingsOn(date: "2026-12-28").flights.first?.detail(), "DEMO 901 · 13:30 → 18:55 · PNR VYS8K2 · 42 seats")
         await model.refresh()
         XCTAssertFalse(model.plan.offline)
         await model.propose(ProposalDraft(kind: .remove, eventId: "ev_5", note: "Rained out", start: nil, end: nil, title: nil, place: nil, date: nil, timeZone: nil, order: 0))

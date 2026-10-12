@@ -2,7 +2,10 @@
 // Plan tab (slice 035). Mirrors PlanScreen on Android; rules in core (plan/PlanModel.kt). Live
 // with a client and a trip: the published itinerary as a day-by-day plan, the device date's day
 // opened first, and a leader's proposals (change, remove, add) through core. Without a trip: the
-// fixture plan on its own day. The phone never edits the itinerary (D24).
+// fixture plan on its own day. The phone never edits the itinerary (D24). A leader also reads
+// the trip's bookings under each day (slice 047, D37; core travel/TravelModel.kt): the flights
+// that touch the day, the hotel of the night, every bus with its roster seats; never the
+// driver's contact.
 
 import SwiftUI
 import VoysembleCore
@@ -15,10 +18,14 @@ final class PlanModel: ObservableObject {
     @Published private(set) var syncing = false
     @Published private(set) var error: String?
     @Published private(set) var proposal: ProposalState?
+    /// The trip's bookings once loaded; nil before the first answer and for roles that never ask.
+    @Published private(set) var travel: TripTravel?
     let api: ApiClient?
     let trip: ActiveTrip?
     /// D24: leaders propose; travelers and guardians only read. Sample mode shows the affordance.
     let canPropose: Bool
+    /// D37: leaders read the bookings; travelers and guardians never ask. Sample mode shows them.
+    let canSeeTravel: Bool
     var live: Bool { api != nil && trip != nil }
     private let deviceDate: (String) -> String
 
@@ -33,6 +40,7 @@ final class PlanModel: ObservableObject {
         self.trip = trip
         self.deviceDate = deviceDate
         self.canPropose = canPropose ?? (trip == nil || trip?.role == "leader")
+        self.canSeeTravel = trip == nil || trip?.role == "leader"
         if let plan {
             self.plan = plan
         } else if let trip, api != nil {
@@ -40,8 +48,11 @@ final class PlanModel: ObservableObject {
         } else {
             self.plan = KoreaConcertTourFixture.shared.plan()
         }
-        // Sample mode opens the fixture's own day (KoreaConcertTourFixture.TODAY_DATE).
-        if api == nil || trip == nil { selected = Int(self.plan.initialDayIndex(date: "2026-12-31")) }
+        // Sample mode opens the fixture's own day (KoreaConcertTourFixture.TODAY_DATE) with the fixture bookings.
+        if api == nil || trip == nil {
+            selected = Int(self.plan.initialDayIndex(date: "2026-12-31"))
+            if canSeeTravel { travel = KoreaConcertTourFixture.shared.travel() }
+        }
     }
 
     func refresh() async {
@@ -67,6 +78,23 @@ final class PlanModel: ObservableObject {
             }
         } catch {
             plan = plan.withOffline(offline: true)
+        }
+        if canSeeTravel { await loadTravel(api: api, trip: trip) }
+    }
+
+    /// The bookings after the itinerary (D37): a failure is said once, offline keeps the last answer.
+    private func loadTravel(api: ApiClient, trip: ActiveTrip) async {
+        do {
+            let r = try await api.travelPlan(orgId: trip.organizationId, tripId: trip.tripId, correlationId: nil)
+            if let dto = (r as? ApiResultOk<TravelPlanDto>)?.value {
+                travel = TravelModelKt.travelOf(dto: dto)
+            } else if let failed = r as? ApiResultFailed {
+                if error == nil { error = tr1(.travelLoadFailed, failed.error.code) }
+            } else {
+                travel = travel?.withOffline(offline: true)
+            }
+        } catch {
+            travel = travel?.withOffline(offline: true)
         }
     }
 
@@ -215,6 +243,24 @@ struct PlanView: View {
                 }
             }
         }
+        if let travel = model.travel { bookings(travel.bookingsOn(date: day.date)) }
+    }
+
+    /// The day's bookings (D37): flights, the hotel of the night, every bus; as on Android.
+    @ViewBuilder
+    private func bookings(_ onDay: DayTravel) -> some View {
+        Text(tr(.travelSection).uppercased()).font(.caption2.weight(.semibold)).foregroundStyle(.secondary).padding(.top, 8)
+        Text(tr(.travelHint)).font(.caption).foregroundStyle(.secondary)
+        if onDay.isQuiet() { Text(tr(.travelQuiet)).font(.subheadline).foregroundStyle(.secondary) }
+        ForEach(onDay.flights, id: \.id) { f in
+            BookingRow(symbol: "airplane", title: f.title(), detail: f.detail(), spoken: tr1(.travelFlightSpoken, f.code), status: f.status)
+        }
+        ForEach(onDay.hotels, id: \.hotel.id) { h in
+            BookingRow(symbol: "bed.double", title: h.hotel.name, detail: h.detail(), spoken: tr1(.travelHotelSpoken, h.hotel.name), status: nil)
+        }
+        ForEach(onDay.buses, id: \.id) { b in
+            BookingRow(symbol: "bus", title: b.label, detail: b.detail(), spoken: tr1(.travelBusSpoken, b.label), status: nil)
+        }
     }
 
     /// The result of the last proposal, with OK to clear it.
@@ -225,6 +271,46 @@ struct PlanView: View {
                 .foregroundStyle(Color(argb: p.sent || p.sending ? Tokens.Color.Light.success : Tokens.Color.Light.warning))
             Spacer()
             if !p.sending { Button(tr(.commonOk)) { model.dismissProposal() }.font(.subheadline.weight(.semibold)) }
+        }
+    }
+}
+
+/// One booking: an icon, a title, the detail line and, for a flight, its status chip.
+struct BookingRow: View {
+    let symbol: String
+    let title: String
+    let detail: String
+    let spoken: String
+    let status: String?
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: symbol)
+                .frame(width: 36, height: 36)
+                .background(RoundedRectangle(cornerRadius: 10).stroke(Color(argb: Tokens.Color.Light.border)))
+                .foregroundStyle(.secondary)
+                .accessibilityLabel(spoken)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.body.weight(.semibold))
+                Text(detail).font(.subheadline).foregroundStyle(.secondary)
+            }
+            Spacer()
+            if let status {
+                Text(TravelModelKt.flightStatusLabel(status: status))
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(Color(argb: tint(status)))
+                    .voyChip(tint: Color(argb: tint(status)))
+            }
+        }
+        .padding(.vertical, 6)
+    }
+
+    private func tint(_ status: String) -> UInt32 {
+        switch status {
+        case "delayed": return Tokens.Color.Light.warning
+        case "cancelled": return Tokens.Color.Light.danger
+        case "done": return Tokens.Color.Light.success
+        default: return Tokens.Color.Light.pending
         }
     }
 }

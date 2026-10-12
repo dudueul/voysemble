@@ -3,6 +3,7 @@
 // network; live mode builds the plan from the published itinerary and opens the device date's
 // day; an unreachable server marks the plan offline; a leader's remove and add proposals post
 // the core bodies; 403 is explained; travelers cannot propose; an incomplete draft says why.
+// Slice 047 (D37): a leader's plan loads the bookings after the itinerary; a traveler never asks.
 
 package com.voysemble.app.plan
 
@@ -11,6 +12,8 @@ import com.voysemble.core.api.ApiClientConfig
 import com.voysemble.core.plan.ProposalDraft
 import com.voysemble.core.plan.ProposalKind
 import com.voysemble.core.session.ActiveTrip
+import com.voysemble.core.travel.bookingsOn
+import com.voysemble.core.travel.detail
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpHeaders
@@ -48,6 +51,8 @@ class PlanViewModelTest {
          ],"unpublished":0}
     """.trimIndent()
 
+    private val travelJson = """{"flights":[{"id":"f1","tripId":"trip_1","kind":"flight","code":"DEMO 901","from":"ICN","to":"FCO","departsAt":"2026-12-28T13:30","arrivesAt":"2026-12-28T18:55","pax":42,"pnr":"VYS8K2","status":"delayed","createdAt":"2026-10-12T00:00:00.000Z"}],"hotels":[{"id":"h1","tripId":"trip_1","kind":"hotel","name":"Hotel de la Ville","city":"Rome","checkIn":"2026-12-28","checkOut":"2027-01-02","rooms":21,"confirmation":"","nights":5,"createdAt":"2026-10-12T00:00:00.000Z"}],"buses":[{"id":"b1","tripId":"trip_1","kind":"bus","label":"Bus A","company":"Roma Coach","seats":24,"driverContact":null,"groups":["Bus A"],"assigned":2,"createdAt":"2026-10-12T00:00:00.000Z"}],"groups":["Bus A","Bus B"],"travelers":3}"""
+
     private val proposalJson = """{"id":"11111111-1111-4111-8111-111111111111","tripId":"trip_1","kind":"remove","eventId":"e1","eventTitle":"Breakfast","patch":{},"note":"x","status":"pending","proposedByName":"Kim","proposedAt":"2026-12-31T06:00:00.000Z","decidedAt":null,"decidedByName":null,"decisionNote":null}"""
 
     @Before fun main() = Dispatchers.setMain(UnconfinedTestDispatcher())
@@ -71,6 +76,35 @@ class PlanViewModelTest {
         assertEquals(ProposalKind.REMOVE, vm.state.value.proposal?.kind)
         vm.dismissProposal()
         assertNull(vm.state.value.proposal)
+        // Sample mode shows the fixture bookings to the leader view (slice 047).
+        assertTrue(vm.state.value.canSeeTravel)
+        assertEquals(2, vm.state.value.travel?.buses?.size)
+    }
+
+    @Test
+    fun leader_loads_the_bookings_after_the_itinerary_and_a_traveler_never_asks() = runTest {
+        val paths = mutableListOf<String>()
+        val engine = MockEngine { req ->
+            paths += req.url.encodedPath
+            if (req.url.encodedPath.endsWith("/travel")) respond(travelJson, HttpStatusCode.OK, json) else respond(itineraryJson, HttpStatusCode.OK, json)
+        }
+        val vm = PlanViewModel(api = client(engine), trip = kim, deviceDate = { "2026-12-31" })
+        assertNull(vm.state.value.travel)
+        vm.ready.join()
+        assertTrue(vm.state.value.canSeeTravel)
+        val travel = vm.state.value.travel ?: error("bookings not loaded")
+        assertEquals(listOf("DEMO 901"), travel.flights.map { it.code })
+        val arrival = travel.bookingsOn("2026-12-28")
+        assertEquals(1, arrival.flights.size)
+        assertEquals("Check-in today · 5 nights · Rome · 21 rooms", arrival.hotels.single().detail())
+        assertEquals("Roma Coach · 2 of 24 seats · Groups: Bus A", arrival.buses.single().detail())
+        assertEquals(1, paths.count { it == "/v1/orgs/org_1/trips/trip_1/travel" })
+
+        val traveler = PlanViewModel(api = client(engine), trip = minji, deviceDate = { "2026-12-31" })
+        traveler.ready.join()
+        assertFalse(traveler.state.value.canSeeTravel)
+        assertNull(traveler.state.value.travel)
+        assertEquals(1, paths.count { it.endsWith("/travel") })
     }
 
     @Test
@@ -98,6 +132,7 @@ class PlanViewModelTest {
         val vm = PlanViewModel(api = client(MockEngine { throw IllegalStateException("offline") }), trip = kim, deviceDate = { "2026-12-31" })
         vm.ready.join()
         assertTrue(vm.state.value.plan.offline)
+        assertNull(vm.state.value.travel)
         assertEquals("Korea Concert Tour 2026", vm.state.value.plan.tripName)
         vm.propose(ProposalDraft(ProposalKind.REMOVE, "e1", "Why")).join()
         assertEquals("Offline. Try again when connected.", vm.state.value.proposal?.error)

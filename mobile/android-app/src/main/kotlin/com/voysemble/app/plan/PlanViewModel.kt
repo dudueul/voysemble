@@ -2,7 +2,8 @@
 // Plan tab state holder (slice 035). Live with a client and a trip: the published itinerary as
 // a day-by-day plan (core plan/PlanModel.kt), the device date's day opened first, and a leader's
 // proposals (change, remove, add) sent through core. Without a trip: the fixture plan on its
-// own day. The phone never edits the itinerary (D24).
+// own day. The phone never edits the itinerary (D24). A leader also reads the trip's bookings
+// (slice 047, D37; core travel/TravelModel.kt) under each day; travelers and guardians do not.
 
 package com.voysemble.app.plan
 
@@ -25,6 +26,9 @@ import com.voysemble.core.plan.proposalFailureMessage
 import com.voysemble.core.plan.sendProposal
 import com.voysemble.core.plan.withOffline
 import com.voysemble.core.session.ActiveTrip
+import com.voysemble.core.travel.TripTravel
+import com.voysemble.core.travel.travelOf
+import com.voysemble.core.travel.withOffline as withTravelOffline
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -43,6 +47,10 @@ data class PlanUiState(
     /** D24: leaders propose; travelers and guardians only read. Sample mode shows the affordance. */
     val canPropose: Boolean = false,
     val proposal: ProposalState? = null,
+    /** D37: leaders read the bookings; travelers and guardians never ask. Sample mode shows them. */
+    val canSeeTravel: Boolean = false,
+    /** The trip's bookings once loaded (null before the first answer, and for roles that never ask). */
+    val travel: TripTravel? = null,
 )
 
 class PlanViewModel(
@@ -59,6 +67,8 @@ class PlanViewModel(
             selected = if (live) 0 else initial.initialDayIndex(KoreaConcertTourFixture.TODAY_DATE),
             live = live,
             canPropose = trip == null || trip.role == "leader",
+            canSeeTravel = trip == null || trip.role == "leader",
+            travel = if (!live && (trip == null || trip.role == "leader")) KoreaConcertTourFixture.travel() else null,
         ),
     )
     val state: StateFlow<PlanUiState> = _state
@@ -83,6 +93,16 @@ class PlanViewModel(
                 is ApiResult.Failed -> _state.update { it.copy(syncing = false, error = trf(Txt.PLAN_LOAD_FAILED, r.error.code)) }
                 is ApiResult.Unreachable -> _state.update { it.copy(plan = it.plan.withOffline(true), syncing = false) }
             }
+            if (_state.value.canSeeTravel) loadTravel(a, t)
+        }
+    }
+
+    /** The bookings after the itinerary (D37): a failure is said once, offline keeps the last answer. */
+    private suspend fun loadTravel(a: ApiClient, t: ActiveTrip) {
+        when (val r = a.travelPlan(t.organizationId, t.tripId)) {
+            is ApiResult.Ok -> _state.update { it.copy(travel = travelOf(r.value)) }
+            is ApiResult.Failed -> _state.update { it.copy(error = it.error ?: trf(Txt.TRAVEL_LOAD_FAILED, r.error.code)) }
+            is ApiResult.Unreachable -> _state.update { it.copy(travel = it.travel?.withTravelOffline(true)) }
         }
     }
 

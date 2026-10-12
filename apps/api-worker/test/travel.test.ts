@@ -155,7 +155,17 @@ describe('travel bookings (slice 046)', () => {
     expect((await api(t.nate).post(travel, { kind: 'train', code: 'X' })).status).toBe(400);
 
     // Roles: a leader reads; travelers, guardians and strangers do not; nobody but staff writes.
-    expect((await api(t.kim).get(travel)).status).toBe(200);
+    const kimPlan = await api(t.kim).get(travel);
+    expect(kimPlan.status).toBe(200);
+    // D37: a leader reads the bus without the driver's contact; the organizer keeps it.
+    const kimBuses = ((await kimPlan.json()) as { buses: { driverContact: string | null }[] })
+      .buses;
+    expect(kimBuses.length).toBeGreaterThan(0);
+    expect(kimBuses.every((b) => b.driverContact === null)).toBe(true);
+    const natePlan = (await (await api(t.nate).get(travel)).json()) as {
+      buses: { driverContact: string | null }[];
+    };
+    expect(natePlan.buses.every((b) => b.driverContact === '+39 06 000 0000')).toBe(true);
     expect(
       (await api(t.kim).post(travel, { kind: 'bus', label: 'B', company: 'C', seats: 10 })).status,
     ).toBe(403);

@@ -83,8 +83,12 @@ final class CaptureTests: XCTestCase {
     }
 
     func testPlan() throws {
-        // Slice 035: the fixture plan on its concert day with the leader's affordances.
+        // Slice 035: the fixture plan on its concert day with the leader's affordances; slice 047 adds
+        // the day's bookings under the events (the hotel night here, the flight and the check-in on arrival).
         try capture(NavigationStack { PlanView(model: PlanModel()) }, name: "plan-day")
+        let arrival = PlanModel()
+        arrival.selected = 0
+        try capture(NavigationStack { PlanView(model: arrival) }, name: "plan-arrival")
         // The proposal form for a new event, filled as a leader would.
         let day = KoreaConcertTourFixture.shared.plan().days[3]
         let form = ProposeChangeForm(

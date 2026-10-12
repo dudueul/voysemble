@@ -308,6 +308,15 @@ public class ApiClient(
     /* ---------- Photos (D18, slice 044) ---------- */
 
     /** GET .../media: what the signed-in participant may see (ADR-0009), newest first. */
+    /** GET .../travel (D37, slice 047): the trip's bookings; a leader gets the buses without the driver's contact. */
+    public suspend fun travelPlan(orgId: String, tripId: String, correlationId: String? = null): ApiResult<TravelPlanDto> =
+        call(correlationId) {
+            http.get {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "orgs", orgId, "trips", tripId, "travel") }
+                common(correlationId)
+            }
+        }
+
     public suspend fun listPhotos(orgId: String, tripId: String, correlationId: String? = null): ApiResult<PhotoListDto> =
         call(correlationId) {
             http.get {

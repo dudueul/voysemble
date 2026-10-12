@@ -55,6 +55,23 @@ builds the create bodies by adding defaults, and the patch bodies by `partial()`
 sets. The worker test and the browser spec both assert the seats and the PNR after the status
 change.
 
+## On the phones (slice 047)
+
+A leader reads the bookings under each day of the Plan tab; travelers and guardians never ask
+(the itinerary carries what they need). The plan route answers a leader with `driverContact:
+null` on every bus: the contact never leaves the console (D37, D13). Core
+`travel/TravelModel.kt` turns the wire plan into `TripTravel` and reads it off per day with
+`bookingsOn(date)`: the flights that depart or arrive that day, the hotels whose stay covers it
+as `HotelStay(night)` (1 on the check-in day, `nights + 1` on the check-out morning), and every
+bus. The labels are shared: "DEMO 901 · 13:30 → 18:55 · PNR VYS8K2 · 42 seats", "Check-in today ·
+5 nights · Rome · 21 rooms", "Night 4 of 5 · …", "Check-out today · …", "Roma Coach · 20 of 45
+seats · Groups: Bus A"; a quiet day says "No flight or hotel change this day." and still lists
+the buses. Android `PlanViewModel` and iOS `PlanModel` load the bookings after the itinerary
+(`ApiClient.travelPlan`); a failure is said once in the plan's error line, offline keeps the
+last answer, and before the first answer the section stays hidden rather than empty. Sample mode
+shows the fixture's two flights, two hotels and two buses. Evidence: `android/plan-day.png`,
+`android/plan-arrival.png`, `ios/plan-day.png`, `ios/plan-arrival.png`.
+
 ## Facts established by tests
 
 - Worker: an empty plan carries the roster's groups and traveler count; a flight, a hotel (5
@@ -64,6 +81,15 @@ change.
   kind are 400; a leader reads but cannot write; a traveler, a guardian and a stranger are 403,
   anonymous 401, an unknown trip 404; a deleted hotel is gone and deleting again is 404.
 - Worker: a status-only patch keeps the seats and the PNR (the partial-defaults lesson above).
+- Worker: a leader's plan carries `driverContact: null` on every bus; the organizer's keeps the string.
+- Core (JVM): the wire plan becomes the phone's bookings; a day holds its flights, the night
+  (check-in, night 4 of 5, check-out morning, a move day with both), every bus; the labels in EN
+  and KO; a quiet day; the leader's and the organizer's bus decode.
+- Android: sample mode carries the fixture bookings; a leader's live plan asks `.../travel` once
+  after the itinerary and reads the arrival day; a traveler never asks; unreachable keeps the
+  section hidden. Screenshots: the concert day's night and buses; the arrival day's flight and
+  check-in.
+- iOS: the same model facts on the fixture and on an unreachable server; the captures.
 - Console unit: the live page lists the plan (the subtitle counts, the bus seats from the
   roster), posts a hotel with the typed fields (the row reads 5 nights), patches a flight's status
   with the kind, and removes a bus (the card goes back to its empty line).
@@ -73,5 +99,5 @@ change.
 
 ## Not done
 
-The sealed driver link and the printed roster (D27-style sealed links); travel details on the
-leader's phone; provider lookups (flight status, hotel confirmations).
+The sealed driver link and the printed roster (D27-style sealed links); provider lookups (flight
+status, hotel confirmations); bookings in the trip report; a traveler's own seat or room.

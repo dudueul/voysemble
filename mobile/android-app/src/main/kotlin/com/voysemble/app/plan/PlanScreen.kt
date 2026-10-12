@@ -2,7 +2,9 @@
 // Plan tab (slice 035): the whole published itinerary, one day at a time. Day chips across the
 // top, the day's events in the organizer's order with the Today row, and for leaders the D24
 // affordances: "Propose a change" on an event (change or remove) and "Propose an event" in the
-// day header (add). The same bottom bar as Today; the view model owns the state.
+// day header (add). The same bottom bar as Today; the view model owns the state. For leaders
+// the day ends with its bookings (slice 047, D37): the flights that touch the day, the hotel of
+// the night and every bus with its roster seats; never the driver's contact.
 
 package com.voysemble.app.plan
 
@@ -10,7 +12,9 @@ import com.voysemble.core.i18n.Txt
 import com.voysemble.core.i18n.tr
 import com.voysemble.core.i18n.trf
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -23,6 +27,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -36,8 +41,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.voysemble.app.today.EventRow
@@ -49,9 +57,16 @@ import com.voysemble.app.ui.LabelChip
 import com.voysemble.app.ui.LocalVoysembleColors
 import com.voysemble.app.ui.SampleDataChip
 import com.voysemble.app.ui.ScreenHeader
+import com.voysemble.app.ui.SectionLabel
 import com.voysemble.core.plan.PlanDay
 import com.voysemble.core.plan.proposalSentMessage
 import com.voysemble.core.plan.revisionLine
+import com.voysemble.core.travel.DayTravel
+import com.voysemble.core.travel.bookingsOn
+import com.voysemble.core.travel.detail
+import com.voysemble.core.travel.flightStatusLabel
+import com.voysemble.core.travel.isQuiet
+import com.voysemble.core.travel.title
 
 @Composable
 fun PlanRoute(vm: PlanViewModel) {
@@ -152,9 +167,58 @@ fun PlanScreen(
                     }
                 }
             }
+            state.travel?.let { travel -> bookings(travel.bookingsOn(day.date)) }
         }
         item { Spacer(Modifier.height(8.dp)) }
     }
+}
+
+/** The day's bookings (D37): flights, the hotel of the night, every bus. Keys carry a prefix so they never meet an event id. */
+private fun androidx.compose.foundation.lazy.LazyListScope.bookings(onDay: DayTravel) {
+    item { SectionLabel(tr(Txt.TRAVEL_SECTION)) }
+    item { HintText(tr(Txt.TRAVEL_HINT)) }
+    if (onDay.isQuiet()) item { HintText(tr(Txt.TRAVEL_QUIET)) }
+    items(onDay.flights, key = { "fl-${it.id}" }) { f ->
+        BookingRow(AppIcons.Plane, f.title(), f.detail(), spoken = trf(Txt.TRAVEL_FLIGHT_SPOKEN, f.code), status = f.status)
+    }
+    items(onDay.hotels, key = { "ho-${it.hotel.id}" }) { h ->
+        BookingRow(AppIcons.Hotel, h.hotel.name, h.detail(), spoken = trf(Txt.TRAVEL_HOTEL_SPOKEN, h.hotel.name))
+    }
+    items(onDay.buses, key = { "bu-${it.id}" }) { b ->
+        BookingRow(AppIcons.Bus, b.label, b.detail(), spoken = trf(Txt.TRAVEL_BUS_SPOKEN, b.label))
+    }
+}
+
+@Composable
+private fun HintText(text: String) {
+    Text(text, style = MaterialTheme.typography.bodySmall, color = LocalVoysembleColors.current.textMuted)
+}
+
+@Composable
+private fun BookingRow(icon: ImageVector, title: String, detail: String, spoken: String, status: String? = null) {
+    val c = LocalVoysembleColors.current
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier.size(36.dp).background(c.surfaceRaised, RoundedCornerShape(10.dp)).border(1.dp, c.border, RoundedCornerShape(10.dp)),
+            contentAlignment = Alignment.Center,
+        ) { Icon(icon, contentDescription = spoken, tint = c.textMuted, modifier = Modifier.size(18.dp)) }
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+            Text(detail, style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
+        }
+        status?.let { LabelChip(flightStatusLabel(it), flightStatusTint(it, c.textMuted, c.warning, c.danger, c.success)) }
+    }
+}
+
+private fun flightStatusTint(status: String, muted: Color, warning: Color, danger: Color, success: Color): Color = when (status) {
+    "delayed" -> warning
+    "cancelled" -> danger
+    "done" -> success
+    else -> muted
 }
 
 @Composable

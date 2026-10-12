@@ -121,6 +121,8 @@ export const BusCharter = BusInput.extend({
   ...Stored,
   /** Travelers and leaders of the roster in the bus's groups. */
   assigned: z.number().int(),
+  /** Null for a leader: the driver's contact never leaves the console (D37, slice 047). */
+  driverContact: z.string().nullable(),
 }).openapi('BusCharter');
 export type BusCharter = z.infer<typeof BusCharter>;
 

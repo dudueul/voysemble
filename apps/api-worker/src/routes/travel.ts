@@ -115,10 +115,14 @@ export function mountTravelRoutes(app: OpenAPIHono<AppEnv>): void {
   app.openapi(planRoute, async (c) => {
     const auth = requireAuth(c);
     const { orgId, tripId } = c.req.valid('param');
-    await requireOrgRole(c.env, auth, orgId, 'leader');
+    const access = await requireOrgRole(c.env, auth, orgId, 'leader');
     const org = await orgObject(c.env, orgId);
     const r = await org.travelPlan(tripId);
     if ('notFound' in r) throw new HTTPException(404, { message: 'Trip not found.' });
+    // D37: the driver's contact stays on the console; a leader's phone reads the bus without it.
+    if (access.role === 'leader') {
+      return c.json({ ...r, buses: r.buses.map((b) => ({ ...b, driverContact: null })) }, 200);
+    }
     return c.json(r, 200);
   });
 

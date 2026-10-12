@@ -1,6 +1,8 @@
 // Copyright 2026- At Day. All rights reserved.
 // Visual evidence for the Plan tab (slice 035): the fixture plan on its concert day with the
-// leader's affordances, and the proposal form for a new event.
+// leader's affordances, and the proposal form for a new event. Slice 047 (D37): the day's
+// bookings under the events (the hotel night on the concert day; the flight and the check-in
+// on the arrival day, captured as plan-arrival.png).
 
 package com.voysemble.app.plan
 
@@ -43,10 +45,17 @@ class PlanScreenshotTest {
         compose.onNodeWithText("Concert day").assertExists()
         compose.onNodeWithText("Colosseum guided tour").assertExists()
         compose.onNodeWithText("Propose an event").assertExists()
+        // The bookings of the day (slice 047): section labels render uppercase.
+        compose.onNodeWithText("BOOKINGS").assertExists()
+        compose.onNodeWithText("Night 4 of 5 · Rome · 21 rooms").assertExists()
+        compose.onNodeWithText("Roma Coach · 20 of 45 seats · Groups: Bus A").assertExists()
         compose.onRoot().captureRoboImage("$OUT/plan-day.png")
-        // Switching days is immediate and local.
+        // Switching days is immediate and local; the arrival day has the flight and the check-in.
         compose.onNodeWithContentDescription("Open Arrival, Monday, Dec 28").performClick()
         compose.onNodeWithText("Flight to Rome").assertExists()
+        compose.onNodeWithText("ICN → FCO").assertExists()
+        compose.onNodeWithText("Check-in today · 5 nights · Rome · 21 rooms").assertExists()
+        compose.onRoot().captureRoboImage("$OUT/plan-arrival.png")
     }
 
     @After

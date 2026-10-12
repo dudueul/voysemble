@@ -76,6 +76,7 @@
     "mobile.meeting-window": "working",
     "mobile.navigation": "simulated",
     "mobile.memories": "working",
+    "mobile.travel": "working",
     "announcements.publish": "working",
     "announcements.ack-status": "working",
     "mobile.core.announcements-api": "working",
