@@ -12,8 +12,19 @@ import { FROZEN_NOW } from '../../fixtures/korea-concert-tour';
 import { people, peopleTotals } from '../../fixtures/sections';
 import { ApiError } from '../../lib/api-client';
 import { relativeTo } from '../../lib/format';
-import { buildPeople, type PeopleModel, type PersonRow } from '../../lib/people-model';
-import { orgsQuery, pickActiveOrg, rosterQuery, tripsQuery } from '../../lib/session';
+import {
+  buildPeople,
+  joinStatusOf,
+  type PeopleModel,
+  type PersonRow,
+} from '../../lib/people-model';
+import {
+  orgsQuery,
+  personTimelineQuery,
+  pickActiveOrg,
+  rosterQuery,
+  tripsQuery,
+} from '../../lib/session';
 import { strings } from '../../lib/strings';
 import { Card, Initials, SectionPage } from './SectionPage';
 
@@ -46,12 +57,119 @@ function fixtureModel(): PeopleModel {
   };
 }
 
+/** One person's card and timeline (slice 026, D17), beside the roster in live mode. */
+function PersonCard({
+  orgId,
+  tripId,
+  participationId,
+  now,
+  onClose,
+}: {
+  orgId: string;
+  tripId: string;
+  participationId: string;
+  now: string;
+  onClose: () => void;
+}) {
+  const q = useQuery(personTimelineQuery(orgId, tripId, participationId));
+  const close = (
+    <button type="button" className="btn btn--ghost btn--sm" onClick={onClose}>
+      {s.close}
+    </button>
+  );
+  if (q.isPending) {
+    return (
+      <Card title={s.card} id="person-card-title" action={close}>
+        <p className="state__body" role="status">
+          {s.cardLoading}
+        </p>
+      </Card>
+    );
+  }
+  if (q.isError) {
+    return (
+      <Card title={s.card} id="person-card-title" action={close}>
+        <p className="field__error" role="alert">
+          {s.cardFailed}{' '}
+          {q.error instanceof ApiError ? `(${strings.auth.reference(q.error.correlationId)})` : ''}
+        </p>
+      </Card>
+    );
+  }
+  const card = q.data;
+  const p = card.participation;
+  const status = joinStatusOf(p.invite);
+  return (
+    <Card title={s.card} id="person-card-title" action={close}>
+      <div data-testid="person-card">
+        <div className="person-card__head">
+          <Initials name={p.displayName} />
+          <div>
+            <div className="person-card__name">{p.displayName}</div>
+            <div className="muted small">
+              {s.filter[p.role]} · {p.groupName ?? '—'} ·{' '}
+              <span className={`chip chip--${status}`}>{s.status[status]}</span>
+            </div>
+          </div>
+        </div>
+        <div className="person-card__links">
+          {card.guardianOf ? (
+            <span>
+              {s.guardianOf(card.guardianOf.displayName)} ·{' '}
+              {s.status[joinStatusOf(card.guardianOf.invite)]}
+            </span>
+          ) : null}
+          {p.role === 'traveler' ? (
+            card.guardians.length === 0 ? (
+              <span className="muted">{s.noGuardians}</span>
+            ) : (
+              card.guardians.map((g) => (
+                <span key={g.participationId}>
+                  {s.guardians}: {g.displayName} · {s.status[joinStatusOf(g.invite)]}
+                </span>
+              ))
+            )
+          ) : null}
+        </div>
+        <div className="person-card__soon">
+          <span>{s.careNoteSoon}</span>
+          <span>{s.revokeSoon}</span>
+        </div>
+        <h3 className="card__subtitle">{s.timeline}</h3>
+        {card.entries.length === 0 ? (
+          <p className="muted small" role="status">
+            {s.noEvents}
+          </p>
+        ) : (
+          <ol className="timeline" data-testid="timeline">
+            {card.entries.map((e) => (
+              <li className="timeline__item" key={`${e.kind}-${e.at}-${e.title}`}>
+                <span className="chip chip--scheduled timeline__kind">
+                  {s.kind[e.kind] ?? e.kind}
+                </span>
+                <div>
+                  <div className="timeline__title">{e.title}</div>
+                  {e.detail ? <div className="timeline__detail">{e.detail}</div> : null}
+                  <div className="timeline__detail">{relativeTo(now, e.at)}</div>
+                </div>
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
+    </Card>
+  );
+}
+
 function PeopleTable({
   model,
   live,
   now,
   action,
   status,
+  selectedId = null,
+  onSelect,
+  card,
 }: {
   model: PeopleModel;
   live: boolean;
@@ -60,6 +178,10 @@ function PeopleTable({
   action: ReactNode;
   /** Replaces the table while loading, failed, or empty. */
   status?: ReactNode;
+  /** Live mode: the selected person and the card rendered beside the roster. */
+  selectedId?: string | null;
+  onSelect?: (id: string) => void;
+  card?: ReactNode;
 }) {
   const [filter, setFilter] = useState<Filter>('all');
   const [group, setGroup] = useState<string>('all');
@@ -114,96 +236,116 @@ function PeopleTable({
           </div>
         </div>
       </div>
-      <Card title={s.roster} id="people-roster">
-        <fieldset className="filters">
-          <legend className="sr-only">{s.filters}</legend>
-          {(['all', 'traveler', 'guardian', 'leader'] as const).map((f) => (
-            <button
-              key={f}
-              type="button"
-              className={`chip chip--filter${filter === f ? ' chip--on' : ''}`}
-              aria-pressed={filter === f}
-              onClick={() => setFilter(f)}
-            >
-              {s.filter[f]}
-            </button>
-          ))}
-          <span className="filters__sep" aria-hidden="true" />
-          {['all', ...model.groups].map((g) => (
-            <button
-              key={g}
-              type="button"
-              className={`chip chip--filter${group === g ? ' chip--on' : ''}`}
-              aria-pressed={group === g}
-              onClick={() => setGroup(g)}
-            >
-              {g === 'all' ? s.allGroups : g}
-            </button>
-          ))}
-        </fieldset>
-        {status ?? (
-          <table className="table table--people" data-testid="people-table">
-            <thead>
-              <tr>
-                <th>{s.colName}</th>
-                <th>{s.colRole}</th>
-                <th>{s.colGroup}</th>
-                <th>{s.colStatus}</th>
-                <th>{s.colLastAck}</th>
-                <th>{s.colNotes}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((p) => (
-                <tr key={p.id} data-testid={`person-${p.id}`}>
-                  <td>
-                    <span className="person">
-                      <Initials name={p.name} />
-                      <span>
-                        {p.name}
-                        {p.guardianOfName ? (
-                          <small className="muted"> · {s.guardianOf(p.guardianOfName)}</small>
-                        ) : null}
-                      </span>
-                    </span>
-                  </td>
-                  <td>{s.filter[p.role]}</td>
-                  <td>{p.group ?? '—'}</td>
-                  <td>
-                    <span className={`chip chip--${p.status}`}>{s.status[p.status]}</span>
-                  </td>
-                  <td className="muted">{p.lastAckAt ? relativeTo(now, p.lastAckAt) : '—'}</td>
-                  <td>
-                    {p.hasCareNote ? (
-                      <button
-                        type="button"
-                        className="btn btn--ghost btn--sm"
-                        aria-label={s.revealNote(p.name)}
-                      >
-                        <Icons.shield /> {s.careNote}
-                      </button>
-                    ) : (
-                      <span className="muted" title={live ? s.careNoteLater : undefined}>
-                        —
-                      </span>
-                    )}
-                  </td>
+      <div className={`people-layout${card ? ' people-layout--open' : ''}`}>
+        <Card title={s.roster} id="people-roster">
+          <fieldset className="filters">
+            <legend className="sr-only">{s.filters}</legend>
+            {(['all', 'traveler', 'guardian', 'leader'] as const).map((f) => (
+              <button
+                key={f}
+                type="button"
+                className={`chip chip--filter${filter === f ? ' chip--on' : ''}`}
+                aria-pressed={filter === f}
+                onClick={() => setFilter(f)}
+              >
+                {s.filter[f]}
+              </button>
+            ))}
+            <span className="filters__sep" aria-hidden="true" />
+            {['all', ...model.groups].map((g) => (
+              <button
+                key={g}
+                type="button"
+                className={`chip chip--filter${group === g ? ' chip--on' : ''}`}
+                aria-pressed={group === g}
+                onClick={() => setGroup(g)}
+              >
+                {g === 'all' ? s.allGroups : g}
+              </button>
+            ))}
+          </fieldset>
+          {status ?? (
+            <table className="table table--people" data-testid="people-table">
+              <thead>
+                <tr>
+                  <th>{s.colName}</th>
+                  <th>{s.colRole}</th>
+                  <th>{s.colGroup}</th>
+                  <th>{s.colStatus}</th>
+                  <th>{s.colLastAck}</th>
+                  <th>{s.colNotes}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-        <p className="muted small">
-          {live
-            ? s.showingLive(rows.length, model.rows.length)
-            : s.showing(rows.length, model.rows.length)}
-        </p>
-      </Card>
+              </thead>
+              <tbody>
+                {rows.map((p) => (
+                  <tr
+                    key={p.id}
+                    data-testid={`person-${p.id}`}
+                    aria-selected={onSelect ? p.id === selectedId : undefined}
+                  >
+                    <td>
+                      <span className="person">
+                        <Initials name={p.name} />
+                        <span>
+                          {onSelect ? (
+                            <button
+                              type="button"
+                              className="linkbtn"
+                              aria-label={s.open(p.name)}
+                              onClick={() => onSelect(p.id)}
+                            >
+                              {p.name}
+                            </button>
+                          ) : (
+                            p.name
+                          )}
+                          {p.guardianOfName ? (
+                            <small className="muted"> · {s.guardianOf(p.guardianOfName)}</small>
+                          ) : null}
+                        </span>
+                      </span>
+                    </td>
+                    <td>{s.filter[p.role]}</td>
+                    <td>{p.group ?? '—'}</td>
+                    <td>
+                      <span className={`chip chip--${p.status}`}>{s.status[p.status]}</span>
+                    </td>
+                    <td className="muted">{p.lastAckAt ? relativeTo(now, p.lastAckAt) : '—'}</td>
+                    <td>
+                      {p.hasCareNote ? (
+                        <button
+                          type="button"
+                          className="btn btn--ghost btn--sm"
+                          aria-label={s.revealNote(p.name)}
+                        >
+                          <Icons.shield /> {s.careNote}
+                        </button>
+                      ) : (
+                        <span className="muted" title={live ? s.careNoteLater : undefined}>
+                          —
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          <p className="muted small">
+            {live
+              ? s.showingLive(rows.length, model.rows.length)
+              : s.showing(rows.length, model.rows.length)}
+            {live && !card && model.rows.length > 0 ? ` ${s.cardHint}` : ''}
+          </p>
+        </Card>
+        {card}
+      </div>
     </SectionPage>
   );
 }
 
 export function PeoplePage() {
+  const [selected, setSelected] = useState<string | null>(null);
   const orgs = useQuery(orgsQuery);
   const org = orgs.data ? pickActiveOrg(orgs.data) : null;
   const trips = useQuery({ ...tripsQuery(org?.id ?? ''), enabled: Boolean(org) });
@@ -256,12 +398,26 @@ export function PeoplePage() {
     );
   }
   const model = buildPeople(roster.data);
+  const selectedId = selected && model.rows.some((r) => r.id === selected) ? selected : null;
   return (
     <PeopleTable
       model={model}
       live
       now={now}
       action={action}
+      selectedId={selectedId}
+      onSelect={setSelected}
+      card={
+        selectedId ? (
+          <PersonCard
+            orgId={org.id}
+            tripId={trip.id}
+            participationId={selectedId}
+            now={now}
+            onClose={() => setSelected(null)}
+          />
+        ) : null
+      }
       status={
         model.rows.length === 0 ? (
           <p className="state__body" role="status">

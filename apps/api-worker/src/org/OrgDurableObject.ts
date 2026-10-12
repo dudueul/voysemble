@@ -29,6 +29,7 @@ import type {
   Participation,
   RevisionChange,
   RevisionSummary,
+  TimelineEntry,
   TravelerCountStatus,
   Trip,
   TripRole,
@@ -1632,6 +1633,163 @@ export class OrgDurableObject extends DurableObject<Env> {
         : null,
       itineraryRevision: this.latestRevision(tripId)?.revision ?? 0,
     };
+  }
+
+  /* ---------- Person timeline (slice 026, D17) ---------- */
+
+  /**
+   * Every recorded fact about one participation, newest first, capped at 200: acknowledgments
+   * (with the announcement title), head counts that covered a traveler (with their mark) or that
+   * a leader opened, incidents naming the person (open, resolve, guardian message), and
+   * confirmations a leader gave. The join entry comes from D1 (invite codes) in the route.
+   */
+  async personTimeline(tripId: string, participationId: string): Promise<TimelineEntry[] | null> {
+    this.requireOrg();
+    const me = await this.getParticipation(participationId);
+    if (!me || me.tripId !== tripId) return null;
+    const sql = this.ctx.storage.sql;
+    const entries: TimelineEntry[] = [];
+    for (const r of sql
+      .exec<{
+        announcement_id: string;
+        acked_at_device: string;
+        received_at: string;
+        title: string;
+      }>(
+        `SELECT a.announcement_id, a.acked_at_device, a.received_at, n.title
+         FROM acks a JOIN announcements n ON n.id = a.announcement_id WHERE a.participation_id = ?`,
+        participationId,
+      )
+      .toArray()) {
+      entries.push({
+        kind: 'ack',
+        at: r.received_at,
+        title: `Acknowledged: ${r.title}`,
+        detail: `On the device at ${r.acked_at_device}`,
+        ref: { type: 'announcement', id: r.announcement_id },
+      });
+    }
+    if (me.role === 'traveler') {
+      for (const r of sql
+        .exec<{
+          id: string;
+          group_name: string | null;
+          opened_by_name: string;
+          opened_at_device: string;
+          closed_at_device: string | null;
+          received_at: string;
+          mark: string | null;
+        }>(
+          `SELECT h.id, h.group_name, h.opened_by_name, h.opened_at_device, h.closed_at_device, h.received_at, m.mark
+           FROM headcounts h LEFT JOIN headcount_marks m ON m.headcount_id = h.id AND m.participation_id = ?
+           WHERE h.trip_id = ? AND (h.group_name IS NULL OR h.group_name = ?)`,
+          participationId,
+          tripId,
+          me.groupName ?? '',
+        )
+        .toArray()) {
+        const mark = r.mark ?? (r.closed_at_device ? 'missing' : 'not counted');
+        entries.push({
+          kind: 'headcount',
+          at: r.received_at,
+          title: `Head count · ${r.group_name ?? 'Whole trip'} · ${mark.replaceAll('_', ' ')}`,
+          detail: `Opened ${r.opened_at_device} by ${r.opened_by_name}${r.closed_at_device ? ` · closed ${r.closed_at_device}` : ' · open'}`,
+          ref: { type: 'headcount', id: r.id },
+        });
+      }
+    } else {
+      for (const r of sql
+        .exec<{
+          id: string;
+          group_name: string | null;
+          opened_at_device: string;
+          closed_at_device: string | null;
+          received_at: string;
+        }>(
+          'SELECT id, group_name, opened_at_device, closed_at_device, received_at FROM headcounts WHERE trip_id = ? AND opened_by_participation_id = ?',
+          tripId,
+          participationId,
+        )
+        .toArray()) {
+        entries.push({
+          kind: 'headcount',
+          at: r.received_at,
+          title: `Opened head count · ${r.group_name ?? 'Whole trip'}`,
+          detail: `${r.opened_at_device}${r.closed_at_device ? ` · closed ${r.closed_at_device}` : ' · still open'}`,
+          ref: { type: 'headcount', id: r.id },
+        });
+      }
+    }
+    for (const r of sql
+      .exec<IncidentRow>(
+        `SELECT i.* FROM incidents i JOIN incident_people p ON p.incident_id = i.id WHERE i.trip_id = ? AND p.participation_id = ?`,
+        tripId,
+        participationId,
+      )
+      .toArray()) {
+      entries.push({
+        kind: 'incident',
+        at: r.opened_at,
+        title: `Incident opened: ${r.title}`,
+        detail: `By ${r.opened_by_name}`,
+        ref: { type: 'incident', id: r.id },
+      });
+      if (r.resolved_at) {
+        entries.push({
+          kind: 'incident',
+          at: r.resolved_at,
+          title: 'Incident resolved',
+          detail: [r.resolved_by_name, r.resolution_note].filter(Boolean).join(' · ') || null,
+          ref: { type: 'incident', id: r.id },
+        });
+      }
+      if (r.guardian_message_sent_at && r.guardian_message_en) {
+        entries.push({
+          kind: 'guardian_message',
+          at: r.guardian_message_sent_at,
+          title: `Guardian message sent by ${r.guardian_message_by_name ?? 'Organizer'}`,
+          detail: r.guardian_message_en,
+          ref: { type: 'incident', id: r.id },
+        });
+      }
+    }
+    for (const r of sql
+      .exec<{
+        incident_id: string;
+        status: string;
+        note: string | null;
+        confirmed_at: string;
+        title: string;
+      }>(
+        `SELECT c.incident_id, c.status, c.note, c.confirmed_at, i.title FROM incident_confirmations c
+         JOIN incidents i ON i.id = c.incident_id WHERE i.trip_id = ? AND c.by_participation_id = ?`,
+        tripId,
+        participationId,
+      )
+      .toArray()) {
+      entries.push({
+        kind: 'confirmation',
+        at: r.confirmed_at,
+        title: `Confirmed ${r.status.replaceAll('_', ' ')}: ${r.title}`,
+        detail: r.note,
+        ref: { type: 'incident', id: r.incident_id },
+      });
+    }
+    entries.sort((a, b) => b.at.localeCompare(a.at));
+    return entries.slice(0, 200);
+  }
+
+  /** Guardians bound to a traveler (slice 026). */
+  async guardiansOf(tripId: string, travelerId: string): Promise<Participation[]> {
+    this.requireOrg();
+    return this.ctx.storage.sql
+      .exec<ParticipationRow>(
+        'SELECT * FROM participations WHERE trip_id = ? AND guardian_of = ? ORDER BY display_name',
+        tripId,
+        travelerId,
+      )
+      .toArray()
+      .map((r) => this.participationFromRow(r));
   }
 
   /* ---------- Itinerary (slice 017) ---------- */

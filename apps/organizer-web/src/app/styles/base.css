@@ -2260,3 +2260,82 @@ fieldset.filters {
   align-items: center;
   gap: 8px;
 }
+
+/* ---------- People: person card beside the roster (slice 026) ---------- */
+.people-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.people-layout--open {
+  grid-template-columns: minmax(0, 7fr) minmax(300px, 4fr);
+}
+
+.table--people tbody tr[data-selectable="true"] {
+  cursor: pointer;
+}
+
+.table--people tbody tr[aria-selected="true"] {
+  background: color-mix(in srgb, var(--vy-brand) 8%, transparent);
+}
+
+.person-card__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.person-card__name {
+  font-size: var(--vy-type-heading-size);
+  font-weight: var(--vy-type-heading-weight);
+}
+
+.person-card__links {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.person-card__soon {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+  color: var(--vy-text-muted);
+  font-size: var(--vy-type-caption-size);
+}
+
+.timeline {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.timeline__item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.timeline__kind {
+  margin-top: 2px;
+}
+
+.timeline__title {
+  font-weight: 600;
+}
+
+.timeline__detail {
+  color: var(--vy-text-muted);
+  font-size: var(--vy-type-caption-size);
+}
+
+@media (max-width: 1000px) {
+  .people-layout--open {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

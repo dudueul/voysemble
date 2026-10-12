@@ -729,7 +729,7 @@ Not done: store badges, a waitlist form, help center, reviewed legal wording, th
 
 ## Slice 022: device capture pipeline (D31)
 
-Status: done 2026-10-12. Commit `6dd6b67`. CI: GitHub skipped the push's own run because the commit message quoted the literal `[skip ci]` marker of the captures commit (lesson recorded in `docs/engineering/mobile-build-and-test.md`); the changes are verified by the next push's run (slice 023, see that entry).
+Status: done 2026-10-12. Commit `6dd6b67`. **CI verified**: run 38196420393 green (the next push after the skipped one: ios incl. CaptureTests on the simulator, mobile, web), 2026-10-12 02:45 UTC; its `captures` job pushed `f1082d7` with the nine iOS PNGs. The push's own run was skipped because the commit message quoted the literal `[skip ci]` marker (lesson in `docs/engineering/mobile-build-and-test.md`). The Android artifact was empty on that run (fixed in `3b0d4b4`, run 38197199372).
 Spec: D31 (founder request 2026-10-12: record designed views per device proactively, native apps included). Details: `docs/engineering/mobile-build-and-test.md` (§4, §5, §6), `docs/engineering/documentation-rules.md` (rule 11), `docs/captures/README.md`.
 
 | Gate | Command | Result |
@@ -757,7 +757,7 @@ states need a mocked API in the screenshot tests), tablet captures for the apps.
 
 ## Slice 023: People page on the API
 
-Status: done 2026-10-12. Commit: see git log (`feat(people): live roster ...`). CI: pending at commit time; the run id is recorded in a follow-up docs commit once verified.
+Status: done 2026-10-12. Commit `882aec3`. **CI verified**: run 38196359257 green (web incl. people.spec.ts at desktop and laptop, mobile, ios), 2026-10-12 02:46 UTC. First push green.
 Spec: D12 (codes bound to rows, roles from the invite), D21 (accounts and participations), D26 (codes issued from the checklist), D27 (care notes stay out until their slice). Details: `docs/engineering/identity-and-roster.md` (slice 023 section).
 
 | Gate | Command | Result |
@@ -784,7 +784,7 @@ for leaders.
 
 ## Slice 024: iOS on the API
 
-Status: done 2026-10-12. Commit: see git log (`feat(ios): live Today, Bulletin, head count and incidents ...`). CI: pending at commit time; the run id is recorded in a follow-up docs commit once verified (Swift compiles only in CI).
+Status: done 2026-10-12. Commit `b3ffc5c`. **CI verified**: run 38197067038 green (ios incl. LiveModelsTests (6) and CaptureTests, mobile incl. the refactored view models, web), 2026-10-12 02:53 UTC. First push green; its `captures` job pushed `3ac87ec`.
 Spec: D13/D16/D19 (Today card and acks), D14/D25 (head counts), D17 (incidents), D24 (read-only published itinerary). Details: `docs/engineering/ios-live.md`.
 
 | Gate | Command | Result |
@@ -813,7 +813,7 @@ Not done: proposing from iOS, the meeting window on the API, live captures on th
 
 ## Slice 025: guardian status on Today
 
-Status: done 2026-10-12. Commit: see git log (`feat(guardian): status, never coordinates ...`). CI: pending at commit time; the run id is recorded in a follow-up docs commit once verified.
+Status: done 2026-10-12. Commit `01b4875`. CI: pending at commit time; the run id is recorded in the next commit once verified (verification notes ride on the next feature commit rather than a docs-only push, to spare macOS minutes).
 Spec: D13 (guardians see status, not coordinates), D25 (missing at close), D17 (the guardian message), D15 (no location). Details: `docs/engineering/guardian.md`.
 
 | Gate | Command | Result |
@@ -837,3 +837,27 @@ Built:
   `mobile.today.guardian` working).
 
 Not done: guardian Bulletin filtering on the phone UI, the approved album, the fee balance, the daily digest.
+
+## Slice 026: person card and timeline
+
+Status: done 2026-10-12. Commit: see git log (`feat(people): person card and timeline ...`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D17 (per-person timeline: syncs, head counts, acks, notes), D12 (guardian links), D27/D28 named as placeholders. Details: `docs/engineering/identity-and-roster.md` (slice 026 section).
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 17 files, 52 tests (adds person-timeline.test.ts: 1) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 12 files, 67 tests (adds the card case) |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e` | people.spec.ts extended with the card; captures `people-person.png` |
+
+Facts established by tests: see the engineering doc.
+
+Built:
+- Contracts `TimelineKind`, `TimelineEntry`, `PersonLink`, `PersonTimeline`; `OrgDurableObject.personTimeline`
+  (acks with titles, head counts covering a traveler or opened by a leader, incidents with resolution and guardian
+  message, confirmations) and `guardiansOf`; route `GET .../people/{id}/timeline` (staff only; join entry and
+  invite statuses from D1).
+- Console: `personTimelineQuery`, `PersonCard` beside the roster, selectable rows, strings and styles.
+- Docs: roster doc section, captures README, feature flags (`incident.person-timeline`, `web.people.person-card`).
+
+Not done: deep links from entries to the announcement, head count or incident; care notes; device revocation.

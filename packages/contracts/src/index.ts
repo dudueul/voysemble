@@ -17,5 +17,6 @@ export * from './health';
 export * from './incident';
 export * from './itinerary';
 export * from './organization';
+export * from './person';
 export * from './roster';
 export * from './trip';

@@ -43,6 +43,11 @@ const STATUS: Record<RosterEntry['invite'], JoinStatus> = {
   none: 'pending',
 };
 
+/** The page's join status for a server invite status (also used on the person card's links). */
+export function joinStatusOf(invite: RosterEntry['invite']): JoinStatus {
+  return STATUS[invite];
+}
+
 export function buildPeople(entries: RosterEntry[]): PeopleModel {
   const names = new Map(entries.map((e) => [e.id, e.displayName]));
   const rows: PersonRow[] = entries.map((e) => ({

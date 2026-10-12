@@ -18,6 +18,7 @@ import type {
   Organization,
   OrganizationList,
   Participation,
+  PersonTimeline,
   RosterImportResponse,
   RosterResponse,
   SessionResponse,
@@ -54,6 +55,14 @@ export const rosterQuery = (orgId: string, tripId: string) =>
     queryKey: ['orgs', orgId, 'trips', tripId, 'roster'],
     queryFn: async () =>
       (await api<RosterResponse>(`/v1/orgs/${orgId}/trips/${tripId}/roster`)).participations,
+  });
+
+/** One person's card and timeline (slice 026, D17). */
+export const personTimelineQuery = (orgId: string, tripId: string, participationId: string) =>
+  queryOptions({
+    queryKey: ['orgs', orgId, 'trips', tripId, 'people', participationId, 'timeline'],
+    queryFn: async () =>
+      api<PersonTimeline>(`/v1/orgs/${orgId}/trips/${tripId}/people/${participationId}/timeline`),
   });
 
 export const announcementsQuery = (orgId: string, tripId: string) =>

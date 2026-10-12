@@ -74,3 +74,8 @@ codes were issued (five "Invited" rows, guardian bindings, group chips). Produce
 `android/today-guardian.png` (Roborazzi) and `ios/today-guardian.png` (CaptureTests): the guardian's
 card ("Counted present · Bus A · 06:52 · by Kim Daeun") in place of the head count card and the leader
 links. Both land here through the CI `captures` job.
+
+## Slice 026 (2026-10-12): person card on People
+
+`web/desktop-1440/people-person.png`, `web/laptop-1280/people-person.png`: Sora's card beside the live
+roster (guardian link, placeholders, empty timeline). Produced by `e2e/people.spec.ts`.

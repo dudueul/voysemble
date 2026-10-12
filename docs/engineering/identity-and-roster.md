@@ -156,8 +156,51 @@ slice, and "Issue invites" as a link to the setup checklist, the one place codes
   Guardians then Bus B filters narrow to Hana Mom; the invite action links to `/setup`.
   Capture `people-live.png`.
 
+## Person card and timeline (slice 026, D17)
+
+Selecting a person on the live People page opens their card beside the roster: who they are,
+their guardian links with invite status, honest placeholders for the care note (D27) and device
+revocation (D28), and the timeline of recorded facts the organizer answers a guardian from.
+Exercised by `apps/api-worker/test/person-timeline.test.ts`, the card case in
+`sections.test.tsx`, and `e2e/people.spec.ts`.
+
+| Route | Who | Behaviour |
+|---|---|---|
+| `GET .../people/{participationId}/timeline` | owner, organizer, participating leader | `PersonTimeline`: the roster entry (with invite status and last ack), `guardianOf` for a guardian, `guardians` for a traveler, and `entries` newest first (at most 200). Travelers and guardians get 403. |
+
+Entries (`OrgDurableObject.personTimeline`, plus the join from D1 in the route):
+
+| Kind | For | Title and detail |
+|---|---|---|
+| `joined` | anyone with a redeemed code | "Joined with the invite code" at the redemption time. |
+| `ack` | anyone | "Acknowledged: {announcement title}", the device time, at the server receipt. |
+| `headcount` | travelers | "Head count · {group} · {mark}" for every count that covered their group (or the whole trip); an unmarked traveler on a closed count reads missing, on an open one "not counted". |
+| `headcount` | leaders | "Opened head count · {group}" for the counts they opened. |
+| `incident` | anyone named on the card | "Incident opened: {title}" by whom; "Incident resolved" with the resolver and note when resolved. |
+| `guardian_message` | anyone named on the card | "Guardian message sent by {organizer}" with the English body. |
+| `confirmation` | leaders | "Confirmed {status}: {incident title}" with the note. |
+
+The console (`PersonCard` in `PeoplePage`) renders the card with a Close action; rows are
+selectable in live mode (`aria-selected`), and the name is a button labelled "Open the card of
+{name}". Times are relative to the real clock.
+
+### Facts established by tests (slice 026)
+
+- Worker: a traveler and a guardian get 403, an unknown id 404; Minji's card after an ack, a
+  head count closed with her missing, Kim's confirmation, the guardian message and a resolution
+  carries the join, the ack with its title, the head count with "missing", the incident open and
+  resolved, the guardian message, no confirmation, her guardian Sora as joined, and entries
+  newest first; Kim's card carries the head count they opened and their confirmation and is
+  readable by Kim; Sora's card links Minji and carries only the join.
+- Console unit: the hint shows before a selection; opening Minji's card shows her name, her
+  guardian with invite status, the D27 placeholder, two timeline items with the head count first
+  and "10 min ago", the selected row, and Close hides the card.
+- Browser: Sora's card shows "guardian of Minji Park · Invited", the empty-timeline text and the
+  placeholders; Minji's shows "Guardians: Sora Park · Invited"; Close removes it. Capture
+  `people-person.png` (desktop, laptop).
+
 ## Open items
 
-- Invite revocation endpoint; roster row editing and removal; per-person card and timeline (D17); care notes (D27).
+- Invite revocation endpoint; roster row editing and removal; care notes (D27); device revocation (D28); deep links from timeline entries.
 - Invite email delivery (guardian contact) and invite revocation endpoint.
 - Organizer-facing web screens for onboarding checklist (D26) are slice 007 candidates.

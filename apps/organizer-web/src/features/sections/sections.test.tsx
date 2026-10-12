@@ -210,7 +210,75 @@ describe('sample sections', () => {
     expect(within(table).queryByRole('button', { name: /Reveal care note/ })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Bus B' }));
     expect(within(table).getAllByRole('row')).toHaveLength(1 + 1);
-    expect(screen.getByText('Showing 1 of 3 people.')).toBeTruthy();
+    expect(screen.getByText(/Showing 1 of 3 people\./)).toBeTruthy();
+  });
+
+  it('People: selecting a person opens the card with links and the timeline; Close hides it', async () => {
+    const base = `/v1/orgs/${ORG.id}/trips/${TRIP.id}`;
+    const row = (p: Record<string, unknown>) => ({
+      tripId: TRIP.id,
+      groupName: 'Bus A',
+      guardianOf: null,
+      accountId: null,
+      createdAt: '2026-10-11T00:00:00.000Z',
+      invite: 'joined',
+      lastAckAt: null,
+      ...p,
+    });
+    const minji = row({ id: 'p1', role: 'traveler', displayName: 'Minji Park', accountId: 'a1' });
+    stubApi({
+      'GET /v1/orgs': () => ({ organizations: [ORG] }),
+      [`GET /v1/orgs/${ORG.id}/trips`]: () => ({ trips: [TRIP] }),
+      [`GET ${base}/roster`]: () => ({
+        participations: [
+          minji,
+          row({
+            id: 'p2',
+            role: 'guardian',
+            displayName: 'Sora Park',
+            guardianOf: 'p1',
+            invite: 'issued',
+          }),
+        ],
+      }),
+      [`GET ${base}/people/p1/timeline`]: () => ({
+        participation: minji,
+        guardianOf: null,
+        guardians: [{ participationId: 'p2', displayName: 'Sora Park', invite: 'issued' }],
+        entries: [
+          {
+            kind: 'headcount',
+            at: new Date(Date.now() - 10 * 60_000).toISOString(),
+            title: 'Head count · Bus A · present',
+            detail: 'Opened 06:50 by Kim · closed 06:55',
+            ref: { type: 'headcount', id: 'h1' },
+          },
+          {
+            kind: 'joined',
+            at: new Date(Date.now() - 60 * 60_000).toISOString(),
+            title: 'Joined with the invite code',
+            detail: null,
+            ref: null,
+          },
+        ],
+      }),
+    });
+    renderWithQuery(<PeoplePage />);
+    await waitFor(() => expect(screen.getByTestId('person-p1')).toBeTruthy());
+    expect(screen.getByText(/Select a person to see their card/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Open the card of Minji Park' }));
+    await waitFor(() => expect(screen.getByTestId('person-card')).toBeTruthy());
+    const card = screen.getByTestId('person-card');
+    expect(text(card)).toContain('Minji Park');
+    expect(text(card)).toContain('Guardians: Sora Park · Invited');
+    expect(text(card)).toContain('Care note: arrives with its own slice (D27).');
+    const items = within(screen.getByTestId('timeline')).getAllByRole('listitem');
+    expect(items).toHaveLength(2);
+    expect(text(items[0] ?? null)).toContain('Head count · Bus A · present');
+    expect(text(items[0] ?? null)).toContain('10 min ago');
+    expect(screen.getByTestId('person-p1').getAttribute('aria-selected')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.queryByTestId('person-card')).toBeNull();
   });
 
   it('Communication: real announcements with ack counts, unacked names on demand, publish', async () => {

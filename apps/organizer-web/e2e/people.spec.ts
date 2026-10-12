@@ -65,6 +65,20 @@ test('people: live roster, invite status, groups, filters', async ({ page }, inf
   await expect(page.getByText('Invited')).toHaveCount(5);
   await page.screenshot({ path: `${OUT}/${info.project.name}/people-live.png`, fullPage: true });
 
+  // The person card (slice 026): links, honest placeholders, an empty timeline before any activity.
+  await page.getByRole('button', { name: 'Open the card of Sora Park' }).click();
+  const card = page.getByTestId('person-card');
+  await expect(card).toBeVisible();
+  await expect(card).toContainText('Sora Park');
+  await expect(card).toContainText('guardian of Minji Park · Invited');
+  await expect(card).toContainText('No activity recorded yet.');
+  await expect(card).toContainText('Care note: arrives with its own slice (D27).');
+  await page.screenshot({ path: `${OUT}/${info.project.name}/people-person.png`, fullPage: true });
+  await page.getByRole('button', { name: 'Open the card of Minji Park' }).click();
+  await expect(card).toContainText('Guardians: Sora Park · Invited');
+  await page.getByRole('button', { name: 'Close' }).click();
+  await expect(card).toHaveCount(0);
+
   await page.getByRole('button', { name: 'Guardians' }).click();
   await expect(rows).toHaveCount(2);
   await page.getByRole('button', { name: 'Bus B' }).click();
