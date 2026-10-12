@@ -21,6 +21,8 @@ struct TodayView: View {
     @StateObject private var memories: MemoriesModel
     // Slice 048 (D38): my packing list; the Today card reads its count, the pushed screen ticks.
     @StateObject private var packing: PackingModel
+    // Slice 053 (D29): my inbox; the header's bell reads its unread count, the pushed screen reads.
+    @StateObject private var inbox: InboxModel
     @State private var proposing: ProposalTarget?
 
     init(model: TodayModel) {
@@ -36,6 +38,7 @@ struct TodayView: View {
         _plan = StateObject(wrappedValue: PlanModel(api: model.api, trip: model.trip))
         _memories = StateObject(wrappedValue: MemoriesModel(api: model.api, trip: model.trip))
         _packing = StateObject(wrappedValue: PackingModel(api: model.api, trip: model.trip))
+        _inbox = StateObject(wrappedValue: InboxModel(api: model.api, trip: model.trip))
     }
 
     var body: some View {
@@ -114,9 +117,11 @@ struct TodayView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(tr2(.todayEyebrow, s.tripName.uppercased(), s.dayNumber))
                 .font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
-            HStack {
+            HStack(spacing: 6) {
                 Text(tr(.todayTitle)).font(.largeTitle.bold())
                 Spacer()
+                // Slice 053 (D29): the inbox bell with the unread badge; the pushed screen reads.
+                InboxBell(model: inbox)
                 statusChip
             }
             if let error = model.error {

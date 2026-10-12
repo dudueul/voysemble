@@ -337,6 +337,24 @@ public class ApiClient(
             }
         }
 
+    /** GET .../notifications/mine (D29, slice 053): what the lanes have delivered to me, newest first. */
+    public suspend fun myNotifications(orgId: String, tripId: String, correlationId: String? = null): ApiResult<MyNotificationsDto> =
+        call(correlationId) {
+            http.get {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "orgs", orgId, "trips", tripId, "notifications", "mine") }
+                common(correlationId)
+            }
+        }
+
+    /** POST .../notifications/{id}/read: mark one of my notifications read; the row comes back. */
+    public suspend fun markNotificationRead(orgId: String, tripId: String, notificationId: String, correlationId: String? = null): ApiResult<NotificationDto> =
+        call(correlationId) {
+            http.post {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "orgs", orgId, "trips", tripId, "notifications", notificationId, "read") }
+                common(correlationId)
+            }
+        }
+
     public suspend fun listPhotos(orgId: String, tripId: String, correlationId: String? = null): ApiResult<PhotoListDto> =
         call(correlationId) {
             http.get {

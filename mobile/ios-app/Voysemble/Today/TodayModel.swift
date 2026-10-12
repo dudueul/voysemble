@@ -218,14 +218,31 @@ enum Clocks {
 
     /** ISO 8601 (with or without fractional seconds) to local HH:mm; the input when unparseable. */
     static func localTime(_ iso: String) -> String {
-        let withFraction = ISO8601DateFormatter()
-        withFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let plain = ISO8601DateFormatter()
-        guard let date = withFraction.date(from: iso) ?? plain.date(from: iso) else { return iso }
+        guard let date = parse(iso) else { return iso }
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = "HH:mm"
         return f.string(from: date)
+    }
+
+    /**
+     * Slice 053: "06:52" when the instant falls on the device's current date, "12-30 21:05" before
+     * (the inbox's row label, as InboxViewModel.deviceLabel prints it on Android); the input when
+     * unparseable.
+     */
+    static func localDayTime(_ iso: String, now: Date = Date()) -> String {
+        guard let date = parse(iso) else { return iso }
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = Calendar.current.isDate(date, inSameDayAs: now) ? "HH:mm" : "MM-dd HH:mm"
+        return f.string(from: date)
+    }
+
+    private static func parse(_ iso: String) -> Date? {
+        let withFraction = ISO8601DateFormatter()
+        withFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let plain = ISO8601DateFormatter()
+        return withFraction.date(from: iso) ?? plain.date(from: iso)
     }
 
     static func isoNow() -> String { ISO8601DateFormatter().string(from: Date()) }

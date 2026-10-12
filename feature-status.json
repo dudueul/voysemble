@@ -81,6 +81,8 @@
     "mobile.memories": "working",
     "mobile.travel": "working",
     "mobile.packing": "working",
+    "mobile.inbox": "working",
+    "mobile.notification-channels": "working",
     "announcements.publish": "working",
     "announcements.ack-status": "working",
     "mobile.core.announcements-api": "working",

@@ -27,7 +27,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -58,6 +61,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.voysemble.app.ui.AppIcons
 import com.voysemble.app.ui.LabelChip
+import com.voysemble.core.notifications.bellSpoken
 import com.voysemble.app.ui.LocalVoysembleColors
 import com.voysemble.core.plan.ProposalKind
 import com.voysemble.core.plan.proposalSentMessage
@@ -78,6 +82,9 @@ fun TodayRoute(
     onOpenPacking: () -> Unit = {},
     /** Slice 048: the packing card's line ("6 of 9 packed"); null before the first answer. */
     packingSummary: String? = null,
+    onOpenInbox: () -> Unit = {},
+    /** Slice 053: the bell's badge in the header; 0 shows the bell alone. */
+    inboxUnread: Int = 0,
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     // D24: the shared dialog (ProposeChange.kt); change or remove the up-next event.
@@ -101,6 +108,8 @@ fun TodayRoute(
         onOpenIncidents = onOpenIncidents,
         onOpenPacking = onOpenPacking,
         packingSummary = packingSummary,
+        onOpenInbox = onOpenInbox,
+        inboxUnread = inboxUnread,
         onPropose = { id -> state.snapshot.events.firstOrNull { it.id == id }?.let { proposing = ProposalTarget.forEvent(it) } },
         onEditCare = { vm.editCare() },
         onCancelCare = vm::cancelCare,
@@ -124,6 +133,8 @@ fun TodayScreen(
     onSaveCare: (CareNoteDto) -> Unit = {},
     onOpenPacking: () -> Unit = {},
     packingSummary: String? = null,
+    onOpenInbox: () -> Unit = {},
+    inboxUnread: Int = 0,
 ) {
     val snap = state.snapshot
     Scaffold(
@@ -135,7 +146,7 @@ fun TodayScreen(
             contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            item { Header(snap, live = state.live, syncing = state.syncing) }
+            item { Header(snap, live = state.live, syncing = state.syncing, unread = inboxUnread, onOpenInbox = onOpenInbox) }
             if (snap.offline) item { OfflineBanner(snap) }
             snap.upNext?.let { next -> item { UpNextCard(next, snap.timeZoneLabel, onOpenWindow, canPropose = state.canPropose, onPropose = { onPropose(next.id) }, proposal = state.proposal?.takeIf { it.eventId == next.id }, onDismissProposal = onDismissProposal) } }
             snap.announcement?.let { a -> item { AnnouncementCard(a, onAcknowledge) } }
@@ -158,7 +169,7 @@ fun TodayScreen(
 }
 
 @Composable
-private fun Header(snap: TodaySnapshot, live: Boolean = false, syncing: Boolean = false) {
+private fun Header(snap: TodaySnapshot, live: Boolean = false, syncing: Boolean = false, unread: Int = 0, onOpenInbox: () -> Unit = {}) {
     val c = LocalVoysembleColors.current
     Column {
         Text(
@@ -169,6 +180,9 @@ private fun Header(snap: TodaySnapshot, live: Boolean = false, syncing: Boolean 
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(tr(Txt.TODAY_TITLE), style = MaterialTheme.typography.headlineLarge)
             Spacer(Modifier.weight(1f))
+            // Slice 053 (D29): the inbox bell with the unread badge; the pushed screen reads.
+            InboxBell(unread, onOpenInbox)
+            Spacer(Modifier.width(6.dp))
             if (live) LabelChip(if (syncing) tr(Txt.COMMON_SYNCING) else tr(Txt.COMMON_LIVE), c.info, AppIcons.Check) else SampleChip()
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -184,6 +198,19 @@ private fun Header(snap: TodaySnapshot, live: Boolean = false, syncing: Boolean 
                 style = MaterialTheme.typography.bodyMedium,
                 color = c.textMuted,
             )
+        }
+    }
+}
+
+/** The bell in the Today header: "Inbox, 2 unread" to a screen reader, the count as a badge. */
+@Composable
+private fun InboxBell(unread: Int, onOpen: () -> Unit) {
+    val c = LocalVoysembleColors.current
+    BadgedBox(
+        badge = { if (unread > 0) Badge(containerColor = c.danger, contentColor = Color.White) { Text(unread.toString()) } },
+    ) {
+        IconButton(onClick = onOpen, modifier = Modifier.size(36.dp)) {
+            Icon(AppIcons.Bell, contentDescription = bellSpoken(unread), tint = c.textMuted, modifier = Modifier.size(22.dp))
         }
     }
 }

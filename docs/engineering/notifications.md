@@ -2,8 +2,9 @@
 
 Every event people on a trip should hear about becomes one notification per recipient, in one of
 three lanes, with a delivery time the lane decides. The server owns the rules; the phones read
-their inbox; the console reads the log of what went out. Push delivery through the stores is not
-set up (`notifications.push` deferred): today a phone sees its inbox when the app opens.
+their inbox (slice 053); the console reads the log of what went out. Push delivery through the
+stores is not set up (`notifications.push` deferred): today a phone sees its inbox when the app
+opens.
 
 ## Lanes (`lib/notification-rules.ts`, pure)
 
@@ -51,6 +52,27 @@ one row per event with when, what, the priority, normal and digest counts and th
 ("4 until quiet hours end"); the lane rules in a line; the push note. A sample log without a
 trip. Evidence: `web/<project>/notifications-log.png`.
 
+## Phones (slice 053)
+
+The bell in the Today header carries the unread count ("Inbox, 2 unread" to a screen reader) and
+opens the inbox: `GET .../notifications/mine` as the app opens, one row per notification with its
+lane chip (priority red, normal blue, digest muted), its kind and delivery time ("06:52" today,
+"12-30 21:05" before, in the phone's zone), the title bold while unread and the short body. A tap
+on an unread row (or its "Mark read") flips it on the phone first; `POST .../notifications/{id}/read`
+confirms with the server's row; a refused read goes back with a notice; offline keeps the local
+read and says so. Shared rules in `core/.../notifications/InboxModel.kt` (`inboxOf`, `withRead`,
+`unreadCount`, `summary`, `laneLabel`, `kindLabel`, `meta`, `spoken`, `bellSpoken`); the screens
+are `android-app/.../notifications/InboxScreen.kt` and `ios-app/Voysemble/Notifications/InboxView.swift`;
+the fixture's `inbox()` is a leader's concert morning with two unread. Evidence:
+`android/inbox-light.png`, `android/inbox-all-read-dark.png`, `ios/inbox-light.png`,
+`ios/inbox-all-read-dark.png`; `today-light.png` on both carries the badge.
+
+Android creates the three lane channels at launch (`ui/NotificationChannels.kt`: `lane.priority`
+high, `lane.normal` default, `lane.digest` low; names and descriptions in the app's language), so
+the phone's settings show them before the first push and a later push can name its channel. The
+app never asks to bypass the device's Do Not Disturb: "through quiet hours" is the product's rule
+on the server. Push delivery itself still waits for the store setup.
+
 ## Facts established by tests
 
 - Rules (`notification-rules.test.ts`): the lane per role and kind; quiet hours across midnight;
@@ -66,10 +88,23 @@ trip. Evidence: `web/<project>/notifications-log.png`.
   the log.
 - Console unit: the sample log; the live log with its lanes and the held chip; the empty log.
   Browser: a shared required-ack announcement and a plain one, the bell, the counts per lane.
+- Core (`InboxModelTest`, `NotificationsTest`): the wire inbox decodes; it becomes the phone's with
+  the platform's clock labels; a read flips one row and the server's row replaces it; the summary,
+  the meta line and the bell count in both languages; unknown lanes and kinds read as a normal
+  announcement; the fixture has five rows, two unread.
+- Android (`InboxViewModelTest`, `InboxScreenshotTest`, `NotificationChannelsTest`,
+  `TodayScreenshotTest`): sample mode reads without the network; live loads my inbox, a read is
+  confirmed or put back with a notice, a second read of the same row sends nothing; unreachable
+  says offline on load and keeps a local read with a notice; the device label prints the time today
+  and the date before; a tap reads the row on the screen; the three channels with their importance;
+  the Today header's bell says "Inbox, 2 unread".
+- iOS (`LiveModelsTests`, `CaptureTests`): sample mode reads the fixture; live and unreachable is
+  offline and honest; the row label's shape; the two captures.
 
 ## Not done
 
-Push delivery (FCM and APNs: a token per device, the lanes as channels, an opaque event id per
-push); the phones' inbox screen (the API is there); the guardian digest email at the digest hour
-(the digest rows are there; the sender and the cron are not); chat mentions; the organizer's
-mobile digest; packing reminders.
+Push delivery (FCM and APNs: a token per device, the Android channels are there, an opaque event
+id per push); opening the thing a row points at from the inbox (the reference is there; the
+phones' navigation is still tab-and-push); the guardian digest email at the digest hour (the
+digest rows are there; the sender and the cron are not); chat mentions; the organizer's mobile
+digest; packing reminders.

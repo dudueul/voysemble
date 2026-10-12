@@ -1397,7 +1397,7 @@ Not done: a sealed link for a hotel (the rooming list); a Korean sheet by the dr
 
 ## Slice 050: the live journey graph and the command center's movements
 
-Status: done 2026-10-12. Commit: see git log (`feat(console): the journey graph and the next-48h movements read the itinerary (slice 050)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: see git log (`feat(console): the journey graph and the next-48h movements read the itinerary (slice 050)`, `81add74`). CI: run 38276990910 green (web incl. `journey-graph.spec.ts`, mobile, ios), 2026-10-12 16:33 UTC; captures commit `4126aed` carries `journey-graph-live.png` and `command-center-movements.png` for both desktop projects.
 Spec: D40 (new: the journey graph from the itinerary), D19 (disruption entry point, still the fixture's story), D31 (captures). Details: `docs/engineering/journey-graph.md`, `command-center-live.md` (movements).
 
 | Gate | Command | Result |
@@ -1418,7 +1418,7 @@ Not done: the disruption flow from the graph (D19); deciding proposals from this
 
 ## Slice 051: the disruption card on the journey graph
 
-Status: done 2026-10-12. Commit: see git log (`feat(console): the journey graph's disruption card moves the day's chain into the draft (slice 051)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: see git log (`feat(console): the journey graph's disruption card moves the day's chain into the draft (slice 051)`, `e20d751`). CI: run 38277648713 green (web, mobile, ios), 2026-10-12 16:37 UTC; captures commit `f7ed9e6` carries `journey-graph-disruption.png` for both desktop projects.
 Spec: D19 (disruption flow; amended), D40 (the chain and its slack), D31 (captures). Details: `docs/engineering/journey-graph.md` ("The disruption card").
 
 | Gate | Command | Result |
@@ -1438,7 +1438,7 @@ Not done: Workers AI suggestions for a disruption (`itinerary.disruption-ai`); a
 
 ## Slice 052: notification lanes on the server and the console's log
 
-Status: done 2026-10-12. Commit: see git log (`feat(notifications): the lanes of D29 on the server, the inbox and the console's log (slice 052)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit: see git log (`feat(notifications): the lanes of D29 on the server, the inbox and the console's log (slice 052)`, `8f48c99`). CI: run 38279473422 green (web incl. `notifications.spec.ts`, mobile, ios), 2026-10-12 16:53 UTC; captures commit `eff40e3` carries `notifications-log.png` for both desktop projects.
 Spec: D29 (notification rules; amended), D19 (revision announcements), D25 (incidents from head counts), D17 (guardian status), D31 (captures). Details: `docs/engineering/notifications.md`.
 
 | Gate | Command | Result |
@@ -1460,3 +1460,25 @@ Built:
 Lesson: the first run of the worker test read an empty inbox for the leader: the normal lane was held because the test trip lives in Seoul, where it was past 23:00. A test about lanes sets the quiet hours it means (a zero-length window first, a window around now at the end).
 
 Not done: push delivery (FCM, APNs); the phones' inbox screen; the guardian digest email and its cron; chat mentions; the organizer's mobile digest.
+
+## Slice 053: the phones' inbox and the Android lane channels
+
+Status: done 2026-10-12. Commit: see git log (`feat(mobile): the notification inbox on both phones and the Android lane channels (slice 053)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D29 (notification rules; amended), D31 (captures), D32 (iOS glass chips). Details: `docs/engineering/notifications.md` (Phones).
+
+| Gate | Command | Result |
+|---|---|---|
+| Core JVM tests | `./gradlew :core:jvmTest` (CI `mobile` job) | adds `NotificationsTest` (1), `InboxModelTest` (3); `L10nTest` covers the 27 new keys |
+| Android tests + captures | `./gradlew :android-app:testDebugUnitTest` / `recordRoborazziDebug` (CI `mobile` job) | adds `InboxViewModelTest` (4), `InboxScreenshotTest` (2), `NotificationChannelsTest` (1); `TodayScreenshotTest.today_light` asserts the bell |
+| iOS tests + captures | `xcodebuild test` (CI `ios` job) | adds `LiveModelsTests.testInboxSampleAndUnreachable`, `CaptureTests.testInbox` |
+| Headers | `pnpm check:headers` | clean |
+
+Gradle and Xcode do not run in this workspace (the Android Gradle plugin's host is not reachable), so the Kotlin and Swift of this slice are verified by the CI `mobile` and `ios` jobs, desk-checked here against the packing slice's patterns (the same model, view model and view shapes, the same test harnesses).
+
+Built:
+- Core: `api/Notifications.kt` (`NotificationDto`, `MyNotificationsDto`), `ApiClient.myNotifications` and `markNotificationRead`, `notifications/InboxModel.kt` (`Lane`, `InboxKind`, `InboxItem`, `Inbox`, `laneOf`, `kindOf`, `inboxItemOf`, `inboxOf`, `emptyInbox`, `withOffline`, `withRead`, `replaceItem`, `unreadCount`, `summary`, `laneLabel`, `kindLabel`, `meta`, `spoken`, `bellSpoken`), the fixture's `inbox()`, 27 `INBOX_*` strings in both languages.
+- Android: `notifications/InboxViewModel.kt` (the read flips first, the server's row confirms, a failure puts it back, offline keeps it with a notice; `deviceLabel` prints "06:52" today and "12-30 21:05" before), `InboxScreen.kt`, `Screen.INBOX`, the Today header's `InboxBell` with the badge, `ui/NotificationChannels.kt` created in `MainActivity.onCreate`.
+- iOS: `Notifications/InboxView.swift` (`InboxModel`, `InboxView`, `InboxRow`, `InboxBell`), the Today header's bell, `Clocks.localDayTime`.
+- Docs: `notifications.md` Phones section and facts, D29 amendment, captures README, mobile README, ledger, feature flags `mobile.inbox` and `mobile.notification-channels` working.
+
+Not done: push delivery (the channels are its Android half); opening the referenced announcement, head count, incident or proposal from a row; the guardian digest email and its cron; chat mentions; the organizer's mobile digest.

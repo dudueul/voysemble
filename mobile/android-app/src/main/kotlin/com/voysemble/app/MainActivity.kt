@@ -14,6 +14,7 @@ import androidx.activity.enableEdgeToEdge
 import com.voysemble.app.session.AppGraph
 import com.voysemble.app.session.PendingLink
 import com.voysemble.app.session.magicLinkFrom
+import com.voysemble.app.ui.NotificationChannels
 import com.voysemble.app.ui.VoysembleTheme
 
 class MainActivity : ComponentActivity() {
@@ -21,6 +22,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         // Slice 039: the phone's language decides the app's (Korean or English), once per launch.
         AppLocale.set(resources.configuration.locales[0].toLanguageTag())
+        // Slice 053 (D29): the three lane channels, named in the app's language, before any push.
+        NotificationChannels.ensure(this)
         AppGraph.init(applicationContext)
         PendingLink.offer(magicLinkFrom(intent))
         enableEdgeToEdge()

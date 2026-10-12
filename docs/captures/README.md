@@ -255,3 +255,12 @@ draft (the bus node at 10:20, the propagation list, the status line). Produced b
 bell leads to, with a shared required-ack announcement (three travelers in priority, two guardians
 in normal) and a plain one (three travelers in normal). Produced by
 `apps/organizer-web/e2e/notifications.spec.ts`. No phone change.
+
+## Slice 053 (2026-10-12): the phones' inbox
+
+`android/inbox-light.png` (Roborazzi) and `ios/inbox-light.png` (CaptureTests): a leader's inbox
+on the concert morning, two unread (the head-count call in the priority lane, the concert
+announcement in the normal lane), the plan update, the accepted proposal and the incident
+confirmation read. `android/inbox-all-read-dark.png`, `ios/inbox-all-read-dark.png`: the same
+inbox all read, dark. `android/today-light.png` and `ios/today-light.png` (updated): the header's
+bell carries the badge "2". No console change.

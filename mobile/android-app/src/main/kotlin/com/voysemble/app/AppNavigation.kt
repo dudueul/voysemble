@@ -40,6 +40,9 @@ import com.voysemble.app.incidents.IncidentsRoute
 import com.voysemble.app.incidents.IncidentsViewModel
 import com.voysemble.app.plan.PlanRoute
 import com.voysemble.app.memories.MemoriesRoute
+import com.voysemble.app.notifications.InboxRoute
+import com.voysemble.app.notifications.InboxViewModel
+import com.voysemble.core.notifications.unreadCount
 import com.voysemble.app.packing.PackingRoute
 import com.voysemble.app.packing.PackingViewModel
 import com.voysemble.core.packing.summary
@@ -60,7 +63,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 
-enum class Screen { MAIN, HEADCOUNT, WINDOW, INCIDENTS, PACKING }
+enum class Screen { MAIN, HEADCOUNT, WINDOW, INCIDENTS, PACKING, INBOX }
 
 class NavViewModel : ViewModel() {
     private val _screen = MutableStateFlow(Screen.MAIN)
@@ -112,10 +115,19 @@ fun AppScreens(trip: ActiveTrip?, onSignOut: () -> Unit) {
         if (trip == null) PackingViewModel() else PackingViewModel(api = AppGraph.apiClient, trip = trip)
     }
     val packingState by packing.state.collectAsStateWithLifecycle()
+    // Slice 053 (D29): my inbox, shared by the Today bell (its badge) and the pushed screen.
+    val inbox: InboxViewModel = viewModel(key = "inbox-${trip?.tripId ?: "sample"}") {
+        if (trip == null) InboxViewModel() else InboxViewModel(api = AppGraph.apiClient, trip = trip)
+    }
+    val inboxState by inbox.state.collectAsStateWithLifecycle()
     when (screen) {
         Screen.PACKING -> {
             BackHandler { nav.back() }
             PackingRoute(packing, onBack = nav::back)
+        }
+        Screen.INBOX -> {
+            BackHandler { nav.back() }
+            InboxRoute(inbox, onBack = nav::back)
         }
         Screen.HEADCOUNT -> {
             BackHandler { nav.back() }
@@ -153,6 +165,8 @@ fun AppScreens(trip: ActiveTrip?, onSignOut: () -> Unit) {
                 onOpenIncidents = { nav.open(Screen.INCIDENTS) },
                 onOpenPacking = { nav.open(Screen.PACKING) },
                 packingSummary = if (packingState.live && packingState.syncing && packingState.list.items.isEmpty()) null else packingState.list.summary(),
+                onOpenInbox = { nav.open(Screen.INBOX) },
+                inboxUnread = inboxState.inbox.unreadCount(),
             )
             MainTab.PLAN -> TabHost(today) {
                 // Slice 035: the published plan by day; leaders propose from any event (D24).

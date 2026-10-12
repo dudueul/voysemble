@@ -15,6 +15,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
@@ -42,10 +43,12 @@ class TodayScreenshotTest {
     fun today_light() {
         compose.setContent {
             VoysembleTheme(darkTheme = false) {
-                TodayScreen(state = TodayUiState(KoreaConcertTourFixture.today(), canPropose = true), onAcknowledge = {}, onSelectTab = {})
+                // Slice 053 (D29): the header's bell carries the inbox's unread count.
+                TodayScreen(state = TodayUiState(KoreaConcertTourFixture.today(), canPropose = true), onAcknowledge = {}, onSelectTab = {}, inboxUnread = 2)
             }
         }
         compose.onNodeWithText("Acknowledge").assertExists()
+        compose.onNodeWithContentDescription("Inbox, 2 unread").assertExists()
         compose.onRoot().captureRoboImage("$OUT/today-light.png")
     }
 

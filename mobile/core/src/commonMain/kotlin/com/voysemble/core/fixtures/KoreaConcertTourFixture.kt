@@ -30,6 +30,10 @@ import com.voysemble.core.plan.PlanDay
 import com.voysemble.core.plan.TripPlan
 import com.voysemble.core.packing.PackingItem
 import com.voysemble.core.packing.PackingList
+import com.voysemble.core.notifications.Inbox
+import com.voysemble.core.notifications.InboxItem
+import com.voysemble.core.notifications.InboxKind
+import com.voysemble.core.notifications.Lane
 import com.voysemble.core.travel.BusCharter
 import com.voysemble.core.travel.Flight
 import com.voysemble.core.travel.Hotel
@@ -332,6 +336,21 @@ public object KoreaConcertTourFixture {
         ),
         travelerName = "Minji Park",
         forTraveler = false,
+    )
+
+    /**
+     * The sample inbox (D29, slice 053): what the lanes delivered to a leader by 07:12 on day 4;
+     * the head-count call and the concert announcement are still unread. Labels as the phone's
+     * clock would print them on that morning.
+     */
+    public fun inbox(): Inbox = Inbox(
+        items = listOf(
+            InboxItem("nt1", Lane.PRIORITY, InboxKind.HEADCOUNT_CALL, "Head count: Bus A", "Kim Daeun opened a count in the hotel lobby. Mark your group before the bus.", "headcount", "hc1", "2026-12-31T05:52:00.000Z", "06:52", read = false),
+            InboxItem("nt2", Lane.NORMAL, InboxKind.ANNOUNCEMENT, "Concert call time moved to 17:30", "Be in the lobby in concert attire by 17:20; the bus leaves at 17:30 sharp.", "announcement", "an2", "2026-12-31T05:40:00.000Z", "06:40", read = false),
+            InboxItem("nt3", Lane.NORMAL, InboxKind.ITINERARY_REVISION, "Plan updated (revision 3)", "Breakfast now 07:30; the Colosseum regroup is at 10:45 at the main entrance.", "announcement", "an3", "2026-12-30T20:05:00.000Z", "12-30 21:05", read = true),
+            InboxItem("nt4", Lane.PRIORITY, InboxKind.PROPOSAL_DECIDED, "Proposal accepted: Gelato on the way back", "Hana accepted it: added at 16:15 on the concert day.", "proposal", "pr1", "2026-12-30T17:12:00.000Z", "12-30 18:12", read = true),
+            InboxItem("nt5", Lane.PRIORITY, InboxKind.INCIDENT_STATUS, "With the group: Minji Park", "Kim Daeun confirmed Minji is with the group after the count at the Colosseum.", "incident", "in1", "2026-12-30T10:30:00.000Z", "12-30 11:30", read = true),
+        ),
     )
 
     /** Minji's care note as the sample head count reveals it (D27). */

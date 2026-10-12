@@ -90,6 +90,13 @@ final class CaptureTests: XCTestCase {
         try capture(NavigationStack { PackingView(model: PackingModel(list: mine)) }, name: "packing-guardian-dark", scheme: .dark)
     }
 
+    func testInbox() throws {
+        // Slice 053 (D29): a leader's inbox on the concert morning with two unread; the same, all read, dark.
+        try capture(NavigationStack { InboxView(model: InboxModel()) }, name: "inbox-light")
+        let read = KoreaConcertTourFixture.shared.inbox().withRead(id: "nt1").withRead(id: "nt2")
+        try capture(NavigationStack { InboxView(model: InboxModel(inbox: read)) }, name: "inbox-all-read-dark", scheme: .dark)
+    }
+
     func testPlan() throws {
         // Slice 035: the fixture plan on its concert day with the leader's affordances; slice 047 adds
         // the day's bookings under the events (the hotel night here, the flight and the check-in on arrival).

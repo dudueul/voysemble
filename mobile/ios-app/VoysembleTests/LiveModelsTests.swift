@@ -255,6 +255,30 @@ final class LiveModelsTests: XCTestCase {
         XCTAssertEqual(live.notice, "Offline. The tick will not reach the organizer until you are connected; try again then.")
     }
 
+    func testInboxSampleAndUnreachable() async {
+        // Slice 053 (D29): sample mode reads the fixture without the network; live and unreachable is honest.
+        let sample = InboxModel()
+        XCTAssertFalse(sample.live)
+        XCTAssertEqual(sample.inbox.summary(), "2 unread")
+        XCTAssertEqual(sample.inbox.items.first?.meta(), "Priority · Head count · 06:52")
+        await sample.markRead("nt1")
+        XCTAssertEqual(sample.inbox.summary(), "1 unread")
+        XCTAssertNil(sample.notice)
+        XCTAssertEqual(InboxModelKt.bellSpoken(unread: 1), "Inbox, 1 unread")
+        let live = InboxModel(api: unreachableClient(), trip: trip)
+        XCTAssertTrue(live.live)
+        XCTAssertEqual(live.inbox.items.count, 0)
+        await live.refresh()
+        XCTAssertTrue(live.inbox.offline)
+        XCTAssertEqual(live.error, "Offline. Showing the last inbox.")
+        // The row labels: today's time alone, a date before.
+        let today = Date()
+        let iso = ISO8601DateFormatter().string(from: today)
+        XCTAssertEqual(Clocks.localDayTime(iso, now: today).count, 5)
+        XCTAssertEqual(Clocks.localDayTime("2026-12-30T20:05:00.000Z", now: today).count, 11)
+        XCTAssertEqual(Clocks.localDayTime("nope"), "nope")
+    }
+
     func testMemoriesSampleAndUnreachable() async {
         // Slice 044 (D18): sample mode is the leader's view of the fixture; a guardian sees the album only.
         let sample = MemoriesModel()
