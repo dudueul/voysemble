@@ -28,7 +28,7 @@ zone is the trip's.
 | An announcement is published (`POST .../announcements`) | `announcement` | travelers and leaders; guardians when shared | the announcement's title; the body's first 140 characters |
 | A revision announcement opens on publish (`POST .../itinerary/publish`, revision 2 onwards) | `itinerary_revision` | the same | the revision announcement |
 | A head count opens (`PUT .../headcounts/{id}`, first sync) | `headcount_call` | travelers and leaders of the group (everyone for a whole-trip count) | "Head count: Bus A" |
-| A head count closes with people missing (the incident opens) | `incident_status` | the guardians of the missing, the leaders of the group | "Missing after the head count: Minji Park" |
+| A head count closes with people missing (the incident opens) | `incident_status`; and an email, tag `incident` (slice 078) | the guardians of the missing, the leaders of the group; every owner and organizer by email | "Missing after the head count: Minji Park"; "Korea Concert Tour: head count closed with 1 missing · Minji Park" |
 | A leader confirms or an organizer resolves an incident | `incident_status` | the guardians of the people on it, the leaders of their groups | "With the group: Minji Park", "Resolved: …" |
 | An organizer decides a proposal | `proposal_decided` | the leader who proposed | "Proposal accepted: Breakfast" |
 | The morning three days and one day before the start, from 09:00 (the cron, slice 056; `packing.md`) | `packing_reminder` | travelers and leaders with packing left, the guardians of those travelers; one body each, once per morning (`notifyRows`) | "Packing: 3 days to go" |
@@ -104,11 +104,14 @@ rows, skipped, failed). The organizer's log counts the emailed rows next to the 
 one call per organization; a later slice moves the wake-up into the organization object's own
 alarm when the number of organizations makes the sweep the wrong shape.
 
-## The organizers' email on a card from the phone (slice 076)
+## The organizers' email on a card from the phone (slice 076; the head count's card, slice 078)
 
 Owners and organizers have no app: the lanes above never reach them, and the console shows an
 open card only while someone looks at it. So a card opened from a phone (a traveler's "I need
-help", slice 074; a leader's card, slice 073) is mailed at once: `emailOrganizers(env, orgId,
+help", slice 074; a leader's card, slice 073) and, since slice 078, the card a head count opens
+when it closes with people missing (the most urgent of the three: "<trip>: head count closed
+with 1 missing · Minji Park", the leader and the count in the body; a replay of the closed
+session mails nothing, a clean close nothing) are mailed at once: `emailOrganizers(env, orgId,
 compose)` (`lib/organizer-mail.ts`) reads every owner and organizer with their language
 (`memberships` joined to `accounts`) and sends one message each through the `EmailPort`
 (`templates.ts` `incidentOpenedEmail`, tag `incident`: the subject names the traveler or the
@@ -120,6 +123,11 @@ know); after it is resolved they may ask again. The production transport is the 
 (unbound in named environments until the Email Service binding lands).
 
 ## Facts established by tests
+
+- Slice 078 (`incidents.test.ts`): the close that leaves Juho missing mails the owner once (tag
+  `incident`, English, "<trip>: head count closed with 1 missing · Juho Kim", the leader and the
+  count, the card's title, the Safety link); the replay of the session and the clean close add
+  no message.
 
 - Rules (`notification-rules.test.ts`): the lane per role and kind; quiet hours across midnight;
   the normal lane held until they end today or tomorrow; the digest at its hour today or tomorrow;
@@ -160,6 +168,4 @@ Push delivery (FCM and APNs: a token per device, the Android channels are there,
 id per push); opening the exact announcement or incident rather than its tab or screen (the
 reference is there; the screens open on their own first item); the production email transport (the digest goes
 through the same `EmailPort` as the sign-in link, which named environments do not bind yet);
-chat mentions; the organizer's mobile digest; an email to the organizers for a head count that
-closes with people missing (the console's alert carries it; slice 076 mails only the cards opened
-from a phone).
+chat mentions; the organizer's mobile digest; a per-organizer switch for the incident emails.

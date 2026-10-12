@@ -40,6 +40,9 @@ API, and wires the organizer console's Safety page to those cards. Exercised by
   every owner and organizer by email at once (`notifications.md`); one the organizer opened on
   the console does not. A traveler asks once: a second request while one of theirs is open is
   409; after it is resolved they may ask again.
+- Slice 078: the card a head count opens when it closes with people missing is mailed to every
+  owner and organizer at once as well (`notifications.md`); the replay of the closed session
+  opens nothing and mails nothing.
 
 ## Routes
 

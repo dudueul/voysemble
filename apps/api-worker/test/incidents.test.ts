@@ -12,7 +12,8 @@
 // 074: a traveler asks for help for themselves (kind help); their leader and guardian hear it;
 // they read their own cards, projected. Slice 076: a card opened from a phone reaches the owner's
 // mailbox at once (not one the organizer opened on the console); a traveler asks once while a
-// request is open.
+// request is open. Slice 078: a head count that closes with people missing mails the owner too,
+// once (the replay and a clean close send nothing).
 
 import { env } from 'cloudflare:test';
 import type {
@@ -31,6 +32,12 @@ import { api, createOrg, createTrip, json, SAMPLE_CSV, signIn } from './helpers'
 function latestMail(to: string) {
   if (!env.DEV_MAILBOX) throw new Error('DEV_MAILBOX missing in test env');
   return FixtureEmailPort.latest(env.DEV_MAILBOX, to);
+}
+
+/** How many messages the fixture mailbox holds for an address (slice 078). */
+async function mailCount(to: string): Promise<number> {
+  if (!env.DEV_MAILBOX) throw new Error('DEV_MAILBOX missing in test env');
+  return (await env.DEV_MAILBOX.list({ prefix: `mail:${to}:` })).keys.length;
 }
 
 async function setupTrip() {
@@ -78,7 +85,7 @@ async function setupTrip() {
 
 describe('incidents', () => {
   it('a close with missing travelers opens one card; replay returns the same card; clean close none', async () => {
-    const { kim, nate, minji, byName, putHeadcount, base } = await setupTrip();
+    const { kim, nate, minji, byName, putHeadcount, base, trip } = await setupTrip();
     const hc = crypto.randomUUID();
     const body = {
       openedAtDevice: '06:50',
@@ -89,6 +96,17 @@ describe('incidents', () => {
     const first = await json<SyncHeadcountResponse>(await putHeadcount(kim.token, hc, body));
     expect(first.session.closedWithMissing).toBe(true);
     expect(first.incidentId).toMatch(/^[0-9a-f-]{36}$/);
+    // Slice 078: the owner's mailbox gets the card at once; the replay and a clean close add none.
+    const mail = await latestMail('nate-inc@example.com');
+    expect([mail?.tag, mail?.locale, mail?.subject]).toEqual([
+      'incident',
+      'en',
+      `${trip.name}: head count closed with 1 missing · Juho Kim`,
+    ]);
+    expect(mail?.text).toContain('leader Kim closed the head count with 1 missing');
+    expect(mail?.text).toContain('Head count closed with 1 missing (Bus A, 06:58)');
+    expect(mail?.text).toContain('/safety');
+    const mails = await mailCount('nate-inc@example.com');
     const replay = await json<SyncHeadcountResponse>(await putHeadcount(kim.token, hc, body));
     expect(replay.applied).toBe(false);
     expect(replay.incidentId).toBe(first.incidentId);
@@ -105,6 +123,7 @@ describe('incidents', () => {
       }),
     );
     expect(clean.incidentId).toBeNull();
+    expect(await mailCount('nate-inc@example.com')).toBe(mails);
 
     const list = await json<IncidentList>(await api(nate).get(base));
     expect(list.incidents).toHaveLength(1);

@@ -15,8 +15,10 @@ import {
 } from '@voysemble/contracts';
 import { HTTPException } from 'hono/http-exception';
 import { type OrgAccess, requireAuth, requireOrgRole } from '../auth/middleware';
+import { incidentOpenedEmail } from '../email/templates';
 import type { AppEnv } from '../env';
 import { notificationBody, notifyTrip } from '../lib/notify';
+import { emailOrganizers } from '../lib/organizer-mail';
 import { orgObject } from '../org/client';
 import { ERROR_RESPONSES, SESSION_SECURITY } from './openapi-common';
 import { TripParams } from './trips';
@@ -129,6 +131,28 @@ export function mountHeadcountRoutes(app: OpenAPIHono<AppEnv>): void {
           guardiansOf: missing,
         },
       });
+      // Slice 078: the owners and organizers, who have no app, get the card by email at once; a
+      // replay of the closed session opens nothing and mails nothing.
+      const card = (await org.listIncidents(tripId)).find((i) => i.id === result.incidentId);
+      if (card) {
+        const url = `${new URL(c.req.url).origin}/safety`;
+        await emailOrganizers(c.env, orgId, (to) =>
+          incidentOpenedEmail(
+            to.email,
+            to.locale,
+            to.organizationName,
+            { name: trip.name, timeZone: trip.timezone },
+            {
+              kind: card.kind,
+              title: card.title,
+              names: card.people.map((p) => p.displayName),
+              openedByName: card.openedByName,
+              openedAt: card.openedAt,
+            },
+            url,
+          ),
+        );
+      }
     }
     return c.json(result, 200);
   });

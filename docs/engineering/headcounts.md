@@ -97,4 +97,6 @@ read "Room 412" at the hotel as the sample always did; nothing else changes on t
 
 The dashboard tile on real sessions, guardian status, iOS live mode, push "come now" to a
 missing traveler. Incident auto-creation on `closedWithMissing` landed in slice 013
-(`incidents.md`). The room on the Today tab's hotel line.
+(`incidents.md`); since slice 078 that card also reaches the owners and organizers by email at
+once (`notifications.md`). The room on the Today tab's hotel line landed in slice 075 as
+"Your room tonight" (`travel.md`).

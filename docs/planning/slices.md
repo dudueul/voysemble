@@ -2002,3 +2002,19 @@ Built:
 - Docs: `public-web.md` refresh note; ledger 074 (CI record) and 077.
 
 Not done: a feature page per role; the console captures in Korean on the Korean page; store badges.
+
+## Slice 078: the organizers' email when a head count closes with people missing
+
+Status: done 2026-10-12. Commit: see git log (`feat(headcounts): a head count that closes with people missing reaches the owners and organizers by email at once (slice 078)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D29 (amended in 076: owners and organizers get an email at once), D25, D17. Details: `docs/engineering/notifications.md` (events row, the section, facts), `incidents.md`, `headcounts.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 40 files, 117 passed (`incidents.test.ts`: the head count's mail, the count unchanged by the replay and the clean close) |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+Built:
+- Worker: `incidentOpenedEmail` gains the `headcount_missing` wording in both languages (the leader and the count); the head count sync route mails every owner and organizer when a close opens a card; `incidents.test.ts` (the message, the count unchanged by the replay and the clean close).
+- Docs: `notifications.md` events row, section, facts and not-done; `incidents.md` behaviour; `headcounts.md` not-done; ledger 075 (CI record) and 078; feature flag `headcounts.organizer-email`.
+
+Not done: a per-organizer switch for the incident emails; an email when the card is resolved (the console shows it).
