@@ -438,6 +438,22 @@ export const ko: Strings = {
     applied: (n: number) =>
       `일정 ${n}건을 초안에서 옮겼습니다. 참가자에게 보이려면 일정 페이지에서 게시하세요.`,
     applyFailed: '일정을 옮기지 못했습니다.',
+    askDrafts: 'AI 초안 요청',
+    asking: '초안 작성 중…',
+    draftsTitle: '초안',
+    draftedBy:
+      'AI가 위 연쇄를 바탕으로 작성한 초안입니다: 무엇을 옮기고, 줄이고, 뺄지. 하나를 초안에 적용한 뒤 일정 페이지에서 고쳐 게시하세요. 저절로 나가는 것은 없습니다.',
+    draftsNone:
+      '초안이 없습니다. 이 환경에서는 AI 제공자를 쓸 수 없습니다. 위 연쇄를 보고 직접 계획하세요.',
+    draftsFailed: '초안을 받지 못했습니다.',
+    draftMove: (title: string, from: string, to: string) => `${title} 이동: ${from} → ${to}`,
+    draftShorten: (title: string, end: string) => `${title} 단축: ${end}에 종료`,
+    draftCut: (title: string) => `${title} 취소`,
+    draftKeep: '나머지는 시각을 유지합니다.',
+    applyDraft: '이 초안 적용',
+    applyingDraft: '적용하는 중…',
+    draftApplied: (n: number) =>
+      `일정 ${n}건이 초안에서 바뀌었습니다. 일정 페이지에서 고치고 게시하세요.`,
   },
   travel: {
     subtitle: '활성 여행의 항공편, 호텔, 전세 버스.',

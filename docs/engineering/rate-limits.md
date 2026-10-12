@@ -15,6 +15,7 @@ capped per subject, in one place.
 | `POST /v1/invites/redeem` | the caller's address | 30 per hour |
 | `POST /v1/orgs/{orgId}/invitations` (slice 042) | the organization | 20 per hour |
 | `POST /v1/driver/{orgId}` (slice 049, the driver's sheet) | the caller's address | 60 per 15 minutes |
+| `POST .../itinerary/disruption-drafts` (slice 055, the AI drafts) | the account | 30 per hour |
 
 The organizer invitation (slice 042) is an authenticated owner action, but each one sends an email
 on the organization's behalf, so it is capped per organization (the fifth test in

@@ -4,7 +4,8 @@
 // read off) and the command center's next-48h movements. Captures journey-graph-live.png and
 // command-center-movements.png. Slice 051 (D19): Breakfast slips 20 minutes; the bus is pushed,
 // lunch keeps its time; applying moves the two events in the draft (the Itinerary page counts the
-// unpublished changes). Captures journey-graph-disruption.png.
+// unpublished changes). Captures journey-graph-disruption.png. Slice 055: the AI drafts for the
+// slip (the fixture port's three), captured as journey-graph-drafts.png.
 
 import { expect, type Page, test } from '@playwright/test';
 import { OUT, signInWithOrg } from './helpers';
@@ -100,6 +101,19 @@ test('journey graph and movements read the itinerary', async ({ page }, info) =>
     'Bus to Colosseum: 10:10 → 10:20, pushed by the one before',
   );
   await expect(propagation).toContainText('Lunch keeps 12:30: 130 min of slack absorb it');
+  // Slice 055 (D19): the AI port (the fixture locally) drafts three ways through the day.
+  await page.getByRole('button', { name: 'Ask AI for drafts' }).click();
+  const drafts = page.getByTestId('drafts-live');
+  await expect(drafts).toContainText('Absorb the slip');
+  await expect(drafts).toContainText('Shorten Lunch');
+  await expect(drafts).toContainText('Shorten Lunch: ends 13:10');
+  await expect(drafts).toContainText('Cut Lunch');
+  await page.mouse.move(0, 0);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({
+    path: `${OUT}/${info.project.name}/journey-graph-drafts.png`,
+    fullPage: true,
+  });
   await disruption.getByRole('button', { name: 'Apply to the draft' }).click();
   await expect(page.getByTestId('disruption-status')).toContainText('2 events moved in the draft');
   await expect(page.getByTestId(`node-${busId}`)).toContainText('10:20');

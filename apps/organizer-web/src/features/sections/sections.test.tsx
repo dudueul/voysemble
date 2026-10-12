@@ -2132,6 +2132,37 @@ describe('Journey graph on the API (slice 050)', () => {
         ITINERARY.events[0],
       [`PUT ${base}/itinerary/events/aaaaaaaa-0000-4000-8000-000000000002`]: () =>
         ITINERARY.events[1],
+      // Slice 055: the AI port's drafts for the slip (the shape the fixture port answers).
+      [`POST ${base}/itinerary/disruption-drafts`]: () => ({
+        provider: 'fixture',
+        drafts: [
+          {
+            title: 'Shorten Lunch',
+            rationale: 'Taking 20 minutes off Lunch lets what follows keep its time.',
+            actions: [
+              {
+                eventId: 'aaaaaaaa-0000-4000-8000-000000000001',
+                action: 'move',
+                start: '09:20',
+                end: '10:20',
+              },
+              {
+                eventId: 'aaaaaaaa-0000-4000-8000-000000000002',
+                action: 'move',
+                start: '10:20',
+                end: null,
+              },
+              {
+                eventId: 'aaaaaaaa-0000-4000-8000-000000000003',
+                action: 'shorten',
+                start: '12:30',
+                end: '13:10',
+              },
+            ],
+          },
+        ],
+      }),
+      [`PUT ${base}/itinerary/events/aaaaaaaa-0000-4000-8000-000000000003`]: () => ({}) as unknown,
       [`GET ${base}/itinerary/proposals`]: () => ({
         proposals: [
           {
@@ -2208,6 +2239,48 @@ describe('Journey graph on the API (slice 050)', () => {
     ).toEqual([
       ['aaaaaaaa-0000-4000-8000-000000000001', '09:20', '10:20'],
       ['aaaaaaaa-0000-4000-8000-000000000002', '10:20', null],
+    ]);
+
+    // Drafts (slice 055): the ask lists the draft with its steps; applying it PUTs the moves and
+    // the shortened end.
+    fireEvent.click(screen.getByRole('button', { name: 'Ask AI for drafts' }));
+    const drafts = await screen.findByTestId('drafts-live');
+    expect(drafts.textContent).toContain('Shorten Lunch');
+    expect(drafts.textContent).toContain('Move Breakfast: 09:00 → 09:20');
+    expect(drafts.textContent).toContain('Shorten Lunch: ends 13:10');
+    const asked = vi
+      .mocked(fetch)
+      .mock.calls.filter(([, init]) => init?.method === 'POST')
+      .map(
+        ([, init]) =>
+          JSON.parse(String(init?.body)) as { minutes: number; events: unknown[]; locale: string },
+      );
+    expect(asked[0]?.minutes).toBe(20);
+    expect(asked[0]?.events).toHaveLength(3);
+    expect(asked[0]?.locale).toBe('en');
+    fireEvent.click(screen.getByRole('button', { name: 'Apply this draft' }));
+    await waitFor(() =>
+      expect(screen.getByTestId('drafts-status').textContent).toContain(
+        '3 events changed in the draft',
+      ),
+    );
+    const draftPuts = vi
+      .mocked(fetch)
+      .mock.calls.filter(([, init]) => init?.method === 'PUT')
+      .slice(2)
+      .map(([url, init]) => {
+        const b = JSON.parse(String(init?.body)) as {
+          start: string;
+          end: string | null;
+          status: string;
+        };
+        return [String(url).split('/').pop(), b.start, b.end, b.status];
+      });
+    expect(draftPuts).toEqual([
+      // Breakfast is done in the fixture; the upsert carries each event's own status.
+      ['aaaaaaaa-0000-4000-8000-000000000001', '09:20', '10:20', 'done'],
+      ['aaaaaaaa-0000-4000-8000-000000000002', '10:20', null, 'scheduled'],
+      ['aaaaaaaa-0000-4000-8000-000000000003', '12:30', '13:10', 'scheduled'],
     ]);
   });
 

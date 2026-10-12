@@ -1505,3 +1505,26 @@ Built:
 Lesson: the revision announcement is written in the organization's language (Korean by default), so a test about the digest's body names the moved event, not the announcement's English title. Android view-model tests: with `Dispatchers.setMain(UnconfinedTestDispatcher())` and a `MockEngine`, the first answer can land before the line after the constructor runs; a test pins what the answer did, never the state before it.
 
 Not done: the production email transport (the named environments do not bind one yet; the digest goes through the same `EmailPort` as the sign-in link); push delivery; the organization object's own alarm in place of the sweep when there are many organizations; chat mentions; the organizer's mobile digest.
+
+## Slice 055: AI drafts for a disruption
+
+Status: done 2026-10-12. Commit: see git log (`feat(journey): AI drafts for a disruption through the AI port (slice 055)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D19 (disruption replanning; amended), D03/D16 (AI labelled, never the writer), ADR-0006 (the AI port), D31 (captures). Details: `docs/engineering/journey-graph.md` (Drafts from the AI port), `translation.md` (the port).
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 36 files, 101 tests (adds `disruption-drafts.test.ts`: 1; `ai.test.ts`: +2) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 17 files, 111 tests (the journey graph case grows the ask and the apply) |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e -- journey-graph.spec.ts` | 2 passed; capture `journey-graph-drafts.png` |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+Built:
+- Contracts: `DisruptionDraftEvent`, `DisruptionDraftRequest`, `DisruptionDraftAction`, `DisruptionDraft`, `DisruptionDraftResponse`.
+- Worker: `AiPort.draftDisruption` on the three ports (`WorkersAiPort`: `@cf/meta/llama-3.1-8b-instruct` in JSON mode through the gateway, `draftsFromAnswer` validates and drops unknown ids; `FixtureAiPort`: `fixtureDrafts`, deterministic: absorb, shorten the longest later event, cut the last later activity; `DisabledAiPort`: null); `POST .../itinerary/disruption-drafts` (owner, organizer; 404 unknown trip; `disruptionDraftsAccount` thirty an hour).
+- Console: `itineraryApi.disruptionDrafts`; the disruption card's "Ask AI for drafts", the drafts list with rationale and steps, "Apply this draft" through the upsert route (cut = cancelled, shorten = new end, move = new start and end); strings EN/KO.
+- Tests: worker (3), console unit (the ask and the apply in the journey graph case), browser (the three fixture drafts, the capture).
+- Docs: `journey-graph.md` section and facts, `translation.md` port paragraph, `rate-limits.md` row, D19 amendment, captures README, ledger, feature flag `itinerary.disruption-ai` working.
+
+Lessons: a model that invents an event id must not sink the whole answer, so unknown ids are dropped before the contract validates the rest; the fixture itinerary's Breakfast is done, and the apply carries each event's own status, so the unit case expects `done` for it.
+
+Not done: the drafts explained to travelers (the revision announcement carries the diff, not the reason); a disruption that spans days; decisions on proposals from this page.

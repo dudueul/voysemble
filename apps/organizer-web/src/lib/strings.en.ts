@@ -448,6 +448,22 @@ export const en = {
     applied: (n: number) =>
       `${n} event${n === 1 ? '' : 's'} moved in the draft. Publish from the Itinerary page so travelers see it.`,
     applyFailed: 'Could not move the events.',
+    askDrafts: 'Ask AI for drafts',
+    asking: 'Drafting…',
+    draftsTitle: 'Drafts',
+    draftedBy:
+      'Drafted by AI from the chain above: what to move, shorten or cut. You apply one to the draft, edit it on the Itinerary page and publish; nothing goes out by itself.',
+    draftsNone:
+      'No drafts: the AI provider is not available in this environment. Plan from the chain above.',
+    draftsFailed: 'Could not get drafts.',
+    draftMove: (title: string, from: string, to: string) => `Move ${title}: ${from} → ${to}`,
+    draftShorten: (title: string, end: string) => `Shorten ${title}: ends ${end}`,
+    draftCut: (title: string) => `Cut ${title}`,
+    draftKeep: 'Everything else keeps its time.',
+    applyDraft: 'Apply this draft',
+    applyingDraft: 'Applying…',
+    draftApplied: (n: number) =>
+      `${n} event${n === 1 ? '' : 's'} changed in the draft. Edit and publish from the Itinerary page.`,
   },
   travel: {
     subtitle: 'Flights, hotels, and bus charters for the active trip.',

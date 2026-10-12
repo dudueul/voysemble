@@ -34,7 +34,7 @@
     "incident.card": "working",
     "media.guardian-album": "working",
     "itinerary.change-proposals": "working",
-    "itinerary.disruption-ai": "deferred",
+    "itinerary.disruption-ai": "working",
     "retention.crypto-shred": "deferred",
     "chat.fixed-channels": "working",
     "billing.fee-ledger": "working",

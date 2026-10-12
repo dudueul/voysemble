@@ -271,3 +271,11 @@ bell carries the badge "2". No console change.
 log's digest column now carries the emailed count when the digest run mailed rows, and the line
 under the table says where the digest hour is set. Produced by
 `apps/organizer-web/e2e/notifications.spec.ts`. No phone change.
+
+## Slice 055 (2026-10-12): the AI drafts for a disruption
+
+`web/desktop-1440/journey-graph-drafts.png`, `web/laptop-1280/journey-graph-drafts.png`: the
+Journey Graph page after Breakfast slipped twenty minutes and the organizer asked for drafts: the
+three from the fixture port (absorb the slip; shorten Lunch to end 13:10; cut Lunch), each with
+its rationale and steps and the apply button. Produced by
+`apps/organizer-web/e2e/journey-graph.spec.ts`. No phone change.

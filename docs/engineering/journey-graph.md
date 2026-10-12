@@ -1,4 +1,4 @@
-# Journey graph (slices 050 and 051, D40, D19)
+# Journey graph (slices 050, 051 and 055, D40, D19)
 
 The console's Journey Graph page draws one day of the itinerary as a dependency chain: the day's
 events in start order as nodes (kind-coloured from the categorical palette,
@@ -33,6 +33,22 @@ the moves as unpublished changes and the Itinerary page publishes them (D19: tra
 revision announcement). The graph redraws from the draft at once. Evidence:
 `web/<project>/journey-graph-disruption.png`.
 
+## Drafts from the AI port (slice 055, D19)
+
+"Ask AI for drafts" sends the propagated chain (`POST .../itinerary/disruption-drafts`: the
+date, the slipped event and its minutes, every event from it on with its planned and propagated
+times, the console's language) and lists what comes back: two or three drafts, each a title, a
+one-line rationale and its steps ("Move Breakfast: 09:00 → 09:20", "Shorten Lunch: ends 13:10",
+"Cut Lunch", "Everything else keeps its time."). "Apply this draft" writes the steps through the
+same upsert route as the slip (a cut is the event cancelled in the draft, a shorten its new end,
+a move its new start and end); the Itinerary page edits and publishes. The port
+(`ai/AiPort.ts`, `translation.md`) answers from Workers AI in a deployed environment with the
+binding, from the fixture locally (absorb the slip; shorten the longest later event by the slip so
+what follows keeps its time; cut the last later activity, free time or meal), and with nothing
+when disabled, which the card says. Thirty asks an hour per account (`rate-limits.md`). Nothing
+the model says is stored or sent to anyone: the organizer applies, edits and publishes.
+Evidence: `web/<project>/journey-graph-drafts.png`.
+
 ## Facts established by tests
 
 - Unit: the sample page still draws the fixture's ten nodes; the live page picks the first day
@@ -50,9 +66,17 @@ revision announcement). The graph redraws from the draft at once. Evidence:
   bus node to 10:20 and the Itinerary page counts the unpublished changes; the command center's
   next 48 hours carry the same events; the captures.
 
+- Drafts (slice 055): the fixture port's three drafts for Breakfast slipping twenty minutes
+  (absorb; shorten the walk to 15:40; cut the walk), in Korean when asked; the Workers AI port
+  sends the model in JSON mode through the gateway, keeps only known event ids and answers null
+  on junk, an empty array or a thrown error; the route answers the organizer and refuses a
+  leader, an unknown trip and an empty chain. Console unit: the ask shows the drafts and applying
+  one PUTs the shortened end and the moves. Browser: the three drafts on the live page and the
+  capture.
+
 ## Not done
 
-Workers AI suggestions for a disruption (`itinerary.disruption-ai`: which later events to cut
-or shorten); decisions on proposals from this page (the Itinerary page decides); flights and
-buses from the travel bookings as nodes (the itinerary carries them as events today); a
-disruption that spans days.
+Decisions on proposals from this page (the Itinerary page decides); flights and buses from the
+travel bookings as nodes (the itinerary carries them as events today); a disruption that spans
+days; the drafts explained to travelers (the revision announcement carries the diff, not the
+reason).

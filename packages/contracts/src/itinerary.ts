@@ -153,3 +153,64 @@ export const DecideProposalRequest = z
   })
   .openapi('DecideProposalRequest');
 export type DecideProposalRequest = z.infer<typeof DecideProposalRequest>;
+
+/* ---------- Disruption drafts from the AI port (D19, slice 055) ---------- */
+
+/** One event of the day's chain from the slipped one on, with where the propagation put it. */
+export const DisruptionDraftEvent = z
+  .object({
+    id: z.uuid(),
+    title: z.string().trim().min(1).max(120),
+    kind: EventKind,
+    start: LocalTime,
+    end: LocalTime.nullable(),
+    /** The start and end after the propagated slip; null when the event did not move. */
+    newStart: LocalTime.nullable(),
+    newEnd: LocalTime.nullable(),
+  })
+  .openapi('DisruptionDraftEvent');
+export type DisruptionDraftEvent = z.infer<typeof DisruptionDraftEvent>;
+
+/** What the organizer hands the AI: the slip and the chain it propagates through, in start order. */
+export const DisruptionDraftRequest = z
+  .object({
+    date: CalendarDate,
+    slippedEventId: z.uuid(),
+    minutes: z.number().int().min(1).max(600),
+    events: z.array(DisruptionDraftEvent).min(1).max(40),
+    locale: z.enum(['ko', 'en']),
+  })
+  .openapi('DisruptionDraftRequest');
+export type DisruptionDraftRequest = z.infer<typeof DisruptionDraftRequest>;
+
+/**
+ * One step of a draft: move an event (new start, and end when it has one), shorten it (new end,
+ * start as moved), cut it (cancelled in the draft) or keep it where it is.
+ */
+export const DisruptionDraftAction = z
+  .object({
+    eventId: z.uuid(),
+    action: z.enum(['move', 'shorten', 'cut', 'keep']),
+    start: LocalTime.nullable(),
+    end: LocalTime.nullable(),
+  })
+  .openapi('DisruptionDraftAction');
+export type DisruptionDraftAction = z.infer<typeof DisruptionDraftAction>;
+
+export const DisruptionDraft = z
+  .object({
+    title: z.string().trim().min(1).max(80),
+    rationale: z.string().trim().min(1).max(300),
+    actions: z.array(DisruptionDraftAction).max(40),
+  })
+  .openapi('DisruptionDraft');
+export type DisruptionDraft = z.infer<typeof DisruptionDraft>;
+
+/** The answer: two or three variants, or none when the provider has no answer here. */
+export const DisruptionDraftResponse = z
+  .object({
+    provider: z.enum(['workers-ai', 'fixture', 'disabled']),
+    drafts: z.array(DisruptionDraft),
+  })
+  .openapi('DisruptionDraftResponse');
+export type DisruptionDraftResponse = z.infer<typeof DisruptionDraftResponse>;

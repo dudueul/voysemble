@@ -9,6 +9,8 @@ import { createRoute, type OpenAPIHono } from '@hono/zod-openapi';
 import {
   CreateProposalRequest,
   DecideProposalRequest,
+  DisruptionDraftRequest,
+  DisruptionDraftResponse,
   Id,
   Itinerary,
   ItineraryEvent,
@@ -21,11 +23,13 @@ import {
 } from '@voysemble/contracts';
 import { eq } from 'drizzle-orm';
 import { HTTPException } from 'hono/http-exception';
+import { aiPort } from '../ai/AiPort';
 import { type OrgAccess, requireAuth, requireOrgRole } from '../auth/middleware';
 import { db } from '../db/client';
 import { organizations } from '../db/schema';
 import type { AppEnv } from '../env';
 import { notificationBody, notifyTrip } from '../lib/notify';
+import { enforceLimits } from '../lib/rate-limit';
 import { orgObject } from '../org/client';
 import { ERROR_RESPONSES, SESSION_SECURITY } from './openapi-common';
 import { TripParams } from './trips';
@@ -112,6 +116,32 @@ const publishRoute = createRoute({
 });
 
 const ProposalParams = z.object({ orgId: Id, tripId: Id, proposalId: z.uuid() });
+
+/** D19 (slice 055): the AI port drafts two or three ways through a slipped day; the organizer applies one. */
+const disruptionDraftsRoute = createRoute({
+  method: 'post',
+  path: '/v1/orgs/{orgId}/trips/{tripId}/itinerary/disruption-drafts',
+  tags: ['itinerary'],
+  summary:
+    'Drafts for a disruption from the AI port: what to move, shorten or cut after a slip (owner, organizer)',
+  security: SESSION_SECURITY,
+  request: {
+    params: TripParams,
+    body: { content: { 'application/json': { schema: DisruptionDraftRequest } } },
+  },
+  responses: {
+    200: {
+      description: 'Two or three drafts, or none when the provider has no answer here.',
+      content: { 'application/json': { schema: DisruptionDraftResponse } },
+    },
+    400: ERROR_RESPONSES[400],
+    401: ERROR_RESPONSES[401],
+    403: ERROR_RESPONSES[403],
+    404: ERROR_RESPONSES[404],
+    429: ERROR_RESPONSES[429],
+    500: ERROR_RESPONSES[500],
+  },
+});
 
 const createProposalRoute = createRoute({
   method: 'post',
@@ -226,6 +256,20 @@ export function mountItineraryRoutes(app: OpenAPIHono<AppEnv>): void {
       throw new HTTPException(404, { message: 'Event not found.' });
     }
     return c.body(null, 204);
+  });
+
+  app.openapi(disruptionDraftsRoute, async (c) => {
+    const auth = requireAuth(c);
+    const { orgId, tripId } = c.req.valid('param');
+    const body = c.req.valid('json');
+    await requireOrgRole(c.env, auth, orgId, 'organizer');
+    const org = await orgObject(c.env, orgId);
+    if (!(await org.getTrip(tripId))) throw new HTTPException(404, { message: 'Trip not found.' });
+    // Each ask is a model call; thirty an hour per account is plenty for a day's replanning.
+    await enforceLimits(c, [{ scope: 'disruptionDraftsAccount', subject: auth.accountId }]);
+    const port = aiPort(c.env);
+    const drafts = (await port.draftDisruption(body)) ?? [];
+    return c.json({ provider: port.provider, drafts }, 200);
   });
 
   app.openapi(publishRoute, async (c) => {

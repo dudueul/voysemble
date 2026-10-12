@@ -17,6 +17,13 @@ Communication unit test, `e2e/announcements.spec.ts`, and `AnnouncementsSyncTest
 
 Null never fails a publish; the announcement simply carries `translation: null`.
 
+The same port carries the image moderation flag (slice 043, `media.md`) and, since slice 055,
+the disruption drafts (D19, `journey-graph.md`): `draftDisruption` asks
+`@cf/meta/llama-3.1-8b-instruct` in JSON mode for two or three ways through a slipped day,
+validates the answer against the contract, drops unknown event ids and answers null on anything
+else; the fixture port derives three deterministic drafts from the chain; the disabled port
+answers null and the console says so.
+
 ADR-0006 placed the interface in `packages/effect-runtime`. That package does not exist, so the
 port lives beside its only consumer in the Worker until a second Worker needs it (recorded in
 the ADR).

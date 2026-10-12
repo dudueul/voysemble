@@ -12,7 +12,13 @@
 // Itinerary page publishes). The fixture otherwise.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { ItineraryProposal, Organization, Trip } from '@voysemble/contracts';
+import type {
+  DisruptionDraft,
+  DisruptionDraftResponse,
+  ItineraryProposal,
+  Organization,
+  Trip,
+} from '@voysemble/contracts';
 import { type FormEvent, useEffect, useState } from 'react';
 import { Icons } from '../../app/shell/icons';
 import type { ItineraryDay, ItineraryEvent } from '../../fixtures/itinerary';
@@ -26,7 +32,7 @@ import {
 import { errorText } from '../../lib/errors';
 import { itineraryApi, proposalsApi } from '../../lib/itinerary-api';
 import { orgsQuery, pickActiveOrg, tripsQuery } from '../../lib/session';
-import { strings } from '../../lib/strings';
+import { strings, useLocale } from '../../lib/strings';
 import { Card, SectionPage } from './SectionPage';
 
 const s = strings.journey;
@@ -252,6 +258,64 @@ function LiveJourney({ org, trip }: { org: Organization; trip: Trip }) {
     e.preventDefault();
     if (movedCount > 0) apply.mutate();
   };
+  // Drafts from the AI port (slice 055, D19): the propagated chain goes up, two or three ways
+  // through the day come back; applying one writes the draft through the same upsert route.
+  const locale = useLocale();
+  const [drafts, setDrafts] = useState<DisruptionDraftResponse | null>(null);
+  const [draftsNote, setDraftsNote] = useState<string | null>(null);
+  const askDrafts = useMutation({
+    mutationFn: () =>
+      itineraryApi.disruptionDrafts(org.id, trip.id, {
+        date: date ?? '',
+        slippedEventId: slipId,
+        minutes: slipMinutes,
+        locale,
+        events: propagated.map((p) => ({
+          id: p.id,
+          title: p.title,
+          kind: eventById.get(p.id)?.kind ?? 'activity',
+          start: p.start,
+          end: p.end,
+          newStart: p.moved ? p.newStart : null,
+          newEnd: p.moved ? p.newEnd : null,
+        })),
+      }),
+    onSuccess: (r) => {
+      setDrafts(r);
+      setDraftsNote(null);
+    },
+    onError: (e) => setDraftsNote(errorText(e, s.draftsFailed)),
+  });
+  const applyDraft = useMutation({
+    mutationFn: async (draft: DisruptionDraft) => {
+      let n = 0;
+      for (const a of draft.actions) {
+        const e = events.find((x) => x.id === a.eventId);
+        if (!e || a.action === 'keep') continue;
+        const { end: _end, ...rest } = e;
+        if (a.action === 'cut') {
+          await itineraryApi.upsert(org.id, trip.id, { ...e, status: 'cancelled' });
+        } else {
+          const start = a.start ?? e.start;
+          const end = a.action === 'shorten' ? (a.end ?? e.end) : (a.end ?? undefined);
+          await itineraryApi.upsert(org.id, trip.id, {
+            ...rest,
+            start,
+            ...(end ? { end } : {}),
+          });
+        }
+        n += 1;
+      }
+      return n;
+    },
+    onSuccess: (n) => {
+      setDraftsNote(s.draftApplied(n));
+      void qc.invalidateQueries({ queryKey: ['orgs', org.id, 'trips', trip.id, 'itinerary'] });
+      void qc.invalidateQueries({ queryKey: ['itinerary', 'live', org.id, trip.id] });
+    },
+    onError: (e) => setDraftsNote(errorText(e, s.applyFailed)),
+  });
+  const titleOf = (id: string) => eventById.get(id)?.title ?? id;
   const eventById = new Map(events.map((e) => [e.id, e]));
   /** "10:00 Breakfast": where the slack starts (the event's end, or its start when open-ended). */
   const fromLabel = (id: string) => {
@@ -376,6 +440,66 @@ function LiveJourney({ org, trip }: { org: Organization; trip: Trip }) {
               </span>
             </div>
           </form>
+          <div className="field__row field__row--tight">
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm"
+              disabled={askDrafts.isPending || propagated.length === 0}
+              onClick={() => askDrafts.mutate()}
+            >
+              {askDrafts.isPending ? s.asking : s.askDrafts}
+            </button>
+            <span className="field__hint" role="status" data-testid="drafts-status">
+              {draftsNote ?? ''}
+            </span>
+          </div>
+          {drafts ? (
+            drafts.drafts.length === 0 ? (
+              <p className="muted small" data-testid="drafts-none">
+                {s.draftsNone}
+              </p>
+            ) : (
+              <div data-testid="drafts-live">
+                <p className="muted small">{s.draftedBy}</p>
+                <ol className="list list--plain">
+                  {drafts.drafts.map((d, i) => (
+                    <li key={`${i}-${d.title}`} data-testid={`draft-${i}`}>
+                      <strong>{d.title}</strong>
+                      <span className="muted small"> · {d.rationale}</span>
+                      <ul className="list list--plain small">
+                        {d.actions
+                          .filter((a) => a.action !== 'keep')
+                          .map((a) => (
+                            <li key={`${a.eventId}-${a.action}`}>
+                              {a.action === 'cut'
+                                ? s.draftCut(titleOf(a.eventId))
+                                : a.action === 'shorten'
+                                  ? s.draftShorten(titleOf(a.eventId), a.end ?? '')
+                                  : s.draftMove(
+                                      titleOf(a.eventId),
+                                      eventById.get(a.eventId)?.start ?? '',
+                                      a.start ?? '',
+                                    )}
+                            </li>
+                          ))}
+                        {d.actions.some((a) => a.action === 'keep') ? (
+                          <li className="muted">{s.draftKeep}</li>
+                        ) : null}
+                      </ul>
+                      <button
+                        type="button"
+                        className="btn btn--secondary btn--sm"
+                        disabled={applyDraft.isPending}
+                        onClick={() => applyDraft.mutate(d)}
+                      >
+                        {applyDraft.isPending ? s.applyingDraft : s.applyDraft}
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )
+          ) : null}
         </Card>
         <Card title={s.tight} id="jg-tight">
           {tight.length === 0 ? (

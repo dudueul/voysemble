@@ -6,6 +6,8 @@
 import type {
   Itinerary as ApiItinerary,
   ItineraryEvent as ApiItineraryEvent,
+  DisruptionDraftRequest,
+  DisruptionDraftResponse,
   ItineraryEventInput,
   ItineraryProposal,
   ProposalList,
@@ -95,6 +97,12 @@ export const itineraryApi = {
   remove: (orgId: string, tripId: string, id: string) =>
     api<undefined>(`/v1/orgs/${orgId}/trips/${tripId}/itinerary/events/${id}`, {
       method: 'DELETE',
+    }),
+  /** D19 (slice 055): two or three drafts from the AI port for a propagated slip; empty when unavailable. */
+  disruptionDrafts: (orgId: string, tripId: string, body: DisruptionDraftRequest) =>
+    api<DisruptionDraftResponse>(`/v1/orgs/${orgId}/trips/${tripId}/itinerary/disruption-drafts`, {
+      method: 'POST',
+      body,
     }),
   /** Publish; `notify` opens the required-ack revision announcement (D19), `note` rides in its body. */
   publish: async (

@@ -32,6 +32,8 @@ export const LIMITS = {
   organizerInviteOrg: { limit: 20, windowSeconds: 3600 },
   /** Driver sheet opens from one address (slice 049): sixty per quarter hour (a token is 256 bits; this is for noise). */
   driverIp: { limit: 60, windowSeconds: 900 },
+  /** Disruption drafts asked by one account (slice 055): thirty per hour, each a model call. */
+  disruptionDraftsAccount: { limit: 30, windowSeconds: 3600 },
 } as const satisfies Record<string, Limit>;
 
 /** A 429 that carries how long to wait; app.ts turns it into the header. */
