@@ -36,6 +36,8 @@ export type AuthContext = {
   locale: 'ko' | 'en';
   sessionId: string;
   client: 'web' | 'native';
+  /** Slice 045 (D35): the session's last step-up confirmation; null until one. */
+  reauthedAt: string | null;
 };
 
 /** Per-request variables set by middleware. */

@@ -11,6 +11,7 @@ export type ApiErrorCode =
   | 'FORBIDDEN'
   | 'CONFLICT'
   | 'RATE_LIMITED'
+  | 'REAUTH_REQUIRED'
   | 'INTERNAL'
   | 'NETWORK';
 
@@ -43,6 +44,7 @@ const KNOWN: ReadonlySet<string> = new Set([
   'FORBIDDEN',
   'CONFLICT',
   'RATE_LIMITED',
+  'REAUTH_REQUIRED',
   'INTERNAL',
 ]);
 

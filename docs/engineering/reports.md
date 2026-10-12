@@ -57,8 +57,15 @@ is pure; the route gathers the four lists from the Durable Object and calls it.
   the announcement, Safety lists Juho with the group line (capture) and Reports shows 8 min, 1
   open incident, 0 % acks, "—" fees, a D-bar, and the CSV download has the header and the day row.
 
+## Documents (slice 045)
+
+`TripReport.documents` (null until a requirement exists): requirements, required, travelers,
+`requiredItems` (travelers × required requirements), `requiredDone` (collected or waived),
+`missingRequired`, `completionPct`. The Reports page's "Required documents" tile reads it
+("no requirements yet" before). `docs/engineering/documents.md`.
+
 ## Not done
 
-A per-group breakdown; required-documents completion (documents are a later slice); the fixture's
+A per-group breakdown; the fixture's
 "Required documents" tile stays in sample mode only; exporting the roster or the ledger from here;
 Korean strings.

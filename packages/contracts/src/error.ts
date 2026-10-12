@@ -15,6 +15,8 @@ export const ErrorCode = z.enum([
   'INTERNAL',
   /** 401 from a session the organizer revoked with a wipe (D28): the phone clears its state. */
   'SESSION_WIPED',
+  /** 403 on a step-up action (D35, slice 045): the session must confirm itself through an emailed link first. */
+  'REAUTH_REQUIRED',
 ]);
 export type ErrorCode = z.infer<typeof ErrorCode>;
 

@@ -5,6 +5,7 @@
 
 import {
   type Announcement,
+  type DocumentSummary,
   dateInZone,
   type FeeLedger,
   type HeadcountSession,
@@ -23,6 +24,8 @@ export type ReportInputs = {
   headcounts: HeadcountSession[];
   incidents: Incident[];
   fees: FeeLedger | null;
+  /** Slice 045: the documents tile; absent or null until a requirement exists. */
+  documents?: DocumentSummary | null;
   now: string;
 };
 
@@ -132,6 +135,7 @@ export function buildTripReport(i: ReportInputs): TripReport {
       avgResolveMinutes: mean(resolveMinutes),
     },
     fees,
+    documents: i.documents ?? null,
     byDay,
     missingNow: latestMissingOf(i.headcounts),
   };

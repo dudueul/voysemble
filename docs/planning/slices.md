@@ -1234,7 +1234,7 @@ Not done: ownership transfer and removing a member (an accepted organizer stays 
 
 ## Slice 043: photos on the API and the console
 
-Status: done 2026-10-12. Commit: see git log (`feat(media): photos sealed in R2, moderation flags, the guardian album, and the live Media page (slice 043)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit `947f8f1` (`feat(media): photos sealed in R2, moderation flags, the guardian album, and the live Media page (slice 043)`). **CI verified**: run 38258357495 green (web incl. `media.spec.ts`, mobile, ios), 2026-10-12 13:59 UTC; captures (`media-live.png` at desktop-1440 and laptop-1280) committed as `5278c97`.
 Spec: D18 (photos and moderation), D34 (new: the media pipeline), ADR-0009 (visibility), ADR-0001 (tier 3), D17 (timeline), D31 (device captures). Details: `docs/engineering/media.md`.
 
 | Gate | Command | Result |
@@ -1257,7 +1257,7 @@ Not done: the phones (slice 044); downloads and the wrap-up export; the per-orga
 
 ## Slice 044: the Memories tab on both phones
 
-Status: done 2026-10-12. Commit: see git log (`feat(mobile): the Memories tab on both phones (slice 044)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-12. Commit `c6f5e02` (`feat(mobile): the Memories tab on both phones (slice 044)`) and the fix `fix(android): the memories imports lost their names to a regex` (see git log). CI: run 38260106599 red on `mobile` only (`MemoriesScreen.kt` and `MemoriesViewModelTest.kt`: three `import …memories.queue/pool/album` lines had become `import …album()` when the section accessors were turned into functions with a regex; `web` and `ios` green, so the Swift side compiled first time); the fix restores the three imports; its run id is recorded in the next commit once verified.
 Spec: D18 (photos), D34 (media pipeline, device-made thumbnails), ADR-0009 (visibility), D31 (device captures), D32 (glass on chips and the picker button). Details: `docs/engineering/media.md` ("Phones").
 
 | Gate | Command | Result |
@@ -1276,3 +1276,28 @@ Built:
 - Docs: media.md phones section, captures README, mobile README, ledger, feature flag `mobile.memories` working.
 
 Not done: a full-screen viewer; per-person tags from the phone; background upload and retry from an outbox; HEIC originals (the picker hands over JPEG on iOS; Android sends what the picker gives, the server refuses types it does not know).
+
+## Slice 045: documents and forms with a step-up confirmation
+
+Status: done 2026-10-12. Commit: see git log (`feat(documents): requirements, sealed scans and the audited reveal behind a step-up confirmation (slice 045)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D27 (documents tier), D35 (new: step-up reauthentication), D36 (new: documents pipeline), ADR-0001 (tier 3), D17 (timeline), D31 (device captures). Details: `docs/engineering/documents.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `pnpm --filter @voysemble/api-worker test` | 30 files, 86 tests (adds `documents.test.ts`: 2) |
+| Web unit tests | `pnpm --filter @voysemble/organizer-web test` | 15 files, 99 tests (adds the live Preparation case and two reauth landing cases) |
+| Browser E2E | `pnpm --filter @voysemble/organizer-web test:e2e -- preparation.spec.ts reports.spec.ts` | 4 passed (desktop-1440, laptop-1280); capture `preparation-live.png` |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+No phone change (D27: scans never on a phone; D31: web captures only).
+
+Built:
+- Contracts `documents.ts` (requirements, items, scans, the upload form, the report summary), `auth.ts` (`ReauthAccepted`, `ReauthVerifyRequest`, `ReauthResponse`), error code `REAUTH_REQUIRED`, timeline kind `document_reveal`, `TripReport.documents`.
+- Worker: migration `0005_reauth.sql` (`magic_links.purpose`, `sessions.reauthed_at`); `auth/service.ts` `issueMagicLink(purpose)`, `verifyReauth`, `reauthIsFresh`, a reauth link never signs in; `requireRecentReauth` and `ReauthRequiredError`; `POST /v1/auth/reauth` and `/reauth/verify`; the reauth email; OrgDurableObject schema 16 (`document_requirements`, `document_items`) with counts, items, states, scan facts, the `document_reveal` fact and the report summary; `routes/documents.ts` (list, create, update, delete with shred, items, state, scan upload sealed, the reveal as a POST, scan delete); the report carries `documents`.
+- Console: `documentsQuery`, `documentItemsQuery`, `documents.*`, `auth.reauth/reauthVerify`; `lib/reauth.ts`; `features/auth/ReauthPage.tsx` on `/auth/reauth`; the live Preparation page (requirements table with meters, the add form, the opened requirement's travelers table with state, scan upload, the audited reveal under a watermark, the confirmation flow); the Reports documents tile; strings EN/KO; the scan viewer styles.
+- Tests: worker (2), console unit (3), browser (1 spec).
+- Docs: `documents.md`, decisions D35 and D36, reports doc section, identity doc pointer, captures README, ledger, feature flags `documents.requirements`, `documents.scans`, `auth.reauth`, `web.preparation` working.
+
+Lesson: the reveal started as a GET; Chromium replayed it on a stale keep-alive socket to `wrangler dev` and the audit counted two reveals for one click (seen as "2 reveals so far" in the browser suite). An action with a record is a POST.
+
+Not done: reminders to guardians; a scaling PDF viewer; the packing checklist on the phones (still a sample card); the owner-held key for tier 3; sealed third-party links (D27).

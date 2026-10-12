@@ -7,6 +7,7 @@
 
 import { z } from '@hono/zod-openapi';
 import { Timestamp } from './common';
+import { DocumentSummary } from './documents';
 import { Currency } from './fees';
 import { HeadcountMissing } from './headcount';
 
@@ -78,6 +79,8 @@ export const TripReport = z
         collectedPct: z.number().nullable(),
       })
       .nullable(),
+    /** Slice 045: completion over the required documents; null until a requirement exists. */
+    documents: DocumentSummary.nullable(),
     /** Oldest day first; only days with a fact. */
     byDay: z.array(ReportDay),
     missingNow: z.array(MissingNow),

@@ -74,3 +74,25 @@ export const UpdateMeRequest = z.object({ locale: Locale }).openapi('UpdateMeReq
 export type UpdateMeRequest = z.infer<typeof UpdateMeRequest>;
 
 export const LogoutResponse = z.object({ loggedOut: z.literal(true) }).openapi('LogoutResponse');
+
+/* ---------- Step-up reauthentication (D35, slice 045) ---------- */
+
+/** How long a confirmation covers step-up actions (the scan reveal). */
+export const REAUTH_WINDOW_SECONDS = 10 * 60;
+
+/** `POST /v1/auth/reauth`: a one-time link goes to the signed-in account's own address. */
+export const ReauthAccepted = z
+  .object({ accepted: z.literal(true), expiresInSeconds: z.number().int() })
+  .openapi('ReauthAccepted');
+export type ReauthAccepted = z.infer<typeof ReauthAccepted>;
+
+/** `POST /v1/auth/reauth/verify`: the token from that link, sent by the same session. */
+export const ReauthVerifyRequest = z
+  .object({ token: z.string().min(32).max(128).describe('Opaque token from the emailed link.') })
+  .openapi('ReauthVerifyRequest');
+export type ReauthVerifyRequest = z.infer<typeof ReauthVerifyRequest>;
+
+export const ReauthResponse = z
+  .object({ reauthedAt: Timestamp, validUntil: Timestamp })
+  .openapi('ReauthResponse');
+export type ReauthResponse = z.infer<typeof ReauthResponse>;

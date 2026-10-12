@@ -29,6 +29,8 @@ export const sessions = sqliteTable(
     revokedAt: text('revoked_at'),
     /** 'wipe' when the organizer revoked the devices (D28); null for a logout. */
     revokedReason: text('revoked_reason'),
+    /** Slice 045 (D35): the last step-up confirmation through an emailed link; null until one. */
+    reauthedAt: text('reauthed_at'),
   },
   (t) => [index('sessions_account_idx').on(t.accountId)],
 );
@@ -40,6 +42,10 @@ export const magicLinks = sqliteTable('magic_links', {
   createdAt: text('created_at').notNull(),
   expiresAt: text('expires_at').notNull(),
   consumedAt: text('consumed_at'),
+  /** Slice 045 (D35): 'signin' mints a session; 'reauth' confirms an existing one. */
+  purpose: text('purpose', { enum: ['signin', 'reauth'] })
+    .notNull()
+    .default('signin'),
 });
 
 export const organizations = sqliteTable('organizations', {

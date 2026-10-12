@@ -12,6 +12,7 @@ export * from './auth';
 export * from './care';
 export * from './chat';
 export * from './common';
+export * from './documents';
 export * from './error';
 export * from './fees';
 export * from './guardian';

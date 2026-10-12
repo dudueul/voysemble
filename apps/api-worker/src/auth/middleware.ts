@@ -15,7 +15,7 @@ import { HTTPException } from 'hono/http-exception';
 import { db } from '../db/client';
 import { memberships, organizations } from '../db/schema';
 import type { AppEnv, AuthContext } from '../env';
-import { resolveSession, wipeDirectiveFor } from './service';
+import { reauthIsFresh, resolveSession, wipeDirectiveFor } from './service';
 
 /** Response header a wiped session sees on its 401 (D28); the app clears its local state. */
 export const WIPE_HEADER = 'X-Voysemble-Wipe';
@@ -37,6 +37,7 @@ export const authenticate = createMiddleware<AppEnv>(async (c, next) => {
         locale: resolved.account.locale === 'en' ? 'en' : 'ko',
         sessionId: resolved.session.id,
         client: resolved.session.client,
+        reauthedAt: resolved.session.reauthedAt,
       };
       c.set('auth', auth);
     } else if (await wipeDirectiveFor(db(c.env.DB), token)) {
@@ -62,6 +63,18 @@ export function requireAuth(c: {
     throw new HTTPException(401, { message: 'Sign in required.' });
   }
   return auth;
+}
+
+/** A step-up action without a fresh confirmation (D35); app.ts answers code REAUTH_REQUIRED. */
+export class ReauthRequiredError extends HTTPException {
+  constructor() {
+    super(403, { message: 'Confirm it is you first: we email you a link.' });
+  }
+}
+
+/** The session must have confirmed itself through a reauth link in the last ten minutes. */
+export function requireRecentReauth(auth: AuthContext): void {
+  if (!reauthIsFresh(auth.reauthedAt)) throw new ReauthRequiredError();
 }
 
 export type OrgAccess = {

@@ -27,6 +27,12 @@ import type {
   ChatMessageList,
   ChatSenderRole,
   Currency,
+  DocumentItem,
+  DocumentRequirement,
+  DocumentRequirementList,
+  DocumentScanType,
+  DocumentState,
+  DocumentSummary,
   FeeLedger,
   FeeRow,
   GuardianFee,
@@ -419,6 +425,35 @@ const MIGRATIONS: { version: number; sql: string }[] = [
       CREATE INDEX IF NOT EXISTS photos_trip_idx ON photos(trip_id, uploaded_at);
     `,
   },
+  {
+    // Slice 045 (D27, D36): what a trip needs from every traveler and who handed it in. A scan's
+    // bytes sit sealed in R2 (tier 3); the row keeps its type, size and who uploaded it (tier 1).
+    version: 16,
+    sql: `
+      CREATE TABLE IF NOT EXISTS document_requirements (
+        id TEXT PRIMARY KEY,
+        trip_id TEXT NOT NULL REFERENCES trips(id),
+        name TEXT NOT NULL,
+        required INTEGER NOT NULL DEFAULT 1,
+        due_on TEXT,
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS document_requirements_trip_idx ON document_requirements(trip_id, created_at);
+      CREATE TABLE IF NOT EXISTS document_items (
+        requirement_id TEXT NOT NULL REFERENCES document_requirements(id),
+        participation_id TEXT NOT NULL REFERENCES participations(id),
+        trip_id TEXT NOT NULL,
+        state TEXT NOT NULL DEFAULT 'missing',
+        updated_at TEXT,
+        updated_by_name TEXT,
+        scan_content_type TEXT,
+        scan_bytes INTEGER,
+        scan_uploaded_at TEXT,
+        scan_uploaded_by_name TEXT,
+        PRIMARY KEY (requirement_id, participation_id)
+      );
+    `,
+  },
 ];
 
 type ChatMessageRow = {
@@ -481,6 +516,28 @@ export type PhotoViewer = {
   role: 'owner' | 'organizer' | 'leader' | 'traveler' | 'guardian';
   /** For guardians: the traveler they are bound to. */
   guardianOf: string | null;
+};
+
+type DocumentRequirementRow = {
+  id: string;
+  trip_id: string;
+  name: string;
+  required: number;
+  due_on: string | null;
+  created_at: string;
+};
+
+type DocumentItemRow = {
+  requirement_id: string;
+  participation_id: string;
+  trip_id: string;
+  state: string;
+  updated_at: string | null;
+  updated_by_name: string | null;
+  scan_content_type: string | null;
+  scan_bytes: number | null;
+  scan_uploaded_at: string | null;
+  scan_uploaded_by_name: string | null;
 };
 
 type ProposalRow = {
@@ -1090,6 +1147,7 @@ export class OrgDurableObject extends DurableObject<Env> {
         sql.exec('DELETE FROM care_reveals WHERE participation_id = ?', r.id);
         sql.exec('DELETE FROM care_notes WHERE participation_id = ?', r.id);
         sql.exec('DELETE FROM participation_events WHERE participation_id = ?', r.id);
+        sql.exec('DELETE FROM document_items WHERE participation_id = ?', r.id);
         sql.exec('DELETE FROM chat_reads WHERE reader_key = ?', r.id);
         sql.exec('DELETE FROM participations WHERE id = ?', r.id);
       }
@@ -3078,6 +3136,396 @@ export class OrgDurableObject extends DurableObject<Env> {
     return this.photoRow(tripId, photoId)?.uploader_key ?? null;
   }
 
+  // ---- Documents and forms (D27, slice 045) ------------------------------------------------
+
+  private travelerIds(tripId: string): string[] {
+    return this.ctx.storage.sql
+      .exec<{ id: string }>(
+        "SELECT id FROM participations WHERE trip_id = ? AND role = 'traveler'",
+        tripId,
+      )
+      .toArray()
+      .map((r) => r.id);
+  }
+
+  private documentRequirementOf(r: DocumentRequirementRow, travelers: number): DocumentRequirement {
+    const items = this.ctx.storage.sql
+      .exec<DocumentItemRow>('SELECT * FROM document_items WHERE requirement_id = ?', r.id)
+      .toArray();
+    const collected = items.filter((i) => i.state === 'collected').length;
+    const waived = items.filter((i) => i.state === 'waived').length;
+    return {
+      id: r.id,
+      tripId: r.trip_id,
+      name: r.name,
+      required: r.required === 1,
+      dueOn: r.due_on,
+      createdAt: r.created_at,
+      counts: {
+        travelers,
+        collected,
+        waived,
+        missing: Math.max(0, travelers - collected - waived),
+        scans: items.filter((i) => i.scan_content_type !== null).length,
+      },
+    };
+  }
+
+  private documentRequirementRow(tripId: string, id: string): DocumentRequirementRow | null {
+    return (
+      this.ctx.storage.sql
+        .exec<DocumentRequirementRow>(
+          'SELECT * FROM document_requirements WHERE id = ? AND trip_id = ?',
+          id,
+          tripId,
+        )
+        .toArray()[0] ?? null
+    );
+  }
+
+  async listDocumentRequirements(
+    tripId: string,
+  ): Promise<DocumentRequirementList | { notFound: true }> {
+    this.requireOrg();
+    if (!(await this.getTrip(tripId))) return { notFound: true };
+    const travelers = this.travelerIds(tripId).length;
+    const requirements = this.ctx.storage.sql
+      .exec<DocumentRequirementRow>(
+        'SELECT * FROM document_requirements WHERE trip_id = ? ORDER BY created_at, id',
+        tripId,
+      )
+      .toArray()
+      .map((r) => this.documentRequirementOf(r, travelers));
+    return {
+      requirements,
+      travelers,
+      missingRequired: requirements
+        .filter((r) => r.required)
+        .reduce((n, r) => n + r.counts.missing, 0),
+    };
+  }
+
+  async createDocumentRequirement(
+    tripId: string,
+    input: { name: string; required: boolean; dueOn: string | null },
+    now: string,
+  ): Promise<DocumentRequirement | { notFound: true }> {
+    this.requireOrg();
+    if (!(await this.getTrip(tripId))) return { notFound: true };
+    const row: DocumentRequirementRow = {
+      id: crypto.randomUUID(),
+      trip_id: tripId,
+      name: input.name,
+      required: input.required ? 1 : 0,
+      due_on: input.dueOn,
+      created_at: now,
+    };
+    this.ctx.storage.sql.exec(
+      'INSERT INTO document_requirements (id, trip_id, name, required, due_on, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      row.id,
+      row.trip_id,
+      row.name,
+      row.required,
+      row.due_on,
+      row.created_at,
+    );
+    return this.documentRequirementOf(row, this.travelerIds(tripId).length);
+  }
+
+  async updateDocumentRequirement(
+    tripId: string,
+    id: string,
+    patch: {
+      name?: string | undefined;
+      required?: boolean | undefined;
+      dueOn?: string | null | undefined;
+    },
+  ): Promise<DocumentRequirement | { notFound: true }> {
+    this.requireOrg();
+    const row = this.documentRequirementRow(tripId, id);
+    if (!row) return { notFound: true };
+    const next: DocumentRequirementRow = {
+      ...row,
+      name: patch.name ?? row.name,
+      required: patch.required === undefined ? row.required : patch.required ? 1 : 0,
+      due_on: patch.dueOn === undefined ? row.due_on : patch.dueOn,
+    };
+    this.ctx.storage.sql.exec(
+      'UPDATE document_requirements SET name = ?, required = ?, due_on = ? WHERE id = ?',
+      next.name,
+      next.required,
+      next.due_on,
+      id,
+    );
+    return this.documentRequirementOf(next, this.travelerIds(tripId).length);
+  }
+
+  /** The requirement and its items go; answers the travelers whose scans the route shreds. */
+  async deleteDocumentRequirement(
+    tripId: string,
+    id: string,
+  ): Promise<{ scans: string[] } | { notFound: true }> {
+    this.requireOrg();
+    if (!this.documentRequirementRow(tripId, id)) return { notFound: true };
+    const sql = this.ctx.storage.sql;
+    const scans = sql
+      .exec<{ participation_id: string }>(
+        'SELECT participation_id FROM document_items WHERE requirement_id = ? AND scan_content_type IS NOT NULL',
+        id,
+      )
+      .toArray()
+      .map((r) => r.participation_id);
+    this.ctx.storage.transactionSync(() => {
+      sql.exec('DELETE FROM document_items WHERE requirement_id = ?', id);
+      sql.exec('DELETE FROM document_requirements WHERE id = ?', id);
+    });
+    return { scans };
+  }
+
+  private documentItemOf(
+    requirementId: string,
+    p: ParticipationRow,
+    row: DocumentItemRow | null,
+  ): DocumentItem {
+    const reveals = this.ctx.storage.sql
+      .exec<{ n: number }>(
+        "SELECT COUNT(*) AS n FROM participation_events WHERE participation_id = ? AND kind = 'document_reveal' AND detail LIKE ?",
+        p.id,
+        `%"${requirementId}"%`,
+      )
+      .one().n;
+    return {
+      requirementId,
+      participationId: p.id,
+      displayName: p.display_name,
+      groupName: p.group_name,
+      state: (row?.state ?? 'missing') as DocumentState,
+      updatedAt: row?.updated_at ?? null,
+      updatedByName: row?.updated_by_name ?? null,
+      scan:
+        row?.scan_content_type && row.scan_bytes !== null && row.scan_uploaded_at
+          ? {
+              contentType: row.scan_content_type as DocumentScanType,
+              bytes: row.scan_bytes,
+              uploadedAt: row.scan_uploaded_at,
+              uploadedByName: row.scan_uploaded_by_name ?? '',
+            }
+          : null,
+      reveals,
+    };
+  }
+
+  /** Every traveler of the trip under the requirement, group then name; absent rows read missing. */
+  async documentItems(
+    tripId: string,
+    requirementId: string,
+  ): Promise<{ requirement: DocumentRequirement; items: DocumentItem[] } | { notFound: true }> {
+    this.requireOrg();
+    const req = this.documentRequirementRow(tripId, requirementId);
+    if (!req) return { notFound: true };
+    const sql = this.ctx.storage.sql;
+    const travelers = sql
+      .exec<ParticipationRow>(
+        "SELECT * FROM participations WHERE trip_id = ? AND role = 'traveler' ORDER BY group_name, display_name",
+        tripId,
+      )
+      .toArray();
+    const rows = new Map(
+      sql
+        .exec<DocumentItemRow>(
+          'SELECT * FROM document_items WHERE requirement_id = ?',
+          requirementId,
+        )
+        .toArray()
+        .map((r) => [r.participation_id, r] as const),
+    );
+    return {
+      requirement: this.documentRequirementOf(req, travelers.length),
+      items: travelers.map((p) => this.documentItemOf(requirementId, p, rows.get(p.id) ?? null)),
+    };
+  }
+
+  private documentTraveler(tripId: string, participationId: string): ParticipationRow | null {
+    return (
+      this.ctx.storage.sql
+        .exec<ParticipationRow>(
+          "SELECT * FROM participations WHERE id = ? AND trip_id = ? AND role = 'traveler'",
+          participationId,
+          tripId,
+        )
+        .toArray()[0] ?? null
+    );
+  }
+
+  private documentItemRow(requirementId: string, participationId: string): DocumentItemRow | null {
+    return (
+      this.ctx.storage.sql
+        .exec<DocumentItemRow>(
+          'SELECT * FROM document_items WHERE requirement_id = ? AND participation_id = ?',
+          requirementId,
+          participationId,
+        )
+        .toArray()[0] ?? null
+    );
+  }
+
+  private upsertDocumentItem(row: DocumentItemRow): void {
+    this.ctx.storage.sql.exec(
+      `INSERT INTO document_items (requirement_id, participation_id, trip_id, state, updated_at, updated_by_name, scan_content_type, scan_bytes, scan_uploaded_at, scan_uploaded_by_name)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(requirement_id, participation_id) DO UPDATE SET state = excluded.state, updated_at = excluded.updated_at,
+         updated_by_name = excluded.updated_by_name, scan_content_type = excluded.scan_content_type, scan_bytes = excluded.scan_bytes,
+         scan_uploaded_at = excluded.scan_uploaded_at, scan_uploaded_by_name = excluded.scan_uploaded_by_name`,
+      row.requirement_id,
+      row.participation_id,
+      row.trip_id,
+      row.state,
+      row.updated_at,
+      row.updated_by_name,
+      row.scan_content_type,
+      row.scan_bytes,
+      row.scan_uploaded_at,
+      row.scan_uploaded_by_name,
+    );
+  }
+
+  async setDocumentState(
+    tripId: string,
+    requirementId: string,
+    participationId: string,
+    state: DocumentState,
+    byName: string,
+    now: string,
+  ): Promise<DocumentItem | { notFound: true }> {
+    this.requireOrg();
+    const p = this.documentTraveler(tripId, participationId);
+    if (!p || !this.documentRequirementRow(tripId, requirementId)) return { notFound: true };
+    const row: DocumentItemRow = {
+      requirement_id: requirementId,
+      participation_id: participationId,
+      trip_id: tripId,
+      scan_content_type: null,
+      scan_bytes: null,
+      scan_uploaded_at: null,
+      scan_uploaded_by_name: null,
+      ...(this.documentItemRow(requirementId, participationId) ?? {}),
+      state,
+      updated_at: now,
+      updated_by_name: byName,
+    };
+    this.upsertDocumentItem(row);
+    return this.documentItemOf(requirementId, p, row);
+  }
+
+  /** A scan on file marks the item collected; the bytes already sit sealed in R2. */
+  async setDocumentScan(
+    tripId: string,
+    requirementId: string,
+    participationId: string,
+    scan: { contentType: DocumentScanType; bytes: number },
+    byName: string,
+    now: string,
+  ): Promise<DocumentItem | { notFound: true }> {
+    this.requireOrg();
+    const p = this.documentTraveler(tripId, participationId);
+    if (!p || !this.documentRequirementRow(tripId, requirementId)) return { notFound: true };
+    const row: DocumentItemRow = {
+      ...(this.documentItemRow(requirementId, participationId) ?? {
+        requirement_id: requirementId,
+        participation_id: participationId,
+        trip_id: tripId,
+      }),
+      requirement_id: requirementId,
+      participation_id: participationId,
+      trip_id: tripId,
+      state: 'collected',
+      updated_at: now,
+      updated_by_name: byName,
+      scan_content_type: scan.contentType,
+      scan_bytes: scan.bytes,
+      scan_uploaded_at: now,
+      scan_uploaded_by_name: byName,
+    };
+    this.upsertDocumentItem(row);
+    return this.documentItemOf(requirementId, p, row);
+  }
+
+  /** The scan's facts go; the state stays (the paper may still be on file). */
+  async clearDocumentScan(
+    tripId: string,
+    requirementId: string,
+    participationId: string,
+  ): Promise<DocumentItem | { notFound: true } | { noScan: true }> {
+    this.requireOrg();
+    const p = this.documentTraveler(tripId, participationId);
+    const row = this.documentItemRow(requirementId, participationId);
+    if (!p || !row) return { notFound: true };
+    if (!row.scan_content_type) return { noScan: true };
+    const next: DocumentItemRow = {
+      ...row,
+      scan_content_type: null,
+      scan_bytes: null,
+      scan_uploaded_at: null,
+      scan_uploaded_by_name: null,
+    };
+    this.upsertDocumentItem(next);
+    return this.documentItemOf(requirementId, p, next);
+  }
+
+  /** The scan's type for the reveal route, with the requirement's name for the audit line. */
+  async documentScan(
+    tripId: string,
+    requirementId: string,
+    participationId: string,
+  ): Promise<{ contentType: DocumentScanType; requirementName: string } | null> {
+    this.requireOrg();
+    const req = this.documentRequirementRow(tripId, requirementId);
+    const row = this.documentItemRow(requirementId, participationId);
+    if (!req || !row?.scan_content_type) return null;
+    return { contentType: row.scan_content_type as DocumentScanType, requirementName: req.name };
+  }
+
+  /** Every reveal is a fact on the traveler's timeline (D27): who, which document, when. */
+  async recordDocumentReveal(
+    tripId: string,
+    requirementId: string,
+    participationId: string,
+    byName: string,
+    now: string,
+  ): Promise<void> {
+    this.requireOrg();
+    const req = this.documentRequirementRow(tripId, requirementId);
+    this.ctx.storage.sql.exec(
+      'INSERT INTO participation_events (id, participation_id, trip_id, kind, by_name, detail, at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      crypto.randomUUID(),
+      participationId,
+      tripId,
+      'document_reveal',
+      byName,
+      JSON.stringify({ requirementId, name: req?.name ?? '' }),
+      now,
+    );
+  }
+
+  /** The report's documents tile: completion over the required requirements. */
+  async documentSummary(tripId: string): Promise<DocumentSummary | null> {
+    this.requireOrg();
+    const list = await this.listDocumentRequirements(tripId);
+    if ('notFound' in list || list.requirements.length === 0) return null;
+    const required = list.requirements.filter((r) => r.required);
+    const requiredItems = required.length * list.travelers;
+    const requiredDone = required.reduce((n, r) => n + r.counts.collected + r.counts.waived, 0);
+    return {
+      requirements: list.requirements.length,
+      required: required.length,
+      travelers: list.travelers,
+      requiredItems,
+      requiredDone,
+      missingRequired: list.missingRequired,
+      completionPct: requiredItems === 0 ? null : Math.round((requiredDone / requiredItems) * 100),
+    };
+  }
+
   async personTimeline(tripId: string, participationId: string): Promise<TimelineEntry[] | null> {
     this.requireOrg();
     const me = await this.getParticipation(participationId);
@@ -3097,6 +3545,21 @@ export class OrgDurableObject extends DurableObject<Env> {
           at: r.at,
           title: `Devices revoked by ${r.by_name}`,
           detail: 'Every phone signed out; a new invite code was issued.',
+          ref: null,
+        });
+      } else if (r.kind === 'document_reveal') {
+        // Slice 045 (D27): every scan reveal, naming the document.
+        let name = r.detail ?? '';
+        try {
+          name = (JSON.parse(r.detail ?? '{}') as { name?: string }).name ?? name;
+        } catch {
+          /* an older free-text detail stays as it is */
+        }
+        entries.push({
+          kind: 'document_reveal',
+          at: r.at,
+          title: `Document scan revealed by ${r.by_name}`,
+          detail: name || null,
           ref: null,
         });
       }

@@ -175,6 +175,13 @@ function LiveReport({ orgId, tripId }: { orgId: string; tripId: string }) {
       icon: <Icons.card />,
       tone: 'brand',
     },
+    // Slice 045: completion over the required documents; "no requirements yet" until one exists.
+    {
+      label: s.docs,
+      value: r?.documents ? pct(r.documents.completionPct) : s.docsNone,
+      icon: <Icons.checklist />,
+      tone: 'accent',
+    },
   ];
   const ack = (r?.byDay ?? []).map((d) => ({ label: `D${d.day}`, value: d.ackRate ?? 0 }));
   const close = (r?.byDay ?? []).map((d) => ({

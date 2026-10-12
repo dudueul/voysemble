@@ -17,7 +17,13 @@ import type {
   ChatMessage,
   ChatMessageList,
   CreateAnnouncementRequest,
+  CreateDocumentRequirementRequest,
   DeletePhotoResponse,
+  DocumentItem,
+  DocumentItemList,
+  DocumentRequirement,
+  DocumentRequirementList,
+  DocumentState,
   HeadcountList,
   Incident,
   IncidentList,
@@ -35,6 +41,8 @@ import type {
   PersonTimeline,
   Photo,
   PhotoList,
+  ReauthAccepted,
+  ReauthResponse,
   RemoveParticipationResponse,
   RevealCareNoteResponse,
   RevokeDevicesResponse,
@@ -45,6 +53,7 @@ import type {
   Trip,
   TripList,
   TripReport,
+  UpdateDocumentRequirementRequest,
   UpdateOrganizationRequest,
   UpdateParticipationRequest,
   WindowList,
@@ -217,6 +226,72 @@ export const media = {
     }),
 };
 
+/** Documents and forms (D27, slice 045): the requirements with their counts, and one requirement's rows. */
+export const documentsQuery = (orgId: string, tripId: string) =>
+  queryOptions({
+    queryKey: ['orgs', orgId, 'trips', tripId, 'documents'],
+    queryFn: () => api<DocumentRequirementList>(`/v1/orgs/${orgId}/trips/${tripId}/documents`),
+  });
+
+export const documentItemsQuery = (orgId: string, tripId: string, requirementId: string) =>
+  queryOptions({
+    queryKey: ['orgs', orgId, 'trips', tripId, 'documents', requirementId],
+    queryFn: () =>
+      api<DocumentItemList>(`/v1/orgs/${orgId}/trips/${tripId}/documents/${requirementId}/items`),
+  });
+
+export const documents = {
+  create: (orgId: string, tripId: string, body: CreateDocumentRequirementRequest) =>
+    api<DocumentRequirement>(`/v1/orgs/${orgId}/trips/${tripId}/documents`, {
+      method: 'POST',
+      body,
+    }),
+  update: (
+    orgId: string,
+    tripId: string,
+    requirementId: string,
+    body: UpdateDocumentRequirementRequest,
+  ) =>
+    api<DocumentRequirement>(`/v1/orgs/${orgId}/trips/${tripId}/documents/${requirementId}`, {
+      method: 'PATCH',
+      body,
+    }),
+  remove: (orgId: string, tripId: string, requirementId: string) =>
+    api<{ deleted: true }>(`/v1/orgs/${orgId}/trips/${tripId}/documents/${requirementId}`, {
+      method: 'DELETE',
+    }),
+  setState: (
+    orgId: string,
+    tripId: string,
+    requirementId: string,
+    participationId: string,
+    state: DocumentState,
+  ) =>
+    api<DocumentItem>(
+      `/v1/orgs/${orgId}/trips/${tripId}/documents/${requirementId}/items/${participationId}`,
+      { method: 'PUT', body: { state } },
+    ),
+  uploadScan: (
+    orgId: string,
+    tripId: string,
+    requirementId: string,
+    participationId: string,
+    form: FormData,
+  ) =>
+    api<DocumentItem>(
+      `/v1/orgs/${orgId}/trips/${tripId}/documents/${requirementId}/items/${participationId}/scan`,
+      { method: 'POST', form },
+    ),
+  removeScan: (orgId: string, tripId: string, requirementId: string, participationId: string) =>
+    api<DocumentItem>(
+      `/v1/orgs/${orgId}/trips/${tripId}/documents/${requirementId}/items/${participationId}/scan`,
+      { method: 'DELETE' },
+    ),
+  /** The reveal (a POST: an audited action) fetches bytes itself; 403 REAUTH_REQUIRED means confirm first (D35). */
+  revealPath: (orgId: string, tripId: string, requirementId: string, participationId: string) =>
+    `/v1/orgs/${orgId}/trips/${tripId}/documents/${requirementId}/items/${participationId}/scan/reveal`,
+};
+
 /** The trip report (slice 034): composed on the server from acks, head counts, incidents, fees. */
 export const reportQuery = (orgId: string, tripId: string) =>
   queryOptions({
@@ -335,6 +410,10 @@ export const auth = {
   /** Slice 038: the account's language, read back by /v1/me on the next sign-in. */
   updateLocale: (locale: 'ko' | 'en') =>
     api<MeResponse>('/v1/me', { method: 'PATCH', body: { locale } }),
+  /** Slice 045 (D35): a confirmation link to the account's own address, then its token. */
+  reauth: () => api<ReauthAccepted>('/v1/auth/reauth', { method: 'POST' }),
+  reauthVerify: (token: string) =>
+    api<ReauthResponse>('/v1/auth/reauth/verify', { method: 'POST', body: { token } }),
 };
 
 export const setup = {

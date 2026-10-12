@@ -9,7 +9,7 @@ import { OpenAPIHono } from '@hono/zod-openapi';
 import type { ErrorEnvelope } from '@voysemble/contracts';
 import { HTTPException } from 'hono/http-exception';
 import { secureHeaders } from 'hono/secure-headers';
-import { authenticate, WIPE_HEADER } from './auth/middleware';
+import { authenticate, ReauthRequiredError, WIPE_HEADER } from './auth/middleware';
 import type { AppEnv } from './env';
 import { RateLimitedError } from './lib/rate-limit';
 import { mountAnnouncementRoutes } from './routes/announcements';
@@ -17,6 +17,7 @@ import { mountAuthRoutes } from './routes/auth';
 import { mountCareRoutes } from './routes/care';
 import { mountChatRoutes } from './routes/chat';
 import { mountDevRoutes } from './routes/dev';
+import { mountDocumentRoutes } from './routes/documents';
 import { mountFeeRoutes } from './routes/fees';
 import { mountGuardianRoutes } from './routes/guardian';
 import { mountHeadcountRoutes } from './routes/headcounts';
@@ -112,6 +113,10 @@ export function createApp(): OpenAPIHono<AppEnv> {
           [WIPE_HEADER]: '1',
         });
       }
+      if (err instanceof ReauthRequiredError) {
+        // Slice 045 (D35): the console asks for the emailed confirmation and retries.
+        return c.json(errorBody('REAUTH_REQUIRED', err.message, correlationId), 403);
+      }
       if (err instanceof RateLimitedError) {
         // Slice 041: the wait rides the 429 so a client can back off without guessing.
         return c.json(errorBody('RATE_LIMITED', err.message, correlationId), 429, {
@@ -151,6 +156,7 @@ export function createApp(): OpenAPIHono<AppEnv> {
   mountChatRoutes(app);
   mountReportRoutes(app);
   mountMediaRoutes(app);
+  mountDocumentRoutes(app);
   mountDevRoutes(app);
   mountWellKnownRoutes(app);
 

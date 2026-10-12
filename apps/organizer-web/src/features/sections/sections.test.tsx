@@ -1265,7 +1265,8 @@ describe('sample sections', () => {
   });
 
   it('Preparation: per-document counts', () => {
-    render(<PreparationPage />);
+    stubApi({});
+    renderWithQuery(<PreparationPage />);
     expect(text(screen.getByTestId('doc-d2'))).toBe('36/38');
     expect(text(screen.getByRole('heading', { level: 1 }).parentElement)).toContain(
       '5 required documents still missing',
@@ -1618,5 +1619,162 @@ describe('Media on the API (slice 043)', () => {
     expect(form.get('takenAt')).toBe('2026-12-29T09:30:00.000Z');
     // jsdom has no canvas: the original goes alone and the server makes do (it is tiny).
     expect(form.get('thumbnail')).toBeNull();
+  });
+});
+
+describe('Preparation on the API (slice 045)', () => {
+  const base = `/v1/orgs/${ORG.id}/trips/${TRIP.id}`;
+  const REQ = {
+    id: '77777777-7777-4777-8777-777777777777',
+    tripId: TRIP.id,
+    name: 'Passport copy',
+    required: true,
+    dueOn: '2026-12-10',
+    createdAt: '2026-10-12T00:00:00.000Z',
+    counts: { travelers: 3, collected: 1, waived: 0, missing: 2, scans: 1 },
+  };
+  const item = (
+    p: Partial<Record<string, unknown>> & { participationId: string; displayName: string },
+  ) => ({
+    requirementId: REQ.id,
+    groupName: 'Bus A',
+    state: 'missing',
+    updatedAt: null,
+    updatedByName: null,
+    scan: null,
+    reveals: 0,
+    ...p,
+  });
+  const ITEMS = {
+    requirement: REQ,
+    items: [
+      item({
+        participationId: 'p1',
+        displayName: 'Juho Kim',
+        state: 'collected',
+        scan: {
+          contentType: 'application/pdf',
+          bytes: 1200,
+          uploadedAt: '2026-10-12T01:00:00.000Z',
+          uploadedByName: 'Owner',
+        },
+      }),
+      item({ participationId: 'p2', displayName: 'Minji Park' }),
+    ],
+  };
+
+  it('lists requirements, adds one, opens it, sets a state, uploads a scan, and asks to confirm before a reveal', async () => {
+    let requirements: Record<string, unknown>[] = [REQ];
+    const calls: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const key = `${init?.method ?? 'GET'} ${String(input)}`;
+        calls.push(key);
+        if (key === 'GET /v1/orgs') return Response.json({ organizations: [ORG] });
+        if (key === `GET /v1/orgs/${ORG.id}/trips`) return Response.json({ trips: [TRIP] });
+        if (key === 'GET /v1/me')
+          return Response.json({
+            accountId: 'a',
+            email: 'nate@example.com',
+            locale: 'en',
+            memberships: [],
+          });
+        if (key === `GET ${base}/documents`)
+          return Response.json({ requirements, travelers: 3, missingRequired: 2 });
+        if (key === `POST ${base}/documents`) {
+          const created = {
+            ...REQ,
+            id: '88888888-8888-4888-8888-888888888888',
+            name: 'Consent form',
+            required: false,
+            dueOn: null,
+            counts: { travelers: 3, collected: 0, waived: 0, missing: 3, scans: 0 },
+          };
+          requirements = [...requirements, created];
+          return Response.json(created, { status: 201 });
+        }
+        if (key === `GET ${base}/documents/${REQ.id}/items`) return Response.json(ITEMS);
+        if (key === `PUT ${base}/documents/${REQ.id}/items/p2`)
+          return Response.json({ ...ITEMS.items[1], state: 'collected' });
+        if (key === `POST ${base}/documents/${REQ.id}/items/p2/scan`)
+          return Response.json({ ...ITEMS.items[1], state: 'collected' }, { status: 201 });
+        if (key === `POST ${base}/documents/${REQ.id}/items/p1/scan/reveal`) {
+          return Response.json(
+            {
+              error: {
+                code: 'REAUTH_REQUIRED',
+                message: 'Confirm it is you first.',
+                correlationId: 'c',
+              },
+            },
+            { status: 403 },
+          );
+        }
+        if (key === 'POST /v1/auth/reauth')
+          return Response.json({ accepted: true, expiresInSeconds: 900 }, { status: 202 });
+        return Response.json(
+          { error: { code: 'NOT_FOUND', message: key, correlationId: 't' } },
+          { status: 404 },
+        );
+      }),
+    );
+    renderWithQuery(<PreparationPage />);
+    await screen.findByText('Live');
+    const row = await screen.findByTestId(`req-${REQ.id}`);
+    expect(row.textContent).toContain('Passport copy');
+    expect(screen.getByTestId(`doc-${REQ.id}`).textContent).toBe('1/3');
+    expect(text(screen.getByRole('heading', { level: 1 }).parentElement)).toContain(
+      '2 required documents still missing across 3 travelers',
+    );
+
+    // Add a requirement.
+    const form = screen.getByRole('form', { name: 'Add a requirement' });
+    fireEvent.change(within(form).getByLabelText('Document'), {
+      target: { value: 'Consent form' },
+    });
+    fireEvent.click(within(form).getByLabelText('Required'));
+    fireEvent.submit(form);
+    await waitFor(() => expect(screen.getByText('Consent form')).toBeTruthy());
+    const post = vi.mocked(fetch).mock.calls.find(([, init]) => init?.method === 'POST');
+    expect(JSON.parse(String(post?.[1]?.body))).toEqual({
+      name: 'Consent form',
+      required: false,
+      dueOn: null,
+    });
+
+    // Open the passport requirement: the travelers table; Minji becomes collected.
+    fireEvent.click(screen.getByRole('button', { name: 'Open Passport copy' }));
+    await screen.findByTestId('item-p2');
+    expect(screen.getByTestId('item-p1').textContent).toContain('PDF on file · uploaded by Owner');
+    fireEvent.change(screen.getByLabelText('State of Minji Park'), {
+      target: { value: 'collected' },
+    });
+    await waitFor(() => expect(calls).toContain(`PUT ${base}/documents/${REQ.id}/items/p2`));
+    const put = vi.mocked(fetch).mock.calls.find(([, init]) => init?.method === 'PUT');
+    expect(JSON.parse(String(put?.[1]?.body))).toEqual({ state: 'collected' });
+
+    // Upload a scan for Minji: multipart with the file.
+    fireEvent.click(screen.getByRole('button', { name: 'Upload a scan for Minji Park' }));
+    const file = new File([new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d])], 'minji.pdf', {
+      type: 'application/pdf',
+    });
+    fireEvent.change(screen.getByTestId('scan-input'), { target: { files: [file] } });
+    await waitFor(() => expect(calls).toContain(`POST ${base}/documents/${REQ.id}/items/p2/scan`));
+    const scanPost = vi
+      .mocked(fetch)
+      .mock.calls.find(([url]) => String(url).endsWith('/items/p2/scan'));
+    const scanBody = scanPost?.[1]?.body as FormData | undefined;
+    expect(scanBody?.get('file')).toBeInstanceOf(File);
+
+    // Reveal Juho's scan: 403 REAUTH_REQUIRED stores the return path, sends the link, says so.
+    fireEvent.click(screen.getByRole('button', { name: 'Reveal the scan of Juho Kim' }));
+    await waitFor(() =>
+      expect(screen.getByTestId('items-status').textContent).toContain('confirm it is you'),
+    );
+    expect(calls).toContain('POST /v1/auth/reauth');
+    expect(localStorage.getItem('voysemble.reauth.next')).toBe('/preparation');
+    expect(screen.queryByTestId('scan-viewer')).toBeNull();
+    localStorage.clear();
   });
 });

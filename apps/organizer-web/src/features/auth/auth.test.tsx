@@ -9,6 +9,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AcceptInvitationPage } from './AcceptInvitationPage';
+import { ReauthPage } from './ReauthPage';
 import { SignInPage } from './SignInPage';
 import { readTokenFromHash } from './VerifyPage';
 
@@ -187,5 +188,68 @@ describe('AcceptInvitationPage (slice 042)', () => {
     renderWithQuery(<AcceptInvitationPage />);
     await screen.findByRole('alert');
     expect(screen.getByRole('alert').textContent).toContain('The link is incomplete');
+  });
+});
+
+describe('ReauthPage (slice 045)', () => {
+  const TOKEN = 'r'.repeat(43);
+  const ME = { accountId: '4', email: 'nate@example.com', locale: 'en', memberships: [] };
+
+  it('signed in: posts the token once, clears the stored return path and goes there', async () => {
+    localStorage.setItem('voysemble.reauth.next', '/preparation');
+    const assign = vi.fn();
+    vi.stubGlobal('location', { ...location, hash: `#token=${TOKEN}`, assign });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const key = `${init?.method ?? 'GET'} ${String(input)}`;
+        if (key === 'GET /v1/me') return Response.json(ME);
+        if (key === 'POST /v1/auth/reauth/verify') {
+          return Response.json({
+            reauthedAt: '2026-10-12T14:00:00.000Z',
+            validUntil: '2026-10-12T14:10:00.000Z',
+          });
+        }
+        throw new Error(`unexpected ${key}`);
+      }),
+    );
+    renderWithQuery(<ReauthPage />);
+    await screen.findByTestId('reauth-done');
+    const posts = vi.mocked(fetch).mock.calls.filter(([, init]) => init?.method === 'POST');
+    expect(posts).toHaveLength(1);
+    expect(JSON.parse(String(posts[0]?.[1]?.body))).toEqual({ token: TOKEN });
+    expect(assign).toHaveBeenCalledWith('/preparation');
+    expect(localStorage.getItem('voysemble.reauth.next')).toBeNull();
+  });
+
+  it('a dead link and a signed-out visitor are told what to do', async () => {
+    vi.stubGlobal('location', { ...location, hash: `#token=${TOKEN}`, assign: vi.fn() });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const key = `${init?.method ?? 'GET'} ${String(input)}`;
+        if (key === 'GET /v1/me') return Response.json(ME);
+        return Response.json(
+          { error: { code: 'NOT_FOUND', message: 'dead', correlationId: 'c' } },
+          { status: 404 },
+        );
+      }),
+    );
+    renderWithQuery(<ReauthPage />);
+    await screen.findByRole('alert');
+    expect(screen.getByRole('alert').textContent).toContain('used already or expired');
+    cleanup();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        Response.json(
+          { error: { code: 'UNAUTHENTICATED', message: 'x', correlationId: 'c' } },
+          { status: 401 },
+        ),
+      ),
+    );
+    renderWithQuery(<ReauthPage />);
+    await screen.findByRole('alert');
+    expect(screen.getByRole('alert').textContent).toContain('signed out');
   });
 });

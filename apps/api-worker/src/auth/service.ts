@@ -24,10 +24,12 @@ const SESSION_TOUCH_INTERVAL_SECONDS = SECONDS.hour;
 export type Account = typeof accounts.$inferSelect;
 export type Session = typeof sessions.$inferSelect;
 
+/** `purpose` (slice 045, D35): 'signin' mints a session on verify; 'reauth' confirms an existing one. */
 export async function issueMagicLink(
   d: Db,
   email: string,
   locale: 'ko' | 'en',
+  purpose: 'signin' | 'reauth' = 'signin',
 ): Promise<{ token: string; expiresAt: string }> {
   const token = randomToken();
   const createdAt = nowIso();
@@ -38,8 +40,44 @@ export async function issueMagicLink(
     locale,
     createdAt,
     expiresAt,
+    purpose,
   });
   return { token, expiresAt };
+}
+
+/** Step-up confirmations (D35) cover this long. */
+export const REAUTH_WINDOW_SECONDS = 10 * 60;
+
+/**
+ * Consume a reauth link for the session that asked for it: the link must carry the reauth
+ * purpose and the session's own address. The session gets `reauthed_at = now`; a sign-in link
+ * can never confirm, and a reauth link can never sign in (verifyMagicLink refuses it).
+ */
+export async function verifyReauth(
+  d: Db,
+  token: string,
+  session: { id: string; email: string },
+  now = nowIso(),
+): Promise<{ ok: true; reauthedAt: string; validUntil: string } | { ok: false }> {
+  const tokenHash = hashToken(token);
+  const link = await d.query.magicLinks.findFirst({ where: eq(magicLinks.tokenHash, tokenHash) });
+  if (link?.purpose !== 'reauth' || link.email !== session.email.toLowerCase()) {
+    return { ok: false };
+  }
+  if (link.consumedAt || isPast(link.expiresAt, now)) return { ok: false };
+  const consumed = await d
+    .update(magicLinks)
+    .set({ consumedAt: now })
+    .where(and(eq(magicLinks.tokenHash, tokenHash), isNull(magicLinks.consumedAt)))
+    .returning({ tokenHash: magicLinks.tokenHash });
+  if (consumed.length === 0) return { ok: false };
+  await d.update(sessions).set({ reauthedAt: now }).where(eq(sessions.id, session.id));
+  return { ok: true, reauthedAt: now, validUntil: plusSeconds(now, REAUTH_WINDOW_SECONDS) };
+}
+
+/** True while a session's last confirmation is younger than the window. */
+export function reauthIsFresh(reauthedAt: string | null, now = nowIso()): boolean {
+  return reauthedAt !== null && !isPast(plusSeconds(reauthedAt, REAUTH_WINDOW_SECONDS), now);
 }
 
 export type VerifyResult =
@@ -54,7 +92,7 @@ export async function verifyMagicLink(
 ): Promise<VerifyResult> {
   const tokenHash = hashToken(token);
   const link = await d.query.magicLinks.findFirst({ where: eq(magicLinks.tokenHash, tokenHash) });
-  if (!link) return { ok: false, reason: 'invalid' };
+  if (link?.purpose !== 'signin') return { ok: false, reason: 'invalid' };
   if (link.consumedAt) return { ok: false, reason: 'consumed' };
   const now = nowIso();
   if (isPast(link.expiresAt, now)) return { ok: false, reason: 'expired' };

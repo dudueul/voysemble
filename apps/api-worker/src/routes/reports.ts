@@ -40,14 +40,23 @@ export function mountReportRoutes(app: OpenAPIHono<AppEnv>): void {
     const org = await orgObject(c.env, orgId);
     const trip = await org.getTrip(tripId);
     if (!trip) throw new HTTPException(404, { message: 'Trip not found.' });
-    const [announcements, headcounts, incidents, fees] = await Promise.all([
+    const [announcements, headcounts, incidents, fees, documents] = await Promise.all([
       org.listAnnouncements(tripId, null),
       org.listHeadcounts(tripId),
       org.listIncidents(tripId),
       org.listFees(tripId),
+      org.documentSummary(tripId),
     ]);
     return c.json(
-      buildTripReport({ trip, announcements, headcounts, incidents, fees, now: nowIso() }),
+      buildTripReport({
+        trip,
+        announcements,
+        headcounts,
+        incidents,
+        fees,
+        documents,
+        now: nowIso(),
+      }),
       200,
     );
   });

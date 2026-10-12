@@ -39,3 +39,17 @@ export function organizerInvitationEmail(
   const t = locale === 'ko' ? ko : en;
   return { to, subject: t.subject, text: t.text, locale, tag: 'invite' };
 }
+
+/** Step-up confirmation (D35, slice 045): the signed-in account proves it still holds the mailbox. */
+export function reauthEmail(to: string, locale: 'ko' | 'en', url: string): OutboundEmail {
+  const ko = {
+    subject: 'Voysemble 본인 확인 링크',
+    text: `콘솔에서 보호된 작업을 열려고 합니다. 아래 링크를 15분 안에 열어 본인임을 확인하세요.\n\n${url}\n\n요청하지 않았다면 이 메일을 무시하세요. 아무것도 열리지 않습니다.`,
+  };
+  const en = {
+    subject: 'Confirm it is you on Voysemble',
+    text: `A protected action on the console needs a fresh confirmation. Open this link within 15 minutes.\n\n${url}\n\nIf you did not ask for it, ignore this email; nothing opens without it.`,
+  };
+  const t = locale === 'ko' ? ko : en;
+  return { to, subject: t.subject, text: t.text, locale, tag: 'magic-link' };
+}

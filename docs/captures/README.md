@@ -196,3 +196,10 @@ counts and list. Produced by `apps/organizer-web/e2e/media.spec.ts`. Phones foll
 `ios/memories-guardian-dark.png` (CaptureTests): the leader's view of the sample pool (review queue,
 grid with album chips, "Add photos") and a guardian's album-only view. Produced by
 `MemoriesScreenshotTest` and `CaptureTests.testMemories`.
+
+## Slice 045 (2026-10-12): documents and forms
+
+`web/desktop-1440/preparation-live.png`, `web/laptop-1280/preparation-live.png`: the live Preparation
+page with one requirement opened (Minji collected, Juho's PNG scan revealed under the watermark after
+the step-up confirmation, Hana missing) and the add form. Produced by
+`apps/organizer-web/e2e/preparation.spec.ts`. No phone change (D27: never on a phone).

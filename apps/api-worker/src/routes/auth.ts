@@ -11,6 +11,9 @@ import {
   MagicLinkVerifyRequest,
   MeResponse,
   MyParticipationList,
+  ReauthAccepted,
+  ReauthResponse,
+  ReauthVerifyRequest,
   SessionResponse,
   UpdateMeRequest,
 } from '@voysemble/contracts';
@@ -23,11 +26,12 @@ import {
   MAGIC_LINK_TTL_SECONDS,
   revokeSession,
   verifyMagicLink,
+  verifyReauth,
 } from '../auth/service';
 import { db } from '../db/client';
 import { accounts, memberships, organizations } from '../db/schema';
 import { createEmailPort } from '../email/EmailPort';
-import { magicLinkEmail } from '../email/templates';
+import { magicLinkEmail, reauthEmail } from '../email/templates';
 import type { AppEnv } from '../env';
 import { clientIp, enforceLimits } from '../lib/rate-limit';
 import { orgObject } from '../org/client';
@@ -64,6 +68,46 @@ const verifyRoute = createRoute({
     400: ERROR_RESPONSES[400],
     401: ERROR_RESPONSES[401],
     429: ERROR_RESPONSES[429],
+    500: ERROR_RESPONSES[500],
+  },
+});
+
+const reauthRoute = createRoute({
+  method: 'post',
+  path: '/v1/auth/reauth',
+  tags: ['auth'],
+  summary: 'Email the signed-in account a step-up confirmation link (D35)',
+  description:
+    'Slice 045. The link lands on the console at /auth/reauth and is verified by this same session; a confirmation covers step-up actions (the document scan reveal) for ten minutes. Same per-address limit as a sign-in link.',
+  security: SESSION_SECURITY,
+  responses: {
+    202: {
+      description: 'Sent.',
+      content: { 'application/json': { schema: ReauthAccepted } },
+    },
+    401: ERROR_RESPONSES[401],
+    429: ERROR_RESPONSES[429],
+    500: ERROR_RESPONSES[500],
+  },
+});
+
+const reauthVerifyRoute = createRoute({
+  method: 'post',
+  path: '/v1/auth/reauth/verify',
+  tags: ['auth'],
+  summary: 'Confirm the session with the token from the reauth link',
+  description:
+    "The token must carry the reauth purpose and the session's own address; it works once, for 15 minutes. 404 otherwise. A sign-in link never confirms and a reauth link never signs in.",
+  security: SESSION_SECURITY,
+  request: { body: { content: { 'application/json': { schema: ReauthVerifyRequest } } } },
+  responses: {
+    200: {
+      description: 'Confirmed; step-up actions work until validUntil.',
+      content: { 'application/json': { schema: ReauthResponse } },
+    },
+    400: ERROR_RESPONSES[400],
+    401: ERROR_RESPONSES[401],
+    404: ERROR_RESPONSES[404],
     500: ERROR_RESPONSES[500],
   },
 });
@@ -200,6 +244,24 @@ export function mountAuthRoutes(app: OpenAPIHono<AppEnv>): void {
       });
     }
     return c.json(body, 200);
+  });
+
+  app.openapi(reauthRoute, async (c) => {
+    const auth = requireAuth(c);
+    await enforceLimits(c, [{ scope: 'magicLinkEmail', subject: auth.email, hash: true }]);
+    const { token } = await issueMagicLink(db(c.env.DB), auth.email, auth.locale, 'reauth');
+    const url = `${new URL(c.req.url).origin}/auth/reauth#token=${token}`;
+    await createEmailPort(c.env).send(reauthEmail(auth.email, auth.locale, url));
+    return c.json({ accepted: true as const, expiresInSeconds: MAGIC_LINK_TTL_SECONDS }, 202);
+  });
+
+  app.openapi(reauthVerifyRoute, async (c) => {
+    const auth = requireAuth(c);
+    const { token } = c.req.valid('json');
+    const r = await verifyReauth(db(c.env.DB), token, { id: auth.sessionId, email: auth.email });
+    if (!r.ok)
+      throw new HTTPException(404, { message: 'This confirmation link is not valid any more.' });
+    return c.json({ reauthedAt: r.reauthedAt, validUntil: r.validUntil }, 200);
   });
 
   app.openapi(logoutRoute, async (c) => {

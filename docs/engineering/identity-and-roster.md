@@ -339,6 +339,12 @@ success and kept for the next account on a wrong-address refusal.
 - Browser (`invitations.spec.ts`): the whole flow across two browser contexts, with the captures
   above; the revoked link's invitee is told the link is dead after signing in.
 
+## Step-up reauthentication (slice 045, D35)
+
+`POST /v1/auth/reauth` and `POST /v1/auth/reauth/verify`, `magic_links.purpose`,
+`sessions.reauthed_at`, `requireRecentReauth` and the `REAUTH_REQUIRED` code: see
+`docs/engineering/documents.md` ("Step-up reauthentication").
+
 ## Open items
 
 - Deep links from timeline entries; CSV export of the roster. Care notes: `docs/engineering/care-notes.md` (slice 030). Device revocation: `docs/engineering/device-revocation.md` (slice 031).
