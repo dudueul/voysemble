@@ -7,6 +7,7 @@
 
 package com.voysemble.core.session
 
+import com.voysemble.core.notifications.PushRegistrar
 import com.voysemble.core.offline.OfflinePack
 import com.voysemble.core.api.ApiClient
 import com.voysemble.core.api.ApiResult
@@ -169,8 +170,9 @@ public class SessionManager(
     public fun revokedNotice(): Boolean = store.get(KEY_REVOKED_NOTICE) == "1"
 
     private fun clear() {
-        // Slice 087: the offline pack (the last itinerary) goes with the session (D28).
-        listOf(KEY_TOKEN, KEY_ACCOUNT, KEY_AWAITING, KEY_ORG, KEY_ORG_NAME, KEY_TRIP, KEY_TRIP_NAME, KEY_PARTICIPATION, KEY_ROLE, OfflinePack.KEY)
+        // Slice 087: the offline pack (the last itinerary) goes with the session (D28); slice 088:
+        // so does the remembered push token, so the next sign-in registers the device afresh.
+        listOf(KEY_TOKEN, KEY_ACCOUNT, KEY_AWAITING, KEY_ORG, KEY_ORG_NAME, KEY_TRIP, KEY_TRIP_NAME, KEY_PARTICIPATION, KEY_ROLE, OfflinePack.KEY, PushRegistrar.KEY)
             .forEach { store.put(it, null) }
     }
 

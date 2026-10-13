@@ -30,6 +30,7 @@ import { mountNotificationRoutes } from './routes/notifications';
 import { mountOrganizationRoutes } from './routes/organizations';
 import { mountPackingRoutes } from './routes/packing';
 import { mountPeopleRoutes } from './routes/people';
+import { mountPushRoutes } from './routes/push';
 import { mountReportRoutes } from './routes/reports';
 import { mountRosterRoutes } from './routes/roster';
 import { mountTravelRoutes } from './routes/travel';
@@ -143,6 +144,7 @@ export function createApp(): OpenAPIHono<AppEnv> {
 
   app.openapi(healthRoute, healthHandler);
   mountAuthRoutes(app);
+  mountPushRoutes(app);
   mountOrganizationRoutes(app);
   mountInvitationRoutes(app);
   mountTripRoutes(app);

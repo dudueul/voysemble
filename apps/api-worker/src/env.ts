@@ -27,6 +27,18 @@ export type Bindings = Env & {
    * and reads answer 503.
    */
   MEDIA_KEY?: string;
+  /**
+   * Push (D29, slice 088), per named environment with `wrangler secret put`
+   * (`docs/runbooks/apple.md` §3, `google.md` §3). APNS_KEY is the .p8 file's PEM text,
+   * APNS_KEY_ID its 10-character id, APNS_TEAM_ID the team; APNS_TOPIC defaults to the bundle id
+   * `com.voysemble.app`. FCM_SERVICE_ACCOUNT is the Firebase service account JSON. Missing keys
+   * leave that platform's pushes unconfigured: rows are marked, nothing is sent.
+   */
+  APNS_KEY?: string;
+  APNS_KEY_ID?: string;
+  APNS_TEAM_ID?: string;
+  APNS_TOPIC?: string;
+  FCM_SERVICE_ACCOUNT?: string;
 };
 
 /** Who is calling, resolved from the session by auth/middleware.ts. */

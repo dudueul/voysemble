@@ -29,7 +29,7 @@ import {
   verifyReauth,
 } from '../auth/service';
 import { db } from '../db/client';
-import { accounts, memberships, organizations } from '../db/schema';
+import { accounts, memberships, organizations, pushDevices } from '../db/schema';
 import { createEmailPort } from '../email/EmailPort';
 import { magicLinkEmail, reauthEmail } from '../email/templates';
 import type { AppEnv } from '../env';
@@ -270,6 +270,8 @@ export function mountAuthRoutes(app: OpenAPIHono<AppEnv>): void {
   app.openapi(logoutRoute, async (c) => {
     const auth = requireAuth(c);
     await revokeSession(db(c.env.DB), auth.sessionId);
+    // Slice 088: a signed-out phone gets no more pushes.
+    await db(c.env.DB).delete(pushDevices).where(eq(pushDevices.sessionId, auth.sessionId));
     deleteCookie(c, SESSION_COOKIE, { path: '/' });
     return c.json({ loggedOut: true as const }, 200);
   });

@@ -1,6 +1,6 @@
 {
   "$comment": "working = verified backend integration + tests; simulated = deterministic fixture with UI label; deferred = designed, not presented as available. Update in the same commit as the feature. Behavioural rules per feature: docs/decisions/ADR-0009-roles-visibility-offline-semantics.md.",
-  "updatedAt": "2026-10-12",
+  "updatedAt": "2026-10-13",
   "features": {
     "api.health": "working",
     "api.openapi": "working",
@@ -79,6 +79,7 @@
     "devices.revoke-wipe": "working",
     "notifications.lanes": "working",
     "notifications.push": "deferred",
+    "notifications.push-server": "working",
     "notifications.digest-email": "working",
     "auth.magic-link": "working",
     "auth.sessions": "working",

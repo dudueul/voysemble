@@ -53,9 +53,20 @@ One token-based key works for development and production APNs and for every app 
 Store the `.p8` in the password manager; if it leaks, revoke the key in the portal and create a
 new one (push stops until the new one is set).
 
-Engineering's push slice reads these three names, sends to the sandbox APNs host for TestFlight
-builds and the production host for App Store builds, and maps the lanes of D29 to APNs priority
-(priority lane: immediate, time-sensitive; normal: default; digest: email only).
+The API reads these three names (slice 088, `docs/engineering/notifications.md`), sends to the
+sandbox APNs host for debug builds run from Xcode and the production host for TestFlight and App
+Store builds (TestFlight uses production APNs), and maps the lanes of D29 to APNs priority
+(priority lane: immediate, time-sensitive; normal: default; digest: email only). The topic is the
+bundle id, `com.voysemble.app`; set `APNS_TOPIC` the same way only if the bundle id ever changes.
+Without the three secrets the API still runs and marks pushes to iPhones `unconfigured`.
+
+Verify (first staging send): with a TestFlight build signed in, open a head count on the console;
+the phone shows "Head count: …" within a minute. If it does not, the API's log line for the push
+run counts `failed`: tell engineering (APNs speaks HTTP/2 only; see `notifications.md`).
+
+The priority lane's time-sensitive alerts need the **Time Sensitive Notifications** capability on
+the App ID next to Push Notifications (Identifiers → `com.voysemble.app`); without it iOS delivers
+them as ordinary alerts.
 
 ## 4. TestFlight for the pilot phones
 

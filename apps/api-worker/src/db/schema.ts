@@ -139,3 +139,26 @@ export const inviteCodes = sqliteTable(
   },
   (t) => [index('invite_codes_participation_idx').on(t.participationId)],
 );
+
+/** Slice 088 (D29): one push token per signed-in phone session (migration 0008). */
+export const pushDevices = sqliteTable(
+  'push_devices',
+  {
+    id: text('id').primaryKey(),
+    accountId: text('account_id')
+      .notNull()
+      .references(() => accounts.id),
+    sessionId: text('session_id')
+      .notNull()
+      .references(() => sessions.id),
+    platform: text('platform', { enum: ['ios', 'android'] }).notNull(),
+    token: text('token').notNull().unique(),
+    apnsEnvironment: text('apns_environment', { enum: ['sandbox', 'production'] }),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (t) => [
+    index('push_devices_account_idx').on(t.accountId),
+    index('push_devices_session_idx').on(t.sessionId),
+  ],
+);

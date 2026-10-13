@@ -613,7 +613,33 @@ const MIGRATIONS: { version: number; sql: string }[] = [
       ALTER TABLE chat_messages ADD COLUMN removed_by_name TEXT;
     `,
   },
+  {
+    // Push (D29; slice 088): when the push run took a priority or normal row and what came of it
+    // ('sent', 'no-device', 'stale', 'failed', 'unconfigured'). Rows written before push existed
+    // are marked as taken so the first run does not replay history.
+    version: 24,
+    sql: `
+      ALTER TABLE notifications ADD COLUMN pushed_at TEXT;
+      ALTER TABLE notifications ADD COLUMN push_outcome TEXT;
+      UPDATE notifications SET pushed_at = created_at, push_outcome = 'before-push';
+      CREATE INDEX IF NOT EXISTS notifications_push_idx ON notifications(pushed_at, deliver_at);
+    `,
+  },
 ];
+
+/** A notification row a push run may deliver (slice 088). */
+export type DuePush = {
+  id: string;
+  tripId: string;
+  accountId: string | null;
+  lane: 'priority' | 'normal';
+  kind: string;
+  title: string;
+  body: string;
+  refType: string;
+  refId: string;
+  deliverAt: string;
+};
 
 type ChatMessageRow = {
   id: string;
@@ -5128,6 +5154,54 @@ export class OrgDurableObject extends DurableObject<Env> {
       for (const id of ids) {
         changed += sql.exec(
           'UPDATE notifications SET digested_at = ?, digest_outcome = ? WHERE id = ? AND digested_at IS NULL',
+          now,
+          outcome,
+          id,
+        ).rowsWritten;
+      }
+    });
+    return changed;
+  }
+
+  /**
+   * Slice 088 (D29): the priority and normal rows due by `now` that no push run has taken, with
+   * the recipient's account (null before they joined). Digest rows go by email, never by push.
+   */
+  async duePushes(now: string, limit = 500): Promise<DuePush[]> {
+    this.requireOrg();
+    return this.ctx.storage.sql
+      .exec<NotificationRow & { account_id: string | null }>(
+        `SELECT n.*, p.account_id FROM notifications n
+         JOIN participations p ON p.id = n.participation_id
+         WHERE n.lane IN ('priority', 'normal') AND n.pushed_at IS NULL AND n.deliver_at <= ?
+         ORDER BY n.deliver_at, n.id LIMIT ?`,
+        now,
+        limit,
+      )
+      .toArray()
+      .map((r) => ({
+        id: r.id,
+        tripId: r.trip_id,
+        accountId: r.account_id,
+        lane: r.lane as 'priority' | 'normal',
+        kind: r.kind,
+        title: r.title,
+        body: r.body,
+        refType: r.ref_type,
+        refId: r.ref_id,
+        deliverAt: r.deliver_at,
+      }));
+  }
+
+  /** Marks rows as taken by the push run at `now` with their outcome; returns how many changed. */
+  async markPushed(ids: string[], now: string, outcome: string): Promise<number> {
+    this.requireOrg();
+    let changed = 0;
+    const sql = this.ctx.storage.sql;
+    this.ctx.storage.transactionSync(() => {
+      for (const id of ids) {
+        changed += sql.exec(
+          'UPDATE notifications SET pushed_at = ?, push_outcome = ? WHERE id = ? AND pushed_at IS NULL',
           now,
           outcome,
           id,

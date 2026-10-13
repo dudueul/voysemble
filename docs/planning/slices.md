@@ -2192,3 +2192,27 @@ Built:
 - Docs: `offline-pack.md`; runbooks README; feature flag `sync.offline` working.
 
 Not done: packing the bulletin, the packing list and the inbox; a pack per trip.
+
+## Slice 088: push behind a port
+
+Status: done 2026-10-13. Commit: see git log (`feat(api): push the priority and normal lanes to registered phones through APNs and FCM behind a port (slice 088)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D29 (lanes), D28 (a wipe stops everything). Details: `docs/engineering/notifications.md` (Push).
+
+| Gate | Command | Result |
+|---|---|---|
+| Worker tests | `cd apps/api-worker && pnpm test` | 42 files, 121 tests pass (`push.test.ts` 2, `push-adapters.test.ts` 2 new) |
+| Core JVM tests | `./gradlew :core:jvmTest` (CI `mobile` job) | `PushRegistrarTest` (4) |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+Gradle does not run in this workspace; the CI `mobile` job verifies the Kotlin, desk-checked here.
+
+Built:
+- Contracts: `PushPlatform`, `RegisterPushDeviceRequest`, `PushDevice`, `PushDeviceRemoved`.
+- D1 `push_devices` (migration `0008`); `PUT` and `DELETE /v1/me/push-device`; logout deletes the session's device.
+- Organization object schema 24: `pushed_at`, `push_outcome` on notifications (old rows `before-push`); `duePushes`, `markPushed`.
+- `lib/push.ts` `runPushes`: live devices only (not revoked, not expired), six-hour staleness, dead tokens forgotten, outcome counts; the cron and `pushNow` after every write of rows.
+- `push/`: `PushPort` with the fixture (KV), unconfigured, routing; `ApnsPushPort` (ES256 provider token, sandbox or production, priority 10 time-sensitive or 5); `FcmPushPort` (RS256 assertion, cached access token, HTTP v1, the lane's channel); `jwt.ts` on WebCrypto. Secrets optional in `env.ts`.
+- Core: `api/Push.kt`, `ApiClient.registerPushDevice` and `unregisterPushDevice`, `notifications/PushRegistrar.kt`; `SessionManager.clear()` forgets `push.token`.
+- Docs: `notifications.md`; runbooks `apple.md` (environments, Time Sensitive capability, the first-send check) and `google.md`; feature flag `notifications.push-server` working (`notifications.push` stays deferred until the apps register).
+
+Not done: the apps' registration and tap handling (need `google-services.json` and the Apple push capability); APNs over the Workers runtime confirmed on staging; a per-person push switch.

@@ -513,6 +513,21 @@ public class ApiClient(
             }
         }
 
+    /** PUT /v1/me/push-device (slice 088): this session's APNs or FCM token. */
+    public suspend fun registerPushDevice(body: RegisterPushDeviceRequestDto): ApiResult<PushDeviceDto> =
+        call(null) {
+            http.put {
+                url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "me", "push-device") }
+                common(null)
+                contentType(ContentType.Application.Json)
+                setBody(body)
+            }
+        }
+
+    /** DELETE /v1/me/push-device: notifications turned off on this phone. */
+    public suspend fun unregisterPushDevice(): ApiResult<PushDeviceRemovedDto> =
+        call(null) { http.delete { url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "me", "push-device") }; common(null) } }
+
     public suspend fun logout(): ApiResult<LogoutResponseDto> =
         call(null) { http.post { url { protocol = URLProtocol.HTTPS; host = config.host; path("v1", "auth", "logout") }; common(null) } }
 

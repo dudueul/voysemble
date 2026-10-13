@@ -46,8 +46,10 @@ pnpm exec wrangler secret put FCM_SERVICE_ACCOUNT --env staging   # paste the JS
 ```
 
 The Android app already creates one notification channel per lane at launch (high, default,
-low; D29, slice 053); the push slice registers the device token and the server sends with the
-HTTP v1 API using this service account.
+low; D29, slice 053). The API sends with the HTTP v1 API using this service account (slice 088,
+`docs/engineering/notifications.md`); the project id comes from the JSON. Without the secret the
+API still runs and marks pushes to Android phones `unconfigured`. The app's registration lands
+once `google-services.json` is in engineering's hands.
 
 Rollback: delete the key in Service accounts (push stops) and generate a new one.
 

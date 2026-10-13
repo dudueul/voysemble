@@ -9,6 +9,7 @@ import { createApp } from './app';
 import { runDigests } from './lib/digest';
 import { runDocumentReminders } from './lib/document-reminders';
 import { runPackingReminders } from './lib/packing-reminders';
+import { runPushes } from './lib/push';
 
 export { RateLimitDurableObject } from './lib/RateLimitDurableObject';
 export { OrgDurableObject } from './org/OrgDurableObject';
@@ -46,6 +47,14 @@ export default {
             run: 'documents',
             ...run,
           }),
+        ),
+      ),
+    );
+    // Slice 088 (D29): rows quiet hours held, and anything a route's own push missed.
+    ctx.waitUntil(
+      runPushes(env, now).then((run) =>
+        console.log(
+          JSON.stringify({ level: 'info', cron: controller.cron, at: now, run: 'push', ...run }),
         ),
       ),
     );

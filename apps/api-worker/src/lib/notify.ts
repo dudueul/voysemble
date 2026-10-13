@@ -10,6 +10,7 @@ import { db } from '../db/client';
 import { organizations } from '../db/schema';
 import type { OrgDurableObject } from '../org/OrgDurableObject';
 import type { AudienceRole, LaneFlags, NotificationKind } from './notification-rules';
+import { runPushes } from './push';
 import { nowIso } from './time';
 
 export type NotifyInput = {
@@ -60,6 +61,18 @@ export async function notifyTrip(
     });
   } catch (e) {
     console.error('notify failed', input.kind, input.refId, e instanceof Error ? e.message : e);
+    return;
+  }
+  // Slice 088: what is due now goes to the phones at once; the cron takes what quiet hours held.
+  await pushNow(env, orgId);
+}
+
+/** Runs the push run for one organization; never throws into the route. */
+async function pushNow(env: Env, orgId: string): Promise<void> {
+  try {
+    await runPushes(env, nowIso(), { orgId });
+  } catch (e) {
+    console.error('push failed', orgId, e instanceof Error ? e.message : e);
   }
 }
 
@@ -99,7 +112,9 @@ export async function notifyTripRows(
       quietHours: { from: settings?.quietFrom ?? '23:00', to: settings?.quietTo ?? '06:30' },
       digestAt: settings?.digestAt ?? '19:00',
     });
-    return 'notFound' in r ? null : r;
+    if ('notFound' in r) return null;
+    await pushNow(env, orgId);
+    return r;
   } catch (e) {
     console.error(
       'notify rows failed',

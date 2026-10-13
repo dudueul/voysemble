@@ -79,3 +79,33 @@ export const NotificationLog = z
   .object({ events: z.array(NotificationEvent) })
   .openapi('NotificationLog');
 export type NotificationLog = z.infer<typeof NotificationLog>;
+
+/* ---------- Push devices (D29, slice 088) ---------- */
+
+export const PushPlatform = z.enum(['ios', 'android']).openapi('PushPlatform');
+export type PushPlatform = z.infer<typeof PushPlatform>;
+
+/**
+ * `PUT /v1/me/push-device`: this session's push token (an APNs device token or an FCM
+ * registration token). One device per session; a token moves to the session that registers it
+ * last. `apnsEnvironment` is `sandbox` for development and TestFlight builds signed for the
+ * sandbox, `production` otherwise; ignored for Android.
+ */
+export const RegisterPushDeviceRequest = z
+  .object({
+    platform: PushPlatform,
+    token: z.string().trim().min(8).max(4096),
+    apnsEnvironment: z.enum(['sandbox', 'production']).nullable().optional(),
+  })
+  .openapi('RegisterPushDeviceRequest');
+export type RegisterPushDeviceRequest = z.infer<typeof RegisterPushDeviceRequest>;
+
+export const PushDevice = z
+  .object({ platform: PushPlatform, registeredAt: Timestamp })
+  .openapi('PushDevice');
+export type PushDevice = z.infer<typeof PushDevice>;
+
+export const PushDeviceRemoved = z
+  .object({ removed: z.number().int() })
+  .openapi('PushDeviceRemoved');
+export type PushDeviceRemoved = z.infer<typeof PushDeviceRemoved>;

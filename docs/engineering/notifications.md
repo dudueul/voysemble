@@ -2,9 +2,10 @@
 
 Every event people on a trip should hear about becomes one notification per recipient, in one of
 three lanes, with a delivery time the lane decides. The server owns the rules; the phones read
-their inbox (slice 053); the console reads the log of what went out. Push delivery through the
-stores is not set up (`notifications.push` deferred): today a phone sees its inbox when the app
-opens.
+their inbox (slice 053); the console reads the log of what went out. Since slice 088 the server
+pushes the priority and normal lanes to registered phones through APNs and FCM (below); the apps
+start registering their tokens once the store accounts exist (`notifications.push` stays deferred
+until then: today a phone sees its inbox when the app opens).
 
 ## Lanes (`lib/notification-rules.ts`, pure)
 
@@ -84,7 +85,76 @@ Android creates the three lane channels at launch (`ui/NotificationChannels.kt`:
 high, `lane.normal` default, `lane.digest` low; names and descriptions in the app's language), so
 the phone's settings show them before the first push and a later push can name its channel. The
 app never asks to bypass the device's Do Not Disturb: "through quiet hours" is the product's rule
-on the server. Push delivery itself still waits for the store setup.
+on the server. Push delivery is the next section; the phone's registration waits for the store setup.
+
+## Push (slice 088)
+
+The notification rows are the push queue too; there is no second store to drift from.
+
+**Devices.** `PUT /v1/me/push-device` `{platform: ios|android, token, apnsEnvironment?}` registers
+the signed-in session's token (D1 `push_devices`: account, session, platform, token unique, APNs
+environment; migration `0008_push_devices.sql`). One device per session: a new token replaces the
+session's earlier one, and a token another session held moves here (a reinstall, a second
+sign-in). `DELETE /v1/me/push-device` removes it (notifications turned off). Logout deletes the
+session's device; a revoked or expired session's device is never pushed to, so a remote wipe
+(D28) stops push at once even before the phone hears about it. iOS sends `sandbox` for debug
+builds and `production` for TestFlight and the App Store (TestFlight uses the production APNs
+host); Android sends none.
+
+**The run** (`lib/push.ts` `runPushes(env, now, {port?, orgId?})`). For every active
+organization, the organization object's `duePushes(now)` (schema 24: priority and normal rows with
+`deliver_at <= now` and no `pushed_at`, with the recipient's account), every live device of each
+recipient, one message per device, then `markPushed(ids, now, outcome)`:
+
+| Outcome | When |
+|---|---|
+| `sent` | at least one device accepted it |
+| `no-device` | the recipient has no live device (never joined, signed out, notifications off) |
+| `stale` | the row is more than six hours late (`STALE_AFTER_MS`): this morning's head count call is noise tonight |
+| `failed` | every device failed (APNs or FCM answered an error, or the network did) |
+| `unconfigured` | the platform has no keys in this environment |
+| `before-push` | rows written before schema 24, never pushed |
+
+A device the service calls dead (APNs 410 or `BadDeviceToken`; FCM 404 or `UNREGISTERED`) is
+deleted. A failed row is not retried: the inbox still has it, and a retry storm on a provider
+outage would arrive as a burst hours late. The digest lane is never pushed (email only). The cron
+runs it every ten minutes after the digest; `notifyTrip` and `notifyTripRows` run it at once for
+their own organization after writing rows (`pushNow`, never throws), so a head count call
+reaches the phones in seconds and the normal rows held by quiet hours go on the first cron run
+after they end. The run logs one line of counts and never a token.
+
+**The ports** (`push/PushPort.ts`). `createPushPort(env)`: the fixture where `DEV_MAILBOX` is bound
+(local and tests: each message lands in the KV under `push:<token>:…`; a token starting `dead-`
+answers invalid and `fail-` failed); otherwise iOS to `ApnsPushPort` and Android to `FcmPushPort`,
+each `UnconfiguredPushPort` while its secrets are absent, so an environment without keys runs and
+marks rows `unconfigured` instead of failing.
+
+- APNs (`push/apns.ts`): a provider token (ES256 JWT over `APNS_KEY_ID` and `APNS_TEAM_ID`, signed
+  with `APNS_KEY` by WebCrypto, `push/jwt.ts`) cached for fifty minutes; `fetch` to
+  `api.sandbox.push.apple.com` or `api.push.apple.com` by the device's environment (APNs speaks
+  HTTP/2 only and the Workers runtime picks the protocol, which is not yet confirmed against
+  Apple: the first staging send is the check; a failure there shows as `failed` rows and the
+  fallback is a small relay); topic
+  `APNS_TOPIC` (default `com.voysemble.app`); priority lane `apns-priority: 10` with
+  `interruption-level: time-sensitive`, normal lane `5` and `active`.
+- FCM (`push/fcm.ts`): an RS256 assertion from `FCM_SERVICE_ACCOUNT` exchanged at Google's token
+  endpoint for an access token (cached until a minute before it expires); HTTP v1
+  `projects/<project_id>/messages:send`; Android channel `lane.priority` with priority HIGH or
+  `lane.normal` with NORMAL (the channels Android already creates).
+
+Every message carries the title and short body and, as data, the row's id, trip, kind, lane and
+reference, so the app can open its target (`InboxItem.target`) when the person taps it. Nothing
+else: no care notes, no location, no token.
+
+**The phone** (core `notifications/PushRegistrar.kt`). The platform hands over the token its
+push service gave it; `register(platform, token, apnsEnvironment)` sends it once and remembers it
+in the secure store (`push.token`), so an unchanged token on the next launch costs no call; a new
+token registers again; a failure remembers nothing so the next launch retries; signed out it
+sends nothing. `unregister()` removes it. `SessionManager.clear()` forgets the remembered token
+with the session (sign-out and wipe), so the next sign-in registers afresh. The Android and iOS
+apps call it once the store accounts exist: Android needs the Firebase project's
+`google-services.json` and the Firebase messaging library, iOS the Push Notifications capability
+in a provisioning profile (`docs/runbooks/apple.md`, `google.md`).
 
 ## The guardian digest email (slice 054)
 
@@ -127,6 +197,19 @@ out of every incident email, and the lanes to leaders and guardians are unaffect
 
 ## Facts established by tests
 
+- Slice 088 (`push.test.ts`, `push-adapters.test.ts`): one token per session (a second replaces
+  the first; anonymous 401; a bad body 400) and its removal; a head count call reaches Minji's
+  Android phone and Kim's iPhone (sandbox) at once in the priority lane through the fixture, with
+  the title and the reference; Sora's dead token is forgotten when the incident's push answers
+  invalid; a normal-lane announcement held by quiet hours goes on a later run; a row
+  six hours late is marked stale and not sent; without keys rows are marked unconfigured and
+  nothing is sent; logout removes the session's device. APNs: the provider token's ES256
+  signature verifies with the public key, is reused within its life, the sandbox and production
+  hosts and both priorities, 410 is a dead token. FCM: the RS256 assertion verifies, the access
+  token is fetched once, the v1 send names the lane's channel, `UNREGISTERED` is a dead token.
+  Core (`PushRegistrarTest`): register once, again only for a new token, iOS carries its
+  environment and Android none, a failure remembers nothing, signed out sends nothing, off
+  removes, sign-out forgets.
 - Slice 078 (`incidents.test.ts`): the close that leaves Juho missing mails the owner once (tag
   `incident`, English, "<trip>: head count closed with 1 missing · Juho Kim", the leader and the
   count, the card's title, the Safety link); the replay of the session and the clean close add
@@ -167,8 +250,9 @@ out of every incident email, and the lanes to leaders and guardians are unaffect
 
 ## Not done
 
-Push delivery (FCM and APNs: a token per device, the Android channels are there, an opaque event
-id per push); opening the exact announcement or incident rather than its tab or screen (the
+The apps' push registration and tap handling (waits for the Firebase project and the Apple push
+capability; the server and core are done, slice 088); APNs over the Workers runtime confirmed on
+staging (above); a per-person switch for push; opening the exact announcement or incident rather than its tab or screen (the
 reference is there; the screens open on their own first item); the production email transport (the digest goes
 through the same `EmailPort` as the sign-in link, which named environments do not bind yet);
 chat mentions; the organizer's mobile digest.
