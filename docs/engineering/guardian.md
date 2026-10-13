@@ -78,6 +78,9 @@ renders `GuardianStatusCard` instead of the head count card; iOS `TodayModel` an
 
 ## Not done
 
-Guardian-filtered Bulletin on the phones (the server already filters shared announcements by
-participation), the approved photo album (D18), the fee balance (D23), the daily digest push
-(D29), a guardian tab on the console's person card.
+The daily digest as a push (D29; it goes by email since slice 054, push waits for the store
+setup); a guardian tab on the console's person card. Done since: the Bulletin tab on a
+guardian's phone reads the server's guardian filter (shared announcements only); the approved
+photo album (slice 044, `media.md`, `memories-guardian-dark.png`); the fee balance on the card
+(D23, `fees.md`); the care note entry (slice 032, `care-notes.md`); the help request and the
+hand-opened card on the card (slice 080, above).

@@ -96,4 +96,4 @@ read only while the screen is on and the switch is on.
 ## Not done
 
 A window per itinerary event (one tap from "Meeting point" on Today); push to travelers when a
-window opens; Korean strings on the phones.
+window opens. Done since: Korean strings on the phones (slice 039).

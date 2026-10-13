@@ -47,5 +47,6 @@ header and symbols excepted).
 
 ## Not done
 
-Korean public-site parity for new sections; locale-aware dates (the console shows ISO dates and the
-trip's clock as before). Korean on the phones: slice 039, `mobile-i18n.md`.
+Locale-aware dates (the console shows ISO dates and the trip's clock as before). Done since: the
+public site's Korean parity (one structure for both languages, enforced by `render.test.ts`,
+slices 072 and 077, `public-web.md`); Korean on the phones (slice 039, `mobile-i18n.md`).

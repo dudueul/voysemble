@@ -378,6 +378,6 @@ success and kept for the next account on a wrong-address refusal.
 
 ## Open items
 
-- Deep links from timeline entries; CSV export of the roster. Care notes: `docs/engineering/care-notes.md` (slice 030). Device revocation: `docs/engineering/device-revocation.md` (slice 031).
+- Deep links from timeline entries. Done since: the roster's CSV export (slice 071, above). Care notes: `docs/engineering/care-notes.md` (slice 030). Device revocation: `docs/engineering/device-revocation.md` (slice 031).
 - Invite email delivery (guardian contact); organizer invitations are slice 042 (above).
-- Organizer-facing web screens for onboarding checklist (D26) are slice 007 candidates.
+- Done since: the console's onboarding checklist (D26, slice 007, `onboarding.first-run`).

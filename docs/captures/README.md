@@ -20,6 +20,41 @@ conflicts. Since slice 022 (D31) the CI `captures` job commits every job's PNGs 
 every client after each green push to `next`. Android and iOS captures therefore appear here one CI run
 after the slice that added them.
 
+## Phone screens and their captures (index, slice 083)
+
+Every screen and sheet the phone apps have, the states captured, and the file on each platform.
+Each listed file is produced by CI on every green push. Since slice 083 the two platforms
+capture the same states; the one naming difference is the open incidents list
+(`incidents-open` on Android, `incidents-light` on iOS).
+
+| Screen | State | Android | iOS |
+|---|---|---|---|
+| Sign-in | email form | `sign-in` | `sign-in` |
+| Sign-in | link sent, waiting (dark) | `sign-in-awaiting-dark` | `sign-in-awaiting-dark` |
+| Sign-in | after the organizer revoked the phone | `sign-in-revoked` | `sign-in-revoked` |
+| Invite | code entry | `invite` | `invite` |
+| Today | traveler / leader sample, light and dark | `today-light`, `today-dark` | `today-light`, `today-dark` |
+| Today | Korean | `today-ko` | `today-ko` |
+| Today | offline, acknowledgment queued | `today-offline-pending` | `today-offline-pending` |
+| Today | trip switch sheet | `today-trip-switch` | `today-trip-switch` |
+| Today | your room tonight | `today-room` | `today-room` |
+| Today | need help: sent, answered, before any request; the form | `today-help`, `today-help-form` | `today-help`, `today-help-form` |
+| Today | guardian: status, care note entry, help request open | `today-guardian`, `today-guardian-care`, `today-guardian-help` | the same three |
+| Plan | a day, Korean, an arrival booking, propose a change (dark) | `plan-day`, `plan-day-ko`, `plan-arrival`, `plan-propose-dark` | the same four |
+| Rooming list | light, dark | `rooming-light`, `rooming-dark` | the same two |
+| Head count | open, closed (dark), care note revealed | `headcount-open`, `headcount-closed-dark`, `headcount-care` | the same three |
+| Meeting window | open, sharing (dark), none, open form | `window-open`, `window-sharing-dark`, `window-none`, `window-open-form` | the same four |
+| Bulletin | list with a revision, offline with a queued acknowledgment | `bulletin-light`, `bulletin-offline-queued` | the same two |
+| Incidents | open list, answer pending (dark), a help request, the new card form | `incidents-open`, `incidents-pending-dark`, `incidents-help`, `incidents-new` | `incidents-light`, `incidents-pending-dark`, `incidents-help`, `incidents-new` |
+| Chats | channel list, a thread (dark) | `chats-list`, `chats-thread-dark` | the same two |
+| Memories | the pool and review queue, the guardian album (dark) | `memories-light`, `memories-guardian-dark` | the same two |
+| Packing | the list, the guardian's view (dark) | `packing-light`, `packing-guardian-dark` | the same two |
+| Inbox | unread rows, all read (dark) | `inbox-light`, `inbox-all-read-dark` | the same two |
+
+Not captured because not built yet: a full-screen photo viewer, a leader's per-traveler packing
+view, a meeting window from an itinerary event, the live head count card on Today, the Korean
+variant of screens other than Today and Plan (the strings exist; the captures stop at two).
+
 ## Slice 007 (2026-10-11): sign-in and setup checklist on the real API
 
 `web/<project>/sign-in.png`, `web/<project>/setup-1-org.png` … `setup-4-invites.png`. Produced by

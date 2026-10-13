@@ -69,4 +69,5 @@ Evidence: `web/<project>/people-revoke.png`.
 ## Not done
 
 Reauth before the action; push token and local database clearing (nothing to clear yet); a
-guardian's own "I lost my phone" path (they ask the organizer); Korean strings.
+guardian's own "I lost my phone" path (they ask the organizer). Done since: Korean strings on
+the console (slice 038) and the phones (slice 039).

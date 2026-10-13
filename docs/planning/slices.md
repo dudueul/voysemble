@@ -2106,3 +2106,19 @@ Built:
 - Docs: `incidents.md`; captures README; ledger 078 and 079 (CI records) and 082; feature flag `mobile.help-answered`.
 
 Not done: the leader's answer status in words on the traveler's card ("with the group" reads odd to the person it is about); a reply from the traveler on the card (the chat channel with their leaders is the way).
+
+## Slice 083: iOS capture parity and the docs brought up to date
+
+Status: done 2026-10-13. Commit: see git log (`docs: the phone screen index, iOS capture parity, and the not-done lists brought up to date (slice 083)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D31 (every screen captured on each device). Details: `docs/captures/README.md` (Phone screens and their captures).
+
+| Gate | Command | Result |
+|---|---|---|
+| iOS captures | `xcodebuild test` (CI `ios` job) | `CaptureTests` gains `today-offline-pending`, `bulletin-offline-queued`, `incidents-pending-dark`, `sign-in-awaiting-dark` |
+| Lint + headers | `pnpm lint`, `pnpm check:headers` | clean |
+
+Built:
+- iOS: the four states Android captured and iOS did not (offline Today with a queued acknowledgment, the offline Bulletin, an incident answer pending in dark mode, the sign-in screen waiting for the link in dark mode), from the existing models.
+- Docs: the captures README's phone screen index (every screen, state and file on both platforms, and what is not built); the not-done lists of `care-notes`, `command-center-live`, `console-i18n`, `device-revocation`, `guardian`, `headcounts`, `ios-live`, `meeting-windows`, `reports`, `travel` and `identity-and-roster` lose the items built since and say where they landed.
+
+Not done: the screens listed as not built in the index.

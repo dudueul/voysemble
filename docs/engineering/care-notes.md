@@ -91,5 +91,6 @@ after the save. Evidence: `android/today-guardian-care.png`, `ios/today-guardian
 ## Not done
 
 Guardian entry during invite redemption (the Today card covers it right after joining); edit
-notifications to the organizer; documents (passport and consent scans, tier 3, web only); reveal
-from the person card's timeline entries; Korean strings.
+notifications to the organizer; reveal from the person card's timeline entries. Done since:
+documents and their sealed scans (slice 045, `documents.md`); Korean strings on the console
+(slice 038) and the phones (slice 039).

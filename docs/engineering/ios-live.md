@@ -56,5 +56,6 @@ time in a zone and the ISO → local HH:mm formatter used for publish and confir
 
 ## Not done
 
-Proposing an itinerary change from iOS, the meeting window on the API (both platforms), live
-captures on the simulator, Apple sign-in.
+Captures of the live (signed-in) screens on the simulator (the captures render the fixtures);
+Apple sign-in (deferred). Done since: proposing an itinerary change from iOS
+(`plan-propose-dark.png`); the meeting window on the API on both platforms (`meeting-windows.md`).

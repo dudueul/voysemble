@@ -95,8 +95,10 @@ read "Room 412" at the hotel as the sample always did; nothing else changes on t
 
 ## Not done
 
-The dashboard tile on real sessions, guardian status, iOS live mode, push "come now" to a
-missing traveler. Incident auto-creation on `closedWithMissing` landed in slice 013
+Push "come now" to a missing traveler; the head count card on the live Today (its groups stay
+empty on a real trip: the itinerary feeds Today, the sessions do not yet). Done since: the
+console's dashboard tile reads the real sessions (`command-center-live.md`); the guardian's
+status (slice 025, `guardian.md`); iOS live mode (slice 024, `ios-live.md`). Incident auto-creation on `closedWithMissing` landed in slice 013
 (`incidents.md`); since slice 078 that card also reaches the owners and organizers by email at
 once (`notifications.md`). The room on the Today tab's hotel line landed in slice 075 as
 "Your room tonight" (`travel.md`).

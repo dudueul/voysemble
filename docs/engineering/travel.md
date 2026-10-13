@@ -209,7 +209,7 @@ unreachable leader has no card.
 
 ## Not done
 
-A sealed link for a hotel (the rooming list, D27); provider lookups (flight status, hotel
-confirmations); bookings in the trip report; a traveler's own seat (their room is on Today since
+Provider lookups (flight status, hotel confirmations); bookings in the trip report; a traveler's own seat (their room is on Today since
 slice 075); a Korean sheet for
-a Korean driver (the sheet follows the console's language).
+a Korean driver (the sheet follows the console's language). Done since: the hotel's sealed link
+with the rooming list (slice 058, above).

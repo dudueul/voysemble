@@ -22,6 +22,10 @@ final class CaptureTests: XCTestCase {
     func testTodayLightAndDark() throws {
         try capture(TodayView(model: TodayModel()), name: "today-light")
         try capture(TodayView(model: TodayModel()), name: "today-dark", scheme: .dark)
+        // Parity with Android (slice 083): offline, the acknowledgment queued on the device.
+        let offline = TodayModel(snapshot: KoreaConcertTourFixture.shared.today().withOffline(offline: true))
+        offline.acknowledge("an_departure")
+        try capture(TodayView(model: offline), name: "today-offline-pending")
     }
 
     func testTripSwitch() throws {
@@ -100,10 +104,19 @@ final class CaptureTests: XCTestCase {
 
     func testBulletinWithRevision() throws {
         try capture(NavigationStack { BulletinView(model: BulletinModel()) }, name: "bulletin-light")
+        // Parity with Android (slice 083): offline, the acknowledgment queued until the next sync.
+        let sample = KoreaConcertTourFixture.shared.announcements()
+        let queued = BulletinModel(feed: AnnouncementFeed(items: sample.items, outbox: sample.outbox, offline: true))
+        queued.acknowledge("an_departure")
+        try capture(NavigationStack { BulletinView(model: queued) }, name: "bulletin-offline-queued")
     }
 
     func testIncidents() throws {
         try capture(NavigationStack { IncidentsView(model: IncidentsModel()) }, name: "incidents-light")
+        // Parity with Android (slice 083): the leader's answer recorded on the device, pending sync, dark.
+        let answering = IncidentsModel(deviceClock: { "07:12" })
+        answering.confirm("inc_busB_0650", .withGroup)
+        try capture(NavigationStack { IncidentsView(model: answering) }, name: "incidents-pending-dark", scheme: .dark)
         // Slice 079: a traveler's own request leads the list with its "Asked for help" chip.
         let withHelp = IncidentFeed(cards: [KoreaConcertTourFixture.shared.helpIncident()] + KoreaConcertTourFixture.shared.incidents().cards, offline: false)
         try capture(NavigationStack { IncidentsView(model: IncidentsModel(feed: withHelp)) }, name: "incidents-help")
@@ -199,6 +212,11 @@ final class CaptureTests: XCTestCase {
             engine: DarwinEngineFactory.shared.create(),
         )
         try capture(SignInView(model: SessionModel(api: client, manager: SessionManager(api: client, store: store))), name: "sign-in-revoked")
+        // Parity with Android (slice 083): the link was sent; the screen waits for it, dark.
+        let awaiting = InMemorySecureStore()
+        awaiting.put(key: "session.email", value: "minji@example.com")
+        awaiting.put(key: "session.awaitingLink", value: "1")
+        try capture(SignInView(model: SessionModel(api: client, manager: SessionManager(api: client, store: awaiting))), name: "sign-in-awaiting-dark", scheme: .dark)
     }
 
     // MARK: - Harness

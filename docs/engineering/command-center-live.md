@@ -87,9 +87,9 @@ Evidence: `web/<project>/command-center-trips.png` (three trips, the camp just c
 
 ## Not done
 
-A display name on accounts; a trip switch on the phones (a leader of several trips picks on
-sign-in only); archiving a completed trip out of the switch; the alert's second action as a
-flow ("Message guardians", "Notify leaders").
+Archiving a completed trip out of the switch; the alert's second action as a flow ("Message
+guardians", "Notify leaders"). Done since: the account's display name (slice 069,
+`identity-and-roster.md`); the trip switch on the phones (slice 067, `mobile-auth.md`).
 
 ## Movements (slice 050)
 

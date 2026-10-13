@@ -67,5 +67,5 @@ is pure; the route gathers the four lists from the Durable Object and calls it.
 ## Not done
 
 A per-group breakdown; the fixture's
-"Required documents" tile stays in sample mode only; exporting from here (the roster exports from People since slice 071, the ledger from Billing since slice 066);
-Korean strings.
+"Required documents" tile stays in sample mode only; exporting from here (the roster exports from People since slice 071, the ledger from Billing since slice 066).
+Done since: Korean strings (slice 038, the console's parity test).
