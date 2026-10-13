@@ -2195,7 +2195,7 @@ Not done: packing the bulletin, the packing list and the inbox; a pack per trip.
 
 ## Slice 088: push behind a port
 
-Status: done 2026-10-13. Commit: see git log (`feat(api): push the priority and normal lanes to registered phones through APNs and FCM behind a port (slice 088)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-13. Commit: see git log (`feat(api): push the priority and normal lanes to registered phones through APNs and FCM behind a port (slice 088)`). CI: run 38425452141 green (web, mobile, ios); captures commit f728b16.
 Spec: D29 (lanes), D28 (a wipe stops everything). Details: `docs/engineering/notifications.md` (Push).
 
 | Gate | Command | Result |
@@ -2219,7 +2219,7 @@ Not done: the apps' registration and tap handling (need `google-services.json` a
 
 ## Slice 089: the deploy workflow
 
-Status: done 2026-10-13. Commit: see git log (`ci: deploy staging after every green push to next and production by hand behind approval (slice 089)`). CI: pending at commit time; the run id is recorded in the next commit once verified. Nothing is deployed: the Cloudflare secrets do not exist yet, so the staging job skips by design.
+Status: done 2026-10-13. Commit: see git log (`ci: deploy staging after every green push to next and production by hand behind approval (slice 089)`). CI: run 38426161650 green (web, mobile, ios); `deploy-staging / deploy` ran its plan and skipped every later step, as designed while the secrets are missing; captures commit 4f602d9. Nothing is deployed.
 Spec: ADR-0008 (environments), D43 (US and Korea first, unchanged hosts). Details: `docs/runbooks/cloudflare.md` §7–9.
 
 | Gate | Command | Result |
