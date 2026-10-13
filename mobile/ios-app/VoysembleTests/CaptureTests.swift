@@ -23,7 +23,7 @@ final class CaptureTests: XCTestCase {
         try capture(TodayView(model: TodayModel()), name: "today-light")
         try capture(TodayView(model: TodayModel()), name: "today-dark", scheme: .dark)
         // Parity with Android (slice 083): offline, the acknowledgment queued on the device.
-        let offline = TodayModel(snapshot: KoreaConcertTourFixture.shared.today().withOffline(offline: true))
+        let offline = TodayModel(snapshot: KoreaConcertTourFixture.shared.today().withOffline(offline: true).withSyncAge(minutes: KotlinInt(int: 128)))
         offline.acknowledge("an_departure")
         try capture(TodayView(model: offline), name: "today-offline-pending")
     }

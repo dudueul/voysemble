@@ -39,6 +39,9 @@ public fun TodaySnapshot.withAnnouncement(announcement: TodayAnnouncement?): Tod
 
 public fun TodaySnapshot.withOffline(offline: Boolean): TodaySnapshot = copy(offline = offline)
 
+/** Minutes since the last successful sync (null: never); callable from Swift, where `copy` takes every field. */
+public fun TodaySnapshot.withSyncAge(minutes: Int?): TodaySnapshot = copy(minutesSinceSync = minutes)
+
 /** Shown until the first itinerary answer: the trip name, nothing else invented. */
 public fun emptyTodaySnapshot(tripName: String): TodaySnapshot = TodaySnapshot(
     tripName = tripName.ifBlank { tr(Txt.COMMON_YOUR_TRIP) },
