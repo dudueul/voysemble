@@ -72,7 +72,9 @@ builds and the production host for App Store builds, and maps the lanes of D29 t
    messages, care notes), coarse and precise location **used only on the device** inside a
    meeting window and never collected by the server, identifiers (the account id). Not used for
    tracking; no third-party advertising.
-5. Age rating: the questionnaire has no objectionable content; mark user-generated content
+5. **Availability**: Pricing and Availability → countries: the United States and South Korea
+   first (D43); add others in their phase.
+6. Age rating: the questionnaire has no objectionable content; mark user-generated content
    (chat, photos) as present, with moderation (removal by leaders and organizers, slice 065).
 
 The app uses email sign-in only, so Sign in with Apple is not required by the App Review

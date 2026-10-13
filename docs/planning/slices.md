@@ -2137,3 +2137,14 @@ Built:
 - Root `README.md` links the runbooks.
 
 Not done: the code those runbooks feed (the deploy workflow, the Cloudflare email port, push, the store upload jobs); each lands as its own slice once its inputs exist.
+
+## Slice 085: launch markets (D43)
+
+Status: done 2026-10-13. Commit: see git log (`docs: the United States and Korea first, Europe afterwards (D43, slice 085)`). No code change.
+Spec: founder decision 2026-10-13. Details: `docs/decisions/ADR-0010-launch-markets.md`.
+
+Built:
+- ADR-0010 and decision-log row D43: the markets, languages unchanged, trips may go anywhere, the law to design for now (PIPA and the location act in Korea; COPPA, FERPA and state student and consumer privacy laws in the US), Europe as a later phase that nothing may block, Stripe and the open billing-entity choice.
+- Runbooks: the markets in `README.md`; US topics for counsel and a European-phase section in `legal-and-pilot.md`; the entity choice in `stripe.md`; storefront availability in `apple.md` and `google.md`.
+
+Not done: locale-aware dates in the console before the US launch (`console-i18n.md`).

@@ -7,12 +7,14 @@ charge.
 
 ## 0. A decision before any account: can the entity use Stripe?
 
-Stripe onboards businesses only in the countries it supports. Check Stripe's list of supported
-countries for the operating legal entity's country before anything else. At the time of
-writing, South Korea was not on it; if the entity is Korean, the choices are a supported-country
-entity, or a local payment processor instead of Stripe. Either is a new decision (an ADR that
-supersedes D23's provider), not a setup step. Tell engineering which; the billing code is not
-written yet (`billing.stripe`, deferred), so nothing has to be undone.
+Stripe onboards businesses only in the countries it supports; check its list for the
+operating entity's country first. The launch markets are the United States and Korea (D43). At
+the time of writing, a **US entity** could open a Stripe account and bill organizers in both
+markets (cards from Korea included), while a **Korean entity** could not open one and would
+need a local processor for Korean customers. Which entity bills is your choice (ADR-0010, §29
+question 1); if it is a Korean entity, choosing the processor is a new decision that
+supersedes D23's provider. Tell engineering; the billing code is not written yet
+(`billing.stripe`, deferred), so nothing has to be undone.
 
 ## 1. Sandbox first (architecture reference §26 P3)
 

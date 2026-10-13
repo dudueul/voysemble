@@ -60,7 +60,12 @@ Rollback: delete the key in Service accounts (push stops) and generate a new one
 2. Add testers by email list (up to 100 for internal testing; installs within minutes, no
    review).
 
-## 5. Policy forms before any test outside your team
+## 5. Countries and policy forms
+
+Countries for the production track: the United States and South Korea first (D43); add others
+in their phase. Internal testing is not limited by country.
+
+Before any test outside your team:
 
 - **Data safety**: email address (account management), photos and messages (app
   functionality), precise and approximate location **processed on the device only** inside a

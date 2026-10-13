@@ -6,6 +6,10 @@ do by itself before a first real trip (the pilot, milestone P8 of
 documentation rules (`docs/engineering/documentation-rules.md` rule 7): preconditions, exact
 steps, how to verify, how to roll back, and the evidence to keep.
 
+**Markets (D43, ADR-0010):** the United States and Korea first; Europe afterwards. A market is
+where the group comes from, not where it travels. These runbooks prepare US and Korean law,
+storefronts and payments; European items are marked as the later phase.
+
 The product itself is built: the organizer console, the public site, the API and the Android and
 iOS apps, all tested in CI with screenshots on every push (`docs/captures/README.md`). What is
 missing is the outside world: accounts, keys, domains, stores and approvals that only the

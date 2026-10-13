@@ -21,11 +21,15 @@ enters the system. It is a checklist for you and your counsel, not legal advice.
 11. Data residency or school-contract obligations.
 12. Refund, grace, cancellation and consumer billing disclosures.
 
-For a free pilot, 4 to 6 and 12 can wait; 1, 3, 7, 8, 10 and 11 cannot.
+For a free pilot, 4 to 6 and 12 can wait; 1, 3, 7, 8, 10 and 11 cannot. Question 7 is answered
+by D43: the United States and Korea first, Europe afterwards (ADR-0010).
 
 ## 2. Topics to bring to counsel
 
-Each names the product fact counsel will ask about.
+Each names the product fact counsel will ask about. Korea and the United States are the
+launch markets (D43); bring both lists to counsel licensed for each.
+
+### Korea
 
 - **Children's data and guardian consent.** Korea's Personal Information Protection Act
   requires a legal representative's consent to process the personal information of children
@@ -38,8 +42,7 @@ Each names the product fact counsel will ask about.
   registration for this design, given that the server never receives a position.
 - **Cross-border processing.** Data is processed and stored on Cloudflare's network (D1,
   Durable Objects, R2) and, for translation, Workers AI (ADR-0006). Ask what the privacy policy
-  must disclose about transfers abroad, and whether the trip's destination (Rome in the sample)
-  brings the GDPR into scope for what happens there.
+  must disclose about transfers abroad under PIPA.
 - **Health information.** Care notes (allergies, medications) are sealed at rest, revealed only
   on an audited action (D27, `care-notes.md`). Ask whether they count as sensitive information
   needing separate consent.
@@ -53,6 +56,30 @@ Each names the product fact counsel will ask about.
 - **User content.** Chat and photos are moderated by leaders and organizers (slice 065, D18).
   Confirm the terms cover removal and reporting.
 
+### United States
+
+- **Children under 13 (COPPA).** Travelers can be younger than 13. When a school is the
+  customer, ask whether the school may consent on parents' behalf for this use (an educational
+  trip, no commercial use of the data) or whether the guardian's own consent through the
+  invite is needed, and what the notice to parents must say. The product collects no
+  advertising identifiers and runs no analytics or ad SDKs.
+- **Student records (FERPA) and state student privacy laws.** Where a school or district is the
+  customer, the roster, health notes and document scans may be education records. Ask what the
+  agreement with the school must contain (acting as a "school official", use limits, deletion
+  on request, breach notice) and which state laws apply to the first customers' states.
+- **State consumer privacy laws** (California's first among them): the privacy policy's
+  disclosures and the rights to access and delete. The product sells no data and shares none
+  for advertising.
+- **Email.** Sign-in links, digests and incident emails are transactional; confirm none needs
+  marketing-email treatment.
+
+### Europe (later phase, D43)
+
+The GDPR, EU storefronts and an EU data home are the European phase. Two items to keep in view
+now: a US or Korean group traveling in Europe is processed by a US or Korean organizer (ask
+counsel whether anything applies during such a trip), and nothing built now should make an EU
+data home impossible later (ADR-0010).
+
 ## 3. Documents to have
 
 | Document | State in the repo | To do |
@@ -62,6 +89,7 @@ Each names the product fact counsel will ask about.
 | Guardian consent form | None | Write with counsel; the school collects it before invites go out |
 | School or organizer agreement (data processing) | None | Who is controller and processor, retention, deletion, breach notice |
 | Store privacy answers | None | `apple.md` §4, `google.md` §5, from the same facts |
+| Parent notice for US travelers under 13 | None | With counsel (COPPA), alongside the guardian consent form |
 
 The public site's legal pages (`/privacy/`, `/terms/` and their Korean twins under `/ko/`) are
 drafts until reviewed (`web.public-site.legal-drafts` in `feature-status.json`).
