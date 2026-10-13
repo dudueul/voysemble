@@ -5,6 +5,7 @@
 
 package com.voysemble.core.today
 
+import com.voysemble.core.api.HeadcountSessionDto
 import com.voysemble.core.api.AnnouncementDto
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -44,5 +45,31 @@ class TodayLiveTest {
         val card = dto("r2", "x").toTodayAnnouncement { it }
         assertEquals(card, emptyTodaySnapshot("Tour").withAnnouncement(card).announcement)
         assertEquals(true, empty.withOffline(true).offline)
+    }
+
+    private fun session(id: String, group: String?, at: String, accounted: Int, expected: Int) = HeadcountSessionDto(
+        id = id, tripId = "t", groupName = group, openedByName = "Kim", openedAtDevice = "06:50", receivedAt = at,
+        expected = expected, present = accounted, accounted = accounted, missing = emptyList(), closedWithMissing = false,
+    )
+
+    @Test
+    fun todays_newest_session_per_group_in_label_order() {
+        // Slice 086: yesterday's count is ignored; the newer Bus A count wins; a whole-trip count has its own label.
+        val sessions = listOf(
+            session("a1", "Bus A", "2026-12-31T05:50:00.000Z", 18, 20),
+            session("a2", "Bus A", "2026-12-31T06:40:00.000Z", 20, 20),
+            session("b1", "Bus B", "2026-12-31T05:55:00.000Z", 16, 18),
+            session("w1", null, "2026-12-31T07:00:00.000Z", 36, 38),
+            session("old", "Bus C", "2026-12-30T05:00:00.000Z", 3, 9),
+        )
+        val groups = headcountGroupsOf(sessions, today = "2026-12-31", dateOf = { it.take(10) }, wholeTrip = "Whole trip")
+        assertEquals(
+            listOf(HeadcountGroup("Bus A", 20, 20), HeadcountGroup("Bus B", 16, 18), HeadcountGroup("Whole trip", 36, 38)),
+            groups,
+        )
+        assertEquals(emptyList(), headcountGroupsOf(emptyList(), today = "2026-12-31", dateOf = { it }, wholeTrip = "Whole trip"))
+        val snap = emptyTodaySnapshot("Trip").withHeadcount(groups)
+        assertEquals(72, snap.checkedIn)
+        assertEquals(76, snap.expected)
     }
 }

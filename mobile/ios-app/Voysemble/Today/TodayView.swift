@@ -89,14 +89,21 @@ struct TodayView: View {
                         // D27 (slice 032): the guardian writes the care note here; leaders reveal it at the count.
                         if model.careStatus != nil { GuardianCareCard(model: model) }
                     } else {
-                        HeadcountCard(groups: s.headcount, checkedIn: Int(s.checkedIn), expected: Int(s.expected))
+                        // Slice 086: a leader's card and links (today's counts per group); a traveler keeps the meeting window.
+                        if model.showsHeadcount {
+                            HeadcountCard(groups: s.headcount, checkedIn: Int(s.checkedIn), expected: Int(s.expected))
+                        }
                         // Slice 009: leader and traveler screens reachable from Today, as on Android.
                         HStack {
-                            NavigationLink(tr(.todayOpenHeadCount), value: TodayPush.headcount)
-                            Spacer()
+                            if model.showsHeadcount {
+                                NavigationLink(tr(.todayOpenHeadCount), value: TodayPush.headcount)
+                                Spacer()
+                            }
                             NavigationLink(tr(.todayMeetingWindow), value: TodayPush.window)
-                            Spacer()
-                            NavigationLink(tr(.todayIncidents), value: TodayPush.incidents)
+                            if model.showsHeadcount {
+                                Spacer()
+                                NavigationLink(tr(.todayIncidents), value: TodayPush.incidents)
+                            }
                         }
                         .font(.subheadline.weight(.semibold))
                         // Slice 074 (D17): a traveler asks for help; the card tracks the request.
@@ -418,6 +425,9 @@ private struct HeadcountCard: View {
                 Text(tr(.todayHeadCount)).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
                 Spacer()
                 Text(tr2(.todayCheckedIn, checkedIn, expected)).font(.subheadline.weight(.semibold))
+            }
+            if groups.isEmpty {
+                Text(tr(.todayHeadcountNone)).font(.subheadline).foregroundStyle(.secondary).padding(.top, 6)
             }
             ForEach(groups, id: \.label) { g in
                 let short = g.checkedIn < g.expected

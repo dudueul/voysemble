@@ -52,8 +52,9 @@ capture the same states; the one naming difference is the open incidents list
 | Inbox | unread rows, all read (dark) | `inbox-light`, `inbox-all-read-dark` | the same two |
 
 Not captured because not built yet: a full-screen photo viewer, a leader's per-traveler packing
-view, a meeting window from an itinerary event, the live head count card on Today, the Korean
-variant of screens other than Today and Plan (the strings exist; the captures stop at two).
+view, a meeting window from an itinerary event, the Korean variant of screens other than Today
+and Plan (the strings exist; the captures stop at two). The live head count card on a leader's
+Today (slice 086) renders like the sample's; the captures stay on the sample.
 
 ## Slice 007 (2026-10-11): sign-in and setup checklist on the real API
 

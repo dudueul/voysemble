@@ -67,6 +67,7 @@
     "guardian.help-card": "working",
     "accounts.incident-emails-switch": "working",
     "mobile.help-answered": "working",
+    "mobile.today.live-headcount": "working",
     "travel.bookings": "working",
     "packing.checklist": "working",
     "packing.reminders": "working",

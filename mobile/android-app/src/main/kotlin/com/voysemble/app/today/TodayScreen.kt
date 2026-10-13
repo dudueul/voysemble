@@ -169,7 +169,8 @@ fun TodayScreen(
                 // D27 (slice 032): the guardian writes the care note here; leaders reveal it at the count.
                 state.care?.let { care -> item { GuardianCareCard(care, onEditCare, onCancelCare, onSaveCare) } }
             } else {
-                item { HeadcountCard(snap.headcount, snap.checkedIn, snap.expected, onOpenHeadcount, onOpenIncidents) }
+                // Slice 086: a leader's card (today's counts per group); a traveler's Today has none.
+                if (state.showsHeadcount) item { HeadcountCard(snap.headcount, snap.checkedIn, snap.expected, onOpenHeadcount, onOpenIncidents) }
                 // Slice 074 (D17): a traveler asks for help; the card tracks the request.
                 if (state.canAskHelp) item { HelpCardView(state.help, state.helpSending, state.helpError) { askingHelp = true } }
             }
@@ -468,6 +469,7 @@ private fun HeadcountCard(groups: List<HeadcountGroup>, checkedIn: Int, expected
             OutlinedButton(onClick = onOpenIncidents, shape = MaterialTheme.shapes.small) { Text(tr(Txt.TODAY_INCIDENTS)) }
         }
         Spacer(Modifier.height(10.dp))
+        if (groups.isEmpty()) Text(tr(Txt.TODAY_HEADCOUNT_NONE), style = MaterialTheme.typography.bodyMedium, color = c.textMuted)
         groups.forEach { g ->
             val short = g.checkedIn < g.expected
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {

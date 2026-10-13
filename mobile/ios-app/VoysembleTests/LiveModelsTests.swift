@@ -33,6 +33,12 @@ final class LiveModelsTests: XCTestCase {
         XCTAssertFalse(model.syncing)
         // Slice 075: no stay is known while unreachable; the card stays away.
         XCTAssertNil(model.room)
+        // Slice 086: a leader's Today shows the head count card, empty until a count arrives.
+        XCTAssertTrue(model.showsHeadcount)
+        XCTAssertEqual(model.snapshot.headcount.count, 0)
+        XCTAssertEqual(Clocks.date(of: "2026-12-30T16:30:00.000Z", in: "Asia/Seoul"), "2026-12-31")
+        let minji = ActiveTrip(organizationId: "org1", organizationName: "Seoul Arts High", tripId: "trip1", tripName: "Korea Concert Tour", participationId: "p-minji", role: "traveler")
+        XCTAssertFalse(TodayModel(api: unreachableClient(), trip: minji).showsHeadcount)
     }
 
     func testGuardianCareEntryIsHonestWhenUnreachable() async {

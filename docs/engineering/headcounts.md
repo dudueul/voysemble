@@ -95,10 +95,33 @@ read "Room 412" at the hotel as the sample always did; nothing else changes on t
 
 ## Not done
 
-Push "come now" to a missing traveler; the head count card on the live Today (its groups stay
-empty on a real trip: the itinerary feeds Today, the sessions do not yet). Done since: the
+Push "come now" to a missing traveler. Done since: the head count card on a leader's live Today
+(slice 086, below); the
 console's dashboard tile reads the real sessions (`command-center-live.md`); the guardian's
 status (slice 025, `guardian.md`); iOS live mode (slice 024, `ios-live.md`). Incident auto-creation on `closedWithMissing` landed in slice 013
 (`incidents.md`); since slice 078 that card also reaches the owners and organizers by email at
 once (`notifications.md`). The room on the Today tab's hotel line landed in slice 075 as
 "Your room tonight" (`travel.md`).
+
+## The head count card on a leader's live Today (slice 086)
+
+On a real trip the Today card's groups were empty: the itinerary fed Today, the sessions did
+not. A leader's Today refresh now also reads `GET .../headcounts` (`ApiClient.listHeadcounts`)
+and the core turns it into the card (`today/TodayLive.kt` `headcountGroupsOf`): today's sessions
+only (the server's receipt instant read in the trip's zone), the newest per group, a whole-trip
+count under "Whole trip" / "전체 일행", groups in label order, accounted (present, with another
+group, excused) as checked in; the console's `latestHeadcountGroups` is the same rule. Before the
+first count of the day the card says "No head count yet today." / "오늘은 아직 인원 점검이
+없습니다.". A failed or unreachable answer keeps what the card showed.
+
+The card and its buttons ("Open head count", "Incidents") are a leader's: the list route is for
+staff, so a traveler's Today now shows no head count card (`TodayUiState.showsHeadcount`,
+`TodayModel.showsHeadcount`); a traveler keeps the meeting window link. Sample mode, which mixes
+roles, keeps everything.
+
+Facts (tests): core: yesterday's session ignored, the newer of two Bus A counts wins, a
+whole-trip count under its label, label order, the totals (`TodayLiveTest`); Android: a leader's
+refresh shows Bus A 19 of 20 from the afternoon count, not the morning one, and not yesterday's
+Bus B; a traveler's state hides the card; the sample shows it (`TodayViewModelTest`); iOS: a
+leader shows the card empty while unreachable, a traveler does not, the zone date of an instant
+(`LiveModelsTests`).

@@ -8,6 +8,7 @@
 package com.voysemble.core.today
 
 import com.voysemble.core.api.AnnouncementDto
+import com.voysemble.core.api.HeadcountSessionDto
 import com.voysemble.core.i18n.Txt
 import com.voysemble.core.i18n.tr
 
@@ -41,6 +42,30 @@ public fun TodaySnapshot.withOffline(offline: Boolean): TodaySnapshot = copy(off
 
 /** Minutes since the last successful sync (null: never); callable from Swift, where `copy` takes every field. */
 public fun TodaySnapshot.withSyncAge(minutes: Int?): TodaySnapshot = copy(minutesSinceSync = minutes)
+
+public fun TodaySnapshot.withHeadcount(groups: List<HeadcountGroup>): TodaySnapshot = copy(headcount = groups)
+
+/**
+ * Slice 086: the head count card on a leader's live Today. Today's sessions only (`dateOf` reads
+ * the server's receipt instant as a trip-zone date, compared with `today`; a String-returning
+ * function crosses to Swift as a plain closure), the newest per group, a whole-trip count under
+ * its own label, groups in label order: the console's rule (`latestHeadcountGroups`). Accounted
+ * (present, with another group, excused) is what the card counts as checked in. Empty before the
+ * first count of the day.
+ */
+public fun headcountGroupsOf(
+    sessions: List<HeadcountSessionDto>,
+    today: String,
+    dateOf: (receivedAt: String) -> String,
+    wholeTrip: String = tr(Txt.TODAY_WHOLE_TRIP),
+): List<HeadcountGroup> =
+    sessions
+        .filter { dateOf(it.receivedAt) == today }
+        .groupBy { it.groupName ?: wholeTrip }
+        .mapValues { (_, list) -> list.maxBy { it.receivedAt } }
+        .toList()
+        .sortedBy { it.first }
+        .map { (label, s) -> HeadcountGroup(label, s.accounted, s.expected) }
 
 /** Shown until the first itinerary answer: the trip name, nothing else invented. */
 public fun emptyTodaySnapshot(tripName: String): TodaySnapshot = TodaySnapshot(

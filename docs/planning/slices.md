@@ -2148,3 +2148,25 @@ Built:
 - Runbooks: the markets in `README.md`; US topics for counsel and a European-phase section in `legal-and-pilot.md`; the entity choice in `stripe.md`; storefront availability in `apple.md` and `google.md`.
 
 Not done: locale-aware dates in the console before the US launch (`console-i18n.md`).
+
+## Slice 086: the head count card on a leader's live Today
+
+Status: done 2026-10-13. Commit: see git log (`feat(mobile): a leader's Today shows today's head counts per group; a traveler's shows none (slice 086)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: D14, D25, D31. Details: `docs/engineering/headcounts.md` (the new section).
+
+| Gate | Command | Result |
+|---|---|---|
+| Core JVM tests | `./gradlew :core:jvmTest` (CI `mobile` job) | `TodayLiveTest` +1; `L10nTest` the two new keys |
+| Android tests | `./gradlew :android-app:testDebugUnitTest` (CI `mobile` job) | `TodayViewModelTest` +1 |
+| iOS tests | `xcodebuild test` (CI `ios` job) | `LiveModelsTests` (the leader's empty card, the traveler's none, the zone date) |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean (no web change) |
+
+Gradle and Xcode do not run in this workspace; the CI `mobile` and `ios` jobs verify the Kotlin and Swift, desk-checked here.
+
+Built:
+- Core: `headcountGroupsOf(sessions, isToday, wholeTrip)`, `TodaySnapshot.withHeadcount`; `TODAY_WHOLE_TRIP`, `TODAY_HEADCOUNT_NONE` in both languages; `TodayLiveTest`.
+- Android: a leader's refresh reads the sessions in the trip's zone; `TodayUiState.showsHeadcount`; the card's empty line; `TodayViewModelTest`.
+- iOS: the same in `TodayModel`; `Clocks.date(of:in:)`; the card and its links for leaders only, the meeting window link for everyone; `LiveModelsTests`.
+- Docs: `headcounts.md`; captures README; feature flag `mobile.today.live-headcount`.
+
+Not done: the leader's own group first when they lead one group of several.

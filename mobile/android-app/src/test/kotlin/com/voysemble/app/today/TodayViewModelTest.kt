@@ -3,10 +3,12 @@
 // mode builds today's snapshot from the published itinerary for the device date and clock, and an
 // unreachable server marks the snapshot offline. Slice 074: a traveler asks for help (the POST
 // names only them; the card tracks the server's answer); sample mode keeps a local card. Slice
-// 075: a traveler's room tonight rides on the refresh; the sample shows Minji's.
+// 075: a traveler's room tonight rides on the refresh; the sample shows Minji's. Slice 086: a
+// leader's Today reads today's newest head count per group; a traveler's shows no head count card.
 
 package com.voysemble.app.today
 
+import com.voysemble.core.today.HeadcountGroup
 import com.voysemble.core.today.MyRoomCard
 import com.voysemble.core.today.HelpStatus
 import com.voysemble.core.api.ApiClient
@@ -120,6 +122,33 @@ class TodayViewModelTest {
         assertEquals("Asked for help", sample.state.value.help?.title)
         assertEquals("07:12", sample.state.value.help?.openedAt)
         assertTrue(!TodayViewModel(api = ApiClient(ApiClientConfig("h", "t") { "tok" }, engine), trip = trip).state.value.canAskHelp)
+    }
+
+    @Test
+    fun a_leaders_today_reads_todays_head_counts() = runTest {
+        val sessions = """{"headcounts":[
+            {"id":"h2","tripId":"trip_1","groupName":"Bus A","openedByName":"Kim","openedAtDevice":"14:50","closedAtDevice":"14:58","receivedAt":"2026-12-31T05:58:00.000Z","expected":20,"present":18,"accounted":19,"missing":[],"closedWithMissing":false},
+            {"id":"h1","tripId":"trip_1","groupName":"Bus A","openedByName":"Kim","openedAtDevice":"09:00","closedAtDevice":"09:10","receivedAt":"2026-12-31T00:10:00.000Z","expected":20,"present":12,"accounted":12,"missing":[],"closedWithMissing":true},
+            {"id":"h0","tripId":"trip_1","groupName":"Bus B","openedByName":"Lee","openedAtDevice":"20:00","closedAtDevice":"20:05","receivedAt":"2026-12-30T11:05:00.000Z","expected":18,"present":18,"accounted":18,"missing":[],"closedWithMissing":false}
+        ]}"""
+        val engine = MockEngine { req ->
+            val json = headersOf(HttpHeaders.ContentType, "application/json")
+            when {
+                req.url.encodedPath.endsWith("/headcounts") -> respond(sessions, HttpStatusCode.OK, json)
+                req.url.encodedPath.endsWith("/announcements") -> respond(announcementsJson, HttpStatusCode.OK, json)
+                req.url.encodedPath.endsWith("/rooming/mine") -> respond("""{"stay":null}""", HttpStatusCode.OK, json)
+                else -> respond(itineraryJson, HttpStatusCode.OK, json)
+            }
+        }
+        val vm = TodayViewModel(api = ApiClient(ApiClientConfig("h", "t") { "tok" }, engine), trip = trip, deviceDate = { "2026-12-31" }, deviceClock = { "15:00" })
+        vm.ready.join()
+        // Today in Seoul is Dec 31: the newer Bus A count (19 of 20), not the morning one; Bus B's was yesterday.
+        assertTrue(vm.state.value.showsHeadcount)
+        assertEquals(listOf(HeadcountGroup("Bus A", 19, 20)), vm.state.value.snapshot.headcount)
+        // A traveler's Today carries no head count card.
+        val minji = ActiveTrip("org_1", "Hana", "trip_1", "Korea Concert Tour 2026", "p-minji", "traveler")
+        assertTrue(!TodayViewModel(api = ApiClient(ApiClientConfig("h", "t") { "tok" }, engine), trip = minji).state.value.showsHeadcount)
+        assertTrue(TodayViewModel().state.value.showsHeadcount)
     }
 
     @Test

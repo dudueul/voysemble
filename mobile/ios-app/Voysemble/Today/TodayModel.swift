@@ -109,6 +109,15 @@ final class TodayModel: ObservableObject {
                         await loadCare()
                     }
                 }
+                // Slice 086: a leader's head count card, from today's newest session per group.
+                if trip.role == "leader" {
+                    let today = deviceDate(zone)
+                    let hc = try? await api.listHeadcounts(orgId: trip.organizationId, tripId: trip.tripId, correlationId: nil)
+                    if let list = (hc as? ApiResultOk<HeadcountListDto>)?.value {
+                        let groups = TodayLiveKt.headcountGroupsOf(sessions: list.headcounts, today: today, dateOf: { iso in Clocks.date(of: iso, in: zone) }, wholeTrip: tr(.todayWholeTrip))
+                        snapshot = snapshot.withHeadcount(groups: groups)
+                    }
+                }
                 // Slice 075: my room for tonight's stay (travelers and leaders; a guardian never reads rooms).
                 if trip.role == "traveler" || trip.role == "leader" {
                     let r = try? await api.myRoom(orgId: trip.organizationId, tripId: trip.tripId, correlationId: nil)
@@ -204,6 +213,9 @@ extension TodayModel {
     /// Slice 074 (D17): a traveler asks for help from Today; sample mode shows the card too.
     var canAskHelp: Bool { trip == nil || trip?.role == "traveler" }
 
+    /// Slice 086: the head count card and its links are a leader's (and the sample's); a traveler's Today has none.
+    var showsHeadcount: Bool { trip == nil || trip?.role == "leader" }
+
     /// Slice 074: the traveler's words or none; the server's card comes back and the Today card
     /// tracks it; sample mode keeps a local card at the fixture's clock.
     func askHelp(_ text: String) async {
@@ -267,6 +279,16 @@ enum Clocks {
     }
 
     static func now() -> String { time(in: TimeZone.current.identifier) }
+
+    /// Slice 086: the calendar date (yyyy-MM-dd) of an ISO instant in a zone; the input when unparseable.
+    static func date(of iso: String, in zone: String) -> String {
+        guard let date = parse(iso) else { return iso }
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(identifier: zone) ?? .current
+        f.dateFormat = "yyyy-MM-dd"
+        return f.string(from: date)
+    }
 
     /** ISO 8601 (with or without fractional seconds) to local HH:mm; the input when unparseable. */
     static func localTime(_ iso: String) -> String {

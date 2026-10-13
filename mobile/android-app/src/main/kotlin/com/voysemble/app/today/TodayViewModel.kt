@@ -5,6 +5,8 @@
 
 package com.voysemble.app.today
 
+import com.voysemble.core.today.withHeadcount
+import com.voysemble.core.today.headcountGroupsOf
 import com.voysemble.core.today.myRoomCardOf
 import com.voysemble.core.today.MyRoomCard
 import com.voysemble.core.today.helpRequestOf
@@ -74,6 +76,8 @@ data class TodayUiState(
     val helpError: String? = null,
     /** Slice 075 (D41): my room for tonight's stay; null outside a stay (the card is not shown) and for guardians. */
     val room: MyRoomCard? = null,
+    /** Slice 086: the head count card and its buttons are a leader's (and the sample's); a traveler's Today has none. */
+    val showsHeadcount: Boolean = true,
 )
 
 /** The guardian's care-note panel: content-free status, the note while editing, one message line. */
@@ -103,6 +107,7 @@ class TodayViewModel(
             canPropose = trip == null || trip.role == "leader",
             canAskHelp = trip == null || trip.role == "traveler",
             room = if (trip == null || api == null) KoreaConcertTourFixture.myRoom() else null,
+            showsHeadcount = trip == null || trip.role == "leader",
         ),
     )
     val state: StateFlow<TodayUiState> = _state
@@ -189,6 +194,15 @@ class TodayViewModel(
                     } else {
                         null
                     }
+                    // Slice 086: a leader's head count card, from today's newest session per group.
+                    var headcount = _state.value.snapshot.headcount
+                    if (t.role == "leader") {
+                        val today = deviceDate(zone)
+                        when (val hc = a.listHeadcounts(t.organizationId, t.tripId)) {
+                            is ApiResult.Ok -> headcount = headcountGroupsOf(hc.value.headcounts, today = today, dateOf = { iso -> dateIn(iso, zone) })
+                            else -> Unit
+                        }
+                    }
                     // Slice 075: my room for tonight's stay (travelers and leaders; a guardian never reads rooms).
                     var room: MyRoomCard? = _state.value.room
                     if (t.role == "traveler" || t.role == "leader") {
@@ -208,7 +222,8 @@ class TodayViewModel(
                     _state.update {
                         it.copy(
                             snapshot = todaySnapshotOf(r.value, deviceDate(zone), deviceClock(zone), minutesSinceSync = 0)
-                                .withAnnouncement(latest?.toTodayAnnouncement(::localTime)),
+                                .withAnnouncement(latest?.toTodayAnnouncement(::localTime))
+                                .withHeadcount(headcount),
                             guardian = guardian ?: it.guardian,
                             help = help,
                             room = room,
@@ -292,6 +307,10 @@ class TodayViewModel(
             }
         }
     }
+
+    /** The trip-zone calendar date of a server instant (slice 086); the input when unparseable. */
+    private fun dateIn(iso: String, zone: String): String =
+        try { java.time.Instant.parse(iso).atZone(zoneOf(zone)).toLocalDate().toString() } catch (_: Exception) { iso }
 
     private fun localTime(iso: String): String =
         try { HH_MM.withZone(ZoneId.systemDefault()).format(java.time.Instant.parse(iso)) } catch (_: Exception) { iso }
