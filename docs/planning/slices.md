@@ -2122,3 +2122,18 @@ Built:
 - Docs: the captures README's phone screen index (every screen, state and file on both platforms, and what is not built); the not-done lists of `care-notes`, `command-center-live`, `console-i18n`, `device-revocation`, `guardian`, `headcounts`, `ios-live`, `meeting-windows`, `reports`, `travel` and `identity-and-roster` lose the items built since and say where they landed.
 
 Not done: the screens listed as not built in the index.
+
+## Slice 084: the launch runbooks
+
+Status: done 2026-10-13. Commit: see git log (`docs(runbooks): what to prepare for the MVP pilot, in order, with exact steps (slice 084)`). No code change; CI runs as usual.
+Spec: documentation rule 7 (runbooks in `docs/runbooks/`), ADR-0007, ADR-0008, D20, D23, D29, architecture reference §26, §28, §29, §30.
+
+Built:
+- `docs/runbooks/README.md`: the MVP gap, who does what, the ordered checklist (store enrollments first), the engineering work that needs nothing from the founder, and every item to hand over with where it goes.
+- `cloudflare.md`: zones, the scoped CI token, D1 and R2 per environment, the care-note and media keys (and their backup), email sending with SPF/DKIM/DMARC, what engineering builds next (deploy workflow, email port, staging host for debug phones), the staging rehearsal, production, rollback.
+- `apple.md` and `google.md`: organization enrollment, identifiers and link verification, push keys (APNs, FCM), TestFlight and Play internal testing, the store privacy answers as the app is built.
+- `stripe.md`: only if the pilot charges; the country check before any account, sandbox, restricted keys, webhooks, the tax gate.
+- `legal-and-pilot.md`: the §29 questions, the topics for counsel (children's data, location, cross-border processing, health notes, scans, retention, user content), the documents to have, and the pilot trip plan.
+- Root `README.md` links the runbooks.
+
+Not done: the code those runbooks feed (the deploy workflow, the Cloudflare email port, push, the store upload jobs); each lands as its own slice once its inputs exist.

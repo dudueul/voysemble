@@ -7,6 +7,7 @@ headcounts and meeting points. Single-operator platform, organization-scoped dat
 - Reference specs: `docs/references/`; visual references: `docs/visual-references/`
 - Work graph: `planning/prototype-work-graph.json`; status: `feature-status.json`
 - Engineering rules: `docs/engineering/`
+- Launch preparation (accounts, keys, domains, stores, legal, the pilot): `docs/runbooks/README.md`
 
 Stack (ADR-0002, 0003, 0004): Cloudflare Workers + Hono + zod-openapi; global D1 + per-org
 SQLite Durable Objects + per-trip live DO + R2; React web console; Kotlin Multiplatform core
