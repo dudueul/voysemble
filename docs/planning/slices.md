@@ -2109,7 +2109,7 @@ Not done: the leader's answer status in words on the traveler's card ("with the 
 
 ## Slice 083: iOS capture parity and the docs brought up to date
 
-Status: done 2026-10-13. Commit: ea8411e (`docs: the phone screen index, iOS capture parity, and the not-done lists brought up to date (slice 083)`). CI: run 38341492274 green (web, mobile, ios); captures recorded by CI in ef174a8. Follow-up: the iOS offline Today capture read "Synced 1 min ago" under the offline banner; core `withSyncAge(minutes)` lets it carry the same 128 minutes as Android's.
+Status: done 2026-10-13. Commit: ea8411e (`docs: the phone screen index, iOS capture parity, and the not-done lists brought up to date (slice 083)`). CI: run 38341492274 green (web, mobile, ios); captures recorded by CI in ef174a8. Follow-up: the iOS offline Today capture read "Synced 1 min ago" under the offline banner; core `withSyncAge(minutes)` lets it carry the same 128 minutes as Android's (commit 0ef0f04, run 38343563981 green; captures 77954c9, which now read "Synced 128 min ago").
 Spec: D31 (every screen captured on each device). Details: `docs/captures/README.md` (Phone screens and their captures).
 
 | Gate | Command | Result |
