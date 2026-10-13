@@ -48,9 +48,9 @@ days to weeks), so start them first even though they are used last.
 These close MVP gaps and need nothing from the list above. They are next in the slice queue
 (`docs/planning/slices.md`):
 
-- The head count card on a real trip's Today (its groups stay empty today).
-- The durable offline pack: Today and the plan survive a restart with no signal
-  (`sync.offline`).
+- Done (slice 086): the head count card on a leader's live Today (`headcounts.md`).
+- Done (slice 087): the durable offline pack; Today and the plan survive a restart with no
+  signal (`docs/engineering/offline-pack.md`).
 - Push plumbing: device token registration and a server send behind a port with a fixture, so
   only the keys are missing on the day you provide them.
 - Rotating refresh tokens on the phones (`auth.native-refresh-rotation`).

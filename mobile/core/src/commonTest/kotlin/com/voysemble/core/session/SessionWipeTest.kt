@@ -31,6 +31,7 @@ class SessionWipeTest {
         store.put(SessionManager.KEY_TOKEN, "tok")
         store.put("session.accountId", "acc")
         store.put("active.orgId", "org")
+        store.put(com.voysemble.core.offline.OfflinePack.KEY, "{}")
         val engine = MockEngine {
             respond(
                 """{"error":{"code":"SESSION_WIPED","message":"This device was signed out by the organizer.","correlationId":"c"}}""",
@@ -48,6 +49,8 @@ class SessionWipeTest {
         assertEquals(1, notified)
         assertNull(store.get(SessionManager.KEY_TOKEN))
         assertNull(store.get("active.orgId"))
+        // Slice 087: the offline pack goes with the session.
+        assertNull(store.get(com.voysemble.core.offline.OfflinePack.KEY))
         assertEquals(SessionState.SignedOut, manager.current())
         assertTrue(manager.revokedNotice())
     }

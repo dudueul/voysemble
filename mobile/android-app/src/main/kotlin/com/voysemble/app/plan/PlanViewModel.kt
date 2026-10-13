@@ -7,6 +7,8 @@
 
 package com.voysemble.app.plan
 
+import com.voysemble.core.offline.packAgeMinutes
+import com.voysemble.core.offline.OfflinePack
 import com.voysemble.core.i18n.Txt
 import com.voysemble.core.i18n.trf
 import androidx.lifecycle.ViewModel
@@ -59,12 +61,21 @@ class PlanViewModel(
     private val trip: ActiveTrip? = null,
     /** Device date (YYYY-MM-DD) in a zone; injected for tests. */
     private val deviceDate: (zone: String) -> String = { zone -> LocalDate.now(zoneOf(zone)).toString() },
+    /** Slice 087: the last itinerary of the active trip, read at start and kept after every answer. */
+    private val pack: OfflinePack? = null,
+    private val nowMillis: () -> Long = { System.currentTimeMillis() },
 ) : ViewModel() {
     private val live = trip != null && api != null
+    private val packed = if (live) pack?.load(trip!!.tripId, nowMillis()) else null
+    private val packedPlan = packed?.let { planOf(it.itinerary, offline = false, minutesSinceSync = packAgeMinutes(it.savedAtMillis, nowMillis())) }
     private val _state = MutableStateFlow(
         PlanUiState(
-            plan = if (live) emptyTripPlan(trip!!.tripName) else initial,
-            selected = if (live) 0 else initial.initialDayIndex(KoreaConcertTourFixture.TODAY_DATE),
+            plan = packedPlan ?: if (live) emptyTripPlan(trip!!.tripName) else initial,
+            selected = when {
+                packedPlan != null -> packedPlan.initialDayIndex(deviceDate(packedPlan.days.firstOrNull()?.timeZone ?: "UTC"))
+                live -> 0
+                else -> initial.initialDayIndex(KoreaConcertTourFixture.TODAY_DATE)
+            },
             live = live,
             canPropose = trip == null || trip.role == "leader",
             canSeeTravel = trip == null || trip.role == "leader",
@@ -83,6 +94,7 @@ class PlanViewModel(
         return viewModelScope.launch {
             when (val r = a.getItinerary(t.organizationId, t.tripId)) {
                 is ApiResult.Ok -> {
+                    pack?.save(t.tripId, r.value, nowMillis())
                     val plan = planOf(r.value, minutesSinceSync = 0)
                     _state.update { s ->
                         // Open the device date's day on the first answer; keep the reader's choice after.

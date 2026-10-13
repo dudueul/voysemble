@@ -2170,3 +2170,25 @@ Built:
 - Docs: `headcounts.md`; captures README; feature flag `mobile.today.live-headcount`.
 
 Not done: the leader's own group first when they lead one group of several.
+
+## Slice 087: the offline pack
+
+Status: done 2026-10-13. Commit: see git log (`feat(mobile): Today and the plan open from the last synced itinerary after a restart with no signal (slice 087)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Spec: ADR-0009 (offline semantics), D28 (encrypted local cache, cleared on wipe). Details: `docs/engineering/offline-pack.md`.
+
+| Gate | Command | Result |
+|---|---|---|
+| Core JVM tests | `./gradlew :core:jvmTest` (CI `mobile` job) | `OfflinePackTest` (3); `SessionWipeTest` (the pack cleared) |
+| Android tests | `./gradlew :android-app:testDebugUnitTest` (CI `mobile` job) | `TodayViewModelTest` +1 (save online, open offline) |
+| iOS tests | `xcodebuild test` (CI `ios` job) | `LiveModelsTests` +1 |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean (no web change) |
+
+Gradle and Xcode do not run in this workspace; the CI `mobile` and `ios` jobs verify the Kotlin and Swift, desk-checked here.
+
+Built:
+- Core: `offline/OfflinePack.kt` (`OfflinePack.save/load/clear`, `PackedItinerary`, `packAgeMinutes`); `SessionManager.clear()` removes the pack.
+- Android: `AppGraph.offlinePack`; `TodayViewModel` and `PlanViewModel` open from the pack and save every answer.
+- iOS: `TodayModel` and `PlanModel` the same; the app root passes a Keychain-backed pack.
+- Docs: `offline-pack.md`; runbooks README; feature flag `sync.offline` working.
+
+Not done: packing the bulletin, the packing list and the inbox; a pack per trip.

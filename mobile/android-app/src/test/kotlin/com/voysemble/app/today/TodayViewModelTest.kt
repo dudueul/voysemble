@@ -5,9 +5,12 @@
 // names only them; the card tracks the server's answer); sample mode keeps a local card. Slice
 // 075: a traveler's room tonight rides on the refresh; the sample shows Minji's. Slice 086: a
 // leader's Today reads today's newest head count per group; a traveler's shows no head count card.
+// Slice 087: an answer is kept in the offline pack; a restart with no signal opens Today from it.
 
 package com.voysemble.app.today
 
+import com.voysemble.core.session.InMemorySecureStore
+import com.voysemble.core.offline.OfflinePack
 import com.voysemble.core.today.HeadcountGroup
 import com.voysemble.core.today.MyRoomCard
 import com.voysemble.core.today.HelpStatus
@@ -149,6 +152,31 @@ class TodayViewModelTest {
         val minji = ActiveTrip("org_1", "Hana", "trip_1", "Korea Concert Tour 2026", "p-minji", "traveler")
         assertTrue(!TodayViewModel(api = ApiClient(ApiClientConfig("h", "t") { "tok" }, engine), trip = minji).state.value.showsHeadcount)
         assertTrue(TodayViewModel().state.value.showsHeadcount)
+    }
+
+    @Test
+    fun a_restart_with_no_signal_opens_today_from_the_pack() = runTest {
+        val store = InMemorySecureStore()
+        val online = MockEngine { req ->
+            val json = headersOf(HttpHeaders.ContentType, "application/json")
+            when {
+                req.url.encodedPath.endsWith("/announcements") -> respond(announcementsJson, HttpStatusCode.OK, json)
+                req.url.encodedPath.endsWith("/headcounts") -> respond("""{"headcounts":[]}""", HttpStatusCode.OK, json)
+                req.url.encodedPath.endsWith("/rooming/mine") -> respond("""{"stay":null}""", HttpStatusCode.OK, json)
+                else -> respond(itineraryJson, HttpStatusCode.OK, json)
+            }
+        }
+        val first = TodayViewModel(api = ApiClient(ApiClientConfig("h", "t") { "tok" }, online), trip = trip, deviceDate = { "2026-12-31" }, deviceClock = { "08:00" }, pack = OfflinePack(store), nowMillis = { 0L })
+        first.ready.join()
+        assertEquals(2, first.state.value.snapshot.events.size)
+        // Two hours later, no signal: Today opens with the packed plan, then says it is offline.
+        val offline = MockEngine { throw java.io.IOException("no route to host") }
+        val second = TodayViewModel(api = ApiClient(ApiClientConfig("h", "t") { "tok" }, offline), trip = trip, deviceDate = { "2026-12-31" }, deviceClock = { "10:00" }, pack = OfflinePack(store), nowMillis = { 128 * 60_000L })
+        second.ready.join()
+        val s = second.state.value.snapshot
+        assertEquals(listOf("Breakfast", "Depart"), s.events.map { it.title })
+        assertEquals(128, s.minutesSinceSync)
+        assertTrue(s.offline)
     }
 
     @Test

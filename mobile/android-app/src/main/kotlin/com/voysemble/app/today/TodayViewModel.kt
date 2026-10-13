@@ -5,6 +5,8 @@
 
 package com.voysemble.app.today
 
+import com.voysemble.core.offline.packAgeMinutes
+import com.voysemble.core.offline.OfflinePack
 import com.voysemble.core.today.withHeadcount
 import com.voysemble.core.today.headcountGroupsOf
 import com.voysemble.core.today.myRoomCardOf
@@ -99,10 +101,13 @@ class TodayViewModel(
     private val deviceClock: (zone: String) -> String = { zone -> LocalTime.now(zoneOf(zone)).format(HH_MM) },
     /** Reader's language for the guardian card ("ko" or "en"). */
     private val locale: String = java.util.Locale.getDefault().language,
+    /** Slice 087: the last itinerary of the active trip, read at start and kept after every answer. */
+    private val pack: OfflinePack? = null,
+    private val nowMillis: () -> Long = { System.currentTimeMillis() },
 ) : ViewModel() {
     private val _state = MutableStateFlow(
         TodayUiState(
-            snapshot = if (trip != null && api != null) emptyTodaySnapshot(trip.tripName) else initial,
+            snapshot = if (trip != null && api != null) packedSnapshot(trip) ?: emptyTodaySnapshot(trip.tripName) else initial,
             live = trip != null && api != null,
             canPropose = trip == null || trip.role == "leader",
             canAskHelp = trip == null || trip.role == "traveler",
@@ -175,6 +180,7 @@ class TodayViewModel(
         return viewModelScope.launch {
             when (val r = a.getItinerary(t.organizationId, t.tripId)) {
                 is ApiResult.Ok -> {
+                    pack?.save(t.tripId, r.value, nowMillis())
                     val zone = r.value.days.firstOrNull()?.timeZone ?: "UTC"
                     // D19/D16: the required-ack announcement that rides on Today (rule in core, shared with iOS).
                     val latest = when (val list = a.listAnnouncements(t.organizationId, t.tripId)) {
@@ -306,6 +312,13 @@ class TodayViewModel(
                 is ApiResult.Unreachable -> _state.update { it.copy(care = care.copy(saving = false, message = tr(Txt.CARE_OFFLINE_SAVE))) }
             }
         }
+    }
+
+    /** Slice 087: Today from the pack (the plan as last synced, with its age), or null when none. */
+    private fun packedSnapshot(t: ActiveTrip): TodaySnapshot? {
+        val packed = pack?.load(t.tripId, nowMillis()) ?: return null
+        val zone = packed.itinerary.days.firstOrNull()?.timeZone ?: "UTC"
+        return todaySnapshotOf(packed.itinerary, deviceDate(zone), deviceClock(zone), minutesSinceSync = packAgeMinutes(packed.savedAtMillis, nowMillis()))
     }
 
     /** The trip-zone calendar date of a server instant (slice 086); the input when unparseable. */

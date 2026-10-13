@@ -37,6 +37,9 @@ final class TodayModel: ObservableObject {
     let api: ApiClient?
     let trip: ActiveTrip?
     var live: Bool { api != nil && trip != nil }
+    /// Slice 087: the last itinerary of the active trip (Keychain), read at start and kept after every answer.
+    let pack: OfflinePack?
+    private let nowMillis: () -> Int64
 
     private let deviceDate: (String) -> String
     private let deviceClock: (String) -> String
@@ -51,9 +54,13 @@ final class TodayModel: ObservableObject {
         careStatus: CareNoteStatusDto? = nil,
         careDraft: CareNoteDto? = nil,
         help: HelpCard? = nil,
+        pack: OfflinePack? = nil,
+        nowMillis: @escaping () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1000) },
     ) {
         self.api = api
         self.trip = trip
+        self.pack = pack
+        self.nowMillis = nowMillis
         self.guardian = guardian
         self.careStatus = careStatus
         self.careDraft = careDraft
@@ -61,7 +68,16 @@ final class TodayModel: ObservableObject {
         self.deviceDate = deviceDate
         self.deviceClock = deviceClock
         if let trip, api != nil {
-            self.snapshot = TodayLiveKt.emptyTodaySnapshot(tripName: trip.tripName)
+            // Slice 087: the plan as last synced, with its age, until the first answer.
+            if let packed = pack?.load(tripId: trip.tripId, nowMillis: nowMillis()) {
+                let zone = packed.itinerary.days.first?.timeZone ?? "UTC"
+                self.snapshot = TodayBuilderKt.todaySnapshotOf(
+                    itinerary: packed.itinerary, date: deviceDate(zone), now: deviceClock(zone),
+                    minutesSinceSync: KotlinInt(int: OfflinePackKt.packAgeMinutes(savedAtMillis: packed.savedAtMillis, nowMillis: nowMillis())), offline: false,
+                )
+            } else {
+                self.snapshot = TodayLiveKt.emptyTodaySnapshot(tripName: trip.tripName)
+            }
         } else {
             self.snapshot = snapshot
             self.room = KoreaConcertTourFixture.shared.myRoom()
@@ -89,6 +105,7 @@ final class TodayModel: ObservableObject {
         do {
             let r = try await api.getItinerary(orgId: trip.organizationId, tripId: trip.tripId, correlationId: nil)
             if let itinerary = (r as? ApiResultOk<ItineraryDto>)?.value {
+                pack?.save(tripId: trip.tripId, itinerary: itinerary, savedAtMillis: nowMillis())
                 let zone = itinerary.days.first?.timeZone ?? "UTC"
                 var latest: AnnouncementDto? = nil
                 let list = try? await api.listAnnouncements(orgId: trip.organizationId, tripId: trip.tripId, correlationId: nil)

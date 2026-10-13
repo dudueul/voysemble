@@ -7,6 +7,7 @@
 
 package com.voysemble.core.session
 
+import com.voysemble.core.offline.OfflinePack
 import com.voysemble.core.api.ApiClient
 import com.voysemble.core.api.ApiResult
 import com.voysemble.core.api.MyParticipationDto
@@ -168,7 +169,8 @@ public class SessionManager(
     public fun revokedNotice(): Boolean = store.get(KEY_REVOKED_NOTICE) == "1"
 
     private fun clear() {
-        listOf(KEY_TOKEN, KEY_ACCOUNT, KEY_AWAITING, KEY_ORG, KEY_ORG_NAME, KEY_TRIP, KEY_TRIP_NAME, KEY_PARTICIPATION, KEY_ROLE)
+        // Slice 087: the offline pack (the last itinerary) goes with the session (D28).
+        listOf(KEY_TOKEN, KEY_ACCOUNT, KEY_AWAITING, KEY_ORG, KEY_ORG_NAME, KEY_TRIP, KEY_TRIP_NAME, KEY_PARTICIPATION, KEY_ROLE, OfflinePack.KEY)
             .forEach { store.put(it, null) }
     }
 

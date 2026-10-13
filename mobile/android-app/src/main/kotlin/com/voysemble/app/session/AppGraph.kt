@@ -4,6 +4,7 @@
 
 package com.voysemble.app.session
 
+import com.voysemble.core.offline.OfflinePack
 import android.content.Context
 import com.voysemble.app.BuildConfig
 import com.voysemble.core.api.ApiClient
@@ -38,4 +39,7 @@ object AppGraph {
 
     val apiClient: ApiClient get() = api ?: error("AppGraph.init not called")
     val sessionManager: SessionManager get() = session ?: error("AppGraph.init not called")
+
+    /** Slice 087: the last itinerary of the active trip, in the same Keystore-encrypted store. */
+    val offlinePack: OfflinePack get() = OfflinePack(store ?: error("AppGraph.init not called"))
 }

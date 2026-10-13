@@ -41,6 +41,17 @@ final class LiveModelsTests: XCTestCase {
         XCTAssertFalse(TodayModel(api: unreachableClient(), trip: minji).showsHeadcount)
     }
 
+    func testAPackWithoutAnswerStillOpensEmptyAndOffline() async {
+        // Slice 087: an empty pack changes nothing; an unreachable server still says offline; the pack stays empty.
+        let store = InMemorySecureStore()
+        let model = TodayModel(api: unreachableClient(), trip: trip, pack: OfflinePack(store: store), nowMillis: { 0 })
+        XCTAssertEqual(model.snapshot.events.count, 0)
+        await model.refresh()
+        XCTAssertTrue(model.snapshot.offline)
+        XCTAssertNil(store.get(key: OfflinePack.companion.KEY))
+        XCTAssertEqual(OfflinePackKt.packAgeMinutes(savedAtMillis: 0, nowMillis: 128 * 60_000), 128)
+    }
+
     func testGuardianCareEntryIsHonestWhenUnreachable() async {
         // Slice 032 (D27): a seeded status offers Add (blank draft); saving while unreachable says so.
         let sora = ActiveTrip(organizationId: "org1", organizationName: "Seoul Arts High", tripId: "trip1", tripName: "Korea Concert Tour", participationId: "p-sora", role: "guardian")

@@ -28,21 +28,31 @@ final class PlanModel: ObservableObject {
     let canSeeTravel: Bool
     var live: Bool { api != nil && trip != nil }
     private let deviceDate: (String) -> String
+    /// Slice 087: the last itinerary of the active trip, read at start and kept after every answer.
+    private let pack: OfflinePack?
 
     init(
         plan: TripPlan? = nil,
         api: ApiClient? = nil,
         trip: ActiveTrip? = nil,
         deviceDate: @escaping (String) -> String = { zone in Clocks.date(in: zone) },
-        canPropose: Bool? = nil
+        canPropose: Bool? = nil,
+        pack: OfflinePack? = nil
     ) {
         self.api = api
         self.trip = trip
+        self.pack = pack
         self.deviceDate = deviceDate
         self.canPropose = canPropose ?? (trip == nil || trip?.role == "leader")
         self.canSeeTravel = trip == nil || trip?.role == "leader"
+        let now = Int64(Date().timeIntervalSince1970 * 1000)
         if let plan {
             self.plan = plan
+        } else if let trip, api != nil, let packed = pack?.load(tripId: trip.tripId, nowMillis: now) {
+            // Slice 087: the plan as last synced, opened on the device date's day.
+            let packedPlan = PlanModelKt.planOf(itinerary: packed.itinerary, offline: false, minutesSinceSync: KotlinInt(int: OfflinePackKt.packAgeMinutes(savedAtMillis: packed.savedAtMillis, nowMillis: now)))
+            self.plan = packedPlan
+            selected = Int(packedPlan.initialDayIndex(date: deviceDate(packedPlan.days.first?.timeZone ?? "UTC")))
         } else if let trip, api != nil {
             self.plan = PlanModelKt.emptyTripPlan(tripName: trip.tripName)
         } else {
@@ -62,6 +72,7 @@ final class PlanModel: ObservableObject {
         do {
             let r = try await api.getItinerary(orgId: trip.organizationId, tripId: trip.tripId, correlationId: nil)
             if let itinerary = (r as? ApiResultOk<ItineraryDto>)?.value {
+                pack?.save(tripId: trip.tripId, itinerary: itinerary, savedAtMillis: Int64(Date().timeIntervalSince1970 * 1000))
                 let next = PlanModelKt.planOf(itinerary: itinerary, offline: false, minutesSinceSync: KotlinInt(int: 0))
                 // Open the device date's day on the first answer; keep the reader's choice after.
                 if plan.days.isEmpty {

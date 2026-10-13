@@ -43,7 +43,7 @@ struct TodayView: View {
             api: model.api, trip: model.trip, locationSource: model.trip == nil ? nil : CoreLocationSource()))
         // Slice 033 (D22): fixed chat channels; live when signed in on a trip, the fixture otherwise.
         _chats = StateObject(wrappedValue: ChatsModel(api: model.api, trip: model.trip))
-        _plan = StateObject(wrappedValue: PlanModel(api: model.api, trip: model.trip))
+        _plan = StateObject(wrappedValue: PlanModel(api: model.api, trip: model.trip, pack: model.pack))
         _memories = StateObject(wrappedValue: MemoriesModel(api: model.api, trip: model.trip))
         _packing = StateObject(wrappedValue: PackingModel(api: model.api, trip: model.trip))
         _inbox = StateObject(wrappedValue: InboxModel(api: model.api, trip: model.trip))

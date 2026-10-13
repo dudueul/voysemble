@@ -10,7 +10,7 @@
     "itinerary.publish": "working",
     "announcements.ack": "working",
     "headcount.durable": "working",
-    "sync.offline": "deferred",
+    "sync.offline": "working",
     "media.private-upload": "working",
     "graph.proposal": "working",
     "billing.stripe": "deferred",

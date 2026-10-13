@@ -130,7 +130,7 @@ fun AppScreens(trip: ActiveTrip?, onSignOut: () -> Unit, tripSwitch: TripSwitch 
     val nav: NavViewModel = viewModel()
     val screen by nav.screen.collectAsStateWithLifecycle()
     val today: TodayViewModel = viewModel(key = "today-${trip?.tripId ?: "sample"}") {
-        if (trip == null) TodayViewModel() else TodayViewModel(api = AppGraph.apiClient, trip = trip)
+        if (trip == null) TodayViewModel() else TodayViewModel(api = AppGraph.apiClient, trip = trip, pack = AppGraph.offlinePack)
     }
     val todayState by today.state.collectAsStateWithLifecycle()
     // Slice 048 (D38): my packing list, shared by the Today card (its summary) and the pushed screen.
@@ -221,7 +221,7 @@ fun AppScreens(trip: ActiveTrip?, onSignOut: () -> Unit, tripSwitch: TripSwitch 
             MainTab.PLAN -> TabHost(today) {
                 // Slice 035: the published plan by day; leaders propose from any event (D24).
                 val vm: PlanViewModel = viewModel(key = "plan-${trip?.tripId ?: "sample"}") {
-                    if (trip == null) PlanViewModel() else PlanViewModel(api = AppGraph.apiClient, trip = trip)
+                    if (trip == null) PlanViewModel() else PlanViewModel(api = AppGraph.apiClient, trip = trip, pack = AppGraph.offlinePack)
                 }
                 // Slice 059 (D41): a leader opens a hotel's rooming list from its row (travelers have no bookings).
                 PlanRoute(vm, onOpenRooming = if (trip == null || trip.role == "leader") { h -> nav.openRooming(h.id, h.name) } else null)
