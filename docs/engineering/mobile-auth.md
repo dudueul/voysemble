@@ -78,15 +78,17 @@ app, the browser flow is unchanged, and the paste flow stays as the fallback.
 | Piece | Where | Notes |
 |---|---|---|
 | Association files | `apps/api-worker/src/routes/wellknown.ts` | `/.well-known/assetlinks.json` from `ANDROID_CERT_SHA256` (comma-separated SHA-256 fingerprints of the signing certificates) and `/.well-known/apple-app-site-association` from `APPLE_APP_IDS` (`TEAMID.com.voysemble.app`, comma-separated). Unset vars publish an honest empty association. `run_worker_first` includes `/.well-known/*`. Cached for an hour. |
-| Android | `AndroidManifest.xml`, `build.gradle.kts` | An `autoVerify` intent filter on `https://${appLinkHost}/auth/verify`; `appLinkHost` is a manifest placeholder per build type (`next.dev.voysemble.cfd` for debug, `app.voysemble.com` for release), mirrored in `BuildConfig.LINK_HOST`. The activity is `singleTop` so a link while running arrives in `onNewIntent`. |
+| Android | `AndroidManifest.xml`, `build.gradle.kts` | An `autoVerify` intent filter on `https://${appLinkHost}/auth/verify`; `appLinkHost` is a manifest placeholder per build type (`staging.dev.voysemble.cfd` for debug, `app.voysemble.com` for release), mirrored in `BuildConfig.LINK_HOST`. The activity is `singleTop` so a link while running arrives in `onNewIntent`. |
 | Android hand-off | `session/AppLinks.kt`, `MainActivity.kt`, `AppRoot` | `magicLinkFrom(intent)` accepts only an https link on `/auth/verify` carrying a token; `PendingLink` hands it from the activity to the root composable, which calls `SessionViewModel.verify` once unless already signed in. |
-| iOS | `project.yml` entitlements, `VoysembleApp.swift`, `SessionModel.openMagicLink` | `applinks:app.voysemble.com` and `applinks:next.dev.voysemble.cfd`; `onOpenURL` and `onContinueUserActivity(NSUserActivityTypeBrowsingWeb)` route the URL to the session, which verifies only `/auth/verify` links with a token. |
+| iOS | `project.yml` entitlements, `VoysembleApp.swift`, `SessionModel.openMagicLink` | `applinks:app.voysemble.com` and `applinks:staging.dev.voysemble.cfd`; `onOpenURL` and `onContinueUserActivity(NSUserActivityTypeBrowsingWeb)` route the URL to the session, which verifies only `/auth/verify` links with a token. |
 
 Deploy prerequisites, per environment: set `ANDROID_CERT_SHA256` (release keystore and, for
-previews, the debug keystore) and `APPLE_APP_IDS` as Worker vars; on iOS the device build needs
+staging, the debug keystore) and `APPLE_APP_IDS` as Worker vars; on iOS the device build needs
 a provisioning profile with Associated Domains (the simulator in CI builds with signing off, so
-the entitlement is embedded but not validated there). Each preview build has its own host, so
-only `next` is claimed by the apps; other previews use the paste flow.
+the entitlement is embedded but not validated there). Debug builds talk to staging
+(`api.staging.dev.voysemble.cfd`) and claim its console host since slice 089, so one staging
+serves the console and the test phones; each preview build has its own host and uses the paste
+flow.
 
 Facts established by tests: the builders accept only valid fingerprints and app ids and answer
 empties otherwise; both routes answer JSON with a cache header and are empty locally; the

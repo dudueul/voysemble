@@ -11,13 +11,13 @@ import org.junit.Test
 class AppLinksTest {
     @Test
     fun accepts_only_the_verify_path_with_a_token() {
-        val link = "https://next.dev.voysemble.cfd/auth/verify#token=" + "a".repeat(40)
+        val link = "https://staging.dev.voysemble.cfd/auth/verify#token=" + "a".repeat(40)
         assertEquals(link, magicLinkFrom(link))
         val prod = "https://app.voysemble.com/auth/verify#token=" + "b".repeat(40)
         assertEquals(prod, magicLinkFrom(prod))
-        assertNull(magicLinkFrom("https://next.dev.voysemble.cfd/safety"))
-        assertNull(magicLinkFrom("http://next.dev.voysemble.cfd/auth/verify#token=" + "a".repeat(40)))
-        assertNull(magicLinkFrom("https://next.dev.voysemble.cfd/auth/verify"))
+        assertNull(magicLinkFrom("https://staging.dev.voysemble.cfd/safety"))
+        assertNull(magicLinkFrom("http://staging.dev.voysemble.cfd/auth/verify#token=" + "a".repeat(40)))
+        assertNull(magicLinkFrom("https://staging.dev.voysemble.cfd/auth/verify"))
         assertNull(magicLinkFrom(null as String?))
     }
 

@@ -30,9 +30,8 @@ Evidence to keep: the membership page, the D-U-N-S confirmation.
    - the API's variable `APPLE_APP_IDS` = `TEAMID.com.voysemble.app` (`cloudflare.md` §5), which
      the API publishes in `/.well-known/apple-app-site-association` so sign-in links open the
      app.
-3. The app declares `applinks:app.voysemble.com` and `applinks:next.dev.voysemble.cfd` today;
-   engineering switches the second to `applinks:staging.dev.voysemble.cfd` with the staging move
-   (`cloudflare.md` §7).
+3. The app declares `applinks:app.voysemble.com` and, for debug builds against staging,
+   `applinks:staging.dev.voysemble.cfd` (slice 089).
 
 Verify (after a deploy): `curl https://app.voysemble.com/.well-known/apple-app-site-association`
 lists `TEAMID.com.voysemble.app`.

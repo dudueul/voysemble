@@ -36,7 +36,7 @@ targets:
         # Meeting windows (D15, slice 029): one fix while the traveler shares inside an open window,
         # judged on the phone; no background location.
         NSLocationWhenInUseUsageDescription: Voysemble compares your position with the meeting point only while you share inside an open meeting window. Your position never leaves this phone; leaders see inside or outside.
-        VYApiHostDebug: api.next.dev.voysemble.cfd
+        VYApiHostDebug: api.staging.dev.voysemble.cfd
         VYApiHostRelease: api.voysemble.com
     preBuildScripts:
       - name: Build VoysembleCore (Gradle)
@@ -55,7 +55,7 @@ targets:
       properties:
         com.apple.developer.associated-domains:
           - applinks:app.voysemble.com
-          - applinks:next.dev.voysemble.cfd
+          - applinks:staging.dev.voysemble.cfd
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.voysemble.app

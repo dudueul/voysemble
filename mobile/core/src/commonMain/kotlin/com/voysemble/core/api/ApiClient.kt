@@ -35,7 +35,7 @@ import kotlinx.serialization.json.Json
 public const val WIPE_HEADER: String = "X-Voysemble-Wipe"
 
 public class ApiClientConfig(
-    /** e.g. "next.dev.voysemble.cfd" or "api.voysemble.com". Scheme is always https. */
+    /** e.g. "staging.dev.voysemble.cfd" or "api.voysemble.com". Scheme is always https. */
     public val host: String,
     public val userAgent: String,
     /** Native session token (ADR-0007), read per request so a refreshed token is used at once. */

@@ -1,0 +1,144 @@
+# Copyright 2026- At Day. All rights reserved.
+#
+# Deploy (ADR-0008; docs/runbooks/cloudflare.md §7–9). Staging: called by ci.yml after every
+# green push to `next`. Production: only by hand (Actions → deploy → Run workflow, environment
+# production, confirm "deploy production"), only for a commit whose ci run passed, and behind the
+# `production` environment's required reviewers. Without the Cloudflare secrets and the D1 id
+# variable, staging skips cleanly with a note in the run summary; production fails loudly.
+name: deploy
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        options: [staging, production]
+        required: true
+      confirm:
+        description: 'For production, type: deploy production'
+        type: string
+        required: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+    concurrency:
+      group: deploy-${{ inputs.environment }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      actions: read
+    env:
+      TARGET: ${{ inputs.environment }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      D1_ID_STAGING: ${{ vars.D1_ID_STAGING }}
+      D1_ID_PRODUCTION: ${{ vars.D1_ID_PRODUCTION }}
+    steps:
+      - name: Plan
+        id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          CONFIRM: ${{ inputs.confirm }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          build="${GITHUB_SHA::7}"
+          case "$TARGET" in
+            staging)
+              d1="$D1_ID_STAGING"; db=voysemble-staging
+              site=https://www.staging.dev.voysemble.cfd
+              console=https://staging.dev.voysemble.cfd
+              api=https://api.staging.dev.voysemble.cfd ;;
+            production)
+              d1="$D1_ID_PRODUCTION"; db=voysemble-prod
+              site=https://voysemble.com
+              console=https://app.voysemble.com
+              api=https://api.voysemble.com
+              if [ "$EVENT" != workflow_dispatch ] || [ "$CONFIRM" != "deploy production" ]; then
+                echo "::error::production deploys only by hand with the confirmation text"; exit 1
+              fi
+              if [ "$GITHUB_REF" != refs/heads/next ]; then
+                echo "::error::production deploys only from next"; exit 1
+              fi
+              ok=$(gh run list -R "$GITHUB_REPOSITORY" --workflow ci --commit "$GITHUB_SHA" --status success --json databaseId --jq length)
+              if [ "$ok" = 0 ]; then
+                echo "::error::ci has not passed for $GITHUB_SHA; deploy a commit staging already runs"; exit 1
+              fi ;;
+            *) echo "::error::unknown environment $TARGET"; exit 1 ;;
+          esac
+          missing=""
+          [ -n "$CLOUDFLARE_API_TOKEN" ] || missing="$missing CLOUDFLARE_API_TOKEN"
+          [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || missing="$missing CLOUDFLARE_ACCOUNT_ID"
+          [ -n "$d1" ] || missing="$missing D1_ID_${TARGET^^}"
+          if [ -n "$missing" ]; then
+            if [ "$TARGET" = production ]; then
+              echo "::error::missing:$missing (docs/runbooks/cloudflare.md §3–4)"; exit 1
+            fi
+            echo "::notice::staging deploy skipped; missing:$missing (docs/runbooks/cloudflare.md §3–4)"
+            echo "Staging deploy skipped: missing$missing. See docs/runbooks/cloudflare.md §3–4." >> "$GITHUB_STEP_SUMMARY"
+            echo "ready=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          {
+            echo "ready=true"; echo "build=$build"; echo "d1=$d1"; echo "db=$db"
+            echo "site=$site"; echo "console=$console"; echo "api=$api"
+          } >> "$GITHUB_OUTPUT"
+      - if: steps.plan.outputs.ready == 'true'
+        uses: actions/checkout@v4
+      - if: steps.plan.outputs.ready == 'true'
+        uses: pnpm/action-setup@v4
+      - if: steps.plan.outputs.ready == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - if: steps.plan.outputs.ready == 'true'
+        run: pnpm install --frozen-lockfile
+      - name: Build the console and the public site
+        if: steps.plan.outputs.ready == 'true'
+        env:
+          SITE_URL: ${{ steps.plan.outputs.site }}
+          BUILD_ID: ${{ steps.plan.outputs.build }}
+          CF_ANALYTICS_TOKEN: ${{ secrets.CF_ANALYTICS_TOKEN }}
+        run: |
+          pnpm --filter @voysemble/organizer-web build
+          pnpm --filter @voysemble/public-web build
+      - name: Fill the placeholders
+        if: steps.plan.outputs.ready == 'true'
+        run: |
+          node scripts/fill-wrangler.mjs apps/api-worker/wrangler.jsonc --build "${{ steps.plan.outputs.build }}" --d1 "${{ steps.plan.outputs.d1 }}"
+          node scripts/fill-wrangler.mjs apps/public-web/wrangler.jsonc --build "${{ steps.plan.outputs.build }}"
+      - name: Apply D1 migrations
+        if: steps.plan.outputs.ready == 'true'
+        working-directory: apps/api-worker
+        run: pnpm exec wrangler d1 migrations apply "${{ steps.plan.outputs.db }}" --env "$TARGET" --remote
+      - name: Deploy the API and console Worker
+        if: steps.plan.outputs.ready == 'true'
+        working-directory: apps/api-worker
+        run: pnpm exec wrangler deploy --env "$TARGET"
+      - name: Deploy the public site Worker
+        if: steps.plan.outputs.ready == 'true'
+        working-directory: apps/public-web
+        run: pnpm exec wrangler deploy --env "$TARGET"
+      - name: Smoke check
+        if: steps.plan.outputs.ready == 'true'
+        env:
+          BUILD: ${{ steps.plan.outputs.build }}
+          SITE: ${{ steps.plan.outputs.site }}
+          CONSOLE: ${{ steps.plan.outputs.console }}
+          API: ${{ steps.plan.outputs.api }}
+        run: |
+          set -euo pipefail
+          fetch() { curl -fsS --retry 12 --retry-delay 10 --retry-all-errors "$1"; }
+          served=$(fetch "$API/v1/health" | jq -r .buildId)
+          [ "$served" = "$BUILD" ] || { echo "::error::$API serves build $served, expected $BUILD"; exit 1; }
+          fetch "$CONSOLE/" > /dev/null
+          fetch "$API/openapi.json" > /dev/null
+          page=$(fetch "$SITE/")
+          case "$page" in *"$BUILD"*) ;; *) echo "::error::$SITE does not carry build $BUILD"; exit 1 ;; esac
+          echo "Deployed $BUILD to $TARGET: $CONSOLE, $API, $SITE" >> "$GITHUB_STEP_SUMMARY"

@@ -132,6 +132,18 @@ jobs:
           name: ios-captures
           path: docs/captures/ios
           if-no-files-found: ignore
+  # Slice 089: every green push to `next` deploys staging (deploy.yml); it skips cleanly until the
+  # Cloudflare secrets and the D1 id variable exist (docs/runbooks/cloudflare.md §3–4).
+  deploy-staging:
+    needs: [web, mobile, ios]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/next'
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: staging
+    secrets: inherit
   # D31: the captures every job recorded are committed back to the branch so docs/captures/ is
   # always the current state of every client. Runs only when every job passed (captures of a red
   # build are not evidence), only on push (a pull_request checkout has no branch to push to), and

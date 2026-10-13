@@ -2140,7 +2140,7 @@ Not done: the code those runbooks feed (the deploy workflow, the Cloudflare emai
 
 ## Slice 085: launch markets (D43)
 
-Status: done 2026-10-13. Commit: see git log (`docs: the United States and Korea first, Europe afterwards (D43, slice 085)`). No code change.
+Status: done 2026-10-13. Commit: see git log (`docs: the United States and Korea first, Europe afterwards (D43, slice 085)`). No code change. CI: run 38422685311 green; captures commit 6efb22b.
 Spec: founder decision 2026-10-13. Details: `docs/decisions/ADR-0010-launch-markets.md`.
 
 Built:
@@ -2151,7 +2151,7 @@ Not done: locale-aware dates in the console before the US launch (`console-i18n.
 
 ## Slice 086: the head count card on a leader's live Today
 
-Status: done 2026-10-13. Commit: see git log (`feat(mobile): a leader's Today shows today's head counts per group; a traveler's shows none (slice 086)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-13. Commit: see git log (`feat(mobile): a leader's Today shows today's head counts per group; a traveler's shows none (slice 086)`). CI: run 38423086538 green (web, mobile, ios); captures commit d7c4fd0.
 Spec: D14, D25, D31. Details: `docs/engineering/headcounts.md` (the new section).
 
 | Gate | Command | Result |
@@ -2173,7 +2173,7 @@ Not done: the leader's own group first when they lead one group of several.
 
 ## Slice 087: the offline pack
 
-Status: done 2026-10-13. Commit: see git log (`feat(mobile): Today and the plan open from the last synced itinerary after a restart with no signal (slice 087)`). CI: pending at commit time; the run id is recorded in the next commit once verified.
+Status: done 2026-10-13. Commit: see git log (`feat(mobile): Today and the plan open from the last synced itinerary after a restart with no signal (slice 087)`). CI: run 38423535112 green (web, mobile, ios); captures commit 3c4b0a1.
 Spec: ADR-0009 (offline semantics), D28 (encrypted local cache, cleared on wipe). Details: `docs/engineering/offline-pack.md`.
 
 | Gate | Command | Result |
@@ -2216,3 +2216,22 @@ Built:
 - Docs: `notifications.md`; runbooks `apple.md` (environments, Time Sensitive capability, the first-send check) and `google.md`; feature flag `notifications.push-server` working (`notifications.push` stays deferred until the apps register).
 
 Not done: the apps' registration and tap handling (need `google-services.json` and the Apple push capability); APNs over the Workers runtime confirmed on staging; a per-person push switch.
+
+## Slice 089: the deploy workflow
+
+Status: done 2026-10-13. Commit: see git log (`ci: deploy staging after every green push to next and production by hand behind approval (slice 089)`). CI: pending at commit time; the run id is recorded in the next commit once verified. Nothing is deployed: the Cloudflare secrets do not exist yet, so the staging job skips by design.
+Spec: ADR-0008 (environments), D43 (US and Korea first, unchanged hosts). Details: `docs/runbooks/cloudflare.md` §7–9.
+
+| Gate | Command | Result |
+|---|---|---|
+| Script tests | `pnpm test:scripts` | `fill-wrangler.test.mjs` (6) with the header tests, 12 pass |
+| Workflow lint | `actionlint .github/workflows/deploy.yml .github/workflows/ci.yml` | clean but for the existing `macos-26` label, which the linter's list predates |
+| Lint + typecheck + headers | `pnpm lint`, `pnpm typecheck`, `pnpm check:headers` | clean |
+
+Built:
+- `scripts/fill-wrangler.mjs`: fills `__BUILD_ID__` and `__D1_ID__` for one deploy; refuses a malformed build id or database id and any placeholder left; tests against both committed configs and the command line.
+- `.github/workflows/deploy.yml`: staging from `ci.yml` (`deploy-staging`, after web, mobile and ios pass on `next`), skipping with a summary note while the secrets or `D1_ID_STAGING` are missing; production by hand only (confirmation text, `next` only, a commit whose ci passed, the `production` environment's reviewers), failing loudly on anything missing. Builds, fills, migrates D1, deploys both Workers, smoke-checks the build id on the three hosts. Runs per environment queue.
+- Phones: debug builds talk to `api.staging.dev.voysemble.cfd` and claim `staging.dev.voysemble.cfd` for sign-in links (Android `build.gradle.kts`, iOS `project.yml` and `AppConfig.swift`).
+- Docs: `cloudflare.md` §4, §7, §8, §9; `apple.md`; `mobile-auth.md`.
+
+Not done: `CloudflareEmailPort` (staging sign-in fails until a transport is bound); per-commit preview deploys (`deploy:preview` stays manual).

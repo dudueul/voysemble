@@ -75,7 +75,8 @@ secrets; they are not sensitive): `D1_ID_STAGING`, `D1_ID_PRODUCTION`. The commi
 carries the placeholder `__D1_ID__`, which the deploy workflow fills (§7); never edit the
 committed `wrangler.jsonc` by hand.
 
-Apply the schema (seven migrations today, `migrations/0001` to `0007`), staging first:
+Apply the schema (eight migrations today, `migrations/0001` to `0008`; the deploy workflow
+applies them on every run, §7), staging first:
 
 ```sh
 pnpm exec wrangler d1 migrations apply voysemble-staging --env staging --remote
@@ -141,25 +142,53 @@ enforces that allowlist in the port, configured by a staging variable `EMAIL_ALL
 Verify (after §7–8): request a sign-in link at `https://staging.dev.voysemble.cfd`, receive it,
 check the message headers show `spf=pass`, `dkim=pass`, `dmarc=pass`.
 
-## 7. What engineering builds once §1–6 exist
+## 7. The deploy workflow (built, slice 089) and what engineering still builds
 
-- A GitHub Actions deploy workflow: on push to `next` it builds the console and the public
-  site, fills `__BUILD_ID__` and `__D1_ID__` from the run and the variables in §4, applies D1
-  migrations, and deploys both Workers to staging; production deploys only from a manual
-  approval (ADR-0008).
-- `CloudflareEmailPort` and the binding in `wrangler.jsonc` for staging and production, with the
-  non-production allowlist; `FixtureEmailPort` stays for local and tests.
-- The phones' debug builds point at `api.next.dev.voysemble.cfd` today; they move to
-  `api.staging.dev.voysemble.cfd` so one staging serves the console and the test phones.
+`.github/workflows/deploy.yml`, one job used two ways:
+
+- **Staging, automatic.** `ci.yml`'s `deploy-staging` job calls it after every push to `next`
+  whose `web`, `mobile` and `ios` jobs passed. Until `CLOUDFLARE_API_TOKEN`,
+  `CLOUDFLARE_ACCOUNT_ID` (§3) and `D1_ID_STAGING` (§4) exist it does nothing and says so in the
+  run summary ("Staging deploy skipped: missing …"); ci stays green.
+- **Production, by hand only.** Actions → deploy → Run workflow on `next`, environment
+  `production`, confirmation `deploy production`. It refuses any other branch, a commit whose
+  `ci` run did not pass, a missing secret or `D1_ID_PRODUCTION`. Before the first production
+  deploy, add yourself as a required reviewer: Settings → Environments → `production` →
+  Required reviewers (the environment appears after the first staging run; create it by hand
+  otherwise). The job then waits for your approval in the Actions tab.
+
+Each run, in order: build the console and the public site (`SITE_URL` per environment, the short
+commit as `BUILD_ID`, `CF_ANALYTICS_TOKEN` if set); `scripts/fill-wrangler.mjs` fills
+`__BUILD_ID__` and `__D1_ID__` in its own checkout (and refuses a malformed id or a placeholder
+left behind); `wrangler d1 migrations apply <db> --remote`; `wrangler deploy` for the API and
+console Worker, then the public site Worker; a smoke check that `/v1/health` on the API host
+answers this build's id, the console and `/openapi.json` answer, and the public site carries the
+build id. Runs of one environment queue, never overlap.
+
+The phones' debug builds point at `api.staging.dev.voysemble.cfd` and claim
+`staging.dev.voysemble.cfd` for sign-in links (slice 089), so one staging serves the console and
+the test phones.
+
+Still to build before staging is useful end to end: `CloudflareEmailPort` and its binding for
+staging and production, with the non-production allowlist (`EMAIL_ALLOWLIST`); until then a
+sign-in request on staging fails (500: the named environments bind no email transport), so the
+rehearsal (§8) waits for it.
+`FixtureEmailPort` stays for local and tests.
 
 ## 8. First staging deploy and rehearsal
 
-After the workflow lands, a push to `next` deploys. To deploy by hand once (from the repo root):
+Once §3–4 exist, the next push to `next` deploys staging (or run the workflow by hand with
+environment `staging`). Verify: the run summary says "Deployed <build> to staging" with the three
+hosts. To deploy by hand from a throwaway checkout instead, from its root (never from your
+working copy: the fill edits the configs in place):
 
 ```sh
 pnpm --filter @voysemble/organizer-web build
-cd apps/api-worker && pnpm exec wrangler deploy --env staging   # after the workflow's substitution
-cd ../public-web && SITE_URL=https://www.staging.dev.voysemble.cfd BUILD_ID=$(git rev-parse --short HEAD) pnpm build && pnpm exec wrangler deploy --env staging
+SITE_URL=https://www.staging.dev.voysemble.cfd BUILD_ID=$(git rev-parse --short HEAD) pnpm --filter @voysemble/public-web build
+node scripts/fill-wrangler.mjs apps/api-worker/wrangler.jsonc --build $(git rev-parse --short HEAD) --d1 <D1_ID_STAGING>
+node scripts/fill-wrangler.mjs apps/public-web/wrangler.jsonc --build $(git rev-parse --short HEAD)
+(cd apps/api-worker && pnpm exec wrangler d1 migrations apply voysemble-staging --env staging --remote && pnpm exec wrangler deploy --env staging)
+(cd apps/public-web && pnpm exec wrangler deploy --env staging)
 ```
 
 Set the GitHub secret `CF_ANALYTICS_TOKEN` only if you want Web Analytics on the public site;
@@ -182,7 +211,9 @@ openssl rand -base64 32 | pnpm exec wrangler secret put CARE_NOTE_KEY --env prod
 openssl rand -base64 32 | pnpm exec wrangler secret put MEDIA_KEY --env production
 ```
 
-Then approve the production job of the deploy workflow.
+Then run the deploy workflow with environment `production` and the confirmation (§7), and
+approve it when it waits for you. The workflow applies migrations itself; the command above is
+for the first time only, to see the schema land before any code does.
 
 Verify: `https://voysemble.com` serves the site; `https://app.voysemble.com` serves the sign-in;
 `https://api.voysemble.com/openapi.json` answers; a sign-in link arrives.

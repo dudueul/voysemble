@@ -27,7 +27,7 @@ class SessionManagerTest {
 
     @Test
     fun extract_token_from_link_or_bare_value() {
-        assertEquals(token, extractMagicToken("https://next.dev.voysemble.cfd/auth/verify#token=$token"))
+        assertEquals(token, extractMagicToken("https://staging.dev.voysemble.cfd/auth/verify#token=$token"))
         assertEquals(token, extractMagicToken("  $token \n"))
         assertNull(extractMagicToken("short"))
         assertNull(extractMagicToken("https://x/auth/verify?token=$token"))

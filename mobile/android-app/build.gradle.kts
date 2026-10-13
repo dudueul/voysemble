@@ -31,9 +31,9 @@ android {
 
     buildTypes {
         debug {
-            buildConfigField("String", "API_HOST", "\"api.next.dev.voysemble.cfd\"")
-            buildConfigField("String", "LINK_HOST", "\"next.dev.voysemble.cfd\"")
-            manifestPlaceholders["appLinkHost"] = "next.dev.voysemble.cfd"
+            buildConfigField("String", "API_HOST", "\"api.staging.dev.voysemble.cfd\"")
+            buildConfigField("String", "LINK_HOST", "\"staging.dev.voysemble.cfd\"")
+            manifestPlaceholders["appLinkHost"] = "staging.dev.voysemble.cfd"
         }
         release {
             isMinifyEnabled = true
